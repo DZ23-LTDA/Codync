@@ -145,6 +145,7 @@ assert.deepEqual(calls, ["role contributor", "notify <@42> ([octo](https://githu
 
 calls = stub({ held: ["reporter"] });
 const issue = { action: "opened", issue: { number: 5, html_url: "https://github.com/leepokai/Codync/issues/5", user: { id: 7, login: "octo" } } };
+links.set("issue:5", "{}"); // already in the forum (issues.test.ts covers the post)
 assert.equal(await hook("issues", issue), 204);
 assert.deepEqual(calls, []);
 
@@ -182,6 +183,7 @@ globalThis.fetch = (async (input: string, init?: RequestInit) => {
   const url = String(input);
   const page = url.match(/^https:\/\/api\.github\.com\/repos\/leepokai\/Codync\/releases\?per_page=100&page=(\d+)$/)?.[1];
   if (page) return Response.json(releases[Number(page) - 1] ?? []);
+  if (url.startsWith("https://api.github.com/repos/leepokai/Codync/issues?")) return Response.json([]);
   assert.equal(url, "https://discord.com/api/v10/channels/milestones/messages");
   if (!up) return new Response("down", { status: 503 });
   const body = JSON.parse(String(init?.body));
