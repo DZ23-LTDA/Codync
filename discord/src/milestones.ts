@@ -1,8 +1,7 @@
 // Milestones in #milestones, each posted once with @everyone and the way left to the goal: every 100th GitHub
 // star (from the repo webhook) and every 1,000th download of the desktop app (counted once a day).
 
-import { github, send } from "./guild.ts";
-import { json } from "./http.ts";
+import { githubAll, send } from "./guild.ts";
 import type { Env } from "./index.ts";
 
 export type Kind = "stars" | "downloads";
@@ -45,15 +44,8 @@ const INSTALLER = /\.(dmg|exe|appimage|deb|rpm)$|^codync-linux-.*\.tar\.gz$/i;
 
 /** Desktop app downloads across every release. */
 export async function downloads(env: Env): Promise<number> {
-  let total = 0;
-  for (let page = 1; ; page++) {
-    const releases = await json<{ assets: { name: string; download_count: number }[] }[]>(
-      `https://api.github.com/repos/${env.REPO}/releases?per_page=100&page=${page}`, github(env));
-    for (const { assets } of releases) {
-      total += assets.filter((a) => INSTALLER.test(a.name)).reduce((sum, a) => sum + a.download_count, 0);
-    }
-    if (releases.length < 100) return total;
-  }
+  const releases = await githubAll<{ assets: { name: string; download_count: number }[] }>(env, "releases");
+  return releases.flatMap((r) => r.assets).filter((a) => INSTALLER.test(a.name)).reduce((sum, a) => sum + a.download_count, 0);
 }
 
 const PITCH = "Codync: your coding agents, as teammates you can message. Free and open source.";
