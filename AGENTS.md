@@ -9,13 +9,17 @@
 - `cloud/`: Cloudflare accounts, encrypted relay, Durable Objects and D1; tests live in `cloud/test/`.
 - `relay/`: Cloudflare push worker and `test/`; `web/`: website (Next.js); `packaging/`: distribution templates; `docs/`: architecture and naming guidance.
 
+## Host owns the logic
+
+- Bot management, sessions, agent processes, MCP servers/connectors, routing, routines, memory, validation and anything heavy or needed by more than one client run in the Rust host (`host/`). The iPhone app, desktop app and terminal UI render host state and send intents through the host API; they keep only UI state and device-only work (mic/speech, Keychain, push decryption; desktop main process: host service, SSH, updates). A client that needs something the host lacks gets a new host method, never its own copy: [ownership rules](docs/architecture/overview.md#host-owns-the-logic).
+
 ## Build, Test, and Development Commands
 
 Run from the repository root unless a command changes directories:
 
 - `xcodegen generate --spec apps/project.yml`: regenerate `apps/Codync.xcodeproj` after editing `apps/project.yml`; never edit `project.pbxproj` directly.
 - Use Xcode’s `iOS Dev` scheme for development and `iOS` for production; see [Dev app isolation](docs/guides/dev-app.md).
-- `cd apps/desktop && npm ci && npm run dev`: run the desktop app; `npm run typecheck && npm test` for its CI checks.
+- `cd apps/desktop && npm ci && npm run dev`: run the desktop app while developing and for its e2e check (renderer reloads on save, restart after `src/main` or preload changes; unpackaged, unsigned). After a host change run `node tools/native-host.mjs dev` there first: `npm run dev` prefers that build over `host/target/debug`. Package `npm run dist:mac:dev` (about 45 s) only for what an unpackaged run lacks (bundled host install, Codync Screen / computer use, system permissions); `dist:*:main` only to check the production app. `npm run typecheck && npm test` for its CI checks.
 - `cd host && cargo build`: build the host; `cargo run -- serve` starts it in the foreground.
 - `cd host && cargo fmt --check && cargo clippy --all-targets -- -D warnings && cargo test`: run host CI checks.
 - `cd apps/ios/Kit && xcodebuild test -scheme CodyncKit-Package -destination 'platform=iOS Simulator,name=<any iPhone>'`: run the iPhone package tests.

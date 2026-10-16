@@ -38,6 +38,25 @@ The phone tries direct candidates first, with a 1.5-second connection race, then
 
 Cloud account metadata includes names, public keys, ownership and access state. Chat/channel contents and notification title/body are encrypted. Routing IDs, timing and sizes remain visible to the relevant service; “end-to-end encrypted” does not mean all metadata is hidden.
 
+## Host owns the logic
+
+Product logic and heavy work run once, in the Rust host. The iPhone app, the desktop app and the terminal UI are views over host state: logic in one client would need a copy in the others, and the copies drift.
+
+The host owns:
+
+- Bots, chats, sessions and agent processes: creating, configuring, starting, idling and resuming them.
+- MCP servers and connectors: installing them, parsing pasted configs, sign-in, and handing them to agents.
+- Conversation rules: groups, threads, mentions, collaboration and queueing.
+- Routines, memory, usage, bot order, voice-call credentials, remote screen signaling and push sealing.
+- Validation, state every client shows the same way, and anything that spawns processes or touches the computer's files.
+
+Clients keep:
+
+- Rendering, input and animation; UI-only state (drafts, scroll position, selection, open sheets); optimistic display that host events then confirm or replace.
+- Work only the device can do. On iPhone: microphone and speech, Keychain, APNs registration, push decryption in the notification extension, end-to-end channel crypto and widgets. In the desktop main process: installing and controlling the host service, SSH tunnels, the speech helper, Codync Screen registration and app updates.
+
+When a client needs data or behavior the host doesn't offer, add a host method or event (additive; see [compatibility](../reference/compatibility.md)) and use it from every client. Never rebuild it inside one client.
+
 ## Host execution
 
 `api/` and `remote/channel.rs` share dispatch and caller checks. `hub.rs` coordinates actors and event publication; `store/` persists mutations and the global revision. Clients catch up from `rev`, then follow events. Duplicate sends are identified by `clientNonce`.

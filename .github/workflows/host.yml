@@ -102,10 +102,15 @@ jobs:
           files: |
             codync-host-*.tar.gz
             codync-host-*.tar.gz.sha256
-            codync-host-*.update.json
-            codync-host-*.update.json.sig
             codync-host-*.compat.json
             codync-host-*.compat.json.sig
+      # The update manifest last: hosts offer the release once they see it, so the archive
+      # it points at must already be downloadable.
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            codync-host-*.update.json
+            codync-host-*.update.json.sig
 
   homebrew:
     # Keeps `brew install leepokai/codync/codync-host` (Linux, headless Macs) in step with releases.

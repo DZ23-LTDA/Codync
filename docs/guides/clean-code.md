@@ -12,7 +12,7 @@ Rules every change follows, in every part of the repository (host, iOS, desktop,
 
 - **One responsibility per file and per type.** If describing a file needs "and", it is two files. Name it after that responsibility, using the shared terms from file structure.
 - **Don't grow a large file.** New behavior in a file past ~500 lines goes into a new sibling module (Rust submodule, Swift extension file, React component/hook), not appended to it. When a change already touches a large file, move the part you are changing out first, as its own `refactor` commit.
-- **Layers stay in their lane.** Views render state and send intents; stores/models own state and logic; clients/transports own I/O. No networking, persistence or parsing in a SwiftUI view or React component. In the host, keep protocol parsing, decisions and side effects (db, process, network) apart so the decision part is a pure, unit-testable function.
+- **Layers stay in their lane.** Views render state and send intents; stores/models own state and logic; clients/transports own I/O. No networking, persistence or parsing in a SwiftUI view or React component. In the host, keep protocol parsing, decisions and side effects (db, process, network) apart so the decision part is a pure, unit-testable function. Across the apps, product logic lives in the host, not in any client: [host owns the logic](../architecture/overview.md#host-owns-the-logic).
 - **Small public surface.** Default to `private`/`fileprivate`, `pub(crate)` or no export; widen only when another module needs it.
 - **Dependencies point one way.** `CodyncKit` never imports `CodyncUI`; renderer code reaches the host only through `window.codync`; shared code never knows about a specific screen.
 

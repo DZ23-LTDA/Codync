@@ -120,8 +120,9 @@ release upgrade on each OS. They cover the state the UI renders (checking, downl
 percentage, staged, restarting, errors) and the labels of the shared update action,
 not the rendering itself.
 
-The release workflow publishes `latest-mac.yml` and `latest-linux*.yml` with the
-app archives. macOS build versions follow the marketing version; the iOS build
+The release workflow publishes `latest-mac.yml`, `latest.yml` and `latest-linux*.yml`
+after the app archives they point at, so an install never offers a release it can't
+download yet. macOS build versions follow the marketing version; the iOS build
 counter is independent. Installs of the SwiftUI Mac app that preceded the desktop
 app still read the Sparkle appcast; the release workflow generates one for the
 desktop zip, so those installs move to the desktop app.
@@ -207,8 +208,10 @@ workflow emits `codync-host-<platform>.update.json` and `.update.json.sig` along
 each archive. Signing fails if a private key does not match the committed public
 key. Never commit private keys or put them in command-line arguments.
 
-A published release must include these assets before clients can update. A
-missing feed or manifest is reported as a check failure; no unsigned fallback is
+A published release must include these assets before clients can update. Feeds and
+manifests are uploaded after the archives they point at. The desktop app treats a
+release without its platform's feed as nothing to install yet (its build is still
+uploading); a host reports a missing manifest as a check failure. No unsigned fallback is
 used. Building locally or configuring secrets does not publish a release.
 
 ## References

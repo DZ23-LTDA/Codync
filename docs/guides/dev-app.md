@@ -15,7 +15,7 @@ Desktop development and builds on macOS generate SF Symbols automatically, inclu
 | Desktop packaging | `npm run dist:<platform>:main` | `npm run dist:<platform>:dev` |
 | Foreground host | `CODYNC_ENV=main cargo run -- serve` | `cargo run -- serve` |
 
-`<platform>` is `mac`, `linux`, or `win`. Desktop `npm run dev` uses the development identity. An unpackaged run needs a matching development host binary (`host/target/debug/codync-host`, or `CODYNC_HOST_BIN`). On Linux, install a development host as `~/.local/bin/codync-dev-host`; the production binary remains `codync-host`.
+`<platform>` is `mac`, `linux`, or `win`. Desktop `npm run dev` uses the development identity. An unpackaged run needs a matching development host binary; it takes the first that exists of `CODYNC_HOST_BIN`, `apps/desktop/build/native/codync-host` (left by `dist:mac:dev`, or rebuilt alone with `node tools/native-host.mjs dev`) and `host/target/debug/codync-host`, so after a `dist:mac:dev` a plain `cargo build` isn't picked up. On Linux, install a development host as `~/.local/bin/codync-dev-host`; the production binary remains `codync-host`.
 
 Xcode configurations separate environment from optimization: `Debug` and `Release` use production; `DevDebug` and `DevRelease` use development. The `iOS` archive remains `Release`, preserving Xcode Cloud's existing production scheme. Configure schemes through `apps/project.yml`, then regenerate with `xcodegen generate --spec apps/project.yml`.
 
