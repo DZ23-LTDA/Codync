@@ -153,10 +153,13 @@ jobs:
         run: |
           cd apps/desktop/dist
           shasum -a 256 codync-macos.dmg > codync-macos.dmg.sha256
-          FILES="codync-macos.dmg codync-macos.dmg.sha256 codync-macos.zip codync-macos.zip.blockmap latest-mac.yml ../../../build/appcast.xml"
+          FILES="codync-macos.dmg codync-macos.dmg.sha256 codync-macos.zip codync-macos.zip.blockmap"
           # The host workflow may have created this release already (same tag).
           gh release create "$GITHUB_REF_NAME" $FILES --title "Codync $GITHUB_REF_NAME" --generate-notes ||
             gh release upload "$GITHUB_REF_NAME" $FILES --clobber
+          # Update feeds last: installed apps offer the release once they see them, so the files
+          # they point at must already be downloadable.
+          gh release upload "$GITHUB_REF_NAME" latest-mac.yml ../../../build/appcast.xml --clobber
 
       - name: Update Homebrew tap
         if: startsWith(github.ref, 'refs/tags/')
@@ -229,7 +232,11 @@ jobs:
             apps/desktop/dist/codync-windows-x64.exe
             apps/desktop/dist/codync-windows-x64.exe.sha256
             apps/desktop/dist/codync-windows-x64.exe.blockmap
-            apps/desktop/dist/latest.yml
+      # The update feed last, once the installer it points at is downloadable.
+      - uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: apps/desktop/dist/latest.yml
 
   linux:
     needs: check
@@ -270,6 +277,9 @@ jobs:
       - uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/tags/')
         with:
-          files: |
-            apps/desktop/dist/codync-${{ matrix.name }}.*
-            apps/desktop/dist/latest-linux*.yml
+          files: apps/desktop/dist/codync-${{ matrix.name }}.*
+      # The update feed last, once the packages it points at are downloadable.
+      - uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: apps/desktop/dist/latest-linux*.yml
