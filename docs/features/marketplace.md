@@ -78,14 +78,14 @@ The bot's runtime carries what the agent says (`fastModeSupport`, `fastModeIssue
 
 | `fastModeSupport` | Meaning |
 |---|---|
-| `unknown` | No session has listed its options yet. |
+| `unknown` | No session has listed its options yet. A session that lists no config options at all settles it as `unsupported`. |
 | `offered` | The agent offers it for the session's model. |
 | `unsupported` | The session's model doesn't (the chat gets an info notice while the bot asks for it). |
 | `refused` | The agent turned it off right after the bot asked, or despite the switch: Claude does this for an account without extra usage and appends the reason to the option's description, which becomes `fastModeIssue`. The host stops asking until the user changes the setting or the host restarts. |
 
 `offered` and `unsupported` are kept across host restarts (`fast-mode.<bot>` in the kv store); a refusal isn't, so a new host asks again.
 
-Clients show Fast mode for an agent bot whose runtime says `offered` or `refused`, or while it's on (so it can be turned off); never for a group:
+Clients show Fast mode for an agent bot unless its runtime says `unsupported` (an `unknown` bot may offer it; its first session settles it), and always while it's on (so it can be turned off); never for a group:
 
 - Composer: the `/fast` [command](#commands), not a button. The terminal UI also shows `⚡ fast` or `⚡ refused` in the chat header.
 - Bot settings: a Fast mode switch row under Model when the agent's model list offers it (never for a custom command), when the bot's own sessions do, or while it's on. While refused, its detail gives the reason. The terminal UI form always lists the field and notes when the agent doesn't offer it.
