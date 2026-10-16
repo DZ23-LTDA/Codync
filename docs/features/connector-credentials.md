@@ -60,8 +60,19 @@ Clients submit values through connectorRequestFinish. The host validates the
 request, destination, requesting bot and 24-hour expiry, stores credentials,
 verifies availability, enables the connector for that bot, and queues a non-secret
 acknowledgement in the original conversation/thread. Repeated completed submissions
-return the completed entry. Cancelled requests reject submissions. Verification
-failures remain pending so the user can correct credentials and retry.
+return the completed entry. Verification failures remain pending so the user can
+correct credentials and retry. Current clients offer no way to cancel a request
+(it stays until it's done); `cancel: true` remains for older clients, and a
+cancelled request rejects submissions.
+
+The host posts one more kind itself, `agent`: when a bot's own agent (Claude Code…)
+refuses a turn because it needs signing in, the chat gets a card naming the agent
+(`backend`) and the user messages it couldn't answer (`entryIds`) instead of an
+error. A bot keeps one such card; messages that fail later join it. The card's
+Sign in opens the agent's sign-in sheet from Extensions. As soon as a sign-in check
+(`agentAuth`, `agentAuthenticate`, `setAgentEnv`, or connectorRequestFinish on the
+card) finds the agent signed in, every pending card for it completes and its
+messages go out again; a card older than 24 hours only completes.
 
 MCP connection requests and runtime secret retrieval are loopback-only. Authorized
 Control devices may submit or cancel requests. No endpoint exposes a generic

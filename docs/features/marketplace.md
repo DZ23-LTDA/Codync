@@ -25,9 +25,19 @@ Skills follow the same rule: an installed or hand-written skill is turned on for
 
 Clicking a skill (an Extensions row, an installed skill, or the info button beside a skill's switch in bot settings; in the terminal, ↵ on a skill, or `i` on the bot form's Skills field) opens its details: the description and its instructions, with Add while it isn't installed. `skillDetails {id}` (installed) or `{source}` (catalog) returns `{markdown}`: the `SKILL.md` body without its front matter, at most 256 KB. The host looks names up in the installed list or the catalog cache, never as a path; the catalog fetch already downloads every `SKILL.md`, so the bodies stay in that cache. An Extensions row opens its details, or does what its button does when it has none (connectors open their install sheet).
 
-Typing `/` at the start of a message to a bot (desktop, iPhone, terminal; not in a group, where each member has its own skills) lists that bot's skills; picking one fills in `/<skill id> `. The host sees a message starting with `/<id of a skill the bot has on>` and hands the agent `[Codync: the user picked the "<name>" skill for this message. Read <path> first and follow it.]` followed by the rest of the message; the chat keeps the text as typed. Any other `/command` reaches the agent unchanged, so its own commands keep working. Clients show the menu and load skill instructions only from hosts 2.14.1 and newer.
-
 Registry-backed package connectors follow their upstream release. The host checks the Registry periodically after credentials are unlocked and checks again immediately before a package process starts. If a newer pinned npm, PyPI, OCI or NuGet reference is available, only that package/image argument is replaced; the running process is not interrupted, and the new version applies on its next launch. Network failures, missing packages and attempted downgrades leave the installed reference unchanged. Custom command connectors are never updated automatically.
+
+## Commands
+
+Typing `/` at the start of a message to a bot (desktop, iPhone, terminal; not in a group, where each member has its own agent and skills) lists that bot's commands, filtered by what follows the `/` (a command's name or title): the built-in ones first, then the skills the bot has on. Each row shows an icon, the title and what it does. The list floats above the box on the desktop (↑/↓ move the highlight, Tab or Return picks it, Escape hides the list until the draft changes, hover and click work too), sits inline above the box on the iPhone (a tap picks; it isn't a menu, so the system-menu rule doesn't apply), and is the highlighted list over the transcript in the terminal (↑/↓, Tab or ↵).
+
+| Command | Title | Does |
+| --- | --- | --- |
+| `/fast` | Fast mode | Switches [Fast mode](#fast-mode) with `updateBot`; listed only while the bot offers it. Its detail says what picking it does, or why the agent refused it (warning color). |
+| `/new` | New session | `newSession`: the agent starts over with a fresh context and the transcript stays. No confirmation, unlike the bot menu's New session, because typing the command is the confirmation. |
+| `/<skill id>` | the skill's name | Fills in `/<skill id> ` for the rest of the message. |
+
+Picking a built-in command, or sending a message that is just one (`/fast`, `/new`), runs it in the client and clears the box; nothing reaches the agent. Return on a skill whose name is already typed out sends the message. The host sees a message starting with `/<id of a skill the bot has on>` and hands the agent `[Codync: the user picked the "<name>" skill for this message. Read <path> first and follow it.]` followed by the rest of the message; the chat keeps the text as typed. Any other `/command`, including `/fast` for a bot without Fast mode on offer, reaches the agent unchanged, so its own commands keep working. Clients list skills and load skill instructions only from hosts 2.14.1 and newer.
 
 ## Sign-in for remote connectors (`host/src/market/oauth.rs`)
 
@@ -68,16 +78,16 @@ The bot's runtime carries what the agent says (`fastModeSupport`, `fastModeIssue
 
 | `fastModeSupport` | Meaning |
 |---|---|
-| `unknown` | No session has listed its options yet. |
+| `unknown` | No session has listed its options yet. A session that lists no config options at all settles it as `unsupported`. |
 | `offered` | The agent offers it for the session's model. |
 | `unsupported` | The session's model doesn't (the chat gets an info notice while the bot asks for it). |
 | `refused` | The agent turned it off right after the bot asked, or despite the switch: Claude does this for an account without extra usage and appends the reason to the option's description, which becomes `fastModeIssue`. The host stops asking until the user changes the setting or the host restarts. |
 
 `offered` and `unsupported` are kept across host restarts (`fast-mode.<bot>` in the kv store); a refusal isn't, so a new host asks again.
 
-Clients show Fast mode for an agent bot whose runtime says `offered` or `refused`, or while it's on (so it can be turned off); never for a group:
+Clients show Fast mode for an agent bot unless its runtime says `unsupported` (an `unknown` bot may offer it; its first session settles it), and always while it's on (so it can be turned off); never for a group:
 
-- Composer: the desktop shows a ⚡ button next to +: filled while on, tinted with the warning color while refused (its tooltip gives the reason). The iPhone adds a Fast mode item to the + menu and a ⚡ badge on the + button while on. The terminal UI shows `⚡ fast` or `⚡ refused` in the chat header and toggles with `F`.
+- Composer: the `/fast` [command](#commands), not a button. The terminal UI also shows `⚡ fast` or `⚡ refused` in the chat header.
 - Bot settings: a Fast mode switch row under Model when the agent's model list offers it (never for a custom command), when the bot's own sessions do, or while it's on. While refused, its detail gives the reason. The terminal UI form always lists the field and notes when the agent doesn't offer it.
 
 ## Secure connection setup
