@@ -22,12 +22,17 @@ its own context and compacts it itself.
   lives with the tool (MCP server instructions, tool descriptions), not here. They're stored as a snapshot in `kv` under `context.<bot>`, keyed by **session + compaction
   epoch**, and don't change until one of those changes. This keeps the prompt byte-identical so the prompt
   cache stays warm.
-- **Claude** (`agentCapabilities._meta.claudeCode` present) receives the snapshot as a real system prompt:
-  `_meta.systemPrompt.append` on `session/new` and `session/load`. It survives compaction.
-- **Other harnesses** receive it in the first message of each session (`<bot-profile>…</bot-profile>`).
+- How the snapshot reaches the agent (`Instructions` in `agent/bot`):
+  - **Claude** (`agentCapabilities._meta.claudeCode` present) receives it as a real system prompt:
+    `_meta.systemPrompt.append` on `session/new` and `session/load`. It survives compaction.
+  - **An agent advertising ACP `sessionCapabilities.systemPrompt`** receives it as `systemPrompt`
+    (`append`) on `session/new`, `session/load` and `session/fork`, and keeps it across compaction.
+  - **Every other harness** receives it in the first message of each session (`<bot-profile>…</bot-profile>`),
+    and once more, marked as replacing the earlier one, on the first message after a compaction.
 - **Compaction epoch:** Codync advertises `clientCapabilities.session.compaction`. Each completed
-  `compaction_update` (deduplicated by `compactionId`) increments `context.epoch.<bot>`. The next turn
-  re-renders the snapshot, and Claude's session is loaded again with the new system prompt. The adapter
+  `compaction_update` (deduplicated by `compactionId`) increments `context.epoch.<bot>`; for an agent that has
+  never sent one, so does its `usage_update.used` falling below half of a previous value of at least 20k. The
+  next turn re-renders the snapshot, and Claude's session is loaded again with the new system prompt. The adapter
   rebuilds its query and resumes the same conversation.
 - **Profile edits mid-session** (name, description, skills) are sent once as an `<agent_profile_update>` block
   appended to the next message. After that turn reaches the agent, the change is recorded in
@@ -88,8 +93,8 @@ the `codync-mem` crate; `chat/memory` runs them in the host.
 
 ## Limits
 
-- Harnesses other than Claude have no system prompt channel and don't report compaction. For them, the first
-  message carries the instructions and the snapshot only refreshes when a new session starts.
+- An agent without ACP `systemPrompt` gets the instructions as a user message, which models follow less firmly
+  than system text. Memory a bot or dreaming wrote reaches it after its next compaction or in a new session.
 - Compaction is the harness's own. Codync can't choose what survives it, only re-apply its instructions
   afterwards.
 - A session a harness has deleted (for example, one cleaned up after a month) can't be resumed. The bot
