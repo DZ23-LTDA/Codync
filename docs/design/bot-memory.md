@@ -192,6 +192,24 @@ larger one read on demand ([research](bot-memory-research.md#lessons-across-syst
 | The bot writes | Memory tools | With its own file tools, or `edit_memory` |
 | Checked | Before the write | Before the write through `edit_memory`; at turn end for its own edits |
 
+**What lives where, and why.** The split isn't raw versus summary. The transcript (every word, the source of truth)
+and the cards (the fewest facts) are both in `codync.db`; the files sit between them, detail organized by topic.
+They aren't conversation summaries: Codync writes none of its own, and a harness's compaction summary is kept as a
+transcript entry.
+
+- **Cards and the transcript need more than one file's atomicity.** A rename replaces one file atomically, but a
+  card write commits the card, `rev` and the chat's "Remembered" line together, and the transcript has concurrent
+  writers (the user, a streaming reply, routines, dreaming) whose read-modify-write a rename doesn't serialize.
+  Files would also need `fsync` on the file and its folder, a retry when Windows refuses to rename a file another
+  process holds open, and a whole-file rewrite for every streamed update. SQLite is built from those same file
+  system parts, already assembled. Search speed isn't the reason: the transcript search is a scan.
+- **A card is one row**, so it can point at its source message, be undone, pinned or superseded on its own, and be
+  checked before it's written. A file is prose the bot changes a sentence at a time with Edit.
+- **A file is its note's only live copy, not a pointer into the database.** The bot reads it from disk (Read or
+  `read_memory`); its index line in the opening comes from its frontmatter. `memory_file_versions` is history taken
+  by the scan, for undo and authorship, and can trail the file until the turn ends. Cards reach the bot through the
+  opening, from `codync.db`.
+
 **Paths and format.**
 
 - `<data>/shared-memory/` belongs to the shared layer; `<data>/bots/<id>/bot-memory/` to one bot. Not `memory/`:
