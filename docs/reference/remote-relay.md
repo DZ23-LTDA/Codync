@@ -424,7 +424,7 @@ Channel 訊息與 DO 訊息的 `t` 值不重疊：channel 只有 `hello`/`welcom
 ### 7.6 心跳、重連、限流
 
 - 心跳：host 與 device 每 30 秒送 `{"t":"ping"}`（中繼）；直連時 host 每 15 秒送 WebSocket Ping frame，client 45 秒沒收到任何資料視為斷線。
-- DO alarm：只要有 socket 或 mailbox 項目就每 60 秒一次：host socket 的 `ctx.getWebSocketAutoResponseTimestamp()` 超過 90 秒 → 以 `1011` 關閉並標記離線；清除過期 mailbox（通知 `mbox.expired`）與過期 nonces。
+- DO alarm：只要有 socket 或 mailbox 項目就每 60 秒一次：任何 socket（host 與 device）的 `ctx.getWebSocketAutoResponseTimestamp()` 超過 90 秒 → 以 `1011` 關閉；host 標記離線，device 通知 host `close` 該 link。device 也要關：送往不再讀取的 peer 的資料會卡在佇列，DO 因此無法 hibernate、整段被計 duration，直到 TCP 斷線（常是數小時）。清除過期 mailbox（通知 `mbox.expired`）與過期 nonces。
 - 重連退避：host 1 s 起倍增至 60 s、device 1 s 起倍增至 30 s，皆 full jitter；穩定 60 秒後重置。
 - `4100 paired` → 立即以一般模式重連（§4.1）。
 - 不重試的 close code：`4001 unauthorized`、`4003 revoked`、`4410 pairingExpired`（device 顯示需重新授權）；`4009 replaced` → host 等 5 分鐘再試並記錄 `error`（可能有人複製了 `identity.json`）；`4400 unsupportedVersion` → 顯示需要更新。
