@@ -3,7 +3,9 @@
 Status (2026-10-17): rollout steps 1 and 2 are built in 2.18.0 (store, move from Engram, writes by permission,
 checks, dreaming, all three apps); how it works today is in [context and memory](../features/context-and-memory.md).
 Step 3 (cache-safe opening and compaction) and the public mirror are next. The numbers are starting values to be
-tuned against the [evaluation](#evaluation).
+tuned against the [evaluation](#evaluation). A third research pass (2026-10-18) proposes long-form memory as
+Markdown files next to the cards, and ACP's `systemPrompt` and `additionalDirectories` for every harness:
+[bot memory research](bot-memory-research.md). Not decided yet.
 
 Built differently from the plan below, for now:
 
@@ -65,7 +67,8 @@ Reading the current implementation turned up these problems.
 
 ## Patterns explored
 
-Two research passes on 2026-10-17 compared:
+Two research passes on 2026-10-17 compared the following; a third pass on how open-source agents mix files and a
+database, embeddings, and harness instructions is in [bot memory research](bot-memory-research.md).
 
 - **Products:** ChatGPT, Claude, Grok (Grok Bot, Grok Build), Gemini, Codex, Claude Code, Cursor, Amp, Factory,
   OpenClaw, Hermes, Letta, Mem0, Zep/Graphiti.
