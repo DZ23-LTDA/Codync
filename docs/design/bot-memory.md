@@ -66,7 +66,7 @@ Two research passes on 2026-10-17 compared:
 
 | Pattern | Seen in | What we found | For Codync |
 |---|---|---|---|
-| Agent-managed memory through tools | Letta/MemGPT core memory, Engram MCP, Hermes | Agents forget to call the tool, or say "remembered" without calling it. Tool writes bypass any review. Letta shared blocks are last-write-wins. | Not the main writer. The bot writes only into its own layer, follows its permission mode, and every write is visible with undo. |
+| Agent-managed memory through tools | Letta/MemGPT core memory, Engram MCP, Hermes | Agents forget to call the tool, or say "remembered" without calling it. Tool writes bypass any review. Letta shared blocks are last-write-wins. | Not the main writer. The bot's writes follow its permission mode, and every write is visible with undo. |
 | Background extractor | Mem0, ChatGPT saved memories, our keeper | One background writer is the consensus. Mem0 went add-only in April 2026 because reconciliation "was where context got destroyed". | Kept as **dreaming**, limited to add and archive. |
 | Small profile always in context | ChatGPT saved memories, Claude memory summary, Hermes `MEMORY.md`/`USER.md` | Reliable, because nothing depends on the model deciding to look. Needs a size cap. Hermes' 2,200-character cap caused silent fact loss. | **Adopted** for active memory, capped in tokens. |
 | Retrieval on demand | Vector RAG, our former "context" section | A community evaluation found about 60% of failures were the agent never searching. | Only for archived memory and the transcript. |
@@ -88,7 +88,7 @@ Two research passes on 2026-10-17 compared:
 Cross-scope bleed is the most common complaint everywhere. A 738-point r/ChatGPT thread: "memory is great until
 it quietly carries an assumption from three chats ago into something unrelated. a per-chat toggle would fix most
 of it". Codync's shape follows Claude Projects: per-bot memory plus a shared "yours" layer that each bot can switch
-off. Only the user and dreaming write "yours".
+off. The user, dreaming and bots in `Auto` write "yours", and each entry names who wrote it.
 
 ### Consensus we design to
 
@@ -163,14 +163,11 @@ Placement:
 
 - **The user, in the UI**: writes directly.
 - **The bot**, through its memory tool, follows the bot's permission mode (`Permission`):
-  - `Auto`, the default for new bots: the write goes straight into this bot's layer. The chat shows a
-    "Remembered" line with undo, and the entry is marked as written by the bot.
+  - `Auto`, the default for new bots: the write goes straight in, to this bot's layer or to "yours", in any turn.
+    The lane where it happened shows a "Remembered" line with undo, and the memory screen lists the entry with
+    the bot that wrote it.
   - `Ask`: the write becomes a confirm card in all three clients, and accepting it is a UI write. An explicit
     "remember …" the user typed (not pasted) is written directly in both modes.
-  - The bot never writes "yours" directly. That layer reaches every bot, which is more than one bot's permission
-    covers. Dreaming or the user promotes an entry there.
-  - The tool exists only in turns the user started: the main chat, a thread, or a room message addressed to the
-    bot. Turns started by a routine, a webhook or another bot can't write memory, because no user is behind them.
 - **Dreaming**: proposes. It is the only background writer, and it also records an explicit "remember …" the user
   typed when the bot didn't call its tool. It may merge or archive bot-written entries, never the user's own.
 
@@ -202,9 +199,10 @@ Source policy:
 | Bot-to-bot requests | Never. They also never read another bot's private layer. |
 | Bot output, routines, webhooks, files, web pages | Never |
 
-The table governs dreaming. In `Auto`, the bot decides what it writes during a turn the user started, including
-from what it read there. That is the risk `Auto` accepts, bounded by the bot's own layer, the visible line with
-undo, the hard checks and dreaming's later review.
+The table governs dreaming. In `Auto`, the bot decides what it writes, in any turn and from anything it read,
+including turns a routine, a webhook or another bot started. That is the risk `Auto` accepts, bounded by the
+visible line with undo, the hard checks and dreaming's later review. A bot that shouldn't see what others write
+can switch "yours" off.
 
 ### Dreaming
 
@@ -425,7 +423,7 @@ Engram fits its own goal: one coding agent's memory of its own work. The mismatc
 |---|---|
 | One database per bot; a `personal` scope stays inside it | A "yours" layer shared by all bots |
 | Engram owns every write; Codync reads the pinned schema read-only | The gate, provenance with cascade delete, revisions, tombstones and dream undo, all inside Codync |
-| The agent writes through Engram's tools, unseen and unlabeled | Bot writes land in its own layer, follow its permission mode, and show with undo |
+| The agent writes through Engram's tools, unseen and unlabeled | Bot writes follow its permission mode, name the bot, and show with undo |
 | A separate process per bot; downloaded on first use; a lost acknowledgement means a write can't be retried safely | Memory that is as reliable as the host |
 | Separate from `rev` | Memory and `rev` written in one transaction |
 
@@ -546,7 +544,7 @@ Still unknown, to check locally before step 3 of the rollout:
 - acknowledgement-only quotes are rejected;
 - the ¼ guard and the 10-operation limit;
 - tombstones never resurrect;
-- bot writes never reach "yours", and no memory tool exists in routine, webhook or bot-started turns;
+- an `Ask` bot's write never lands without a confirmation;
 - cascade on message delete;
 - the temporal flip;
 - the `rev` precondition;
@@ -606,7 +604,7 @@ Each step ships on its own.
    - Add the Codex keep-list via `compact_prompt`, and profile re-send after compaction and resume.
    - Add the summary card and the editable handoff.
    - Assert cache tokens in e2e.
-4. **Turn on the shared "yours" layer.** Dreaming may write to it, labeled with the bot that learned it.
+4. **Turn on the shared "yours" layer.** Dreaming and `Auto` bots may write to it, labeled with the bot that learned it.
 
 ## Sources
 
