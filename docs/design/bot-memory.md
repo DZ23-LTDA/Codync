@@ -1,11 +1,11 @@
 # Bot memory and compaction
 
-Status (2026-10-17): rollout steps 1 and 2 are built in 2.18.0 (store, move from Engram, writes by permission,
-checks, dreaming, all three apps); how it works today is in [context and memory](../features/context-and-memory.md).
-Step 3 (cache-safe opening and compaction) and the public mirror are next. The numbers are starting values to be
-tuned against the [evaluation](#evaluation). A third research pass (2026-10-18) proposes long-form memory as
-Markdown files next to the cards, and ACP's `systemPrompt` and `additionalDirectories` for every harness:
-[bot memory research](bot-memory-research.md). Not decided yet.
+Status (2026-10-18): the cards, the move from Engram, writes by permission, the checks, dreaming and all three
+apps are built in 2.18.0 (M0); how it works today is in [context and memory](../features/context-and-memory.md).
+The plan from there is in [Rollout](#rollout): instructions for every harness (M1), the cache-safe opening and
+compaction (M2), long-form memory files (M3), evaluation (M4) and the public mirror (M5). The research behind it
+is in [bot memory research](bot-memory-research.md). The numbers are starting values to be tuned against the
+[evaluation](#evaluation).
 
 Built differently from the plan below, for now:
 
@@ -17,7 +17,7 @@ Built differently from the plan below, for now:
   don't feed dreaming.
 - Entries show who wrote them, not a link to the message they were learned from. The bot can follow it:
   `search_memory` returns each entry's source messages, and `search_history` reads back from a message id.
-- Until step 3, a change the user makes still re-renders the opening (and reloads a Claude session), and the
+- Until M2, a change the user makes still re-renders the opening (and reloads a Claude session), and the
   notice carries the whole memory rather than a delta.
 
 In one line: **memory records the person, the transcript stays in the host, the opening stays frozen until
@@ -173,8 +173,63 @@ Placement:
 
 - **Active** memory is placed in full in the session opening.
 - **Archived** memory is out of the prompt and searchable with FTS5 trigram, which also handles Chinese.
-- Past a cap, dreaming merges or archives entries.
+- Past a cap, dreaming moves detail into a long-form file or archives entries.
 - Project knowledge stays in the harness's files (`AGENTS.md`, `CLAUDE.md`).
+
+### Long-form memory
+
+Cards hold what a reply goes wrong without. Detail that matters only when its topic comes up lives in Markdown
+files the bot reads and edits with its own tools: every system studied keeps a small always-loaded layer and a
+larger one read on demand ([research](bot-memory-research.md#lessons-across-systems)).
+
+| | Cards | Long-form files |
+|---|---|---|
+| Holds | Name, time zone, allergies, "don't …" | One topic's detail: people, health, plans, trips |
+| Home | `memory_entries` | `shared-memory/*.md` and `bots/<id>/bot-memory/*.md`; versions in `memory_file_versions` |
+| Cap | 400 + 1,200 tokens; 150 per entry | 20 files per folder; 2,000 tokens per file |
+| In the opening | In full | An index: path, description, size |
+| The bot reads | — | With its own file tools, or `read_memory` |
+| The bot writes | Memory tools | With its own file tools, or `edit_memory` |
+| Checked | Before the write | Before the write through `edit_memory`; at turn end for its own edits |
+
+**Paths and format.**
+
+- `<data>/shared-memory/` belongs to the shared layer; `<data>/bots/<id>/bot-memory/` to one bot. Not `memory/`:
+  the move from the old memory deletes `bots/<id>/memory` on every start.
+- File names are lowercase ASCII slugs (`[a-z0-9-]+.md`), one level deep. The title inside can be any language.
+  Unicode and case variants of a name would otherwise become duplicate notes (Basic Memory #1275, #1281).
+- Every file starts with frontmatter whose `description:` says when to read it. It becomes the file's index line.
+- Only regular `.md` files count. Symlinks, hidden files and subfolders are ignored, so a link can't make the host
+  read, journal or restore another file.
+- An index or a file over its cap is marked in the opening and the apps, never cut.
+
+**The scan.** At the end of every turn, before an opening is rendered and when an app asks, the host scans the
+folders the bot can see:
+
+1. Unchanged mtime and size skip a file. One modified in the last 2 s waits for the next scan.
+2. A SHA-256 different from the recorded version is a change. A folder that went missing is not "every file
+   deleted".
+3. The change runs the same checks as every other write (hidden characters, prompt links, planted instructions,
+   secrets), plus the caps and the description.
+4. It becomes a new version holding the full content. Its author is the bot whose tool call touched that path
+   since the last version, otherwise "this computer".
+5. A change that fails a check is restored to the previous version and the chat says why. A change that drops more
+   than a quarter of the file is kept, flagged in the chat, and can be undone.
+
+**Host writes** (the apps, `edit_memory`, dreaming) are compare-and-swap: re-read the hash, write a temporary file
+in the same folder, rename it over the note. A note that changed meanwhile isn't overwritten; the write fails, a
+scan records the other change, and the write is retried on top of it. The host never reformats a file
+(Basic Memory's own rewrites duplicated frontmatter, #1171).
+
+**Permission.** The bot's own file edits go through the harness's permission requests, which an `Ask` bot shows as
+cards and an `Auto` bot approves. `edit_memory` follows `Permission` like `remember`.
+
+**Dreaming** may append to a file, or move detail from a full card layer into one, under the same evidence rules.
+It never rewrites a file.
+
+**Scope and lifecycle.** A bot that doesn't use the shared layer sees neither `shared-memory/` in its index nor the
+folder itself. Deleting a bot deletes its folder and versions, and "Forget everything" deletes a layer's files
+with their versions. Deleting one file through the apps or the bot keeps it as a version that can be restored.
 
 ### Writers and the gate
 
@@ -298,6 +353,50 @@ It stays byte-identical until compaction or a new session.
 - **Settings isolation.** Consider `settingSources: []` or `["project"]`. The adapter default
   `["user","project","local"]` loads the user's own `~/.claude/CLAUDE.md` and settings into every bot.
 
+### Instructions in every harness
+
+Codync runs 27 harnesses. The opening, with the bot's identity and memory, reaches each through the best channel
+it offers (`Instructions` in `agent/bot`):
+
+1. **Claude: `_meta.systemPrompt`**, as above. claude-agent-acp 0.92 also advertises ACP's `systemPrompt`, but it
+   rebuilds that field without the object options (`excludeDynamicSections`), so Claude stays on `_meta`.
+2. **ACP `systemPrompt`** ([Client-Provided System Prompt](https://github.com/agentclientprotocol/agent-client-protocol/blob/main/docs/rfds/client-system-prompt.mdx),
+   unstable): when an agent advertises `sessionCapabilities.systemPrompt`, the opening goes as
+   `{"mode": "append", "content": [text]}` on `session/new`, `session/load` (the session's current snapshot) and
+   `session/fork` (the main session's). The agent keeps it at system level, across compaction.
+3. **Every other agent: the first message.** A `<bot-profile>` block precedes the first prompt of a new session.
+   After a compaction the next prompt carries a fresh one that says it replaces any earlier profile, so the agent
+   never holds two versions that disagree. The compaction is the agent's `compaction_update`, or, for an agent
+   that never sent one, its `usage_update.used` falling below half of a previous value of at least 20k.
+
+Measured 2026-10-18 at `initialize`:
+
+| Agent | `systemPrompt` | `additionalDirectories` |
+|---|---|---|
+| claude-agent-acp 0.92.0 | Yes | Yes |
+| codex-acp 2.2.2 | No | Yes |
+| OpenCode 1.19 | No | No |
+| Copilot CLI | No | No |
+
+codex-acp reports compactions (`compaction_update`). Codex keeps the user's newest ~20k tokens of messages
+through a compaction, so a first-message profile survives
+short sessions and is the first thing dropped in long ones. In a real run past that budget (two 15k-token
+messages, then `/compact`), Codex still knew the bot's name and the user's allergy afterwards, from its summary;
+the re-sent profile makes that independent of what the summary keeps. codex-acp also reads
+`_meta.jetbrains.air.customInstructions` on `session/new` as Codex developer instructions. It isn't used: it is one
+vendor's extension, and it isn't re-sent on `session/load`.
+
+**File access.** The memory folders a bot can see go as `additionalDirectories` on every session request, when
+the agent advertises the capability (M3). Agents that can't reach them read and write through `read_memory` and
+`edit_memory`.
+
+**The harness's own memory.** For a bot in its own workspace, Codync turns each harness's own memory off where it
+can, so the bot has one memory and it is visible:
+
+| Harness | Its own memory | Turned off by |
+|---|---|---|
+| Claude Code | Auto memory, auto-dream | `autoMemoryEnabled: false`, `CLAUDE_CODE_DISABLE_AUTO_MEMORY=1`, `autoDreamEnabled: false` |
+
 ### Compaction
 
 The harness writes the summary, because it knows the work: files read, todos, tool results. The host decides
@@ -399,14 +498,21 @@ The adapter passes `claudeCode.options.settings` and `.env` through untouched, s
 
 ### Storage
 
-Host SQLite, one transaction per change, every change stamped with `rev`. The tables:
+Host SQLite (`codync.db`), one transaction per change, every change stamped with `rev`. The `codync-mem` tables:
 
-- `memories`: layer, active/archived, source, room, pin, dates, evidence message ids;
-- `revisions`;
-- `tombstones` (hash only);
-- `ledger`;
-- `dream_runs`;
-- an FTS5 trigram index.
+- `memory_entries`: the cards, with layer, active/archived, author and writing bot, room, pin, dates and evidence
+  message ids;
+- `memory_tombstones`: hashes of forgotten text;
+- `memory_dreams` and `memory_dream_changes`: the dream log;
+- `memory_files` and `memory_file_versions` (M3): each long-form file's path, layer, hash, size, mtime,
+  description and tokens, and every version's full content, author and cause;
+- `memory_meta`: the schema version.
+
+The transcript is the host's own `entries` table: it is the chat itself, which the apps sync by `rev` and which
+changes in place while a reply streams. Search is a substring scan. When one bot's search passes a second, its
+text moves to a plain column and an FTS5 trigram index with a CJK bigram column takes over: measured over 180k
+messages, the scan took 0.50 s, ripgrep over the same text 0.013 s, and the trigram index 0.002 s after a 26 s
+build.
 
 ### UI (all three clients)
 
@@ -418,6 +524,10 @@ Host SQLite, one transaction per change, every change stamped with `rev`. The ta
 - **The dream log** with undo.
 - **Entry actions:** edit, pin, forget, and forget everything.
 - **For project bots**, the project `MEMORY.md`, read-only.
+- **Long-form memory** under each layer's cards: the files with name, description, size and date, an over-cap
+  mark, and a detail view to read, edit, and restore any version. The desktop app can open a file in the user's
+  editor.
+- **In the chat**, an "Updated people.md" line with the diff and undo, and why a blocked change was restored.
 - **In the chat**, a summary card after compaction, and an editable handoff draft at rollover.
 
 ### Deliberately not built
@@ -426,7 +536,7 @@ Each of these has a trigger for adding it later.
 
 | Not built | Add it when |
 |---|---|
-| Vectors | Full-text search stops finding things |
+| Vectors | Keyword search and the bot's own rephrasing miss real cases; then a local model only, and a model change rebuilds the index |
 | Knowledge graph | — |
 | Project or team tiers | — |
 | Multi-computer sync | — |
@@ -480,8 +590,9 @@ The memory system is built as a self-contained crate, `codync-mem`, so other ACP
   - It can inject deltas and observe `usage_update` and `compaction_update`.
   - It can't set the opening. The [proxy chains RFD](https://agentclientprotocol.com/rfds/proxy-chains) (Draft)
     says proxies "cannot directly modify an agent's system prompt".
-  - That waits for the [Client-Provided System Prompt RFD](https://agentclientprotocol.com/rfds/client-system-prompt)
-    (Draft, 2026-10-09), which adds `systemPrompt {mode, content}` to new, load, resume and fork.
+  - That waits for the [Client-Provided System Prompt RFD](https://github.com/agentclientprotocol/agent-client-protocol/blob/main/docs/rfds/client-system-prompt.mdx),
+    which adds `systemPrompt {mode, content}` to new, load, resume and fork. It is in the schema behind an
+    unstable feature (PR #2361), and claude-agent-acp 0.92 advertises it.
   - It can't separate what the user typed from what the client injected, so its gate is weaker.
   - It has no UI; a CLI covers review and undo.
   - Dreaming and compaction run between turns on the user's quota.
@@ -546,7 +657,7 @@ What the research answered:
    - In 2.1.300 only `systemPromptSnapshot: false` or `CLAUDE_CODE_SIMPLE` turn it off.
    - Installed versions: Claude Code 2.1.301 and adapter 0.92.0 (SDK 0.3.300).
 
-Still unknown, to check locally before step 3 of the rollout:
+Still unknown, to check locally before M2:
 
 - **Partial compaction:** how "Summarize from here" treats the recorded prompt.
 - **2.1.301:** the installed binary wasn't searched, only the 2.1.300 binary bundled in the SDK.
@@ -598,32 +709,39 @@ Also log the cache read/write ratio per turn and assert on it in e2e.
 
 ## Rollout
 
-Each step ships on its own.
+Each milestone ships as its own minor release, with an e2e pass on all three apps.
 
-1. **Store, migration, gate.**
-   - Create `host/crates/memory` in the standalone shape from [Packaging](#packaging); open the mirror when this
-     step ships.
-   - Add the new tables and migrate Engram and Markdown memory in one pass.
-   - Add the gate with pasted-span tagging in all three composers, the source policy and the sensitive-data rules.
-   - Add the bot's memory tool: direct writes with undo in `Auto`, confirm cards in `Ask`.
-   - Turn off auto memory and auto-dream for personal bots, and auto-dream for project bots.
-   - Show two layers on the memory screens of all three clients. If an API field is removed, raise `minApp`
-     ([compatibility](../reference/compatibility.md)).
-2. **Dreaming replaces the keeper.**
-   - Proposal, audit and evidence ids.
-   - The `rev` precondition, operation and ¼ limits, and rate-limit headroom.
-   - The time review.
-   - The dream log with undo, and cascade on message delete.
-   - Move automatic naming's trigger to turn end.
-3. **Cache-safe opening and compaction.**
-   - Remove the reload; send the `_meta.systemPrompt` object with `excludeDynamicSections`; fork re-sends it.
-   - Add the ledger and deltas.
-   - Read usage and the TTL.
-   - Add the three triggers with the loop guard and the before/after steps.
-   - Add the Codex keep-list via `compact_prompt`, and profile re-send after compaction and resume.
-   - Add the summary card and the editable handoff.
-   - Assert cache tokens in e2e.
-4. **Turn on the shared "yours" layer.** Dreaming and `Auto` bots may write to it, labeled with the bot that learned it.
+- **M0. Cards, dreaming, the move from Engram (2.18.0, built).**
+  - `host/crates/memory` in the standalone shape from [Packaging](#packaging); the tables; the move from Engram
+    and Markdown memory in one pass.
+  - The gate with pasted-span tagging in all three composers, the source policy and the sensitive-data rules.
+  - The bot's memory tools: direct writes with undo in `Auto`, confirm cards in `Ask`; the shared "yours" layer.
+  - Claude Code's auto memory off for personal bots, auto-dream off for all.
+  - Dreaming: proposal, audit, evidence ids, the `rev` precondition, limits, headroom, the time review, the log
+    with undo. Automatic naming at turn end.
+  - Two layers on the memory screens of all three clients; `minApp` 2.18.0.
+- **M1. Instructions for every harness.**
+  - ACP `systemPrompt` where advertised; the first-message profile again after a compaction elsewhere, the
+    compaction inferred from usage when the agent doesn't report it.
+  - Each harness's own memory turned off for personal bots where it can be.
+- **M2. Cache-safe opening and compaction.**
+  - Remove the reload; send the `_meta.systemPrompt` object with `excludeDynamicSections`; fork re-sends it.
+  - The ledger and deltas.
+  - Usage and the TTL; the three triggers with the loop guard and the before/after steps.
+  - The keep-list: Claude through `/compact`, Codex through `compact_prompt`.
+  - The summary card, the editable handoff and its history bookmark.
+  - Cache tokens asserted in e2e.
+- **M3. Long-form memory.**
+  - The folders, the naming and cap rules, `memory_files` and `memory_file_versions`.
+  - The turn-end scan, versions, checks and restore; compare-and-swap host writes.
+  - The index in the opening; `read_memory`, `edit_memory`, and `search_memory` over files;
+    `additionalDirectories`.
+  - Dreaming appends and moves detail out of full card layers.
+  - The files, versions and "Updated" lines in all three clients.
+- **M4. Evaluation and tuning.** The scripted regression below, plus questions answered only by a long-form file,
+  short CJK queries and planted instructions; tune the caps and dreaming from it, and decide FTS5 and vectors by
+  their triggers.
+- **M5. The public mirror.** `leepokai/codync-mem`, synced on every release, as under [Packaging](#packaging).
 
 ## Sources
 

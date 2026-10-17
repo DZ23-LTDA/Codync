@@ -8,8 +8,8 @@ first two passes are summarized in that doc's [Patterns explored](bot-memory.md#
 - What does each harness do with Codync's instructions when it compacts, and what does ACP standardize?
 
 Claims come from reading source unless marked **docs** (stated in a project's docs) or **inferred**. Issue
-numbers are the projects' GitHub issues. Nothing here is decided: the proposals are in
-[What this means for Codync](#what-this-means-for-codync).
+numbers are the projects' GitHub issues. The conclusions in [What this means for Codync](#what-this-means-for-codync)
+were adopted on 2026-10-18; the design itself is in [bot memory and compaction](bot-memory.md).
 
 ## Short answers
 
@@ -184,7 +184,7 @@ logic locally.
 - Every other harness gets them as a `<bot-profile>` block in the first message of a new session
   (`host/src/agent/bot/turn.rs`). Compaction bumps the epoch and asks dreaming to run, but the profile isn't sent
   again. If a harness drops that first message when it compacts, the bot loses its instructions and memory cards,
-  and memory written meanwhile reaches it only in a new session. Rollout step 3 lists the re-send.
+  and memory written meanwhile reaches it only in a new session. M1 adds the re-send.
 
 ### Codex
 
@@ -197,6 +197,11 @@ logic locally.
   codex-acp merges a `CODEX_CONFIG` JSON into the session config. A profile delivered there should survive
   compaction on its own (**inferred**). `CODEX_CONFIG` is set when the agent process starts, so per-session values
   need checking. The remote compaction path wasn't read.
+- codex-acp also reads `_meta.jetbrains.air.customInstructions` on `session/new` as developer instructions
+  (`src/AirExtension.ts`), but not on `session/load`.
+- Measured with codex-acp 2.2.2 (2026-10-18): a profile, two ~15k-token user messages, `/compact` (context use
+  55.7k → 32.8k), then "what is your name and what is the user allergic to?". With the profile in the first message
+  and with it in `customInstructions`, Codex answered both correctly, so its summary carried the profile this time.
 
 ### Other harnesses
 
@@ -233,7 +238,7 @@ writes a global `GEMINI.md`); Codync turns off only Claude Code's.
 
 ## What this means for Codync
 
-Proposed, not decided.
+Adopted on 2026-10-18 as milestones M1–M5 of [bot memory and compaction](bot-memory.md#rollout).
 
 **Three layers, one home each:**
 
@@ -282,17 +287,13 @@ fallback for 1–2 character terms. Embeddings wait for the trigger above, with 
    `edit_memory` on Codync's memory MCP server.
 3. Built-in memory: survey each harness and turn its own memory off for personal bots, as for Claude Code.
 
-**Open decisions:**
+**Decided (2026-10-18):**
 
-- May bots edit memory files with their own tools (checked at turn end), or only through memory tools (checked
-  before the write)? Native edits are recommended: they match the `Auto` rule and Claude needs no ToolSearch.
-- The per-bot folder name (`bot-memory/` proposed).
-- Whether this ships with rollout step 3 or before it.
+- Bots edit memory files with their own tools, checked at turn end; `edit_memory` is there for harnesses that
+  can't reach the folders.
+- The folders are `shared-memory/` and `bots/<id>/bot-memory/`.
+- Order: instructions for every harness (M1), then the cache-safe opening and compaction (M2), then the files (M3).
 
-**To verify:**
-
-- Codex: a conversation past 20k tokens of user messages, compacted, then asked for its name and memory, with the
-  profile in the first message and in `developer_instructions`.
-- Claude, Codex, Gemini CLI, OpenCode and Cursor reading and writing both folders through `additionalDirectories`.
-- Which agents advertise `systemPrompt`.
+**Verified at `initialize` (2026-10-18):** claude-agent-acp 0.92.0 advertises `systemPrompt` and
+`additionalDirectories`; codex-acp 2.2.2 only `additionalDirectories`; OpenCode 1.19 and Copilot CLI neither.
 - Each harness's own memory feature and how to turn it off.
