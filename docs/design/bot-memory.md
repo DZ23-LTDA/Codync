@@ -19,6 +19,12 @@ Built differently from the plan below, for now:
   `search_memory` returns each entry's source messages, and `search_history` reads back from a message id.
 - A memory notice carries the whole memory (at most 1,600 tokens) rather than a delta: a forgotten entry leaves
   no row to diff against, and a whole copy also replaces whatever an earlier notice said.
+- The cache's lifetime is learned from turns that come after a pause (most of the input read from cache, or
+  not); until a bot has one, Claude on a subscription counts as an hour and everything else as five minutes.
+- The host compacts only Claude and Codex ahead of time; other harnesses keep their own timing. Codex's
+  compaction line in the chat has no summary, since Codex reports none; its handoff is built from the chat.
+- The handoff card appears as soon as a rollover is due, not when the user returns, so it can be edited before
+  the message that sends it.
 
 In one line: **memory records the person, the transcript stays in the host, the opening stays frozen until
 compaction, and the host decides when to compact.**

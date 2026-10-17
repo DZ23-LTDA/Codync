@@ -82,6 +82,29 @@ the `codync-mem` crate; `chat/memory` runs them in the host.
   profile and pinned facts first, then the newest), the rest archived; then the old files (deleted bots' too) and
   the Engram download go. Dreaming starts from that point in the chat.
 
+## Compaction and rollover (`host/src/agent/bot/compaction.rs`, rules in `codync_mem::compaction`)
+
+- **What the host records**, per session in `kv` (`compaction.<bot>.<session>`): context use and window size
+  from `usage_update`, compactions, and when turns end. How long the provider keeps prompts cached is learned
+  from turns that came after a pause (`cache.life.<bot>`); until then it is an hour for Claude on a subscription
+  and five minutes otherwise. Each turn's cached read and write tokens are logged (`turn usage`).
+- **Compacting ahead of time**, in the bot's own chat only (never threads, rooms, routines or bot requests):
+  - at the end of a turn past three quarters of the window or 200k tokens, whichever is less;
+  - while idle, with a one-hour cache and over 100k in use, five minutes before the cache expires.
+
+  It runs as a hidden turn: dreaming first, then the opening rendered again (a Claude session reloads only when
+  it changed), then `/compact <keep-list>` for Claude, or `/compact` for Codex, whose keep-list is its
+  `CODEX_CONFIG` `compact_prompt`. Other harnesses compact on their own. The keep-list is also in the opening.
+- **Loop guard:** after three host compactions in a day, or one that left 60% of the trigger in use, or one
+  fewer than five turns ago, the host rolls over instead of compacting again.
+- **Rollover:** also due when a conversation over 100k went cold (its cache expired) or after eight hours away
+  with three compactions behind it. A handoff card appears in the chat (`chat/handoff.rs`): the last summary,
+  the user's last four messages, the last reply, the open plan, and a bookmark for `search_history`. The user can
+  edit it (`editHandoff`) or keep the conversation (`keepConversation`); otherwise their next message there starts
+  a new session that begins with it.
+- **After every compaction** the chat shows "Earlier context was summarized to make room." Its `compaction`
+  field carries Claude's summary, which the apps show when expanded, and which the next handoff starts from.
+
 ## Turns
 
 - Messages sent while the agent works are folded into one next turn, joined by blank lines.
@@ -98,9 +121,9 @@ the `codync-mem` crate; `chat/memory` runs them in the host.
 ## Limits
 
 - An agent without ACP `systemPrompt` gets the instructions as a user message, which models follow less firmly
-  than system text. Memory a bot or dreaming wrote reaches it after its next compaction or in a new session.
-- Compaction is the harness's own. Codync can't choose what survives it, only re-apply its instructions
-  afterwards.
+  than system text.
+- The harness writes every summary. Codync chooses when the bot's own chat compacts and what it asks the summary
+  to keep, and re-applies the instructions afterwards; it can't make a harness keep anything.
 - A session a harness has deleted (for example, one cleaned up after a month) can't be resumed. The bot
   starts fresh, but its memory remains.
 - Memory search is a substring scan, not semantic vectors. Voice transcripts aren't marked yet, so dreaming
