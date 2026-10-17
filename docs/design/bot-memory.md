@@ -465,14 +465,30 @@ ACP status as of 2026-10:
 - The crate lives at `host/crates/memory`, as a member of a `[workspace]` added to `host/Cargo.toml`.
 - The build output stays in `host/target`, so `npm run dev` and packaging are unaffected.
 - CI runs `cargo clippy --workspace`.
-- No git submodule and no separate repository for now, because core and host will change together. Split it out
-  when one of these happens:
-  - outside users file issues or PRs against it;
-  - its API stops changing with host changes for a few months;
-  - the proxy gains users.
-  
-  `git subtree split` or `git filter-repo --subdirectory-filter host/crates/memory` keeps the history.
-- Publish 0.1 to crates.io, with the proxy, only after Codync runs on it.
+- **Codync is the source of truth.** Core and host will change together for months, since memory and `rev`
+  commit in one transaction, so the crate is developed only here. No git submodule.
+- **A read-only public mirror, `leepokai/codync-memory`,** gives outside developers a repository of their own.
+  - On every push to `main` that touches `host/crates/memory`, CI runs
+    `git subtree split --prefix=host/crates/memory` and pushes the result to the mirror's `main`.
+  - The split is deterministic, so the push always fast-forwards as long as nobody commits to the mirror.
+  - Issues are filed on the mirror. PRs go to Codync's `dev`: a bot answers a PR opened on the mirror with that
+    pointer and closes it.
+- **The crate builds on its own**, because the mirror is a plain copy of its folder:
+  - its `Cargo.toml` inherits nothing from the workspace (lints, edition and version are written out);
+  - its CI lives in `host/crates/memory/.github/workflows/`. GitHub reads only the root `.github`, so the CI is
+    inert in Codync and runs once the folder is the mirror's root;
+  - it re-exports `rusqlite` and documents the supported version. Callers pass their own connection, and one build
+    can't link two `rusqlite` versions to `sqlite3`;
+  - it has its own README and LICENSE (Apache-2.0).
+- The crate has its own 0.x versions, separate from Codync's.
+- Open the mirror when rollout step 1 ships (the host calls the crate), marked 0.x with an unstable API. Publish
+  0.1 to crates.io, with the proxy, only after Codync runs on it.
+- **Flip later.** When outside users send PRs, the API stops changing with host changes for a few months, or the
+  proxy gains users:
+  - stop the sync and develop in the mirror;
+  - switch Codync to the crates.io release and delete `host/crates/memory`.
+
+  The mirror already holds the history, so nothing moves.
 
 ## Verification status
 
@@ -553,6 +569,8 @@ Also log the cache read/write ratio per turn and assert on it in e2e.
 Each step ships on its own.
 
 1. **Store, migration, gate.**
+   - Create `host/crates/memory` in the standalone shape from [Packaging](#packaging); open the mirror when this
+     step ships.
    - Add the new tables and migrate Engram and Markdown memory in one pass.
    - Add the gate with pasted-span tagging in all three composers, the source policy and the sensitive-data rules.
    - Add confirm cards.
