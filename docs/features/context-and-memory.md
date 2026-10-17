@@ -66,8 +66,10 @@ the `codync-mem` crate; `chat/memory` runs them in the host.
   nor do bare acknowledgements. It only adds and archives, at most 10 changes and never more than a quarter of
   the entries, and drops a run when the user edited memory meanwhile. It waits while the plan's usage is above
   75%. Every run is logged and can be undone; what an undo removes isn't learned again.
-- **Claude Code's own memory** is off for bots in their own workspace (`autoMemoryEnabled: false`,
-  `CLAUDE_CODE_DISABLE_AUTO_MEMORY`); auto-dream is off for every bot. A project bot's `MEMORY.md` shows
+- **The harness's own memory** is off for bots in their own workspace and for background jobs
+  (`agent/own_memory.rs`): Claude Code (`autoMemoryEnabled: false`, `CLAUDE_CODE_DISABLE_AUTO_MEMORY`), Copilot
+  (its memory tools excluded), Qwen Code (workspace settings) and CodeBuddy. Claude Code's auto-dream is off for
+  every bot. Gemini CLI, Kilo Code and Kiro have no switch Codync can use. A project bot's `MEMORY.md` shows
   read-only on its memory screen.
 - **The apps** (iPhone, desktop, terminal) show "About you", "This bot", the dream log and the project's notes,
   with add, edit, pin, archive, forget and forget-everything. They fetch with `memory` and fetch again when the

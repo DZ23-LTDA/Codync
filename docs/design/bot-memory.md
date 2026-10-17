@@ -390,12 +390,21 @@ vendor's extension, and it isn't re-sent on `session/load`.
 the agent advertises the capability (M3). Agents that can't reach them read and write through `read_memory` and
 `edit_memory`.
 
-**The harness's own memory.** For a bot in its own workspace, Codync turns each harness's own memory off where it
-can, so the bot has one memory and it is visible:
+**The harness's own memory.** For a bot in its own workspace, and for every background job, Codync turns each
+harness's own memory off where it can, so the bot has one memory and it is visible (`agent/own_memory.rs`,
+surveyed 2026-10-18):
 
-| Harness | Its own memory | Turned off by |
+| Harness | Its own memory | What Codync does |
 |---|---|---|
 | Claude Code | Auto memory, auto-dream | `autoMemoryEnabled: false`, `CLAUDE_CODE_DISABLE_AUTO_MEMORY=1`, `autoDreamEnabled: false` |
+| Copilot CLI | Copilot Memory, on for individual plans | `--excluded-tools=store_memory,vote_memory` |
+| Qwen Code | Auto memory and its own dreaming, on | `.qwen/settings.json` in the workspace: `memory.enableManagedAutoMemory` and `enableManagedAutoDream` false |
+| CodeBuddy | Auto memory | `CODEBUDDY_DISABLE_AUTO_MEMORY=1` |
+| Codex, Goose, Grok, oh-my-pi, Qoder, Cortex | Off unless the user turns it on | Nothing |
+| Gemini CLI | Its system prompt has the model edit `~/.gemini/GEMINI.md` | Nothing: no switch short of replacing its system prompt or its home folder |
+| Kilo Code | Memory tools, on per project | Nothing: the only per-process switch replaces the whole config |
+| Kiro | Memory with a global setting | Nothing: no per-workspace key |
+| OpenCode, Cursor, Kimi, Amp, Cline, Droid, Devin, others | None found | Nothing |
 
 ### Compaction
 
