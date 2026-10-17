@@ -48,9 +48,11 @@ the `codync-mem` crate; `chat/memory` runs them in the host.
   its own workspace uses "yours" by default and one in a project folder doesn't; the user switches it per bot
   (`sharedMemory`).
 - **The opening** holds every active entry the bot sees, pinned first, within the caps, with ids so the bot can
-  revise or archive one. Archived entries stay searchable (`search_memory`). A change the user makes reaches
-  each session on its next message as a `<memory_update>` with the whole memory; what a bot or dreaming wrote
-  reaches other sessions at their next compaction or new session.
+  revise or archive one. Archived entries stay searchable (`search_memory`). The opening doesn't change for a
+  memory change, so the prompt cache holds: every change (the user's, a bot's, dreaming's) reaches each session of
+  the bots that see it on its next message as a `<memory_update>` with the whole memory. The session whose own
+  tool call made the change isn't told. A ledger in `kv` keeps, per session, the revision its opening holds and
+  the one it has heard; after a compaction the second falls back to the first, so whatever is newer is told again.
 - **The bot's tools** (built-in `memory` MCP server): `remember`, `revise_memory`, `archive_memory`,
   `search_memory`, `search_history`. A bot on automatic approval writes at once, in any turn and to either layer;
   the chat shows a "Remembered" line the user can undo. A bot that asks first shows a card the user approves or

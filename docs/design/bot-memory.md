@@ -17,8 +17,8 @@ Built differently from the plan below, for now:
   don't feed dreaming.
 - Entries show who wrote them, not a link to the message they were learned from. The bot can follow it:
   `search_memory` returns each entry's source messages, and `search_history` reads back from a message id.
-- Until M2, a change the user makes still re-renders the opening (and reloads a Claude session), and the
-  notice carries the whole memory rather than a delta.
+- A memory notice carries the whole memory (at most 1,600 tokens) rather than a delta: a forgotten entry leaves
+  no row to diff against, and a whole copy also replaces whatever an earlier notice said.
 
 In one line: **memory records the person, the transcript stays in the host, the opening stays frozen until
 compaction, and the host decides when to compact.**

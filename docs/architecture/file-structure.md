@@ -82,7 +82,7 @@ Codync/
 | CLI and background service | `host/src/main.rs`, `service/` |
 | API, caller permissions, event ordering | `host/src/api/`, `hub.rs` |
 | SQLite transcript, bots, lanes and sessions | `host/src/store/` (`entries.rs`, `bots.rs`, `model.rs`, `devices.rs`, `schema.rs`) |
-| Agent process, ACP, queue and session lifecycle | `host/src/agent/bot/` (`queue.rs`, `session.rs`, `turn.rs`, `updates.rs`), `acp.rs` |
+| Agent process, ACP, queue and session lifecycle | `host/src/agent/bot/` (`launch.rs`, `queue.rs`, `session.rs`, `turn.rs`, `updates.rs`), `acp.rs` |
 | Group room turns / bot-to-bot requests | `host/src/chat/group.rs` / `team.rs` |
 | Prompt snapshots and memory | `host/src/chat/context.rs`, `memory/` (`api.rs`, `tools.rs`, `notices.rs`, `dream.rs`, `import.rs`); the rules in `host/crates/memory` (`codync-mem`); harnesses' own memory turned off in `host/src/agent/own_memory.rs` |
 | Identity, encryption and direct channel | `host/src/remote/identity.rs`, `crypto.rs`, `channel.rs` |
