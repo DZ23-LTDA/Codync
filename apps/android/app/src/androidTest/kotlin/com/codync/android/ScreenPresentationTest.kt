@@ -1,0 +1,102 @@
+package com.codync.android
+
+import android.graphics.Bitmap
+import android.os.Build
+import android.view.KeyEvent
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Density
+import androidx.compose.ui.test.*
+import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.test.platform.app.InstrumentationRegistry
+import com.codync.android.core.*
+import com.codync.android.design.CodyncSheet
+import org.junit.Assert.*
+import org.junit.Assume.assumeTrue
+import org.junit.Before
+import org.junit.Rule
+import org.junit.Test
+import java.io.File
+
+/** The real root's sheets and Android Back dispatch, on read-only fixtures. */
+class ScreenPresentationTest {
+    @get:Rule val compose = createComposeRule()
+    private val bot = Bot("presentation-fixture", "Scout")
+    private fun fixture() = AppState(contextId = "presentation-fixture", loading = false,
+        setupComplete = true, rosterLoaded = true, bots = listOf(bot),
+        computers = listOf(Computer("fixture-computer", "Fixture computer", "fixture-key")),
+        account = AccountState(ready = true, configured = true, multiple = true, userId = "fixture-account",
+            accounts = listOf(SavedAccount("fixture-account", "fixture-session", "alex@example.test", null))))
+
+    @Before fun isolatedEmulatorOnly() { assumeTrue(Build.PRODUCT.startsWith("sdk")) }
+
+    @Test fun backPopsAccountSettingsAndNestedPairingOneLayerAtATime() {
+        compose.setContent { Hosted { CodyncApp(fixture(), viewModel()) } }
+        compose.onNodeWithContentDescription("Switch account").performClick()
+        compose.onNodeWithText("Account").assertIsDisplayed()
+        snapshot("account-sheet")
+        compose.onNodeWithText("Computers").performClick()
+        compose.onNodeWithText("Computers & settings").assertIsDisplayed()
+        back()
+        compose.onNodeWithText("Computers & settings").assertDoesNotExist()
+        compose.onNodeWithText("Account").assertIsDisplayed()
+        compose.onNodeWithText("Computers").performClick()
+        compose.onNodeWithText("Pair a computer").performScrollTo().performClick()
+        compose.onNodeWithText("Install Codync", substring = true).assertIsDisplayed()
+        back()
+        compose.onNodeWithText("Install Codync", substring = true).assertDoesNotExist()
+        compose.onNodeWithText("Computers & settings").assertIsDisplayed()
+        back()
+        compose.onNodeWithText("Account").assertIsDisplayed()
+        back()
+        compose.onNodeWithText("Account").assertDoesNotExist()
+        compose.onNodeWithText(bot.name).assertIsDisplayed()
+    }
+
+    @Test fun closingTheEditorDropsItsDraftAndANewGenerationRetiresIt() {
+        val state = mutableStateOf(fixture().copy(selectedBot = bot.id, historyComplete = setOf(bot.id)))
+        compose.setContent { Hosted { CodyncApp(state.value, viewModel()) } }
+        compose.chatAction("Edit profile")
+        compose.onNodeWithText("Settings").assertIsDisplayed()
+        compose.onNodeWithContentDescription("Save").assertIsNotEnabled()
+        compose.onNode(hasSetTextAction() and hasText(bot.name)).performTextReplacement("Discard this draft")
+        snapshot("bot-settings-sheet")
+        compose.onNodeWithContentDescription("Close").performClick()
+        compose.onNodeWithText("Settings").assertDoesNotExist()
+        compose.chatAction("Edit profile")
+        compose.onNode(hasSetTextAction() and hasText(bot.name)).assertIsDisplayed()
+        compose.runOnUiThread { state.value = state.value.copy(generation = state.value.generation + 1) }
+        compose.onNodeWithText("Settings").assertDoesNotExist()
+    }
+
+    @Test fun largeTextKeepsSettingsActionsAndCompactOptionsWithinTheSheet() {
+        val draft = BotDraft(id = bot.id, name = bot.name, cwd = "/projects/A-long-project-name")
+        compose.setContent {
+            val density = LocalDensity.current
+            CompositionLocalProvider(LocalDensity provides Density(density.density, 1.5f)) {
+                Hosted { CodyncSheet(true, {}) { BotEditor(fixture(), draft, viewModel()) } }
+            }
+        }
+        val title = compose.onNodeWithText("Settings").assertIsDisplayed().fetchSemanticsNode().boundsInRoot
+        val save = compose.onNodeWithContentDescription("Save").assertIsDisplayed().fetchSemanticsNode().boundsInRoot
+        val close = compose.onNodeWithContentDescription("Close").assertIsDisplayed().fetchSemanticsNode().boundsInRoot
+        assertTrue(title.right < save.left && save.right <= close.left)
+        val screen = compose.onRoot().fetchSemanticsNode().boundsInRoot
+        listOf("Agent: Claude", "Workspace", "Permissions: Approve automatically").forEach { label ->
+            val row = compose.onNodeWithContentDescription(label).performScrollTo().assertIsDisplayed().fetchSemanticsNode().boundsInRoot
+            assertTrue(row.left >= screen.left && row.right <= screen.right)
+        }
+        compose.onNode(hasText("Notifications") and isToggleable()).performScrollTo().assertIsOn().performClick().assertIsOff()
+        snapshot("bot-settings-large-text")
+    }
+
+    private fun back() = InstrumentationRegistry.getInstrumentation().sendKeyDownUpSync(KeyEvent.KEYCODE_BACK)
+    private fun snapshot(name: String) {
+        if (InstrumentationRegistry.getArguments().getString("layoutSnapshots") != "true") return
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        val screenshot = instrumentation.uiAutomation.takeScreenshot()
+        File(instrumentation.targetContext.cacheDir, "$name.png").outputStream().use { screenshot.compress(Bitmap.CompressFormat.PNG, 100, it) }
+    }
+}
