@@ -66,7 +66,7 @@ Two research passes on 2026-10-17 compared:
 
 | Pattern | Seen in | What we found | For Codync |
 |---|---|---|---|
-| Agent-managed memory through tools | Letta/MemGPT core memory, Engram MCP, Hermes | Agents forget to call the tool, or say "remembered" without calling it. Tool writes bypass any review. Letta shared blocks are last-write-wins. | Not the main writer. A bot's proposal becomes a confirm card. |
+| Agent-managed memory through tools | Letta/MemGPT core memory, Engram MCP, Hermes | Agents forget to call the tool, or say "remembered" without calling it. Tool writes bypass any review. Letta shared blocks are last-write-wins. | Not the main writer. The bot writes only into its own layer, follows its permission mode, and every write is visible with undo. |
 | Background extractor | Mem0, ChatGPT saved memories, our keeper | One background writer is the consensus. Mem0 went add-only in April 2026 because reconciliation "was where context got destroyed". | Kept as **dreaming**, limited to add and archive. |
 | Small profile always in context | ChatGPT saved memories, Claude memory summary, Hermes `MEMORY.md`/`USER.md` | Reliable, because nothing depends on the model deciding to look. Needs a size cap. Hermes' 2,200-character cap caused silent fact loss. | **Adopted** for active memory, capped in tokens. |
 | Retrieval on demand | Vector RAG, our former "context" section | A community evaluation found about 60% of failures were the agent never searching. | Only for archived memory and the transcript. |
@@ -161,13 +161,21 @@ Placement:
 
 ### Writers and the gate
 
-- **The user, in the UI**: writes directly. This is the only direct write.
-- **The bot**: proposes. A proposal appears as a confirm card in all three clients, and accepting it is a UI write.
-- **Dreaming**: proposes. It is the only automatic writer, and it also records an explicit "remember …" the user
-  typed when the bot didn't call its tool.
+- **The user, in the UI**: writes directly.
+- **The bot**, through its memory tool, follows the bot's permission mode (`Permission`):
+  - `Auto`, the default for new bots: the write goes straight into this bot's layer. The chat shows a
+    "Remembered" line with undo, and the entry is marked as written by the bot.
+  - `Ask`: the write becomes a confirm card in all three clients, and accepting it is a UI write. An explicit
+    "remember …" the user typed (not pasted) is written directly in both modes.
+  - The bot never writes "yours" directly. That layer reaches every bot, which is more than one bot's permission
+    covers. Dreaming or the user promotes an entry there.
+  - The tool exists only in turns the user started: the main chat, a thread, or a room message addressed to the
+    bot. Turns started by a routine, a webhook or another bot can't write memory, because no user is behind them.
+- **Dreaming**: proposes. It is the only background writer, and it also records an explicit "remember …" the user
+  typed when the bot didn't call its tool. It may merge or archive bot-written entries, never the user's own.
 
-Every proposal is audited only against **the user's own words**. These checks are deterministic code in the core,
-not another model's judgment.
+These checks are deterministic code in the core, not another model's judgment. Dreaming proposals pass all of
+them. Bot writes, in either mode, pass the last two (instruction-like content and sensitive data) and the cap.
 
 - **Evidence must be user-authored.** Each item quotes the user verbatim and cites at least one message id.
   - The quote must appear in a user-authored span.
@@ -194,6 +202,10 @@ Source policy:
 | Bot-to-bot requests | Never. They also never read another bot's private layer. |
 | Bot output, routines, webhooks, files, web pages | Never |
 
+The table governs dreaming. In `Auto`, the bot decides what it writes during a turn the user started, including
+from what it read there. That is the risk `Auto` accepts, bounded by the bot's own layer, the visible line with
+undo, the hard checks and dreaming's later review.
+
 ### Dreaming
 
 **Schedule.**
@@ -208,6 +220,7 @@ Source policy:
 - It uses a fresh, tool-free context on the bot's cheapest model. The keeper already does this: `tools: []`, Haiku.
 - It reads the transcript from a bookmark forward.
 - Untrusted and system-provenance spans are stripped before the proposal prompt (OpenClaw does the same).
+- It reads the current entries, bot-written ones included, and doesn't add what is already there.
 
 **Pipeline.**
 
@@ -383,7 +396,8 @@ Host SQLite, one transaction per change, every change stamped with `rev`. The ta
 - **Two sections**, "About you" and the bot's own. Each entry shows where it was learned, with a link to the
   message.
 - **A per-bot switch** for "yours".
-- **Confirm cards** for bot proposals and voice-only memories.
+- **Bot writes:** a "Remembered" line with undo in the chat (`Auto`), or a confirm card (`Ask`). Voice-only memories
+  also get a confirm card.
 - **The dream log** with undo.
 - **Entry actions:** edit, pin, forget, and forget everything.
 - **For project bots**, the project `MEMORY.md`, read-only.
@@ -411,7 +425,7 @@ Engram fits its own goal: one coding agent's memory of its own work. The mismatc
 |---|---|
 | One database per bot; a `personal` scope stays inside it | A "yours" layer shared by all bots |
 | Engram owns every write; Codync reads the pinned schema read-only | The gate, provenance with cascade delete, revisions, tombstones and dream undo, all inside Codync |
-| The agent gets Engram's write tools directly | Every non-UI write passes the gate |
+| The agent writes through Engram's tools, unseen and unlabeled | Bot writes land in its own layer, follow its permission mode, and show with undo |
 | A separate process per bot; downloaded on first use; a lost acknowledgement means a write can't be retried safely | Memory that is as reliable as the host |
 | Separate from `rev` | Memory and `rev` written in one transaction |
 
@@ -532,6 +546,7 @@ Still unknown, to check locally before step 3 of the rollout:
 - acknowledgement-only quotes are rejected;
 - the ¼ guard and the 10-operation limit;
 - tombstones never resurrect;
+- bot writes never reach "yours", and no memory tool exists in routine, webhook or bot-started turns;
 - cascade on message delete;
 - the temporal flip;
 - the `rev` precondition;
@@ -573,7 +588,7 @@ Each step ships on its own.
      step ships.
    - Add the new tables and migrate Engram and Markdown memory in one pass.
    - Add the gate with pasted-span tagging in all three composers, the source policy and the sensitive-data rules.
-   - Add confirm cards.
+   - Add the bot's memory tool: direct writes with undo in `Auto`, confirm cards in `Ask`.
    - Turn off auto memory and auto-dream for personal bots, and auto-dream for project bots.
    - Show two layers on the memory screens of all three clients. If an API field is removed, raise `minApp`
      ([compatibility](../reference/compatibility.md)).
