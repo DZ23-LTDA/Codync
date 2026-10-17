@@ -24,6 +24,7 @@ class AppStore(application: Application) : AndroidViewModel(application) {
     private var contextJob = SupervisorJob(viewModelScope.coroutineContext[Job])
     internal var contextScope = CoroutineScope(contextJob + Dispatchers.Main.immediate)
     internal val transitions = Mutex()
+    internal val screenTakeovers = Mutex()
     internal var cloud: CloudClient? = null
     private var sessionJob: Job? = null
     internal var linkJob: Job? = null
@@ -110,11 +111,7 @@ class AppStore(application: Application) : AndroidViewModel(application) {
         widgetOwner = null
         WidgetRefreshWorker.stop(getApplication())
         try { CodyncWidgets.update(getApplication()) } catch (_: Exception) { }
-        val call = voiceBinding; voiceBinding = null; voiceGeneration = null
-        val callId = state.value.voice?.id
-        mutableState.update { it.copy(voice = null) }
-        if (callId != null) VoiceService.stop(getApplication(), callId)
-        call?.session?.end(); call?.session?.awaitEnd()
+        retireVoice()
         val writers = actions.values.toList()
         writers.forEach { it.cancel() }; writers.forEach { it.join() }
         PushDelivery.retire(getApplication())
@@ -179,13 +176,12 @@ class AppStore(application: Application) : AndroidViewModel(application) {
         val retainedDraftFiles = state.value.drafts.values.flatMap { it.files }.map { it.path }.toSet()
         val retired = state.value.pending.filter { old -> snapshot.pending.none { it.nonce == old.nonce } }.flatMap { it.files }.filter { it.path !in retainedDraftFiles }
         withContext(Dispatchers.IO) { retired.forEach(attachments::discard) }
+        // Like iOS, a screen state this app can't read is a host without remote screen.
+        val screen = snapshot.screen?.let { runCatching { ScreenState.decode(it) }.getOrNull() }
         mutableState.update { current -> current.copy(bots = snapshot.bots, entries = snapshot.entries,
-            pending = snapshot.pending, usage = snapshot.usage, mirrorRevision = snapshot.rev,
+            pending = snapshot.pending, usage = snapshot.usage, screen = screen, mirrorRevision = snapshot.rev,
             selectedBot = current.selectedBot?.takeIf { id -> snapshot.bots.any { it.id == id } }) }
-        voiceBinding?.let { call ->
-            if (snapshot.bots.none { it.id == call.botId && !it.deleted }) endVoice("Voice chat ended because its bot was removed.")
-            else for (reply in call.replies.observe(snapshot.entries)) call.session.speak(reply)
-        }
+        speakToCall(snapshot.entries, snapshot.bots)
         if (PushPreferences.tasks(getApplication())) {
             val feed = TaskFeed(local.directory)
             val watched = withContext(Dispatchers.IO) { feed.all().filter { !it.finished }.map { it.botId }.toSet() }
@@ -245,7 +241,7 @@ class AppStore(application: Application) : AndroidViewModel(application) {
 
     override fun onCleared() {
         state.value.voice?.id?.let { VoiceService.stop(getApplication(), it) }
-        voiceBinding?.session?.end()
+        voiceBinding?.engine?.end()
         channel?.close()
         val old = database
         val retiring = contextJob
