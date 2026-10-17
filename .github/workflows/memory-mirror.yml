@@ -1,0 +1,36 @@
+# Mirrors host/crates/memory to leepokai/codync-mem, read-only (docs/design/bot-memory.md#packaging). The split is
+# deterministic, so each push fast-forwards the mirror as long as nobody commits there.
+name: codync-mem mirror
+
+on:
+  push:
+    branches: [main]
+    paths: ["host/crates/memory/**"]
+
+concurrency:
+  group: memory-mirror
+  cancel-in-progress: false
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Split the crate's history
+        run: git subtree split --prefix=host/crates/memory -b mirror
+      - name: Push it to the mirror
+        env:
+          # A deploy key with write access on leepokai/codync-mem.
+          KEY: ${{ secrets.CODYNC_MEM_DEPLOY_KEY }}
+        run: |
+          if [ -z "$KEY" ]; then
+            echo "::notice::CODYNC_MEM_DEPLOY_KEY isn't set, so the mirror isn't updated."
+            exit 0
+          fi
+          mkdir -p ~/.ssh
+          printf '%s\n' "$KEY" > ~/.ssh/mirror
+          chmod 600 ~/.ssh/mirror
+          GIT_SSH_COMMAND="ssh -i ~/.ssh/mirror -o StrictHostKeyChecking=accept-new" \
+            git push git@github.com:leepokai/codync-mem.git mirror:main
