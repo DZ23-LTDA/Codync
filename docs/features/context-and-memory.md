@@ -2,6 +2,7 @@
 
 How a bot keeps its instructions, context and long-term memory. Engram owns durable memory; Codync manages
 capture, recall and the keeper. The ACP harness owns the conversation and compaction.
+A replacement is proposed in [bot memory and compaction](../design/bot-memory.md) (not implemented).
 
 ## Transcript, context and memory
 
