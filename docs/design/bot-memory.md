@@ -386,6 +386,10 @@ the re-sent profile makes that independent of what the summary keeps. codex-acp 
 `_meta.jetbrains.air.customInstructions` on `session/new` as Codex developer instructions. It isn't used: it is one
 vendor's extension, and it isn't re-sent on `session/load`.
 
+Verified on a real host (2026-10-18): a Codex bot got its profile again on the first message after `/compact`
+and still knew its name and the user's allergy; a Copilot bot reported no `store_memory` tool; a Claude bot
+answered from its memory as before.
+
 **File access.** The memory folders a bot can see go as `additionalDirectories` on every session request, when
 the agent advertises the capability (M3). Agents that can't reach them read and write through `read_memory` and
 `edit_memory`.
