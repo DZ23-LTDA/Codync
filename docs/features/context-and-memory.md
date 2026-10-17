@@ -96,6 +96,8 @@ the `codync-mem` crate; `chat/memory` runs them in the host.
   starts fresh, but its memory remains.
 - Memory search is a substring scan, not semantic vectors. Voice transcripts aren't marked yet, so dreaming
   treats them like typed text. Group rooms don't feed dreaming.
-- `search_history` covers the bot's own chat, not group chats it took part in.
+- `search_history` covers the bot's own chat, not group chats it took part in. It finds messages by words, or
+  reads back from a message id (`from`, then each page's `next`); `search_memory` gives each entry's source
+  messages, so a bot can check where a memory came from.
 
 Reply threads have separate session/context lanes; see [groups and threads](groups-and-threads.md). Group and delegated requests don't feed dreaming.

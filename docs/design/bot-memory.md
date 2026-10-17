@@ -7,12 +7,14 @@ tuned against the [evaluation](#evaluation).
 
 Built differently from the plan below, for now:
 
-- Search is a substring scan over a few hundred entries, not an FTS5 trigram index.
+- Search is a substring scan, not an FTS5 trigram index. Memory has a few hundred entries; the transcript scan
+  took 0.6 s over 180k messages of one bot, so the index waits until a bot's search passes a second.
 - No revision history per entry; the dream log and the chat lines carry undo.
 - Proposals for a bot that asks first live in their chat card, not in the store, so there is no proposed state.
 - Health, religion and politics get no special notice yet; voice transcripts aren't marked, and group rooms
   don't feed dreaming.
-- Entries show who wrote them, not a link to the message they were learned from (the ids are stored).
+- Entries show who wrote them, not a link to the message they were learned from. The bot can follow it:
+  `search_memory` returns each entry's source messages, and `search_history` reads back from a message id.
 - Until step 3, a change the user makes still re-renders the opening (and reloads a Claude session), and the
   notice carries the whole memory rather than a delta.
 
@@ -370,7 +372,9 @@ The keep-list also lives in the opening, so harness-initiated compactions see it
 
 - the last compaction summary;
 - the last 3–5 user turns verbatim;
-- the open plan.
+- the open plan;
+- a bookmark: the id of the old session's last message. The new session reads back from it with
+  `search_history`'s `from` instead of guessing words, and pages on with the `next` each result page returns.
 
 The user can edit it as a draft before it is sent (Amp's handoff works this way).
 
