@@ -73,7 +73,7 @@ the `codync-mem` crate; `chat/memory` runs them in the host.
     full content: mtime and size first, then SHA-256; a file younger than 2 s waits (the turn-end scan looks again
     once it settles). A change from a bot's tool call (its `locations` or diffs name the path) runs the checks, the
     cap and the description; one that fails is put back and the chat says why. Otherwise the chat shows
-    "Updated people.md" with the diff and an undo, flagged when it removes more than a quarter. Other changes (an
+    "Updated people.md" with the diff and an undo, flagged when it leaves the file more than a quarter shorter. Other changes (an
     editor, another program) are recorded as "this computer" with no chat line; a description that fails the checks
     is withheld from the index.
   - Every host write (the apps, `edit_memory`, dreaming, undo) is compare-and-swap on the content's hash, through a
@@ -96,9 +96,13 @@ the `codync-mem` crate; `chat/memory` runs them in the host.
   every bot. Gemini CLI, Kilo Code and Kiro have no switch Codync can use. A project bot's `MEMORY.md` shows
   read-only on its memory screen.
 - **The apps** (iPhone, desktop, terminal) show "About you", "This bot", the dream log and the project's notes,
-  with add, edit, pin, archive, forget and forget-everything. They fetch with `memory` and fetch again when the
-  bot's `memoryRev` moves. Methods: `memory`, `saveMemory`, `pinMemory`, `archiveMemory`, `forgetMemory`,
-  `clearMemory`, `undoDream`, `answerMemory`, `undoMemory`.
+  with add, edit, pin, archive, forget and forget-everything. Under each layer's entries (the terminal: a Notes
+  section) they list its notes with description, size and date, marked past a cap; a note opens to read, edit,
+  delete or bring back any version, and on the desktop, when the host is this computer, in the user's editor. In
+  the chat a note's change shows its diff, with an undo, or Allow and Don't for a bot that asks first. They fetch
+  with `memory` and fetch again when the bot's `memoryRev` moves. Methods: `memory`, `saveMemory`, `pinMemory`,
+  `archiveMemory`, `forgetMemory`, `clearMemory`, `undoDream`, `answerMemory`, `undoMemory` (entry and note
+  lines alike), `memoryFile`, `saveMemoryFile`, `deleteMemoryFile`, `restoreMemoryFile`.
 - **Moving the old memory**: on the first start of this version, each bot's Engram database (or the Markdown
   memory before it) moves in once. What the old opening showed comes in active as far as the cap allows (the
   profile and pinned facts first, then the newest), the rest archived; then the old files (deleted bots' too) and

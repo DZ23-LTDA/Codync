@@ -1,8 +1,8 @@
 # Bot memory and compaction
 
 Status (2026-10-18): the cards, the move from Engram, writes by permission, the checks, dreaming and all three
-apps are built in 2.18.0 (M0). So are instructions for every harness (M1) and the cache-safe opening with
-host-run compaction and the handoff (M2). How it works today is in
+apps are built in 2.18.0 (M0). So are instructions for every harness (M1), the cache-safe opening with
+host-run compaction and the handoff (M2), and long-form memory files (M3). How it works today is in
 [context and memory](../features/context-and-memory.md). The plan from there is in [Rollout](#rollout): instructions for every harness (M1), the cache-safe opening and
 compaction (M2), long-form memory files (M3), evaluation (M4) and the public mirror (M5). The research behind it
 is in [bot memory research](bot-memory-research.md). The numbers are starting values to be tuned against the
@@ -26,6 +26,10 @@ Built differently from the plan below, for now:
   compaction line in the chat has no summary, since Codex reports none; its handoff is built from the chat.
 - The handoff card appears as soon as a rollover is due, not when the user returns, so it can be edited before
   the message that sends it.
+- A memory file changed by no bot's tool call (an editor, another program) is recorded without the checks or a
+  chat line: the user owns their computer. Its description is left out of the index when it fails the checks.
+- "Drops more than a quarter" is measured as the file getting more than a quarter shorter, so a changed line
+  isn't flagged; the diff shows a rewrite either way.
 
 In one line: **memory records the person, the transcript stays in the host, the opening stays frozen until
 compaction, and the host decides when to compact.**
@@ -782,7 +786,7 @@ Each milestone ships as its own minor release, with an e2e pass on all three app
   - The keep-list: Claude through `/compact`, Codex through `compact_prompt`.
   - The summary card, the editable handoff and its history bookmark.
   - Cache tokens asserted in e2e.
-- **M3. Long-form memory.**
+- **M3. Long-form memory (built).**
   - The folders, the naming and cap rules, `memory_files` and `memory_file_versions`.
   - The turn-end scan, versions, checks and restore; compare-and-swap host writes.
   - The index in the opening; `read_memory`, `edit_memory`, and `search_memory` over files;
