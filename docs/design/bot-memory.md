@@ -1,8 +1,20 @@
-# Bot memory and compaction (proposal)
+# Bot memory and compaction
 
-Status: **proposal, not implemented** (2026-10-17). It replaces the current Engram-based memory described in
-[context and memory](../features/context-and-memory.md) and [Engram memory integration](../features/engram-memory.md).
-Nothing here is shipped. The numbers are starting values to be tuned against the [evaluation](#evaluation).
+Status (2026-10-17): rollout steps 1 and 2 are built in 2.18.0 (store, move from Engram, writes by permission,
+checks, dreaming, all three apps); how it works today is in [context and memory](../features/context-and-memory.md).
+Step 3 (cache-safe opening and compaction) and the public mirror are next. The numbers are starting values to be
+tuned against the [evaluation](#evaluation).
+
+Built differently from the plan below, for now:
+
+- Search is a substring scan over a few hundred entries, not an FTS5 trigram index.
+- No revision history per entry; the dream log and the chat lines carry undo.
+- Proposals for a bot that asks first live in their chat card, not in the store, so there is no proposed state.
+- Health, religion and politics get no special notice yet; voice transcripts aren't marked, and group rooms
+  don't feed dreaming.
+- Entries show who wrote them, not a link to the message they were learned from (the ids are stored).
+- Until step 3, a change the user makes still re-renders the opening (and reloads a Claude session), and the
+  notice carries the whole memory rather than a delta.
 
 In one line: **memory records the person, the transcript stays in the host, the opening stays frozen until
 compaction, and the host decides when to compact.**

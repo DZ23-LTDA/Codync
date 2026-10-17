@@ -1,8 +1,8 @@
 # Context and memory
 
-How a bot keeps its instructions, context and long-term memory. Engram owns durable memory; Codync manages
-capture, recall and the keeper. The ACP harness owns the conversation and compaction.
-A replacement is proposed in [bot memory and compaction](../design/bot-memory.md) (not implemented).
+How a bot keeps its instructions, context and long-term memory. Codync owns memory; the ACP harness owns the
+conversation and compaction. The design, including what is still to come, is in
+[bot memory and compaction](../design/bot-memory.md).
 
 ## Transcript, context and memory
 
@@ -10,7 +10,7 @@ A replacement is proposed in [bot memory and compaction](../design/bot-memory.md
 |---|---|---|---|
 | Transcript | SQLite `entries` | Codync | Persistent main chat and flat reply threads per bot |
 | Model context | ACP session (`bots.session_id`) | The harness | Until *New session*, a failed resume, or an agent/command/folder change |
-| Long-term memory | `~/.codync/bots/<id>/engram/engram.db` | Engram + Codync keeper + the user | Forever, across sessions |
+| Long-term memory | SQLite `memory_*` tables | Codync: the user, the bots' memory tools, dreaming | Forever, across sessions |
 
 Codync never replays the transcript into a session. Each turn sends only the new message(s); the harness keeps
 its own context and compacts it itself.
@@ -33,30 +33,49 @@ its own context and compacts it itself.
   appended to the next message. After that turn reaches the agent, the change is recorded in
   `snapshot.announced`. The next compaction folds it into the snapshot.
 
-## Memory (`host/src/chat/memory/`)
+## Memory (`host/src/chat/memory/`, crate `host/crates/memory`)
 
-- Engram stores each bot's durable observations in an independent SQLite database. The old Markdown memory
-  imports automatically, with original dates and source references preserved.
-- The instruction snapshot includes up to 100 profile facts and 30 recent facts, within a 4,000-character
-  recent-memory budget (each recent fact or summary clipped to 500 characters). A keeper consolidates crowded
-  profiles to at most 60 facts; demoted facts remain searchable. Manual corrections invalidate snapshots and
-  send a notice on the next turn; pins and imports re-render them. A re-render keeps what the agent last heard
-  of its profile, so an update it missed is still announced.
-- Completed memorable exchanges queue durably. After five idle minutes or eight exchanges, the bot's own
-  harness extracts durable facts and saves a native Engram session summary. A new session or reported
-  compaction requests an early flush. Failed batches remain queued and retry with backoff.
-- Memory is best-effort: a bot whose Engram can't start still answers, and says so once.
-- Claude's keeper uses Haiku without tools, settings or persisted helper sessions; other harnesses use the
-  bot's selected model with inline instructions. Automatic naming still uses `chat/naming.rs`.
-- The built-in memory MCP server forwards native Engram tools for recall, saving, review and conflict
-  judgment, and retains `search_history` for the bot's original main-chat and thread messages.
-- iOS, desktop and terminal provide search, CRUD, pinning, review, history, timeline, export and import.
-  See [Engram memory integration](engram-memory.md) for storage, migration, deletion semantics, API and tests.
+Memory records the person, not the work; the [design](../design/bot-memory.md) explains why. The rules live in
+the `codync-mem` crate; `chat/memory` runs them in the host.
+
+- **Two layers** in the host database (`memory_entries`): "yours", shared by every bot that uses it, and one per
+  bot. Caps count tokens (one per CJK character, one per four others): 400 for "yours", 1,200 per bot. A bot in
+  its own workspace uses "yours" by default and one in a project folder doesn't; the user switches it per bot
+  (`sharedMemory`).
+- **The opening** holds every active entry the bot sees, pinned first, within the caps, with ids so the bot can
+  revise or archive one. Archived entries stay searchable (`search_memory`). A change the user makes reaches
+  each session on its next message as a `<memory_update>` with the whole memory; what a bot or dreaming wrote
+  reaches other sessions at their next compaction or new session.
+- **The bot's tools** (built-in `memory` MCP server): `remember`, `revise_memory`, `archive_memory`,
+  `search_memory`, `search_history`. A bot on automatic approval writes at once, in any turn and to either layer;
+  the chat shows a "Remembered" line the user can undo. A bot that asks first shows a card the user approves or
+  declines, unless the user's own message in that turn asked it to remember. A declined or undone memory is
+  never written again by a bot.
+- **Checks** on every write but the user's own (`codync_mem::check`): no hidden characters, prompt-carrying
+  links, planted instructions, passwords, keys, ID or card numbers, nothing the user forgot, no duplicates, and
+  the cap. Entries the user wrote can't be changed by a bot or dreaming.
+- **Dreaming** replaces the keeper (`chat/memory/dream.rs`). After five idle minutes or eight user messages
+  (sooner on a new session or compaction, and once a day for the time review), it reads the bot's chat and
+  threads since its bookmark on the bot's own harness (Claude: Haiku, no tools). Each change must quote what the
+  user typed: pasted text (the apps send `pasted`), fenced code, quoted lines and forwarded messages don't count,
+  nor do bare acknowledgements. It only adds and archives, at most 10 changes and never more than a quarter of
+  the entries, and drops a run when the user edited memory meanwhile. It waits while the plan's usage is above
+  75%. Every run is logged and can be undone; what an undo removes isn't learned again.
+- **Claude Code's own memory** is off for bots in their own workspace (`autoMemoryEnabled: false`,
+  `CLAUDE_CODE_DISABLE_AUTO_MEMORY`); auto-dream is off for every bot. A project bot's `MEMORY.md` shows
+  read-only on its memory screen.
+- **The apps** (iPhone, desktop, terminal) show "About you", "This bot", the dream log and the project's notes,
+  with add, edit, pin, archive, forget and forget-everything. They fetch with `memory` and fetch again when the
+  bot's `memoryRev` moves. Methods: `memory`, `saveMemory`, `pinMemory`, `archiveMemory`, `forgetMemory`,
+  `clearMemory`, `undoDream`, `answerMemory`, `undoMemory`.
+- **Moving the old memory**: on the first start of this version, each bot's Engram database (or the Markdown
+  memory before it) moves in once. Facts about the user come in active as far as the cap allows, the rest
+  archived; then the old files and the Engram download go. Dreaming starts from that point in the chat.
 
 ## Turns
 
 - Messages sent while the agent works are folded into one next turn, joined by blank lines.
-- Bot-to-bot requests occupy separate turns in the same queue; user messages are only folded together up to the next request. Requests never feed the user-fact memory keeper. See [bot collaboration](bot-collaboration.md).
+- Bot-to-bot requests occupy separate turns in the same queue; user messages are only folded together up to the next request. Requests never feed dreaming. See [bot collaboration](bot-collaboration.md).
 - Delegated turns do not set the restart marker: their waiter disappears on restart. Pending delegation notices become interrupted errors instead of automatically replaying work.
 - Stop sends `session/cancel`; an agent still running 15 seconds later is stopped (it resumes its session on
   the next turn). `session/new`, `session/load` and `session/fork` get three minutes before the agent is
@@ -74,8 +93,8 @@ its own context and compacts it itself.
   afterwards.
 - A session a harness has deleted (for example, one cleaned up after a month) can't be resumed. The bot
   starts fresh, but its memory remains.
-- Memory scopes stay inside a bot's database; user-level sharing across bots is not implemented. Search uses
-  FTS5 rather than semantic vectors. Consolidation runs when the profile outgrows the prompt, not daily.
+- Memory search is a substring scan, not semantic vectors. Voice transcripts aren't marked yet, so dreaming
+  treats them like typed text. Group rooms don't feed dreaming.
 - `search_history` covers the bot's own chat, not group chats it took part in.
 
-Reply threads have separate session/context lanes; see [groups and threads](groups-and-threads.md). Group/delegated requests do not become user facts in the memory keeper.
+Reply threads have separate session/context lanes; see [groups and threads](groups-and-threads.md). Group and delegated requests don't feed dreaming.

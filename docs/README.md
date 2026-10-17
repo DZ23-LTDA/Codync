@@ -26,7 +26,7 @@ Source review, a passing build, local integration tests and production acceptanc
 - [Group chats and reply threads](features/groups-and-threads.md)
 - [Bot-to-bot collaboration](features/bot-collaboration.md)
 - [Context and memory](features/context-and-memory.md)
-- [Bot memory and compaction redesign](design/bot-memory.md) (proposal)
+- [Bot memory and compaction](design/bot-memory.md) (design; storage, gate and dreaming built, compaction to come)
 - [Bot workspaces](features/bot-workspaces.md)
 - [Voice calls](features/voice-call.md)
 - [File attachments](features/file-attachments.md)

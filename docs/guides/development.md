@@ -91,8 +91,8 @@ git config core.hooksPath .githooks
 ```
 
 It runs CI's checks for each part a commit touches, so a failure shows up before the push:
-host (`cargo fmt --check`, clippy, `cargo test` and the memory tests, with CI's pinned Engram
-fetched once into `host/target/engram-test-runtime`), desktop, cloud and relay (`npm run typecheck`,
+host and the memory crate (`cargo fmt --all --check`, clippy and `cargo test` for the workspace), desktop, cloud
+and relay (`npm run typecheck`,
 `npm test`), Linux screen helper formatting, and a parse of the macOS screen helper's Swift
 sources (on macOS). It checks the staged files only, in a copy under `.git/precommit-snapshot`,
 so other agents' uncommitted edits in the same checkout neither break nor rescue a commit; the
