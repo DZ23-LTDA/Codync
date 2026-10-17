@@ -69,8 +69,9 @@ the `codync-mem` crate; `chat/memory` runs them in the host.
   bot's `memoryRev` moves. Methods: `memory`, `saveMemory`, `pinMemory`, `archiveMemory`, `forgetMemory`,
   `clearMemory`, `undoDream`, `answerMemory`, `undoMemory`.
 - **Moving the old memory**: on the first start of this version, each bot's Engram database (or the Markdown
-  memory before it) moves in once. Facts about the user come in active as far as the cap allows, the rest
-  archived; then the old files and the Engram download go. Dreaming starts from that point in the chat.
+  memory before it) moves in once. What the old opening showed comes in active as far as the cap allows (the
+  profile and pinned facts first, then the newest), the rest archived; then the old files (deleted bots' too) and
+  the Engram download go. Dreaming starts from that point in the chat.
 
 ## Turns
 
