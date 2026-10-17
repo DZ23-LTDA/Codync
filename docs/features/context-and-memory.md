@@ -61,13 +61,35 @@ the `codync-mem` crate; `chat/memory` runs them in the host.
 - **Checks** on every write but the user's own (`codync_mem::check`): no hidden characters, prompt-carrying
   links, planted instructions, passwords, keys, ID or card numbers, nothing the user forgot, no duplicates, and
   the cap. Entries the user wrote can't be changed by a bot or dreaming.
+- **Long-form files** (`chat/memory/files.rs`, rules in `codync_mem::files`): Markdown notes, one topic each, in
+  `<data>/shared-memory/` and `<data>/bots/<id>/bot-memory/`. Names are lowercase slugs (`people.md`); each starts
+  with frontmatter whose `description:` becomes its line in the opening's index (path, description, tokens). Caps:
+  2,000 tokens per file, 20 files per folder, marked in the index when passed, never cut. Links, hidden files and
+  folders are ignored.
+  - The bot reads and edits them with its own tools: agents that take `additionalDirectories` get both folders on
+    every session request. Others use `read_memory` and `edit_memory` (old/new, whole content, or delete), which
+    follow the bot's permission like `remember`.
+  - A scan at the start and end of every turn and on the memory screen records each change as a version with its
+    full content: mtime and size first, then SHA-256; a file younger than 2 s waits (the turn-end scan looks again
+    once it settles). A change from a bot's tool call (its `locations` or diffs name the path) runs the checks, the
+    cap and the description; one that fails is put back and the chat says why. Otherwise the chat shows
+    "Updated people.md" with the diff and an undo, flagged when it removes more than a quarter. Other changes (an
+    editor, another program) are recorded as "this computer" with no chat line; a description that fails the checks
+    is withheld from the index.
+  - Every host write (the apps, `edit_memory`, dreaming, undo) is compare-and-swap on the content's hash, through a
+    temporary file renamed over the note. `search_memory` also returns matching lines of the files.
+  - Deleting a bot deletes its folder and versions; "Forget everything" deletes a layer's files and versions; a
+    file deleted one at a time stays restorable from its versions.
 - **Dreaming** replaces the keeper (`chat/memory/dream.rs`). After five idle minutes or eight user messages
   (sooner on a new session or compaction, and once a day for the time review), it reads the bot's chat and
   threads since its bookmark on the bot's own harness (Claude: Haiku, no tools). Each change must quote what the
   user typed: pasted text (the apps send `pasted`), fenced code, quoted lines and forwarded messages don't count,
   nor do bare acknowledgements. It only adds and archives, at most 10 changes and never more than a quarter of
   the entries, and drops a run when the user edited memory meanwhile. It waits while the plan's usage is above
-  75%. Every run is logged and can be undone; what an undo removes isn't learned again.
+  75%. Every run is logged and can be undone; what an undo removes isn't learned again. It may also append a cited
+  line to a long-form file (a new file gets frontmatter with the run's description), and, when a layer is
+  nine-tenths full, move an entry the user didn't write out into one. It never rewrites a file; undoing the run
+  puts the files back unless they changed since.
 - **The harness's own memory** is off for bots in their own workspace and for background jobs
   (`agent/own_memory.rs`): Claude Code (`autoMemoryEnabled: false`, `CLAUDE_CODE_DISABLE_AUTO_MEMORY`), Copilot
   (its memory tools excluded), Qwen Code (workspace settings) and CodeBuddy. Claude Code's auto-dream is off for
