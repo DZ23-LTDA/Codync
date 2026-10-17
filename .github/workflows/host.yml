@@ -30,11 +30,11 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: host
-      - run: cargo fmt --check
-      - run: cargo clippy --all-targets -- -D warnings
+      - run: cargo fmt --all --check
+      - run: cargo clippy --workspace --all-targets -- -D warnings
       - name: Fetch pinned memory runtime for integration tests
         run: python ../packaging/engram/test-runtime.py
-      - run: cargo test
+      - run: cargo test --workspace
       - run: cargo test --test memory_e2e -- --ignored
       - run: cargo test --bin codync-host native_memory_survives_restart -- --ignored
 
