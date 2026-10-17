@@ -203,6 +203,10 @@ transcript entry.
   Files would also need `fsync` on the file and its folder, a retry when Windows refuses to rename a file another
   process holds open, and a whole-file rewrite for every streamed update. SQLite is built from those same file
   system parts, already assembled. Search speed isn't the reason: the transcript search is a scan.
+- **Claude Code's transcript shows when files are enough.** It keeps one JSONL file per session
+  (`~/.claude/projects/<project>/<session>.jsonl`): one process writes it, lines are only appended and never
+  changed, nothing else commits with them, no other client syncs from it, and a torn last line after a crash is
+  skipped. Codync's transcript has none of those properties.
 - **A card is one row**, so it can point at its source message, be undone, pinned or superseded on its own, and be
   checked before it's written. A file is prose the bot changes a sentence at a time with Edit.
 - **A file is its note's only live copy, not a pointer into the database.** The bot reads it from disk (Read or
