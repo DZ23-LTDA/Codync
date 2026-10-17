@@ -104,6 +104,9 @@ the `codync-mem` crate; `chat/memory` runs them in the host.
   a new session that begins with it.
 - **After every compaction** the chat shows "Earlier context was summarized to make room." Its `compaction`
   field carries Claude's summary, which the apps show when expanded, and which the next handoff starts from.
+- **In the apps:** the iPhone and desktop show the draft card with *Keep this conversation* and a pencil that
+  opens the editor sheet; once sent or kept it folds to one line. In the terminal, pick the line (`v`, `j`/`k`),
+  then `o` unfolds it, `e` edits and `K` keeps the chat.
 
 ## Turns
 
