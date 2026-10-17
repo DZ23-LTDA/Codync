@@ -14,7 +14,19 @@ fun AppStore.setRoute(route: ConnectionRoute) = action("route") {
     val changed = computer.copy(route = route)
     withContext(Dispatchers.IO) { local.saveComputers(listOf(changed)) }
     mutableState.update { it.copy(computers = listOf(changed)) }
-    connectionJob?.cancelAndJoin(); connect()
+    reconnect().join()
+}
+
+/**
+ * Drop the link and dial again at once (iOS `restartStream`), not after the backoff. It runs in the
+ * account's scope, so a caller that goes away can't leave the link down.
+ */
+fun AppStore.reconnect(): Job = contextScope.launch { connectionJob?.cancelAndJoin(); connect() }
+
+/** A pull to refresh in a chat: reconnect, and hold until the link is back or has failed (the header says why). */
+suspend fun AppStore.refreshConnection() {
+    reconnect().join()
+    withTimeoutOrNull(20_000) { state.first { it.actualConnection !is LinkState.Connecting } }
 }
 
 fun AppStore.setForeground(active: Boolean) {
@@ -47,7 +59,7 @@ fun AppStore.pair(text: String) {
             require(old == null || old.id == pairing.computer.id) { "Use Start over to pair a different computer." }
             require(old == null || old.signKey == pairing.computer.signKey) { "This computer's identity changed. Start over before pairing again." }
             val identity = withContext(Dispatchers.IO) { local.identity() }
-            val computer = HostConnector.pair(pairing, identity, Build.MODEL.take(100))
+            val computer = HostConnector.pair(pairing, identity, Build.MODEL.take(100)).copy(color = old?.color)
             withContext(Dispatchers.IO) { local.saveComputers(listOf(computer)); local.completeSetup() }
             mutableState.update { it.copy(computers = listOf(computer), setupComplete = true) }
             if (database == null) openMirror()
@@ -90,7 +102,8 @@ fun AppStore.connect() {
                                 reconcileMailbox(active)
                             }
                             if (link is LinkState.Ready) {
-                                val updated = HostClient.hello(active, target)
+                                // The latest saved copy: its color may have changed since this link opened.
+                                val updated = HostClient.hello(active, state.value.computers.firstOrNull { it.id == target.id } ?: target)
                                 val hello = active.call("hello").jsonObject
                                 withContext(Dispatchers.IO) {
                                     local.saveComputers(listOf(updated))
@@ -161,7 +174,7 @@ private suspend fun AppStore.consumeEvents(active: EncryptedChannel, cursor: Lon
             }
             withContext(Dispatchers.IO) { requireNotNull(database).apply(batch) }
             refresh()
-            if (batch.any { it is MirrorEvent.EntryChanged && it.entry.isChat }) acknowledgeVisible()
+            acknowledgeVisible(readAfter(batch, state.value.readingScopes))
             if (resync) throw Resync()
         }
     } finally { source.cancel() }

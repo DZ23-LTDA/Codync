@@ -71,6 +71,7 @@ import androidx.annotation.DrawableRes
     "doc.text" -> R.drawable.sf_doc_text
     "doc.zipper" -> R.drawable.sf_doc_zipper
     "ellipsis" -> R.drawable.sf_ellipsis
+    "ellipsis.bubble.fill" -> R.drawable.sf_ellipsis_bubble_fill
     "envelope.fill" -> R.drawable.sf_envelope_fill
     "escape" -> R.drawable.sf_escape
     "exclamationmark" -> R.drawable.sf_exclamationmark
@@ -81,6 +82,7 @@ import androidx.annotation.DrawableRes
     "eye" -> R.drawable.sf_eye
     "eye.slash" -> R.drawable.sf_eye_slash
     "figure.run" -> R.drawable.sf_figure_run
+    "film" -> R.drawable.sf_film
     "folder" -> R.drawable.sf_folder
     "function" -> R.drawable.sf_function
     "gearshape" -> R.drawable.sf_gearshape
@@ -105,11 +107,15 @@ import androidx.annotation.DrawableRes
     "lock.rectangle" -> R.drawable.sf_lock_rectangle
     "lock.shield" -> R.drawable.sf_lock_shield
     "lock.slash" -> R.drawable.sf_lock_slash
+    "macmini" -> R.drawable.sf_macmini
+    "macpro.gen3" -> R.drawable.sf_macpro_gen3
+    "macstudio" -> R.drawable.sf_macstudio
     "magnifyingglass" -> R.drawable.sf_magnifyingglass
     "map.fill" -> R.drawable.sf_map_fill
     "mic" -> R.drawable.sf_mic
     "mic.fill" -> R.drawable.sf_mic_fill
     "mic.slash" -> R.drawable.sf_mic_slash
+    "moon.zzz.fill" -> R.drawable.sf_moon_zzz_fill
     "move" -> R.drawable.sf_move
     "music.note" -> R.drawable.sf_music_note
     "network" -> R.drawable.sf_network

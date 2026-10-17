@@ -163,7 +163,7 @@ private fun messageMenu(context: android.content.Context, entry: Entry, reply: (
     if (trace != null) add(MenuItem("Show what it did", icon = "list.bullet", action = trace))
 }
 
-internal val quickReactions = listOf("👍", "❤️", "😂", "🎉", "👀", "🙏")
+internal val quickReactions = listOf("👍", "❤️", "😂", "🎉", "👀", "✅")
 
 private fun reactionPick(entry: Entry, store: AppStore) = ReactionPick(quickReactions, entry.reactions) { emoji ->
     store.command("react", body("entryId" to entry.id, "emoji" to emoji), "react:" + entry.id)
@@ -175,9 +175,9 @@ internal val Entry.reactions: List<String> get() = (data["reactions"] as? JsonAr
     val context = LocalContext.current
     val attachments = entry.data["attachments"]?.jsonArray?.map { WireJson.decodeFromJsonElement<Attachment>(it) }.orEmpty()
     Column(Modifier.fillMaxWidth().padding(start = 56.dp), horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        for (file in attachments) AttachmentRow(entry.botId, file, state, store)
+        if (attachments.isNotEmpty()) AttachmentList(attachments, entry.botId, state, store)
         if (entry.text.isNotEmpty()) Box(Modifier.clip(RoundedRectangle(18.dp)).background(Palette.bubbleUser)
-            .contextActions(reactions = reactionPick(entry, store), preview = { UserText(entry.text) }) {
+            .contextActions(reactions = reactionPick(entry, store), preview = { SelectionContainer { UserText(entry.text) } }) {
                 messageMenu(context, entry, reply, null)
             }) { UserText(entry.text) }
         SendStatusLine(entry.status, state.bots.firstOrNull { it.id == entry.botId }?.status == "working")
@@ -231,18 +231,25 @@ internal val Entry.reactions: List<String> get() = (data["reactions"] as? JsonAr
 
 @Composable private fun AgentBubble(entry: Entry, state: AppState, store: AppStore, openTrace: () -> Unit, reply: (() -> Unit)?) {
     val context = LocalContext.current
-    val attachments = entry.data["attachments"]?.jsonArray?.map { WireJson.decodeFromJsonElement<Attachment>(it) }.orEmpty()
+    val files = entry.files
     Column(Modifier.fillMaxWidth().padding(end = 40.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        for (file in attachments) AttachmentRow(entry.botId, file, state, store)
-        if (entry.text.isNotEmpty()) Box(Modifier.clip(RoundedRectangle(18.dp)).background(Palette.bubbleAgent)
-            .contextActions(reactions = reactionPick(entry, store), preview = { AgentText(entry.text) }) {
+        // A message with files is its files: the text is only the computer's fallback.
+        if (files.isNotEmpty()) Column(Modifier.contextActions(reactions = reactionPick(entry, store)) { messageMenu(context, entry, reply, openTrace) },
+            verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            for (file in files) FileDownloadCard(entry, file, state, store)
+        } else if (entry.text.isNotEmpty()) Box(Modifier.clip(RoundedRectangle(18.dp)).background(Palette.bubbleAgent)
+            .contextActions(reactions = reactionPick(entry, store), preview = { AgentText(entry.text, selectable = true) }) {
                 messageMenu(context, entry, reply, openTrace)
-            }) { AgentText(entry.text) }
+            }) { AgentText(entry.text, selectable = false) }
     }
 }
 
-@Composable private fun AgentText(text: String) {
-    Box(Modifier.background(Palette.bubbleAgent).padding(horizontal = 16.dp, vertical = 10.dp)) { MarkdownText(text, selectable = false) }
+/**
+ * A reply. Holding it opens its menu over a lifted copy, as on iOS, so only that copy is `selectable`:
+ * text selection takes the same long press.
+ */
+@Composable private fun AgentText(text: String, selectable: Boolean) {
+    Box(Modifier.background(Palette.bubbleAgent).padding(horizontal = 16.dp, vertical = 10.dp)) { MarkdownText(text, selectable) }
 }
 
 /** Under a message with a thread (Slack's): how many replied, how recently. */
@@ -280,6 +287,15 @@ internal val Entry.reactions: List<String> get() = (data["reactions"] as? JsonAr
                 .semantics { contentDescription = "Remove reaction $emoji" }
                 .padding(horizontal = 8.dp, vertical = 3.dp), style = Type.system(15f))
         }
+    }
+}
+
+/** A routine's run in the main chat: tapping it opens Routines on that routine. */
+@Composable internal fun RoutineNotice(entry: Entry, open: () -> Unit) {
+    Row(Modifier.plainButton(action = open).padding(vertical = 10.dp), verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        Symbol("clock.arrow.circlepath", size = 15.dp, tint = Palette.secondary)
+        Text(entry.text.ifEmpty { "Routine" }, style = Type.footnote, color = Palette.secondary)
     }
 }
 

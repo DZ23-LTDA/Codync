@@ -15,11 +15,13 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.key
 import androidx.compose.runtime.LaunchedEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.lifecycleScope
 import com.codync.android.design.CodyncTheme
 import com.codync.android.design.OverlayRoot
 import coil3.ImageLoader
 import coil3.disk.DiskCache
 import java.io.File
+import kotlinx.coroutines.launch
 import okio.Path.Companion.toOkioPath
 
 class MainActivity : ComponentActivity() {
@@ -30,6 +32,7 @@ class MainActivity : ComponentActivity() {
         Analytics.start(applicationContext)
         Analytics.userId = { store.state.value.account.userId }
         NotificationDisplay.channels(this)
+        if (savedInstanceState == null) lifecycleScope.launch { CodyncWidgets.publishPreviews(applicationContext) }
         enableEdgeToEdge()
         setContent {
             val state by store.state.collectAsStateWithLifecycle()
@@ -77,6 +80,8 @@ class MainActivity : ComponentActivity() {
         if (uri.scheme == BuildConfig.URL_SCHEME && uri.host in setOf("bot", "usage")) store.openLink(uri)
         if (uri.scheme == BuildConfig.URL_SCHEME && uri.host == "oauth") { intent.data = null; store.finishConnectorSignIn(uri) }
         if (uri.scheme == BuildConfig.URL_SCHEME && uri.host == "screen") { intent.data = null; store.openScreenLink() }
+        if (uri.scheme == BuildConfig.URL_SCHEME && uri.host == "computers") { intent.data = null; store.openPage(LinkPage.Computers) }
+        if (uri.scheme == BuildConfig.URL_SCHEME && uri.host == "plugins") { intent.data = null; store.openPage(LinkPage.Extensions) }
     }
 }
 

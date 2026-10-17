@@ -37,7 +37,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
@@ -74,6 +76,8 @@ import kotlinx.serialization.json.putJsonArray
             NewMenuButton(enabled = state.computers.isNotEmpty(), groupEnabled = online, newBot, newGroup)
         }
     }) {
+        // Pull to refresh reconnects and asks the account for its computers again (iOS `refreshable`).
+        PullToRefresh({ store.reconnect(); store.refreshComputers() }, Modifier.fillMaxSize(), indicatorTop = top + 50.dp) {
         LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = top + 56.dp, bottom = bottomInset)) {
             // A computer waiting for an update has its card instead; its bots may not be readable yet.
             state.mismatch?.let { mismatch -> item("update") { UpdateNeededCard(state, mismatch, Modifier.padding(vertical = 8.dp)) } }
@@ -88,6 +92,7 @@ import kotlinx.serialization.json.putJsonArray
                     BotRowItem(bot, state, store, reorder.handle(bot.id) { store.reorder(it) }, edit = { edit(bot) }, delete = { confirmDelete = bot })
                 }
             }
+        }
         }
     }
     val deleting = confirmDelete
@@ -142,6 +147,14 @@ private class RosterReorder {
 internal fun roster(bots: List<Bot>): List<Bot> = bots.filter { !it.deleted && !it.hidden }
     .sortedWith(compareByDescending<Bot> { it.pinned }.thenBy { it.position }.thenByDescending { it.lastAt })
 
+/** The roster order with a bot one place up (-1) or down (+1) among bots with its pin state, or null when it can't move. */
+internal fun moved(roster: List<Bot>, id: String, offset: Int): List<String>? {
+    val at = roster.indexOfFirst { it.id == id }
+    val neighbor = roster.getOrNull(at + offset)
+    if (at < 0 || neighbor == null || neighbor.pinned != roster[at].pinned) return null
+    return roster.map(Bot::id).toMutableList().apply { this[at] = neighbor.id; this[at + offset] = id }
+}
+
 @Composable private fun BotRowItem(bot: Bot, state: AppState, store: AppStore, drag: ContextDrag, edit: () -> Unit, delete: () -> Unit) {
     Box(Modifier.fillMaxWidth().contextActions(onClick = { store.openBot(bot.id) }, reorder = drag, preview = {
         Box(Modifier.padding(horizontal = 8.dp)) { BotRow(bot, state) }
@@ -160,7 +173,13 @@ internal fun roster(bots: List<Bot>): List<Bot> = bots.filter { !it.deleted && !
             },
             MenuItem("Delete", icon = "trash", destructive = true, divider = true, action = delete),
         )
-    }.semantics { contentDescription = bot.name }) {
+    }.semantics {
+        contentDescription = bot.name
+        // TalkBack's way to reorder (the drag needs a touch and hold, then a move).
+        customActions = listOf(-1 to "Move up", 1 to "Move down").map { (offset, title) ->
+            CustomAccessibilityAction(title) { moved(roster(state.bots), bot.id, offset)?.let(store::reorder) != null }
+        }
+    }) {
         BotRow(bot, state)
     }
 }
@@ -169,7 +188,7 @@ internal fun roster(bots: List<Bot>): List<Bot> = bots.filter { !it.deleted && !
 @Composable internal fun BotRow(bot: Bot, state: AppState) {
     Row(Modifier.fillMaxWidth().padding(vertical = 10.dp), verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        BotAvatar(bot, state.bots, 46.dp)
+        AvatarWithStatus(bot, state.bots, 46.dp)
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -250,7 +269,7 @@ internal fun messagePreview(text: String): String {
         listOf(
             MenuItem("All computers", icon = "checkmark"),
             *state.computers.map { MenuItem("${it.name} · ${connectionLabel(state)}", icon = "checkmark") }.toTypedArray(),
-            MenuItem("Reconnect", icon = "arrow.clockwise", divider = true, enabled = state.computers.isNotEmpty()) { store.connect() },
+            MenuItem("Reconnect", icon = "arrow.clockwise", divider = true, enabled = state.computers.isNotEmpty()) { store.reconnect() },
             MenuItem("Manage computers", icon = "desktopcomputer", action = manage),
         )
     }, label = "Computers, $summary. Filter conversations") {
@@ -259,20 +278,6 @@ internal fun messagePreview(text: String): String {
             Symbol("chevron.down", size = 15.dp, tint = Palette.secondary)
         }
     }
-}
-
-/** "2 connected", "Connecting…", "Offline": what the roster says about its computers. */
-internal fun connectionSummary(state: AppState): String = when {
-    state.computers.isEmpty() -> "No computers"
-    state.connection is LinkState.Ready -> "${state.computers.size} connected"
-    state.connection is LinkState.Connecting -> "Connecting…"
-    else -> "Offline"
-}
-
-internal fun connectionLabel(state: AppState): String = when (state.connection) {
-    is LinkState.Ready -> "Connected"
-    is LinkState.Connecting -> "Connecting…"
-    else -> "Offline"
 }
 
 @Composable private fun NewMenuButton(enabled: Boolean, groupEnabled: Boolean, newBot: () -> Unit, newGroup: () -> Unit) {
