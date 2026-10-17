@@ -1,8 +1,9 @@
 # Bot memory and compaction
 
 Status (2026-10-18): the cards, the move from Engram, writes by permission, the checks, dreaming and all three
-apps are built in 2.18.0 (M0); how it works today is in [context and memory](../features/context-and-memory.md).
-The plan from there is in [Rollout](#rollout): instructions for every harness (M1), the cache-safe opening and
+apps are built in 2.18.0 (M0). So are instructions for every harness (M1) and the cache-safe opening with
+host-run compaction and the handoff (M2). How it works today is in
+[context and memory](../features/context-and-memory.md). The plan from there is in [Rollout](#rollout): instructions for every harness (M1), the cache-safe opening and
 compaction (M2), long-form memory files (M3), evaluation (M4) and the public mirror (M5). The research behind it
 is in [bot memory research](bot-memory-research.md). The numbers are starting values to be tuned against the
 [evaluation](#evaluation).
@@ -698,13 +699,22 @@ What the research answered:
    - In 2.1.300 only `systemPromptSnapshot: false` or `CLAUDE_CODE_SIMPLE` turn it off.
    - Installed versions: Claude Code 2.1.301 and adapter 0.92.0 (SDK 0.3.300).
 
-Still unknown, to check locally before M2:
+Still unknown:
 
 - **Partial compaction:** how "Summarize from here" treats the recorded prompt.
 - **2.1.301:** the installed binary wasn't searched, only the 2.1.300 binary bundled in the SDK.
 - **Codex's auto-compact threshold:** about 90% of the window, from a secondary source only.
-- **The real flow, end to end:** compaction order, keep-list effect, and cache read/write ratio per turn, all on
-  the real host.
+
+The real flow, measured on a real host with Claude (Opus, 1M window; 2026-10-18):
+
+- **Cache:** after the first turn, a plain turn read about 97k tokens from cache and wrote about 250.
+- **Memory change mid-session:** a card saved between turns reached the bot in the next message. That turn
+  wrote 264 tokens to cache, so there was no reload.
+- **Thread:** a thread forked from that chat knew a card saved just before it and one saved earlier.
+- **Host compaction:** one message pushed the chat past the 200k trigger. Right after that turn the host ran
+  `/compact` with the keep-list. It first reloaded the session, because memory had changed since it opened.
+  Afterwards the context was down to 13k, the chat line carried Claude's summary, and the next turn still knew
+  the code word from the long message and the new card.
 
 ## Evaluation
 
@@ -761,11 +771,11 @@ Each milestone ships as its own minor release, with an e2e pass on all three app
   - Dreaming: proposal, audit, evidence ids, the `rev` precondition, limits, headroom, the time review, the log
     with undo. Automatic naming at turn end.
   - Two layers on the memory screens of all three clients; `minApp` 2.18.0.
-- **M1. Instructions for every harness.**
+- **M1. Instructions for every harness (built).**
   - ACP `systemPrompt` where advertised; the first-message profile again after a compaction elsewhere, the
     compaction inferred from usage when the agent doesn't report it.
   - Each harness's own memory turned off for personal bots where it can be.
-- **M2. Cache-safe opening and compaction.**
+- **M2. Cache-safe opening and compaction (built).**
   - Remove the reload; send the `_meta.systemPrompt` object with `excludeDynamicSections`; fork re-sends it.
   - The ledger and deltas.
   - Usage and the TTL; the three triggers with the loop guard and the before/after steps.
