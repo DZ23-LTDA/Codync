@@ -1,11 +1,11 @@
 # Bot memory and compaction
 
-Status (2026-10-18): the cards, the move from Engram, writes by permission, the checks, dreaming and all three
-apps are built in 2.18.0 (M0). So are instructions for every harness (M1), the cache-safe opening with
-host-run compaction and the handoff (M2), and long-form memory files (M3). How it works today is in
-[context and memory](../features/context-and-memory.md). The plan from there is in [Rollout](#rollout): instructions for every harness (M1), the cache-safe opening and
-compaction (M2), long-form memory files (M3), evaluation (M4) and the public mirror (M5). The research behind it
-is in [bot memory research](bot-memory-research.md). The numbers are starting values to be tuned against the
+Status (2026-10-18): the whole [rollout](#rollout) is built on 2.18.0. That is the cards, the move from
+Engram, writes by permission, the checks, dreaming and all three apps (M0); instructions for every harness (M1);
+the cache-safe opening with host-run compaction and the handoff (M2); long-form memory files (M3); and the
+evaluation, run once (M4). The public mirror (M5) waits only for its repository. How it works today is in
+[context and memory](../features/context-and-memory.md); the research behind it is in
+[bot memory research](bot-memory-research.md). The numbers are starting values, tuned against the
 [evaluation](#evaluation).
 
 Built differently from the plan below, for now:
@@ -719,6 +719,9 @@ The real flow, measured on a real host with Claude (Opus, 1M window; 2026-10-18)
   `/compact` with the keep-list. It first reloaded the session, because memory had changed since it opened.
   Afterwards the context was down to 13k, the chat line carried Claude's summary, and the next turn still knew
   the code word from the long message and the new card.
+- **Long-form notes:** given the folders through `additionalDirectories`, the bot wrote `mochi.md` with its own
+  Write tool, frontmatter and description included. The scan credited it to the bot from the tool call's
+  `locations`, the chat showed "Created mochi.md", and in the next turn the bot read the note to answer.
 
 ## Evaluation
 
@@ -743,6 +746,26 @@ The real flow, measured on a real host with Claude (Opus, 1M window; 2026-10-18)
 
 Validate the judge adversarially first: a LoCoMo audit found a judge accepting up to 63% of intentionally wrong
 answers.
+
+Built as `tools/memory-eval/` (52 cases: also long-form notes, short CJK queries and planted instructions). It
+grades by keywords, not a model, so a wrong answer can't argue its way to a pass; keywords that missed right
+answers were widened after reading every reply. Run on Claude (Opus, 2026-10-18), one fresh bot per case:
+
+| | Passed | Fixed by |
+|---|---|---|
+| A pilot of 9 cases | 8/9 | a reply refused by the user's Claude Code auto-mode classifier for naming their daughter: Codync's chat and memory tools are now allowed in the Claude options |
+| The full run | 41/52 | |
+| Right answers the grader missed (spacing in "3 月 14 日", 羽毛球, 燕麥奶, "沒跟我說過", a reply naming the planted bank to warn about it) | +8 | the grader |
+| An itinerary kept as entries, not a note; a forgotten fact read back from history | +2 | the memory instructions now name lists, itineraries and histories for notes, and say forgetting covers history |
+| Left | 51/52 | ex-05: the user's own `~/.claude/CLAUDE.md` made the bot answer with an HTML file |
+
+Decisions from it: the caps stay (no case reached one); no FTS5 or vectors (every recall miss was the answer
+format, never search); dreaming unchanged.
+
+It also showed a bot inheriting the user's own Claude Code setup: `~/.claude/CLAUDE.md`, its permission mode, and
+the claude.ai connectors (one bot looked through the user's Gmail and Calendar unasked). Isolating it
+(`settingSources: ["project"]` for bots in their own workspace) changes what existing bots can do, so it waits
+for the owner's decision.
 
 **Compaction probes** after each compaction, Factory-style:
 
@@ -793,10 +816,14 @@ Each milestone ships as its own minor release, with an e2e pass on all three app
     `additionalDirectories`.
   - Dreaming appends and moves detail out of full card layers.
   - The files, versions and "Updated" lines in all three clients.
-- **M4. Evaluation and tuning.** The scripted regression below, plus questions answered only by a long-form file,
-  short CJK queries and planted instructions; tune the caps and dreaming from it, and decide FTS5 and vectors by
-  their triggers.
+- **M4. Evaluation and tuning (built).** The scripted regression below, plus questions answered only by a
+  long-form file, short CJK queries and planted instructions; tune the caps and dreaming from it, and decide FTS5
+  and vectors by their triggers. The runner and its 52 cases are in `tools/memory-eval/`; the results are under
+  [Evaluation](#evaluation).
 - **M5. The public mirror.** `leepokai/codync-mem`, synced on every release, as under [Packaging](#packaging).
+  The sync (`.github/workflows/memory-mirror.yml`, a no-op until the `CODYNC_MEM_DEPLOY_KEY` secret exists) and
+  the mirror's own CI and pull-request redirect (`host/crates/memory/.github/`) are in place; the split builds,
+  passes clippy and tests on its own. Creating the repository and its deploy key is left to the owner.
 
 ## Sources
 
