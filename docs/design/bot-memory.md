@@ -420,7 +420,7 @@ Everything Engram provides that we use, FTS5 search and a few tables, is a few S
 
 ## Packaging
 
-The memory system is built as a self-contained crate, `codync-memory`, so other ACP clients can use it later.
+The memory system is built as a self-contained crate, `codync-mem`, so other ACP clients can use it later.
 
 **A core that only decides (sans-IO).**
 
@@ -445,7 +445,7 @@ The memory system is built as a self-contained crate, `codync-memory`, so other 
 
 - **The Codync host** embeds the core. It is the full product: three-client UI, transcript in the host, and a gate
   that sees only what the user typed.
-- **An ACP proxy (later)** lets any ACP client use the core without changes: `codync-memory acp -- <agent command>`.
+- **An ACP proxy (later)** lets any ACP client use the core without changes: `codync-mem acp -- <agent command>`.
   - It can inject deltas and observe `usage_update` and `compaction_update`.
   - It can't set the opening. The [proxy chains RFD](https://agentclientprotocol.com/rfds/proxy-chains) (Draft)
     says proxies "cannot directly modify an agent's system prompt".
@@ -467,7 +467,7 @@ ACP status as of 2026-10:
 - CI runs `cargo clippy --workspace`.
 - **Codync is the source of truth.** Core and host will change together for months, since memory and `rev`
   commit in one transaction, so the crate is developed only here. No git submodule.
-- **A read-only public mirror, `leepokai/codync-memory`,** gives outside developers a repository of their own.
+- **A read-only public mirror, `leepokai/codync-mem`,** gives outside developers a repository of their own.
   - On every push to `main` that touches `host/crates/memory`, CI runs
     `git subtree split --prefix=host/crates/memory` and pushes the result to the mirror's `main`.
   - The split is deterministic, so the push always fast-forwards as long as nobody commits to the mirror.
