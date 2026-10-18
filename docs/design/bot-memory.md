@@ -8,6 +8,23 @@ evaluation, run once (M4). The public mirror (M5) waits only for its repository.
 [bot memory research](bot-memory-research.md). The numbers are starting values, tuned against the
 [evaluation](#evaluation).
 
+Left before release, found 2026-10-18 and put off by the owner for now:
+
+- **The Android app breaks on merge.** On `dev` (#151–#158) it still calls the memory methods this branch
+  removes (`memoryDetail`, `reviewMemory`, `exportMemory`, `importMemory`) and has none of the new memory notes,
+  compaction summaries, handoff cards or `memoryFile` chat lines. Android isn't released, so it doesn't hold the
+  release, but it needs the same port the other clients got. On merge, add it to the "Not done yet" list in
+  `docs/plans/android-app.md`.
+- **The branch is behind `dev`** (6 commits, all Android); merging conflicts in `docs/guides/development.md`.
+- **Full e2e on Linux and Windows** hasn't run; only macOS has.
+- **Bots inherit the owner's own Claude Code setup** (`~/.claude/CLAUDE.md`, permission mode, claude.ai
+  connectors); isolating them waits for the owner's decision ([evaluation](#evaluation)).
+- **The move from old memory**, tried on a copy of the owner's data (149, 188 and 3 entries moved, none lost):
+  - Old Markdown memory is mostly the bot's own replies ("需要我幫什麼忙嗎？"), and it comes in active up to
+    the cap. Only profile, pinned and personal-scope facts should come in active; the rest archived.
+  - The old files are deleted once moved, with no backup; entries refused by the checks vanish with them.
+  - An empty (0-byte) `engram.db` fails the move on every start, so that bot never finishes moving.
+
 Built differently from the plan below, for now:
 
 - Search is a substring scan, not an FTS5 trigram index. Memory has a few hundred entries; the transcript scan
