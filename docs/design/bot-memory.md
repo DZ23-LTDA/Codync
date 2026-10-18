@@ -775,12 +775,16 @@ for the owner's decision.
 - decisions.
 
 **Prompt cache.** The host logs each turn's cache reads and writes (`turn usage` in `host.log`).
-`tools/memory-eval/cache.py` measures the hit rate from Claude Code's own session logs; on 2026-10-18:
+`tools/memory-eval/cache.py` measures the hit rate from Claude Code's and Codex's own session logs; on 2026-10-18:
 
 | | Conversations | Calls | In a conversation | Every call |
 |---|---|---|---|---|
-| The owner's bots (`~/.codync`, `~/.codync-dev`) | 27 | 229 | **97.6%** | 83.7% |
-| The evaluation run | 173 | 472 | 98.1% | 71.1% |
+| The owner's Claude bots (`~/.codync`, `~/.codync-dev`) | 27 | 229 | **97.6%** | 83.7% |
+| The owner's Codex bots | 7 | 24 | 96.7% | 81.4% |
+| The evaluation run (Claude) | 173 | 472 | 98.1% | 71.1% |
+
+The owner's Cursor, oh-my-pi and custom bots aren't measured: the script reads only those two logs. Once the host
+from this branch runs, its `turn usage` lines cover every harness whose adapter reports cached tokens.
 
 - **In a conversation** is the share of input read from cache, leaving out each conversation's first call and
   calls more than an hour after the previous one. Per call it is 97.2%, and the median conversation 99.2%.
@@ -792,7 +796,7 @@ for the owner's decision.
     cache-safe opening. The evaluation had none.
 - **Cost:** Claude Code writes every cache entry for an hour, at 2× input. Overall, input cost 36.9% of the same
   calls uncached. A one-call conversation costs more than no cache would (157%): it writes the cache and never
-  reads it back.
+  reads it back. Codex (OpenAI) caches on its own and charges nothing to write.
 
 **Product metrics** (PostHog counts only, never content):
 

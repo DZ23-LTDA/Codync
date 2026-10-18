@@ -23,12 +23,13 @@ the day of the run.
 
 ## Prompt cache
 
-`cache.py` reads Claude Code's session logs (`~/.claude/projects`) and prints how much of each conversation's input
-came from the prompt cache, why the cold calls were cold, and the input cost against no cache. It needs no host:
+`cache.py` reads Claude Code's and Codex's session logs (`~/.claude/projects`, `~/.codex/sessions`) and prints,
+per harness, how much of each conversation's input came from the prompt cache and why the cold calls were cold;
+for Claude also the input cost against no cache. It needs no host:
 
 ```sh
 tools/memory-eval/cache.py                 # the bots of ~/.codync and ~/.codync-dev
-tools/memory-eval/cache.py eval-home-bots  # session folders whose name contains this
+tools/memory-eval/cache.py eval-home-bots  # workspaces whose path contains this ("/" and "." read as "-")
 ```
 
 The latest numbers are under [prompt cache](../../docs/design/bot-memory.md#evaluation).
