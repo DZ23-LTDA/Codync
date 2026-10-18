@@ -73,7 +73,8 @@ are coalesced into one run per routine; only one routine per bot is dispatched a
 time. Bot actors serialize routine work with ordinary conversation work.
 
 Each run gets its own conversation thread and agent session. When the run ends,
-the agent stops if nothing else has a session open (it ran just for the run);
+the agent stops if nothing else has a session open (it ran just for the run;
+not on Windows, see [agent processes](../architecture/conversation-runtime.md));
 otherwise only the run's session closes (agents that can close sessions). Either
 way a frequent schedule doesn't keep a set of MCP servers alive per run, and
 opening the run's thread resumes its session (agents that can resume sessions). Final results appear
