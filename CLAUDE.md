@@ -64,18 +64,11 @@ Keep only the latest build: in this checkout, Apple builds go to `build/dd` only
 After every change, test it end to end on the real apps, not just builds and unit tests: install the new build (old one stopped first) and walk through the changed flow. Drive the desktop app with Computer Use, the iPhone app on an iOS Simulator through Device Hub (Xcode's `DeviceHub.app`), and the Android app on an emulator (`adb`). Report any check that could not run and why.
 - **Minimal e2e** (default): only the platform of the computer you test on (on the Mac: macOS).
 - **Full e2e** (large changes: platform code, packaging, the desktop main process; or when asked): macOS, Linux (Lima `codync-linux`) and Windows (UTM, [Windows testing](docs/guides/windows-testing.md)). A platform whose VM isn't installed is skipped and reported, not set up.
-- **Desktop build to use**: develop and e2e with `npm run dev` in `apps/desktop` (renderer reloads on save, restart it after `src/main` or preload changes; nothing packaged or signed). After a host change run `node tools/native-host.mjs dev` there first: `npm run dev` prefers that build over `host/target/debug`. Package `npm run dist:mac:dev` (about 45 s) only for what an unpackaged run lacks: the bundled host install, Codync Screen / computer use, system permissions. `dist:*:main` (universal, timestamped, minutes) only to check the production app.
-
-## Project generation
-
-- `apps/project.yml` + `xcodegen generate --spec apps/project.yml` produce `apps/Codync.xcodeproj`. Edit `project.yml`, not the pbxproj.
-
-## App Store Upload
-
-- Xcode Cloud archives the `iOS` scheme on every `v*` tag and uploads it to App Store Connect with its own build number, then the `Submit iOS` workflow submits it to App Review for the App Store; don't upload from the local machine or edit `CURRENT_PROJECT_VERSION` for it. Details: [development guide](docs/guides/development.md#ios-releases-xcode-cloud).
+- **Desktop build to use**: develop and e2e with `npm run dev` in `apps/desktop` (renderer reloads on save, restart it after `src/main` or preload changes; nothing packaged or signed). In a linked worktree it runs a [sandbox](docs/guides/dev-app.md#worktree-sandboxes) beside the main checkout's Codync Dev (own host build, port and data); `--sandbox` does the same from the main checkout when another session's Codync Dev is running. In the main checkout, after a host change run `node tools/native-host.mjs dev` there first: `npm run dev` prefers that build over `host/target/debug`. Package `npm run dist:mac:dev` (about 45 s) only for what an unpackaged run lacks: the bundled host install, Codync Screen / computer use, system permissions. `dist:*:main` (universal, timestamped, minutes) only to check the production app.
 
 ## Versioning
 
+- Xcode Cloud archives the `iOS` scheme on every `v*` tag and uploads it to App Store Connect with its own build number, then the `Submit iOS` workflow submits it to App Review for the App Store; don't upload from the local machine or edit `CURRENT_PROJECT_VERSION` for it. Details: [development guide](docs/guides/development.md#ios-releases-xcode-cloud).
 - Phone ↔ host compatibility: each side names the oldest version of the other it works with (`minApp` in the host's `hello`, `minHost` in each client). Additive changes need nothing; a rename/removal raises `minApp` in the same release, and hosts hold that release until the App Store has the iPhone app: [docs/reference/compatibility.md](docs/reference/compatibility.md)
 - **Every source change ships as a release.** A version bump on `main` is the only release trigger (Auto Tag → desktop app for macOS, Linux and Windows, host, Homebrew, in-app update), so any change to shipped code (`apps/`, `host/`, `packaging/`) bumps the version before it reaches `main`, without being asked. Docs, `web/`, `cloud/`, `relay/` and CI-only changes don't bump.
 - Pick the bump yourself: patch for fixes and small tweaks, minor for new features or protocol additions. Never bump major (stay on 2.x). One bump per merge into `main`: if `MARKETING_VERSION` is already ahead of the latest `v*` tag, leave it. A change to `host/crates/memory` also raises `codync-mem`'s own 0.x version once per release (leave it if it's already ahead of `main`'s); CI blocks a PR into `main` that forgets, and the merge publishes it to crates.io ([codync-mem releases](docs/guides/development.md#codync-mem-releases)).
@@ -84,6 +77,8 @@ After every change, test it end to end on the real apps, not just builds and uni
 ## Layout & naming
 
 Build targets, folder layout, file naming and shared terms: [docs/architecture/file-structure.md](docs/architecture/file-structure.md). Follow it when adding or moving files.
+
+`apps/project.yml` + `xcodegen generate --spec apps/project.yml` produce `apps/Codync.xcodeproj`. Edit `project.yml`, not the pbxproj.
 
 ## Several agents share `dev`
 

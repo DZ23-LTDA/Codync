@@ -118,7 +118,8 @@ It uses port 19222 on the remote computer and leaves bots and settings unchanged
 cd apps/desktop
 npm ci
 npm run icons                       # macOS: SF Symbol masks
-npm run dev                         # Codync Dev, separate host on 19223
+npm run dev                         # main checkout: Codync Dev, separate host on 19223
+                                    # linked worktree: a sandbox beside it (docs/guides/dev-app.md)
 CODYNC_PORT=19333 CODYNC_HOME=/path/to/home npm run dev   # against a manually run host
 npm run typecheck && npm test
 ```
