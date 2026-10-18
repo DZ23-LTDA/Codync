@@ -114,7 +114,7 @@ database, embeddings, and harness instructions is in [bot memory research](bot-m
 | Retrieval on demand | Vector RAG, our former "context" section | A community evaluation found about 60% of failures were the agent never searching. | Only for archived memory and the transcript. |
 | Raw transcript search | Letta's filesystem benchmark (grep agent ≈74%) | Beats most memory products. Replacing the transcript with summaries or extracted facts lowers accuracy (LongMemEval). | **Adopted**: `search_history` over the host transcript. |
 | Knowledge graph / temporal graph | Zep/Graphiti, A-MEM | Graphiti invalidates old facts instead of deleting them. Benchmark gains are small next to benchmark noise: 6.4% of LoCoMo's answer key is wrong. | Not built. We borrow "supersede, don't delete". |
-| File-based memory | CLAUDE.md, Claude Code auto memory, Codex memories, OpenClaw `MEMORY.md` | Transparent and editable, but no transactions and no sync to three clients. | SQLite, made fully visible in the UI. Harness file memory stays for project bots only. |
+| File-based memory | CLAUDE.md, Claude Code auto memory, Codex memories, OpenClaw `MEMORY.md` | Transparent and editable, but no transactions and no sync to three clients. | SQLite, made fully visible in the UI. Harness file memory is off unless the user keeps it on for a bot. |
 | Sleep-time consolidation ("dreaming") | ChatGPT dreaming, Claude Code auto-dream, OpenClaw, Letta sleep-time, Grok Build `/dream` | Useful, and every product adds guards. OpenClaw rejects a rewrite that removes more than 0.25 of entries and keeps a pre-image. Hermes removed its `replace` action because it wiped other facts, and #5563 traced lost memory to corruption and the cap. Claude Code auto-dream keeps "no log of what was created, modified, or removed" (#38493). | Adopted, with the guards below. |
 | External memory service | Engram, Mem0 cloud, Supermemory, Honcho | A separate process owns the writes and has its own failure modes. | Dropped. |
 
@@ -468,15 +468,15 @@ answered from its memory as before.
 the agent advertises the capability (M3). Agents that can't reach them read and write through `read_memory` and
 `edit_memory`.
 
-**The harness's own memory.** For a bot in its own workspace, and for every background job, Codync turns each
-harness's own memory off where it can, so the bot has one memory and it is visible (`agent/own_memory.rs`,
-surveyed 2026-10-18):
+**The harness's own memory.** For every bot and every background job, Codync turns each harness's own memory off
+where it can, so the bot has one memory and it is visible (`agent/own_memory.rs`, surveyed 2026-10-18). Where it
+can, the user may keep it on for one bot ([Claude Code's own memory](#claude-codes-own-memory)):
 
 | Harness | Its own memory | What Codync does |
 |---|---|---|
 | Claude Code | Auto memory, auto-dream | `autoMemoryEnabled: false`, `CLAUDE_CODE_DISABLE_AUTO_MEMORY=1`, `autoDreamEnabled: false` |
 | Copilot CLI | Copilot Memory, on for individual plans | `--excluded-tools=store_memory,vote_memory` |
-| Qwen Code | Auto memory and its own dreaming, on | `.qwen/settings.json` in the workspace: `memory.enableManagedAutoMemory` and `enableManagedAutoDream` false |
+| Qwen Code | Auto memory and its own dreaming, on | `.qwen/settings.json` in a bot's own workspace: `memory.enableManagedAutoMemory` and `enableManagedAutoDream` false. Nothing in a project folder, whose files are the user's |
 | CodeBuddy | Auto memory | `CODEBUDDY_DISABLE_AUTO_MEMORY=1` |
 | Codex, Goose, Grok, oh-my-pi, Qoder, Cortex | Off unless the user turns it on | Nothing |
 | Gemini CLI | Its system prompt has the model edit `~/.gemini/GEMINI.md` | Nothing: no switch short of replacing its system prompt or its home folder |
@@ -571,15 +571,20 @@ The user can edit it as a draft before it is sent (Amp's handoff works this way)
 
 | Bot | Auto memory | Auto-dream | Why |
 |---|---|---|---|
-| Personal (workspace Codync created) | Off: `autoMemoryEnabled: false` + `CLAUDE_CODE_DISABLE_AUTO_MEMORY=1` | Off: `autoDreamEnabled: false` | Only one memory, fully visible in Codync |
-| Project (points at a real repo) | On | Off | It is the project's working memory. |
+| Every bot (default) | Off: `autoMemoryEnabled: false` + `CLAUDE_CODE_DISABLE_AUTO_MEMORY=1` | Off: `autoDreamEnabled: false` | Only one memory, fully visible in Codync |
+| Kept on by the user | Claude Code's own setting | Claude Code's own setting | The user's choice, warned first |
 
-For project bots:
+Until 2.18 a project bot kept auto memory on as the project's working memory. It was turned off on 2026-10-19 at
+the owner's request, because memory is bot-based: its `user`/`feedback` notes overlapped Codync's person memory and
+ran outside Codync's rules. A project bot keeps project knowledge in its own notes, and writes `CLAUDE.md` or
+`AGENTS.md` only when the user asks.
 
-- The auto-memory directory is shared with the user's own Claude Code sessions in the terminal.
-- Its `user`/`feedback` notes overlap Codync's person memory.
-- Codync shows the project's `MEMORY.md` read-only, so it isn't unseen.
-- The opening states the split: people in Codync memory, the project in harness memory and `CLAUDE.md`.
+The user can keep it on per bot, for example to share the auto-memory directory with their own Claude Code
+sessions in the terminal. The switch sits on the memory screen with an info button on what it costs: the bot may
+remember things twice, the two memories can disagree, and forgetting something in Codync doesn't reach Claude
+Code's notes. Codync then shows the folder's `MEMORY.md` read-only, so it isn't unseen. The same switch covers
+Copilot, CodeBuddy and (in a bot's own workspace) Qwen Code. Using it instead of Codync's memory is planned:
+[harness memory](../plans/harness-memory.md).
 
 The adapter passes `claudeCode.options.settings` and `.env` through untouched, so these settings reach the SDK.
 
@@ -611,7 +616,7 @@ build.
   settings.
 - **The dream log** with undo.
 - **Entry actions:** edit, pin, forget, and forget everything.
-- **For project bots**, the project `MEMORY.md`, read-only.
+- **The harness's own memory switch** in the bot's section, off by default, with an info button; kept on, Claude Code's `MEMORY.md` shows read-only.
 - **Long-form memory** under each layer's cards: the files with name, description, size and date, an over-cap
   mark, and a detail view to read, edit, and restore any version. The desktop app can open a file in the user's
   editor.

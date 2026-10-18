@@ -76,7 +76,9 @@ builds PostHog's generic `custom` frames (oldest first, the failing one last).
 - **Terminal UI**: its panics, through `reportError` from the panic hook. Process `tui`.
 - **Desktop** (`apps/desktop/src/main/error-reports.ts`, `shared/error-report.ts`): uncaught
   errors and rejections in the main process and every window, and windows or helpers that
-  crashed (`RendererGone`, `GPUGone`, … with Electron's reason), through `reportError`.
+  crashed (`RendererGone`, `GPUGone`, … with Electron's reason), through `reportError`. Not
+  reported: error events that carry no error (the ResizeObserver loop notice), and helpers that
+  exited normally or were ended from outside (`clean-exit`, `killed`: logout, shutdown, an update).
   Processes `desktop-main`, `desktop-renderer`. The renderer is built unminified so function
   names stay readable.
 - **iPhone** (`CodyncKit` `CrashReports`): MetricKit's crash diagnostics, delivered on the next
