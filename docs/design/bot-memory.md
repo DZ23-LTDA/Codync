@@ -713,9 +713,9 @@ ACP status as of 2026-10:
   - it has its own README and LICENSE (Apache-2.0).
 - The crate has its own 0.x versions, separate from Codync's.
 - The mirror is open, marked 0.x with an unstable API, and 0.1.0 is on crates.io (2026-10-18; the core only, the
-  proxy comes later). Raising `version` in `host/crates/memory/Cargo.toml` publishes it on its next push to `main`:
-  `.github/workflows/memory-crate.yml` skips a version crates.io already has and publishes with trusted publishing
-  (crates.io trusts that workflow file, so no token is stored).
+  proxy comes later). It ships with the Codync release that changes it: a pull request into `main` that changes
+  the crate must raise its `version`, and the push to `main` publishes it with trusted publishing
+  ([codync-mem releases](../guides/development.md#codync-mem-releases)).
 - **Flip later.** When outside users send PRs, the API stops changing with host changes for a few months, or the
   proxy gains users:
   - stop the sync and develop in the mirror;

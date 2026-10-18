@@ -1,19 +1,45 @@
-# Ships host/crates/memory (docs/design/bot-memory.md#packaging): mirrors it to leepokai/codync-mem, read-only, and
-# publishes a version crates.io doesn't have yet. The split is deterministic, so each push fast-forwards the mirror
-# as long as nobody commits there.
+# Ships host/crates/memory with each Codync release (docs/design/bot-memory.md#packaging): a pull request into main
+# that changes the crate must raise its version; the push to main mirrors it to leepokai/codync-mem, read-only, and
+# publishes that version. The split is deterministic, so each push fast-forwards the mirror as long as nobody commits
+# there.
 name: codync-mem
 
 on:
+  pull_request:
+    branches: [main]
+    paths: ["host/crates/memory/**"]
   push:
     branches: [main]
     paths: ["host/crates/memory/**"]
 
 concurrency:
-  group: memory-crate
+  group: memory-crate-${{ github.event_name }}
   cancel-in-progress: false
 
 jobs:
+  version:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: A changed crate has a new version
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+        run: |
+          # Its .github is the mirror's CI, not part of the package.
+          if git diff --quiet "$BASE" HEAD -- host/crates/memory ':!host/crates/memory/.github'; then exit 0; fi
+          version() { sed -n 's/^version = "\(.*\)"$/\1/p' | head -n 1; }
+          before=$(git show "$BASE:host/crates/memory/Cargo.toml" | version)
+          after=$(version < host/crates/memory/Cargo.toml)
+          if [ "$before" = "$after" ]; then
+            echo "::error file=host/crates/memory/Cargo.toml::codync-mem changed but is still $after: raise its version."
+            exit 1
+          fi
+
   mirror:
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
