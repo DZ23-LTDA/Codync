@@ -54,12 +54,13 @@ the `codync-mem` crate; `chat/memory` runs them in the host.
   tool call made the change isn't told. A ledger in `kv` keeps, per session, the revision its opening holds and
   the one it has heard; after a compaction the second falls back to the first, so whatever is newer is told again.
 - **The bot's tools** (built-in `memory` MCP server): `remember`, `revise_memory`, `archive_memory`,
-  `search_memory`, `search_history`. A bot on automatic approval writes at once, in any turn and to either layer;
-  the chat shows a "Remembered" line the user can undo. A bot that asks first shows a card the user approves or
-  declines, unless the user's own message in that turn asked it to remember. A declined, undone or forgotten
-  memory is never written again by a bot or dreaming, reworded or not: its text stays closed to that layer, and
-  the message it came from to both layers the bot uses. Entry ids are never reused, so an old undo line can't
-  reach a newer entry.
+  `search_memory`, `search_history`. Every bot writes at once, in any turn and to either layer, whatever its
+  permission: memory isn't an action on the user's computer. Nothing about memory shows in the chat (no lines,
+  cards or working line); the user reviews and changes it in the bot's memory settings. A forgotten memory is never
+  written again by a bot or dreaming, reworded or not: its text stays closed to that layer, and the message it came
+  from to both layers the bot uses. Entry ids are never reused, so a stale id can't reach a newer entry. Memory
+  lines and cards that older hosts put in the chat are hidden by the apps; `answerMemory` and `undoMemory` still
+  answer them for older apps.
 - **Checks** on every write but the user's own (`codync_mem::check`): no hidden characters, prompt-carrying
   links, planted instructions, passwords, keys, ID or card numbers, nothing the user forgot, no duplicates, and
   the cap. Entries the user wrote can't be changed by a bot or dreaming.
@@ -70,25 +71,27 @@ the `codync-mem` crate; `chat/memory` runs them in the host.
   folders are ignored.
   - The bot reads and edits them with its own tools: agents that take `additionalDirectories` get both folders on
     every session request. Others use `read_memory` and `edit_memory` (old/new, whole content, or delete), which
-    follow the bot's permission like `remember`.
+    write at once like `remember`.
   - A scan at the start and end of every turn and on the memory screen records each change as a version with its
     full content: mtime and size first, then SHA-256; a file younger than 2 s waits (the turn-end scan looks again
-    once it settles). A change from a bot's tool call (its `locations` or diffs name the path) runs the checks, the
-    cap and the description; one that fails is put back and the chat says why. Otherwise the chat shows
-    "Updated people.md" with the diff and an undo, flagged when it leaves the file more than a quarter shorter. Other changes (an
-    editor, another program) are recorded as "this computer" with no chat line; a description that fails the checks
-    is withheld from the index.
+    once it settles). A change from a bot's tool call that changes files (an edit, delete or move, or one with
+    diffs, naming the path; a read doesn't count) runs the checks, the cap and the description; one that fails is
+    put back (logged, nothing in the chat). Other changes (an editor, another program) are recorded as "this
+    computer". The note's versions in the memory settings show every change and bring any one back; a description
+    that fails the checks is withheld from the index.
   - Every host write (the apps, `edit_memory`, dreaming, undo) is compare-and-swap on the content's hash, through a
     temporary file renamed over the note. `search_memory` also returns matching lines of the files.
   - Deleting a bot deletes its folder and versions; "Forget everything" deletes a layer's files and versions; a
     file deleted one at a time stays restorable from its versions.
 - **Dreaming** replaces the keeper (`chat/memory/dream.rs`). After five idle minutes or eight user messages
-  (sooner on a new session or compaction, and once a day for the time review), it reads the bot's chat and
+  (sooner on a new session or compaction, and once a day for the time review, which rewrites an entry whose
+  date has passed once, never its own rewrite again), it reads the bot's chat and
   threads since its bookmark on the bot's own harness (Claude: Haiku, no tools). Each change must quote what the
   user typed: pasted text (the apps send `pasted`), fenced code, quoted lines and forwarded messages don't count,
   nor do bare acknowledgements. It only adds and archives, at most 10 changes and never more than a quarter of
   the entries, and drops a run when the user edited memory meanwhile. It waits while the plan's usage is above
-  75%. Every run is logged and can be undone; what an undo removes isn't learned again. It may also append a cited
+  75%. Every run is logged and can be undone; what an undo removes isn't learned again, and an entry the user
+  brought back (undoing an archive, or Bring back) isn't archived by dreaming again. It may also append a cited
   line to a long-form file (a new file gets frontmatter with the run's description), and, when a layer is
   nine-tenths full, move an entry the user didn't write out into one. It never rewrites a file; undoing the run
   puts the files back unless they changed since.
@@ -100,11 +103,10 @@ the `codync-mem` crate; `chat/memory` runs them in the host.
 - **The apps** (iPhone, desktop, terminal) show "About you", "This bot", the dream log and the project's notes,
   with add, edit, pin, archive, forget and forget-everything. Under each layer's entries (the terminal: a Notes
   section) they list its notes with description, size and date, marked past a cap; a note opens to read, edit,
-  delete or bring back any version, and on the desktop, when the host is this computer, in the user's editor. In
-  the chat a note's change shows its diff, with an undo, or Allow and Don't for a bot that asks first. They fetch
-  with `memory` and fetch again when the bot's `memoryRev` moves. Methods: `memory`, `saveMemory`, `pinMemory`,
-  `archiveMemory`, `forgetMemory`, `clearMemory`, `undoDream`, `answerMemory`, `undoMemory` (entry and note
-  lines alike), `memoryFile`, `saveMemoryFile`, `deleteMemoryFile`, `restoreMemoryFile`.
+  delete or bring back any version, and on the desktop, when the host is this computer, in the user's editor. They
+  fetch with `memory` and fetch again when the bot's `memoryRev` moves. Methods: `memory`, `saveMemory`,
+  `pinMemory`, `archiveMemory`, `forgetMemory`, `clearMemory`, `undoDream`, `memoryFile`, `saveMemoryFile`,
+  `deleteMemoryFile`, `restoreMemoryFile`.
 - **Moving the old memory**: on the first start of this version, each bot's Engram database (or the Markdown
   memory before it) moves in once. What the old opening showed comes in active as far as the cap allows (the
   profile and pinned facts first, then the newest), the rest archived; then the old files (deleted bots' too) and
@@ -127,14 +129,19 @@ the `codync-mem` crate; `chat/memory` runs them in the host.
   fewer than five turns ago, the host rolls over instead of compacting again.
 - **Rollover:** also due when a conversation over 100k went cold (its cache expired) or after eight hours away
   with three compactions behind it. A handoff card appears in the chat (`chat/handoff.rs`): the last summary,
-  the user's last four messages, the last reply, the open plan, and a bookmark for `search_history`. The user can
+  the user's last four messages and the last reply (each cut at 2,000 characters, so a pasted document doesn't fill
+  the new conversation), the open plan, and a bookmark for `search_history`. The user can
   edit it (`editHandoff`) or keep the conversation (`keepConversation`); otherwise their next message there starts
   a new session that begins with it.
-- **After every compaction** the chat shows "Earlier context was summarized to make room." Its `compaction`
-  field carries Claude's summary, which the apps show when expanded, and which the next handoff starts from.
-- **In the apps:** the iPhone and desktop show the draft card with *Keep this conversation* and a pencil that
-  opens the editor sheet; once sent or kept it folds to one line. In the terminal, pick the line (`v`, `j`/`k`),
-  then `o` unfolds it, `e` edits and `K` keeps the chat.
+- **After every compaction** the host records a notice ("Earlier context was summarized to make room.", its
+  `compaction` field carrying Claude's summary, which the next handoff starts from). The apps don't show it: the
+  same conversation goes on.
+- **In the apps** the chat explains only a fresh conversation, in one line, left-aligned like the bot's messages.
+  The iPhone and desktop show the draft card with *Keep this conversation* and a pencil that opens the editor
+  sheet; once sent it folds to "Started a fresh conversation with this summary.", which unfolds to what it
+  carried, and once kept it leaves no line. In the terminal, pick the line (`v`, `j`/`k`), then `o` unfolds it,
+  `e` edits and `K` keeps the chat. The user starts a new session from the bot's menu (terminal: `S`), not with a
+  `/` command.
 
 ## Turns
 

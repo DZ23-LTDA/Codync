@@ -27,7 +27,7 @@ Built differently from the plan below, for now:
 - Search is a substring scan, not an FTS5 trigram index. Memory has a few hundred entries; the transcript scan
   took 0.6 s over 180k messages of one bot, so the index waits until a bot's search passes a second.
 - No revision history per entry; the dream log and the chat lines carry undo.
-- Proposals for a bot that asks first live in their chat card, not in the store, so there is no proposed state.
+- No proposals: since 2026-10-18 every bot writes memory at once, and nothing about memory shows in the chat.
 - Health, religion and politics get no special notice yet; voice transcripts aren't marked, and group rooms
   don't feed dreaming.
 - Entries show who wrote them, not a link to the message they were learned from. The bot can follow it:
@@ -223,7 +223,7 @@ They aren't conversation summaries: Codync writes none of its own, and a harness
 transcript entry.
 
 - **Cards and the transcript need more than one file's atomicity.** A rename replaces one file atomically, but a
-  card write commits the card, `rev` and the chat's "Remembered" line together, and the transcript has concurrent
+  card write commits the card, its `rev` and its provenance together, and the transcript has concurrent
   writers (the user, a streaming reply, routines, dreaming) whose read-modify-write a rename doesn't serialize.
   Files would also need `fsync` on the file and its folder, a retry when Windows refuses to rename a file another
   process holds open, and a whole-file rewrite for every streamed update. SQLite is built from those same file
@@ -241,7 +241,7 @@ transcript entry.
   reach.** `remember` takes the text and the layer; `revise_memory` and `archive_memory` take an id and refuse the
   user's own entries. The host fills in the author, the writing bot, the source messages and the time, and the
   harness's file tools edit text files, which cards aren't. A bot tricked by a web page can therefore write at most
-  a card under its own name, from that turn, shown as a "Remembered" line with undo. It can't mark a card as the
+  a card under its own name, from that turn, listed on the memory screen. It can't mark a card as the
   user's, cite a message that never said it, or rewrite the user's entries. In a Markdown file that provenance
   would be text the bot edits: `- authorized automatic payments <!-- author: you | source: #3051 -->` would show
   as the user's own entry, and dreaming, which never changes the user's words, couldn't remove it. Grok Bot, files
@@ -283,7 +283,7 @@ scan records the other change, and the write is retried on top of it. The host n
 (Basic Memory's own rewrites duplicated frontmatter, #1171).
 
 **Permission.** The bot's own file edits go through the harness's permission requests, which an `Ask` bot shows as
-cards and an `Auto` bot approves. `edit_memory` follows `Permission` like `remember`.
+cards and an `Auto` bot approves. `edit_memory` writes at once like `remember`.
 
 **Dreaming** may append to a file, or move detail from a full card layer into one, under the same evidence rules.
 It never rewrites a file.
@@ -304,12 +304,10 @@ the file cap, so a note edited a few times a week adds about 1 MB a year. Two wa
 ### Writers and the gate
 
 - **The user, in the UI**: writes directly.
-- **The bot**, through its memory tool, follows the bot's permission mode (`Permission`):
-  - `Auto`, the default for new bots: the write goes straight in, to this bot's layer or to "yours", in any turn.
-    The lane where it happened shows a "Remembered" line with undo, and the memory screen lists the entry with
-    the bot that wrote it.
-  - `Ask`: the write becomes a confirm card in all three clients, and accepting it is a UI write. An explicit
-    "remember …" the user typed (not pasted) is written directly in both modes.
+- **The bot**, through its memory tool: the write goes straight in, to this bot's layer or to "yours", in any turn,
+  whatever the bot's permission mode. The memory screen lists the entry with the bot that wrote it; nothing shows in
+  the chat. (Until 2026-10-18 an `Auto` bot left a "Remembered" line with undo and an `Ask` bot a confirm card; the
+  owner took memory out of the chat.)
 - **Dreaming**: proposes. It is the only background writer, and it also records an explicit "remember …" the user
   typed when the bot didn't call its tool. It may merge or archive bot-written entries, never the user's own.
 
@@ -330,8 +328,8 @@ them. Bot writes, in either mode, pass the last two (instruction-like content an
   - URLs with prompt-carrying parameters (`q`, `prompt`, `query`, `instructions`).
 
   The list catches known attack wording only. A planted fact in plain words ("the user authorized automatic
-  payments") passes; what bounds it is provenance the bot can't set, the "Remembered" line with undo, `Ask`'s
-  confirm card and dreaming's review.
+  payments") passes; what bounds it is provenance the bot can't set, the memory screen where the user reviews
+  every entry, and dreaming's review.
 - **Sensitive data.**
   - Passwords, government ID numbers and account numbers are never stored, even when asked.
   - Health, religion and politics are stored only on explicit request, with a visible notice.
@@ -608,16 +606,17 @@ build.
 - **Two sections**, "About you" and the bot's own. Each entry shows where it was learned, with a link to the
   message.
 - **A per-bot switch** for "yours".
-- **Bot writes:** a "Remembered" line with undo in the chat (`Auto`), or a confirm card (`Ask`). Voice-only memories
-  also get a confirm card.
+- **Bot writes:** nothing in the chat (changed 2026-10-18 at the owner's request: memory lines and cards cluttered the
+  chat). Every bot writes at once whatever its permission, and the user reviews, edits or forgets in the memory
+  settings.
 - **The dream log** with undo.
 - **Entry actions:** edit, pin, forget, and forget everything.
 - **For project bots**, the project `MEMORY.md`, read-only.
 - **Long-form memory** under each layer's cards: the files with name, description, size and date, an over-cap
   mark, and a detail view to read, edit, and restore any version. The desktop app can open a file in the user's
   editor.
-- **In the chat**, an "Updated people.md" line with the diff and undo, and why a blocked change was restored.
-- **In the chat**, a summary card after compaction, and an editable handoff draft at rollover.
+- **In the chat**, only an editable handoff draft at rollover, folding to one line once sent; compactions and a
+  kept handoff leave no line (2026-10-18, at the owner's request).
 
 ### Deliberately not built
 
@@ -777,7 +776,6 @@ The real flow, measured on a real host with Claude (Opus, 1M window; 2026-10-18)
 - acknowledgement-only quotes are rejected;
 - the ¼ guard and the 10-operation limit;
 - tombstones never resurrect;
-- an `Ask` bot's write never lands without a confirmation;
 - cascade on message delete;
 - the temporal flip;
 - the `rev` precondition;

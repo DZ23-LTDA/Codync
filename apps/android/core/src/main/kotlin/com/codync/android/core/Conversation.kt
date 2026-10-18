@@ -30,7 +30,11 @@ data class Entry(
     val status: String? get() = data.text("status")
     /** Files the bot shared in this message. */
     val files: List<SharedFile> get() = data["files"]?.let { WireJson.decodeFromJsonElement<List<SharedFile>>(it) }.orEmpty()
-    val isChat: Boolean get() = kind in listOf("user", "permission", "notice") ||
+    /** Of memory and context, only a fresh conversation gets a line: memory lives in the bot's memory settings, a
+     *  summary keeps the same conversation going, and a kept handoff changed nothing. */
+    val isChat: Boolean get() = kind in listOf("user", "permission") ||
+        kind == "notice" && "memory" !in data && "memoryFile" !in data && "compaction" !in data &&
+            (data["handoff"] as? JsonObject)?.text("status") != "kept" ||
         kind == "agent" && data["final"]?.jsonPrimitive?.booleanOrNull == true
 
     companion object {

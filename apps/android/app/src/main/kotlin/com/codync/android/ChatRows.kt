@@ -319,6 +319,12 @@ internal val Entry.reactions: List<String> get() = (data["reactions"] as? JsonAr
             Symbol("exclamationmark.triangle.fill", size = 16.dp, tint = Palette.danger)
             SelectionContainer { Text(text, style = Type.footnote, color = Palette.text) }
         }
+        // A fresh conversation starts at the left, as on the iPhone.
+        "handoff" in entry.data -> Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            Symbol("arrow.triangle.branch", size = 13.dp, tint = Palette.secondary)
+            Text(text, style = Type.footnote, color = Palette.secondary)
+        }
         else -> Text(text, Modifier.fillMaxWidth(), style = Type.footnote, color = Palette.secondary, textAlign = TextAlign.Center)
     }
 }
