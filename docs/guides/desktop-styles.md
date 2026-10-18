@@ -18,6 +18,7 @@ How the desktop renderer (`apps/desktop/src/renderer/`) styles its views. Views 
 | Space between stack items | `<Spacer />`, `<Spacer min={8} />` |
 | A fixed-width column that centers an icon, so labels line up | `<IconSlot width={18} tone="secondary">` |
 | A row's title with a note under it | `RowLabel` (`Controls.tsx`) |
+| Reorder by dragging | `pointerDrag` (`lib/pointer-drag.ts`), not native drag and drop: the pointer holds a closed hand, and a roster row lifts as a smaller, translucent copy that settles into its slot |
 | A sheet's content | `<SheetPage>` with a `ModalHeader` (`Overlay.tsx`); `ModalHeader` takes a `subtitle`, and `onClose` when it heads a panel instead of a modal |
 | One line with an ellipsis on an element that isn't `Text` | `.truncate` |
 | Controls | `Controls.tsx`, `Overlay.tsx`, `Icon.tsx`; `Hairline`, `Pill`, `Switch` and `ProgressBar` take a `className` for a view's own sizing, and a panel beside an anchor is placed with `anchorPlacement` |
@@ -28,3 +29,4 @@ How the desktop renderer (`apps/desktop/src/renderer/`) styles its views. Views 
 2. Anything else static (padding, background, radius, size, position, borders) is a class in the view's CSS file, named after the view (`.bot-row`, `.unread-badge`), written with the tokens above.
 3. No static inline styles. Inline `style` only for values computed at runtime: a size or color from props or data, a measured width, a transform that follows state. Keep the static part of that element in its class.
 4. A pattern repeated across views becomes a primitive or a shared class here; don't copy it.
+5. Anything clickable shows the pointing hand (a `:where` rule in `theme.css`, so a view's own `cursor` wins); text fields show the text cursor.
