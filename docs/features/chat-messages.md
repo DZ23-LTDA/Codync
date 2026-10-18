@@ -30,6 +30,10 @@ it has no pointer tooltip or link-opening action.
   `send_message` or the final-text fallback, and do not add that report to the request notice.
 - The rules reach the agent twice: the MCP server's instructions, and the frozen instruction
   snapshot (`chat/context.rs`).
+- The same server has `set_name {name}` and `set_instructions {instructions}` (`host/src/chat/profile.rs`): the
+  bot changes its own name or instructions (its description) when the user asks it to, exactly as an edit in its
+  settings would, and a notice ("Renamed to …", "Instructions updated") shows it in the main chat. A name set this
+  way ends automatic naming.
 - A bot-to-bot exchange (`ask_bot`, `message_bot`) is one compact notice row, "Messaged Owen" /
   "Message from Egan". Its text lives only in the bot conversation sheet it opens; follow-ups
   are normal bubbles. Consecutive exchanges with the same peer in the main chat (either
