@@ -100,6 +100,9 @@ crash or error in a day* (`$exception` > 0, checked daily) and *Failed agent tur
 hour* (`turn_finished` with `outcome = failed`, checked hourly; a normal hour has a few). Error
 tracking's own issue alerts (new, reopened, spiking) need a Slack or Discord destination.
 
+Errors traced to a root cause are written up in [investigations](../README.md#investigations);
+ways to record more detail are proposed in [error tracking detail](../plans/error-tracking-detail.md).
+
 ## Metrics
 
 Shared filters: `env = 'main'`, internal accounts excluded, UTC days. A *user* is a PostHog

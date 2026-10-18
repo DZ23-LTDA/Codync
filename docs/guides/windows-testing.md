@@ -58,4 +58,4 @@ e2e); use the VM for a full e2e, or when a change or a bug depends on Windows it
 - `cfg(windows)` code can still be compile-checked on the Mac by copying it into a scratch crate and
   running clippy with the pinned toolchain's `--target x86_64-pc-windows-gnu`.
 
-Investigations done this way: [npm agents failing to start on Windows, 2026-10-14](../archive/windows-npm-agents-2026-10-14.md).
+Investigations done this way: [npm agents failing to start on Windows, 2026-10-14](../investigations/windows-npm-agents-2026-10-14.md).
