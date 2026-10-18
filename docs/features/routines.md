@@ -72,7 +72,10 @@ next deadlines and run records are saved in SQLite (`routines.v1`). Due triggers
 are coalesced into one run per routine; only one routine per bot is dispatched at a
 time. Bot actors serialize routine work with ordinary conversation work.
 
-Each run gets its own conversation thread and agent session. Final results appear
+Each run gets its own conversation thread and agent session. The session closes
+when the run ends (agents that can close and resume sessions), so a frequent
+schedule doesn't keep a set of MCP servers alive per run; opening the run's
+thread resumes it. Final results appear
 in the main conversation and use normal encrypted push delivery. Returning `(pass)`
 or no text completes silently. A test run can run a paused routine. Pausing or
 deleting cancels pending runs; work already running can finish. Deleting a bot
