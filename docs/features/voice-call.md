@@ -40,6 +40,20 @@ The bot is the same agent on the computer; the call only changes how you talk to
   directly to the audio session, rather than waiting for a SwiftUI view update.
   Replayed final replies, other bots and thread replies are not read into this call.
 
+## Dictation
+
+The composer's mic (beside send / call, as in Grok Bot) types what you say into the box with the
+same on-device recognizer and the call's language setting; nothing is sent until you send it.
+Words appear as they're recognized, after what's already typed; tapping the mic again, or the
+recognizer finishing on a pause, stops it, and a call takes the microphone from it.
+
+- Desktop (`views/thread/dictation.ts`): the speech helper, macOS only, so Linux and Windows show
+  no mic. An unpackaged `npm run dev` can't use it: macOS stops the helper because the dev Electron
+  has no speech usage description, so test it in a packaged build (`dist:mac:dev`), like calls.
+- iPhone (`Thread/Dictation.swift`): `SFSpeechRecognizer` on device; with no microphone route
+  (some simulators) the mic does nothing.
+- The terminal UI has no microphone, so no mic.
+
 ## Background verification
 
 Store regression tests cover sending a recognized utterance after backgrounding,
