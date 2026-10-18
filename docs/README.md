@@ -29,6 +29,7 @@ Source review, a passing build, local integration tests and production acceptanc
 - [Bot-to-bot collaboration](features/bot-collaboration.md)
 - [Context and memory](features/context-and-memory.md)
 - [Bot memory and compaction](design/bot-memory.md) (design; storage, gate and dreaming built, compaction to come)
+- [Harness memory](plans/harness-memory.md) (the switch that keeps a harness's own memory on; a choice of it instead of Codync's, planned)
 - [Bot memory research](design/bot-memory-research.md) (files vs. database, embeddings, open-source systems, harness instructions)
 - [Bot workspaces](features/bot-workspaces.md)
 - [Voice calls](features/voice-call.md)
@@ -52,6 +53,7 @@ docs/
 │   └── fixtures/
 ├── features/                  # Current behavior and implementation entry points
 ├── design/                    # UI rules, rendering and system integration
+├── plans/                     # Work planned or in progress, not released yet
 └── archive/                   # Dated plans/audits; never current instructions
 ```
 

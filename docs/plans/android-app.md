@@ -50,9 +50,9 @@ was walked through on an emulator against a real host.
 - **Bot memory (2.18.0).** The host's memory moved out of Engram ([bot memory](../design/bot-memory.md)). The
   memory screen still calls the removed `memoryDetail`, `reviewMemory`, `exportMemory` and `importMemory`
   (`MemoryModel.kt`, `MemoryCard.kt`, `LiveMemoryTest.kt`), so it shows an error. Missing too: the two layers
-  (yours and the bot's) with pending and archived entries, memory notes (long-form files with versions), the
-  `memoryFile` chat lines, compaction summaries and the handoff card. Port them from the iPhone
-  (`MemoryView.swift`, `MemoryFilesView.swift`, `MemoryFileRow.swift`, `HandoffRows.swift`).
+  (yours and the bot's) with archived entries, memory notes (long-form files with versions), the harness's own
+  memory switch with its info sheet (2.19.0) and the handoff card. Port them from the iPhone (`MemoryView.swift`,
+  `MemoryFilesView.swift`, `HarnessMemorySheet.swift`, `HandoffRows.swift`).
 
 ### Not verified (needs an account, a key, a device or the real Mac)
 

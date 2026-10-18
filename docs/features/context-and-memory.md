@@ -40,7 +40,8 @@ its own context and compacts it itself.
 
 ## Memory (`host/src/chat/memory/`, crate `host/crates/memory`)
 
-Memory records the person, not the work; the [design](../design/bot-memory.md) explains why. The rules live in
+Memory entries record the person, not the work; what a bot learns about a project goes in its own notes. The
+[design](../design/bot-memory.md) explains why. The rules live in
 the `codync-mem` crate; `chat/memory` runs them in the host.
 
 - **Two layers** in the host database (`memory_entries`): "yours", shared by every bot that uses it, and one per
@@ -95,12 +96,19 @@ the `codync-mem` crate; `chat/memory` runs them in the host.
   line to a long-form file (a new file gets frontmatter with the run's description), and, when a layer is
   nine-tenths full, move an entry the user didn't write out into one. It never rewrites a file; undoing the run
   puts the files back unless they changed since.
-- **The harness's own memory** is off for bots in their own workspace and for background jobs
-  (`agent/own_memory.rs`): Claude Code (`autoMemoryEnabled: false`, `CLAUDE_CODE_DISABLE_AUTO_MEMORY`), Copilot
-  (its memory tools excluded), Qwen Code (workspace settings) and CodeBuddy. Claude Code's auto-dream is off for
-  every bot. Gemini CLI, Kilo Code and Kiro have no switch Codync can use. A project bot's `MEMORY.md` shows
-  read-only on its memory screen.
-- **The apps** (iPhone, desktop, terminal) show "About you", "This bot", the dream log and the project's notes,
+- **The harness's own memory** is off for every bot and for background jobs (`agent/own_memory.rs`): Claude Code
+  (`autoMemoryEnabled` and `autoDreamEnabled` false, `CLAUDE_CODE_DISABLE_AUTO_MEMORY`), Copilot (its memory tools
+  excluded), CodeBuddy, and Qwen Code (workspace settings, so only in a bot's own workspace: a project folder's
+  files are the user's). Gemini CLI, Kilo Code and Kiro have no switch Codync can use. Project knowledge goes in
+  the bot's own notes, and into the project's `CLAUDE.md` or `AGENTS.md` only when the user asks.
+- **Keeping it on.** Where Codync has the switch, the memory screen's "This bot" section offers "<harness>'s own
+  memory" (bot field `harnessMemory`, `null` without a switch), off by default, with an info button: the bot may
+  remember things twice, the two memories can disagree, and forgetting something in Codync doesn't reach it.
+  Changing it restarts the agent, which resumes its session where it can, and moves `memoryRev`. Kept on, the
+  harness runs its memory as it sets it, and Claude Code's `MEMORY.md` shows read-only in a "Claude Code" section
+  (empty until it saves something). An edit to another harness turns the switch off. Using the harness's memory
+  instead of Codync's is planned: [harness memory](../plans/harness-memory.md).
+- **The apps** (iPhone, desktop, terminal) show "About you", "This bot", the dream log and Claude Code's notes,
   with add, edit, pin, archive, forget and forget-everything. Under each layer's entries (the terminal: a Notes
   section) they list its notes with description, size and date, marked past a cap; a note opens to read, edit,
   delete or bring back any version, and on the desktop, when the host is this computer, in the user's editor. They
