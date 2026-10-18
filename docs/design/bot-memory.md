@@ -774,7 +774,25 @@ for the owner's decision.
 - continuation;
 - decisions.
 
-Also log the cache read/write ratio per turn and assert on it in e2e.
+**Prompt cache.** The host logs each turn's cache reads and writes (`turn usage` in `host.log`).
+`tools/memory-eval/cache.py` measures the hit rate from Claude Code's own session logs; on 2026-10-18:
+
+| | Conversations | Calls | In a conversation | Every call |
+|---|---|---|---|---|
+| The owner's bots (`~/.codync`, `~/.codync-dev`) | 27 | 229 | **97.6%** | 83.7% |
+| The evaluation run | 173 | 472 | 98.1% | 71.1% |
+
+- **In a conversation** is the share of input read from cache, leaving out each conversation's first call and
+  calls more than an hour after the previous one. Per call it is 97.2%, and the median conversation 99.2%.
+- **Every call** adds those back. Many conversations are only 1–3 calls, so per conversation it averages 61.4%.
+- **Cold calls on the owner's bots:**
+  - 25 first calls;
+  - 22 after the cache expired;
+  - 4 mid-session misses, each reading about 15k of 46k. All of them date from 2026-09-30 to 10-10, before the
+    cache-safe opening. The evaluation had none.
+- **Cost:** Claude Code writes every cache entry for an hour, at 2× input. Overall, input cost 36.9% of the same
+  calls uncached. A one-call conversation costs more than no cache would (157%): it writes the cache and never
+  reads it back.
 
 **Product metrics** (PostHog counts only, never content):
 
@@ -808,7 +826,7 @@ Each milestone ships as its own minor release, with an e2e pass on all three app
   - Usage and the TTL; the three triggers with the loop guard and the before/after steps.
   - The keep-list: Claude through `/compact`, Codex through `compact_prompt`.
   - The summary card, the editable handoff and its history bookmark.
-  - Cache tokens asserted in e2e.
+  - Cache tokens logged per turn and measured on real bots ([prompt cache](#evaluation)).
 - **M3. Long-form memory (built).**
   - The folders, the naming and cap rules, `memory_files` and `memory_file_versions`.
   - The turn-end scan, versions, checks and restore; compare-and-swap host writes.

@@ -20,3 +20,15 @@ tools/memory-eval/run.py --home /tmp/eval-home --only tm,lf-01   # some kinds or
 It prints a pass count per kind and each failure with the reply; `results.json` keeps every reply, entry and note
 name. Temporal answers are written as `{d+3:%Y-%m-%d}`, `{next_friday:…}` or `{next_month:%B}` and expanded on
 the day of the run.
+
+## Prompt cache
+
+`cache.py` reads Claude Code's session logs (`~/.claude/projects`) and prints how much of each conversation's input
+came from the prompt cache, why the cold calls were cold, and the input cost against no cache. It needs no host:
+
+```sh
+tools/memory-eval/cache.py                 # the bots of ~/.codync and ~/.codync-dev
+tools/memory-eval/cache.py eval-home-bots  # session folders whose name contains this
+```
+
+The latest numbers are under [prompt cache](../../docs/design/bot-memory.md#evaluation).
