@@ -56,8 +56,10 @@ the `codync-mem` crate; `chat/memory` runs them in the host.
 - **The bot's tools** (built-in `memory` MCP server): `remember`, `revise_memory`, `archive_memory`,
   `search_memory`, `search_history`. A bot on automatic approval writes at once, in any turn and to either layer;
   the chat shows a "Remembered" line the user can undo. A bot that asks first shows a card the user approves or
-  declines, unless the user's own message in that turn asked it to remember. A declined or undone memory is
-  never written again by a bot.
+  declines, unless the user's own message in that turn asked it to remember. A declined, undone or forgotten
+  memory is never written again by a bot or dreaming, reworded or not: its text stays closed to that layer, and
+  the message it came from to both layers the bot uses. Entry ids are never reused, so an old undo line can't
+  reach a newer entry.
 - **Checks** on every write but the user's own (`codync_mem::check`): no hidden characters, prompt-carrying
   links, planted instructions, passwords, keys, ID or card numbers, nothing the user forgot, no duplicates, and
   the cap. Entries the user wrote can't be changed by a bot or dreaming.
