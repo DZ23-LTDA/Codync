@@ -3,7 +3,7 @@
 Status (2026-10-18): the whole [rollout](#rollout) is built on 2.18.0. That is the cards, the move from
 Engram, writes by permission, the checks, dreaming and all three apps (M0); instructions for every harness (M1);
 the cache-safe opening with host-run compaction and the handoff (M2); long-form memory files (M3); and the
-evaluation, run once (M4). The public mirror (M5) waits only for its repository. How it works today is in
+evaluation, run once (M4). The public mirror (M5) is live at `leepokai/codync-mem`. How it works today is in
 [context and memory](../features/context-and-memory.md); the research behind it is in
 [bot memory research](bot-memory-research.md). The numbers are starting values, tuned against the
 [evaluation](#evaluation).
@@ -889,9 +889,9 @@ Each milestone ships as its own minor release, with an e2e pass on all three app
   and vectors by their triggers. The runner and its 52 cases are in `tools/memory-eval/`; the results are under
   [Evaluation](#evaluation).
 - **M5. The public mirror.** `leepokai/codync-mem`, synced on every release, as under [Packaging](#packaging).
-  The sync (`.github/workflows/memory-mirror.yml`, a no-op until the `CODYNC_MEM_DEPLOY_KEY` secret exists) and
-  the mirror's own CI and pull-request redirect (`host/crates/memory/.github/`) are in place; the split builds,
-  passes clippy and tests on its own. Creating the repository and its deploy key is left to the owner.
+  The sync (`.github/workflows/memory-mirror.yml`) pushes with the `CODYNC_MEM_DEPLOY_KEY` secret, a write deploy
+  key on the mirror only; the mirror's own CI and pull-request redirect live in `host/crates/memory/.github/`.
+  Opened 2026-10-18 with the 2.18.0 split, and its CI passed on Linux, macOS and Windows.
 
 ## Sources
 
