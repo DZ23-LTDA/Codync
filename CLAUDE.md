@@ -17,6 +17,7 @@ Bot-based remote for coding agents: persistent named bots on your computer, mess
 ## Clean code
 
 - Keep code modular and clean on every change: reuse before writing, one responsibility per file/type, no new code appended to files past ~500 lines (split first), views/components hold no I/O or logic, short single-purpose functions, enums over flags, no dead code, no swallowed errors. Full rules: [docs/guides/clean-code.md](docs/guides/clean-code.md).
+- After every code change (tests green, before e2e and commit), run a cleanup agent and a read-only refactor review agent in parallel on the diff, apply what's worth it, and rerun the tests: [after every change](docs/guides/clean-code.md#after-every-change-cleanup-and-refactor-review).
 
 ## Architecture
 
