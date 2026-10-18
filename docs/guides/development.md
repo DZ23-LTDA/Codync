@@ -92,9 +92,9 @@ git config core.hooksPath .githooks
 
 It runs CI's checks for each part a commit touches, so a failure shows up before the push:
 host and the memory crate (`cargo fmt --all --check`, clippy and `cargo test` for the workspace), desktop, cloud
-and relay (`npm run typecheck`,
-`npm test`), Linux screen helper formatting, and a parse of the macOS screen helper's Swift
-sources (on macOS). It checks the staged files only, in a copy under `.git/precommit-snapshot`,
+and relay (`npm run typecheck`, `npm test`), the Android app (core and app unit tests, and a Kotlin compile of
+the app and its instrumentation tests, with JDK 21), Linux screen helper formatting, and a parse of the macOS
+screen helper's Swift sources (on macOS). It checks the staged files only, in a copy under `.git/precommit-snapshot`,
 so other agents' uncommitted edits in the same checkout neither break nor rescue a commit; the
 host builds into `host/target/precommit`, and its tests are stopped after 5 minutes so a hung
 test fails the commit instead of holding it. The npm checks reuse each package's `node_modules`

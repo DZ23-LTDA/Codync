@@ -10,12 +10,9 @@ evaluation, run once (M4). The public mirror (M5) waits only for its repository.
 
 Left before release, found 2026-10-18 and put off by the owner for now:
 
-- **The Android app breaks on merge.** On `dev` (#151–#158) it still calls the memory methods this branch
-  removes (`memoryDetail`, `reviewMemory`, `exportMemory`, `importMemory`) and has none of the new memory notes,
-  compaction summaries, handoff cards or `memoryFile` chat lines. Android isn't released, so it doesn't hold the
-  release, but it needs the same port the other clients got. On merge, add it to the "Not done yet" list in
-  `docs/plans/android-app.md`.
-- **The branch is behind `dev`** (6 commits, all Android); merging conflicts in `docs/guides/development.md`.
+- **The Android app's memory screen errors.** It still calls the removed Engram methods and has none of the new
+  memory UI. Android isn't released, so it doesn't hold the release; the port is listed in
+  [the Android plan](../plans/android-app.md#not-ported-yet).
 - **Full e2e on Linux and Windows** hasn't run; only macOS has.
 - **Bots inherit the owner's own Claude Code setup** (`~/.claude/CLAUDE.md`, permission mode, claude.ai
   connectors); isolating them waits for the owner's decision ([evaluation](#evaluation)).
