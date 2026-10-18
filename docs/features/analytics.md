@@ -58,7 +58,7 @@ Besides `env`, `app_version`, `$os`, `$lib`:
 |---|---|
 | `bot_created` | `kind` (`bot`/`group`), `agent`, `model` or `members` (count) |
 | `message_sent` | `kind`, `agent`, `in_thread`, `attachments` (count) |
-| `turn_finished` | `agent`, `outcome` (`done`/`stopped`/`failed`/`incomplete`), `stop_reason` (ACP's, else `other`), `source` (`user`/`routine`/`group`/`bot`), `seconds`; when failed, `error` (`not_installed`/`sign_in`/`timeout`/`exited`/`agent_error`/`io`/`other`) and, for `agent_error`, the agent's JSON-RPC `rpc_code` |
+| `turn_finished` | `agent`, `outcome` (`done`/`stopped`/`failed`/`incomplete`), `stop_reason` (ACP's, else `other`), `source` (`user`/`routine`/`group`/`bot`), `seconds`; when failed, `error` (`not_installed`/`sign_in`/`timeout`/`exited`/`agent_error`/`io`/`other`) and, for `agent_error`, the agent's JSON-RPC `rpc_code` and its own category when it names one (`agent_reason`: Claude's `rate_limit`, `overloaded`, `billing_error`, …) |
 | `voice_call_finished` | `seconds` |
 | `connector_installed` | `connector` (catalog name or `custom`) |
 | `skill_installed` | `custom` |
@@ -78,7 +78,8 @@ builds PostHog's generic `custom` frames (oldest first, the failing one last).
   errors and rejections in the main process and every window, and windows or helpers that
   crashed (`RendererGone`, `GPUGone`, … with Electron's reason), through `reportError`. Not
   reported: error events that carry no error (the ResizeObserver loop notice), and helpers that
-  exited normally or were ended from outside (`clean-exit`, `killed`: logout, shutdown, an update).
+  exited normally or were ended from outside (`clean-exit`, `killed`: logout, shutdown, an update),
+  and a GPU process that couldn't launch (the app goes on with software rendering).
   Processes `desktop-main`, `desktop-renderer`. The renderer is built unminified so function
   names stay readable.
 - **iPhone** (`CodyncKit` `CrashReports`): MetricKit's crash diagnostics, delivered on the next
@@ -98,6 +99,9 @@ Alerts email the owner, from insights on the *Codync users* dashboard (productio
 crash or error in a day* (`$exception` > 0, checked daily) and *Failed agent turns over 15 in an
 hour* (`turn_finished` with `outcome = failed`, checked hourly; a normal hour has a few). Error
 tracking's own issue alerts (new, reopened, spiking) need a Slack or Discord destination.
+
+Errors traced to a root cause are written up in [investigations](../README.md#investigations);
+ways to record more detail are proposed in [error tracking detail](../plans/error-tracking-detail.md).
 
 ## Metrics
 

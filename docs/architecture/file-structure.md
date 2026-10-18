@@ -61,7 +61,7 @@ Codync/
 │   └── test/                  # workerd tests; e2e/ runs against a real test host
 ├── relay/                     # Separate APNs push Worker; src/ and test/
 ├── discord/                   # Discord GitHub-role Worker (discord.codync.dev)
-├── docs/                      # Architecture, guides, reference, features, design, archive
+├── docs/                      # Architecture, features, design, guides, reference, plans, investigations, archive
 ├── tools/                     # Release, App Store submission and font scripts
 ├── packaging/                 # Distribution templates
 ├── marketing/app-store-screenshots/ # App Store screenshot editor (bun dev; Export bundle → out/)

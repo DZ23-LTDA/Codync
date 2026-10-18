@@ -74,7 +74,7 @@ The host (`codync-host`, Rust) runs on macOS, Windows and Linux; every client ta
 **Looking for the former native Mac app (SwiftUI + AppKit)?** Version 2.7.0 moved Mac and
 Linux to one Electron desktop app. The native implementation is preserved in Git history;
 see the [changelog and source lookup commands](#changelog) and the
-[archived AppKit chat implementation notes](docs/archive/macos-chat-swiftui.md).
+[archived AppKit chat implementation notes](docs/archive/macos-chat-swiftui-2026-10-05.md).
 
 ## How it works
 
@@ -231,7 +231,7 @@ Details: [desktop app](docs/architecture/desktop-app.md).
 **Native Mac source (SwiftUI + AppKit).** The last native revision is `1055636`, the parent
 of migration commit `41135ac`. It includes `apps/macos/` and the Mac code paths in `kit/`.
 The chat used `MacChatList`, an AppKit `NSScrollView` hosting SwiftUI message rows;
-see the [archived implementation notes](docs/archive/macos-chat-swiftui.md).
+see the [archived implementation notes](docs/archive/macos-chat-swiftui-2026-10-05.md).
 
 ```bash
 git show 1055636:apps/macos/Views/ChatWindow.swift
