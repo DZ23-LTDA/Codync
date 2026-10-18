@@ -786,6 +786,9 @@ for the owner's decision.
 The owner's Cursor, oh-my-pi and custom bots aren't measured: the script reads only those two logs. Once the host
 from this branch runs, its `turn usage` lines cover every harness whose adapter reports cached tokens.
 
+- **The owner's cache lives an hour.** Their Claude bots run on a Claude subscription, so every cache write was
+  a 1-hour entry (100% of `usage.cache_creation`). On extra-usage credits or an API key it is five minutes, and
+  the cold calls would start five minutes after the last one. Codex keeps OpenAI's own cache life, not measured.
 - **In a conversation** is the share of input read from cache, leaving out each conversation's first call and
   calls more than an hour after the previous one. Per call it is 97.2%, and the median conversation 99.2%.
 - **Every call** adds those back. Many conversations are only 1–3 calls, so per conversation it averages 61.4%.

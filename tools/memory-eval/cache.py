@@ -17,7 +17,9 @@ from collections import Counter
 from datetime import datetime
 from statistics import mean, median
 
-LIFE = 3600  # longest a cache entry lives: Claude Code writes 1-hour entries
+# Claude on a subscription writes 1-hour entries; extra usage or an API key gets 5 minutes. The "1-hour writes"
+# line shows which one an account got.
+LIFE = 3600
 PARTS = sys.argv[1:] or ['-codync-bots-', '-codync-dev-bots-']
 
 
