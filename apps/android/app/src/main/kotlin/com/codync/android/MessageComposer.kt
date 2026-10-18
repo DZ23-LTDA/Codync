@@ -141,8 +141,7 @@ private enum class Trailing { Interrupt, Stop, Call, Send }
         val skill = command.skill
         when {
             skill != null -> text.setTextAndPlaceCursorAtEnd("/$skill ")
-            command.name == "fast" -> { store.command("updateBot", buildJsonObject { put("id", bot.id); put("fastMode", !bot.fastMode) }, "roster:" + bot.id); clear() }
-            else -> { store.command("newSession", body("botId" to bot.id)); clear() }
+            else -> { store.command("updateBot", buildJsonObject { put("id", bot.id); put("fastMode", !bot.fastMode) }, "roster:" + bot.id); clear() }
         }
     }
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {

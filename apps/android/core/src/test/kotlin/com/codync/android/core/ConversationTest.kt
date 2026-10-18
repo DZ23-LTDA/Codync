@@ -25,6 +25,14 @@ class ConversationTest {
         assertTrue(entry("notice").isChat)
         assertTrue(entry("agent", true).isChat)
         for (kind in listOf("agent", "thought", "tool", "plan")) assertFalse(entry(kind).isChat)
+        for (key in listOf("memory", "memoryFile", "compaction")) {
+            val line = Entry("m", 1, "b", rev = 1, kind = "notice", data = buildJsonObject { put("text", "Remembered: x"); put(key, buildJsonObject {}) })
+            assertFalse("an older host's memory line", line.isChat)
+        }
+        for ((status, shown) in listOf("kept" to false, "sent" to true)) {
+            val handoff = Entry("h", 1, "b", rev = 1, kind = "notice", data = buildJsonObject { put("handoff", buildJsonObject { put("status", status) }) })
+            assertEquals(status, shown, handoff.isChat)
+        }
     }
 
     @Test fun `malformed known events fail before a checkpoint while unknown events are ignored`() {

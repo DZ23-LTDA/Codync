@@ -34,10 +34,9 @@ Typing `/` at the start of a message to a bot (desktop, iPhone, terminal; not in
 | Command | Title | Does |
 | --- | --- | --- |
 | `/fast` | Fast mode | Switches [Fast mode](#fast-mode) with `updateBot`; listed only while the bot offers it. Its detail says what picking it does, or why the agent refused it (warning color). |
-| `/new` | New session | `newSession`: the agent starts over with a fresh context and the transcript stays. No confirmation, unlike the bot menu's New session, because typing the command is the confirmation. |
 | `/<skill id>` | the skill's name | Fills in `/<skill id> ` for the rest of the message. |
 
-Picking a built-in command, or sending a message that is just one (`/fast`, `/new`), runs it in the client and clears the box; nothing reaches the agent. Return on a skill whose name is already typed out sends the message. The host sees a message starting with `/<id of a skill the bot has on>` and hands the agent `[Codync: the user picked the "<name>" skill for this message. Read <path> first and follow it.]` followed by the rest of the message; the chat keeps the text as typed. Any other `/command`, including `/fast` for a bot without Fast mode on offer, reaches the agent unchanged, so its own commands keep working. Clients list skills and load skill instructions only from hosts 2.14.1 and newer.
+Picking a built-in command, or sending a message that is just one (`/fast`), runs it in the client and clears the box; nothing reaches the agent. Return on a skill whose name is already typed out sends the message. The host sees a message starting with `/<id of a skill the bot has on>` and hands the agent `[Codync: the user picked the "<name>" skill for this message. Read <path> first and follow it.]` followed by the rest of the message; the chat keeps the text as typed. Any other `/command`, including `/fast` for a bot without Fast mode on offer, reaches the agent unchanged, so its own commands keep working. Clients list skills and load skill instructions only from hosts 2.14.1 and newer.
 
 ## Sign-in for remote connectors (`host/src/market/oauth.rs`)
 

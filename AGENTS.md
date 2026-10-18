@@ -20,7 +20,7 @@ Run from the repository root unless a command changes directories:
 
 - `xcodegen generate --spec apps/project.yml`: regenerate `apps/Codync.xcodeproj` after editing `apps/project.yml`; never edit `project.pbxproj` directly.
 - Use Xcode’s `iOS Dev` scheme for development and `iOS` for production; see [Dev app isolation](docs/guides/dev-app.md).
-- `cd apps/desktop && npm ci && npm run dev`: run the desktop app while developing and for its e2e check (renderer reloads on save, restart after `src/main` or preload changes; unpackaged, unsigned). After a host change run `node tools/native-host.mjs dev` there first: `npm run dev` prefers that build over `host/target/debug`. Package `npm run dist:mac:dev` (about 45 s) only for what an unpackaged run lacks (bundled host install, Codync Screen / computer use, system permissions); `dist:*:main` only to check the production app. `npm run typecheck && npm test` for its CI checks.
+- `cd apps/desktop && npm ci && npm run dev`: run the desktop app while developing and for its e2e check (renderer reloads on save, restart after `src/main` or preload changes; unpackaged, unsigned). In a linked worktree it runs a [sandbox](docs/guides/dev-app.md#worktree-sandboxes) beside the main checkout's Codync Dev; `--sandbox` does the same from the main checkout. In the main checkout, after a host change run `node tools/native-host.mjs dev` there first: `npm run dev` prefers that build over `host/target/debug`. Package `npm run dist:mac:dev` (about 45 s) only for what an unpackaged run lacks (bundled host install, Codync Screen / computer use, system permissions); `dist:*:main` only to check the production app. `npm run typecheck && npm test` for its CI checks.
 - `cd host && cargo build`: build the host; `cargo run -- serve` starts it in the foreground.
 - `cd host && cargo fmt --check && cargo clippy --all-targets -- -D warnings && cargo test`: run host CI checks.
 - `cd apps/android && ./gradlew :core:test :app:testDebugUnitTest :app:assembleDebug :app:lintDebug` (JDK 21, Android SDK 37): Android checks; `adb install -r app/build/outputs/apk/debug/app-debug.apk` installs Codync Dev.
@@ -44,7 +44,7 @@ After every change, test it end to end on the real apps, not just builds and uni
 
 - **Every source change ships as a release.** A version bump on `main` is the only release trigger (Auto Tag → desktop app for macOS, Linux and Windows, host, Homebrew, in-app update), so any change to shipped code (`apps/`, `host/`, `packaging/`) bumps the version before it reaches `main`, without being asked. Docs, `web/`, `cloud/`, `relay/` and CI-only changes don't bump.
 - Phone ↔ host compatibility: each side names the oldest version of the other it works with (`minApp` in the host's `hello`, `minHost` in each client). Additive changes need nothing; a rename/removal raises `minApp` in the same release, and hosts hold that release until the App Store has the iPhone app: [docs/reference/compatibility.md](docs/reference/compatibility.md)
-- Pick the bump yourself: patch for fixes and small tweaks, minor for new features or protocol additions. Never bump major (stay on 2.x). One bump per merge into `main`: if `MARKETING_VERSION` is already ahead of the latest `v*` tag, leave it.
+- Pick the bump yourself: patch for fixes and small tweaks, minor for new features or protocol additions. Never bump major (stay on 2.x). One bump per merge into `main`: if `MARKETING_VERSION` is already ahead of the latest `v*` tag, leave it. A change to `host/crates/memory` also raises `codync-mem`'s own 0.x version once per release (leave it if it's already ahead of `main`'s); CI blocks a PR into `main` that forgets, and the merge publishes it to crates.io ([codync-mem releases](docs/guides/development.md#codync-mem-releases)).
 - How: set `MARKETING_VERSION` in `apps/project.yml` and `version` in `host/Cargo.toml` (+ its `Cargo.lock` entry) and `apps/desktop/package.json` (+ `package-lock.json`) to the same value, run `xcodegen generate --spec apps/project.yml`, commit as `build: bump version to X.Y.Z`. Never touch `CURRENT_PROJECT_VERSION` (Xcode Cloud sets the iOS build number). When the iOS app changes, also write that version's section in `apps/ios/WhatsNew.md` (zh-Hant + en-US, what iPhone users notice); it becomes the App Store "What's New".
 
 ## Coding Style & Naming Conventions
@@ -58,6 +58,7 @@ Name Swift files after their main `UpperCamelCase` type; use `snake_case.rs` and
 ## Clean code
 
 - Keep code modular and clean on every change: reuse before writing, one responsibility per file/type, no new code appended to files past ~500 lines (split first), views/components hold no I/O or logic, short single-purpose functions, enums over flags, no dead code, no swallowed errors. Full rules: [docs/guides/clean-code.md](docs/guides/clean-code.md).
+- After every code change (tests green, before e2e and commit), run a cleanup agent and a read-only refactor review agent in parallel on the diff, apply what's worth it, and rerun the tests: [after every change](docs/guides/clean-code.md#after-every-change-cleanup-and-refactor-review).
 
 ## Cross-platform UI changes
 
