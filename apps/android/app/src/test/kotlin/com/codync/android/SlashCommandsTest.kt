@@ -12,9 +12,9 @@ class SlashCommandsTest {
         assertNull(SlashCommands.query("hi /new"))
         val bot = Bot("b", "Bot", skills = listOf("review"))
         val skills = listOf(InstalledSkill("review", "Review", "Reads diffs", "src", "/p"), InstalledSkill("other", "Other", "", "src", "/q"))
-        assertEquals(listOf("new", "review"), SlashCommands.list(bot, "", skills, "2.14.1").map { it.name }.filter { it != "fast" })
-        assertEquals(listOf("new"), SlashCommands.list(bot, "", skills, "2.9.3").map { it.name }.filter { it != "fast" })
-        assertEquals("new", SlashCommands.builtIn(bot, " /new ")?.name)
+        assertEquals(listOf("review"), SlashCommands.list(bot, "", skills, "2.14.1").map { it.name }.filter { it != "fast" })
+        assertEquals(emptyList<String>(), SlashCommands.list(bot, "", skills, "2.9.3").map { it.name }.filter { it != "fast" })
+        assertNull("a new session is in the bot's menu", SlashCommands.builtIn(bot, " /new "))
         assertTrue(SlashCommands.list(Bot("g", "Team", kind = "group"), "", skills, null).isEmpty())
     }
 

@@ -28,13 +28,13 @@ import com.codync.android.design.*
 import com.kyant.shapes.Capsule
 import com.kyant.shapes.RoundedRectangle
 
-/** A command in the composer's `/` list (iOS `SlashCommand`): Fast mode, New session, or one of the bot's skills. */
+/** A command in the composer's `/` list (iOS `SlashCommand`): Fast mode, or one of the bot's skills. */
 internal data class SlashCommand(val name: String, val icon: String, val title: String, val detail: String, val warning: Boolean,
     val skill: String? = null)
 
 /**
  * The composer's `/` commands, listed while the draft is just `/partial` (iOS `SlashCommands`): Fast mode
- * and New session run here; a skill fills in `/<id> `, which the host turns into "read this skill first".
+ * runs here (a new session is in the bot's menu); a skill fills in `/<id> `, which the host turns into "read this skill first".
  */
 internal object SlashCommands {
     /** The first host that understands `/skill` messages; older ones get the text as typed. */
@@ -51,13 +51,12 @@ internal object SlashCommands {
         return (builtIn(bot) + own).filter { query.isEmpty() || it.name.contains(query, true) || it.title.contains(query, true) }
     }
 
-    /** A draft that is just a built-in command (`/fast`, `/new`): sending it runs the command. */
+    /** A draft that is just a built-in command (`/fast`): sending it runs the command. */
     fun builtIn(bot: Bot, draft: String): SlashCommand? = query(draft.trim())?.let { name -> builtIn(bot).firstOrNull { it.name == name } }
 
     private fun builtIn(bot: Bot): List<SlashCommand> = if (bot.kind == "group") emptyList() else buildList {
         if (bot.fastModeShown) add(SlashCommand("fast", "bolt", "Fast mode", bot.fastModeRefusal
             ?: if (bot.fastMode) "Turn off and return to standard speed" else "Turn on for faster replies and more usage", bot.fastModeRefusal != null))
-        add(SlashCommand("new", "arrow.counterclockwise", "New session", "Start over with a fresh context; the transcript stays", false))
     }
 }
 
