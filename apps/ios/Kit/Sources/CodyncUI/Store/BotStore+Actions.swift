@@ -231,6 +231,14 @@ extension BotStore {
         perform(replay: true) { _ = try await $0.updateBot(d) }
     }
 
+    /// The composer's `/fast`: the bot's Fast mode flips; in a group, every member that shows it
+    /// goes to the opposite of the group's state.
+    public func toggleFastMode(_ bot: Bot) {
+        guard bot.isGroup else { return setFastMode(bot, !bot.fastMode) }
+        let group = GroupFastMode(members(of: bot))
+        for member in group.members { setFastMode(member, group.state == .off) }
+    }
+
     // MARK: roster order
 
     /// Puts the roster in `ids` order (pinned bots still sort first) and sends it; the host

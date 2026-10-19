@@ -60,8 +60,6 @@ pub enum Action {
     Keys,
 }
 
-pub const NEW_GROUP: &str = "New group chat";
-
 pub const ACTIONS: [(&str, &str, Action); 12] = [
     ("New bot…", "n", Action::NewBot),
     ("New group chat…", "m", Action::NewGroup),
@@ -116,9 +114,22 @@ pub struct Confirm {
     pub act: ConfirmAct,
 }
 
-pub struct AgentPicker {
-    pub query: Editor,
-    pub cursor: usize,
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum NewBotField {
+    Name,
+    Color,
+    Shape,
+}
+
+/// A new bot: a name (optional: the host names it after its first conversations) and its looks.
+/// Everything else takes the defaults and is changed afterwards in Settings.
+pub struct NewBot {
+    pub name: Editor,
+    pub color: usize,
+    pub shape: usize,
+    pub field: NewBotField,
+    pub error: Option<String>,
+    pub saving: bool,
 }
 
 #[derive(Clone)]
@@ -184,7 +195,7 @@ pub struct Toggle {
 
 #[allow(clippy::struct_excessive_bools, reason = "independent bot settings and save state")]
 pub struct Form {
-    pub bot_id: Option<String>,
+    pub bot_id: String,
     pub name: Editor,
     pub instructions: Editor,
     pub backend: String,
@@ -228,16 +239,21 @@ pub enum GroupField {
 }
 
 impl GroupField {
-    pub(super) fn next(self) -> Self {
+    /// The field after this one; a new group has no About (it is written afterwards, in the editor).
+    pub(super) fn next(self, about: bool) -> Self {
         match self {
-            Self::Name => Self::About,
-            Self::About => Self::Bots,
+            Self::Name if about => Self::About,
+            Self::Name | Self::About => Self::Bots,
             Self::Bots => Self::Name,
         }
     }
 
-    pub(super) fn prev(self) -> Self {
-        self.next().next()
+    pub(super) fn prev(self, about: bool) -> Self {
+        match self {
+            Self::Name => Self::Bots,
+            Self::Bots if about => Self::About,
+            Self::About | Self::Bots => Self::Name,
+        }
     }
 }
 
@@ -246,7 +262,8 @@ pub struct GroupForm {
     /// The group being edited; `None` creates one.
     pub group_id: Option<String>,
     pub name: Editor,
-    /// What the group is for; sent as `description`, shown to its members.
+    /// What the group is for; sent as `description`, shown to its members. Edited only:
+    /// a new group starts without one.
     pub about: Editor,
     /// Picked bot ids, in the order they were picked.
     pub members: Vec<String>,
@@ -260,7 +277,7 @@ pub enum Overlay {
     Goto(Goto),
     Help(Editor),
     Confirm(Confirm),
-    Agents(AgentPicker),
+    NewBot(NewBot),
     Folder(FolderPicker),
     Form(Box<Form>),
     Group(GroupForm),

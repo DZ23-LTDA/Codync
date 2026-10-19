@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react'
 import { isBelow } from '@shared/compat'
+import { groupFastMode } from '@shared/fast-mode'
 import { isGroup, isWorkingIn, type Bot } from '@shared/models'
 import { BotAvatar } from '../../components/Avatar'
 import { Icon } from '../../components/Icon'
@@ -14,13 +15,13 @@ import { composerEnter } from './composer-keyboard'
 import { CommandMenu, useCommandMenu } from './CommandMenu'
 import { ComposerAttachment } from './ComposerAttachment'
 import { useDictation } from './dictation'
-import { builtInCommand, SKILLS_HOST, slashCommands, slashQuery, type SlashCommand } from './slash-commands'
+import { builtInCommand, GROUP_SKILLS_HOST, SKILLS_HOST, slashCommands, slashQuery, type SlashCommand } from './slash-commands'
 
 type Trailing = 'interrupt' | 'stop' | 'call' | 'send'
 
 /**
  * The message box under a chat or a thread: send, or stop while the bot (or the group) is
- * working there. In a group, typing `@` suggests its bots; with one bot, a leading `/` lists its commands.
+ * working there. A leading `/` lists the commands (a group's are its bots'); in a group, typing `@` suggests its bots.
  */
 export function Composer({ botId, thread = null, onCall, onInterrupt }: {
   botId: string
@@ -57,7 +58,9 @@ function DestinationComposer({ botId, thread, onCall, onInterrupt }: {
   const canSend = !empty && (store.connection.kind === 'online' || (store.canQueue && !files.length))
   const canAttach = !!bot
 
-  const placeholder = thread ? 'Reply…' : bot && isGroup(bot) ? 'Message everyone · @ to ask one bot' : working ? `Queue a message for ${bot?.name ?? ''}` : `Ask ${bot?.name ?? ''}`
+  const members = bot && isGroup(bot) ? store.members(bot) : []
+
+  const placeholder = thread ? 'Reply…' : bot && isGroup(bot) ? 'Ask everyone · @ to ask one bot' : working ? `Queue a message for ${bot?.name ?? ''}` : `Ask ${bot?.name ?? ''}`
 
   // A routine's "Try it" fills the box.
   const routineDraft = store.routineDrafts.get(botId)
@@ -98,7 +101,7 @@ function DestinationComposer({ botId, thread, onCall, onInterrupt }: {
     return /\n/.test(query) || query.length > 24 ? null : query
   })()
   const suggestions: Bot[] =
-    mentionQuery !== null && bot ? store.members(bot).filter((m) => !mentionQuery || m.name.toLowerCase().includes(mentionQuery.toLowerCase())) : []
+    mentionQuery !== null ? members.filter((m) => !mentionQuery || m.name.toLowerCase().includes(mentionQuery.toLowerCase())) : []
 
   const mention = (member: Bot) => {
     const at = draft.lastIndexOf('@')
@@ -107,16 +110,21 @@ function DestinationComposer({ botId, thread, onCall, onInterrupt }: {
     field.current?.focus()
   }
 
-  // Not in a group: each member has its own skills.
-  const skillsShown = !!bot && !isGroup(bot) && !isBelow(store.hello?.version ?? '', SKILLS_HOST)
+  const skillsShown = !!bot && !isBelow(store.hello?.version ?? '', isGroup(bot) ? GROUP_SKILLS_HOST : SKILLS_HOST)
   const slash = slashQuery(draft)
-  const commands = slash === null ? [] : slashCommands(bot, slash, skillsShown ? plugins.installedSkills : [])
+  const commands = slash === null ? [] : slashCommands(bot, slash, skillsShown ? plugins.installedSkills : [], members)
 
   const run = (command: SlashCommand) => {
     if (!bot) return
     switch (command.action.kind) {
       case 'fast':
-        store.setFastMode(bot, !bot.fastMode)
+        if (isGroup(bot)) {
+          // Each member's own Fast mode: all on, or all back off.
+          const fast = groupFastMode(members)
+          for (const m of fast?.members ?? []) store.setFastMode(m, fast?.state === 'off')
+        } else {
+          store.setFastMode(bot, !bot.fastMode)
+        }
         setDraft('')
         break
       case 'skill':
@@ -141,7 +149,7 @@ function DestinationComposer({ botId, thread, onCall, onInterrupt }: {
   }
 
   const submit = () => {
-    const command = files.length ? null : builtInCommand(bot, draft)
+    const command = files.length ? null : builtInCommand(bot, draft, members)
     if (command) return run(command)
     if (!canSend) return
     store.send(draft, botId, thread, files, undefined, pasted.current)

@@ -301,10 +301,10 @@ class CardRows internal constructor() {
     BasicTextField(text, onChange, modifier, enabled = enabled, singleLine = singleLine, minLines = minLines, maxLines = maxLines,
         textStyle = style.copy(color = Palette.text), cursorBrush = SolidColor(Palette.accent), keyboardOptions = keyboard, keyboardActions = actions,
         decorationBox = { field ->
-            Box(contentAlignment = Alignment.CenterStart) {
-                // A centered field centers its placeholder too.
-                if (text.isEmpty()) Text(prompt, if (style.textAlign == TextAlign.Center) Modifier.fillMaxWidth() else Modifier, style = style,
-                    color = Palette.tertiary, maxLines = if (singleLine) 1 else Int.MAX_VALUE)
+            val centered = style.textAlign == TextAlign.Center
+            // A centered field spans its width, so its placeholder and empty cursor sit in the middle too.
+            Box(contentAlignment = Alignment.CenterStart, propagateMinConstraints = centered) {
+                if (text.isEmpty()) Text(prompt, style = style, color = Palette.tertiary, maxLines = if (singleLine) 1 else Int.MAX_VALUE)
                 field()
             }
         })

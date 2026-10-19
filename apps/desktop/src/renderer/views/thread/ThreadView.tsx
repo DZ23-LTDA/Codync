@@ -214,7 +214,7 @@ export const ThreadView = memo(function ThreadView({ botId }: { botId: string })
         {templateDraft ? <BotTemplateView draft={templateDraft} /> : null}
       </Sheet>
       <Sheet open={editingGroup} onClose={() => setEditingGroup(false)} width={420} height={560}>
-        <GroupEditorView group={bot} />
+        {bot ? <GroupEditorView group={bot} /> : null}
       </Sheet>
     </div>
   )

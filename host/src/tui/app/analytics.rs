@@ -64,7 +64,7 @@ impl App {
             Overlay::Routines(_) => Some(Screen::Routines),
             Overlay::Market(_) => Some(Screen::Marketplace),
             Overlay::Help(_) => Some(Screen::Help),
-            Overlay::Form(f) if f.bot_id.is_some() => Some(Screen::BotDetails),
+            Overlay::Form(_) => Some(Screen::BotDetails),
             Overlay::Group(g) if g.group_id.is_some() => Some(Screen::BotDetails),
             _ => None,
         });

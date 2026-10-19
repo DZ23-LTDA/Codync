@@ -116,7 +116,7 @@ pub(super) fn chat(buf: &mut Buffer, r: Rect, app: &mut App, narrow: bool) {
         } else if app.thread.is_some() {
             "Reply…".to_owned()
         } else if b.group {
-            "Message everyone · @ to ask one bot".to_owned()
+            "Ask everyone · @ to ask one bot".to_owned()
         } else {
             format!("Message {}…", b.name)
         };

@@ -39,6 +39,8 @@ private enum class Root { Loading, Welcome, Pairing, Tabs }
     var showPairing by rememberSaveable { mutableStateOf(false) }
     var showUsage by rememberSaveable { mutableStateOf(false) }
     var showMarketplace by rememberSaveable { mutableStateOf(false) }
+    var creatingBot by rememberSaveable { mutableStateOf(false) }
+    var creatingGroup by rememberSaveable { mutableStateOf(false) }
     var access by remember { mutableStateOf<CloudComputer?>(null) }
     var editor by remember { mutableStateOf<BotDraft?>(null) }
     var groupEditor by remember { mutableStateOf<GroupDraft?>(null) }
@@ -46,7 +48,7 @@ private enum class Root { Loading, Welcome, Pairing, Tabs }
     var handledGeneration by rememberSaveable { mutableIntStateOf(state.generation) }
     fun closeAll() {
         showAccount = false; accountSettings = false; showComputers = false; showPairing = false; showMarketplace = false
-        access = null; editor = null; groupEditor = null
+        creatingBot = false; creatingGroup = false; access = null; editor = null; groupEditor = null
     }
     // A new account or a fresh start drops whatever was open for the old one.
     LaunchedEffect(state.generation) { if (handledGeneration != state.generation) { closeAll(); showUsage = false; handledGeneration = state.generation } }
@@ -88,7 +90,7 @@ private enum class Root { Loading, Welcome, Pairing, Tabs }
                     }
                 }
                 Root.Tabs -> MainTabs(state, store, account = { showAccount = true }, manage = { showComputers = true }, usage = { showUsage = true },
-                    newBot = { editor = BotDraft() }, newGroup = { groupEditor = GroupDraft() },
+                    newBot = { creatingBot = true }, newGroup = { creatingGroup = true },
                     edit = { bot -> if (bot.kind == "group") groupEditor = GroupDraft.from(bot) else editor = BotDraft.from(bot) }) {
                     ChatScreen(state, store) { bot -> if (bot.kind == "group") groupEditor = GroupDraft.from(bot) else editor = BotDraft.from(bot) }
                 }
@@ -121,20 +123,22 @@ private enum class Root { Loading, Welcome, Pairing, Tabs }
         AnalyticsOnAppear(AnalyticsEvent.ScreenViewed(AnalyticsScreen.Marketplace))
         MarketplaceView(state, store)
     }
-    // An existing bot or group's editor is its details; a new one's isn't.
+    CodyncSheet(creatingBot && !state.loading, { creatingBot = false }) { key(state.contextId, state.generation) { NewBotView(state, store) } }
+    CodyncSheet(creatingGroup && !state.loading, { creatingGroup = false }) { key(state.contextId, state.generation) { NewGroupView(state, store) } }
+    // A bot or group's editor is its details.
     CodyncSheet(groupEditor.takeIf { !state.loading }, { groupEditor = null }) { draft ->
-        if (draft.id != null) AnalyticsOnAppear(AnalyticsEvent.ScreenViewed(AnalyticsScreen.BotDetails))
+        AnalyticsOnAppear(AnalyticsEvent.ScreenViewed(AnalyticsScreen.BotDetails))
         key(state.contextId, state.generation, draft.id) { GroupEditor(state, draft, store) }
     }
     CodyncSheet(editor.takeIf { !state.loading }, { editor = null }) { draft ->
-        if (draft.id != null) AnalyticsOnAppear(AnalyticsEvent.ScreenViewed(AnalyticsScreen.BotDetails))
+        AnalyticsOnAppear(AnalyticsEvent.ScreenViewed(AnalyticsScreen.BotDetails))
         key(state.contextId, state.generation, draft.id) { BotEditor(state, draft, store) }
     }
     // The remote screen opens over the app once its sheets have slid away.
     LaunchedEffect(state.screenRequest) { if (state.screenRequest != null) { closeAll(); showUsage = false } }
     ScreenLayer(state, store)
-    // One place for errors the screen showing them doesn't handle itself (pairing, access, the editors do).
-    val inline = root == Root.Pairing || showPairing || access != null || editor != null || groupEditor != null
+    // One place for errors the screen showing them doesn't handle itself (pairing, access, the new and edit sheets do).
+    val inline = root == Root.Pairing || showPairing || access != null || creatingBot || creatingGroup || editor != null || groupEditor != null
     CodyncDialog("Something went wrong", state.error != null && !inline, store::clearError, state.error, cancel = "OK") { emptyList() }
 }
 

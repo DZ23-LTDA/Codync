@@ -85,6 +85,11 @@ pub(super) async fn call(hub: &Arc<Hub>, method: &str, b: Value) -> Result<Contr
             if b["skills"].is_null() && b["kind"] != "group" {
                 b["skills"] = json!(market::skills(&hub.store).into_iter().map(|s| s.id).collect::<Vec<_>>());
             }
+            // And the agent, when the client names none.
+            if b["backend"].as_str().is_none_or(str::is_empty) && b["kind"] != "group" {
+                let agents = tokio::task::spawn_blocking(crate::agent::backends::list).await?;
+                b["backend"] = default_backend(&agents).into();
+            }
             let cfg: BotConfig = serde_json::from_value(b).context("invalid bot")?;
             let hub = hub.clone();
             json!({"bot": tokio::task::spawn_blocking(move || hub.create_bot(cfg)).await??})
@@ -175,8 +180,6 @@ pub(super) async fn call(hub: &Arc<Hub>, method: &str, b: Value) -> Result<Contr
                     attachments.push(crate::chat::uploads::resolve(&root, id)?.1);
                 }
             }
-            // `/skill …` reaches the agent as "read this skill first"; the chat keeps what was typed.
-            let prompt = crate::chat::prompt::of_message(&hub.store, &row.config, text, &attachments);
             let turn = hub.store.max_turn(bot) + 1;
             // A group has no agent of its own to queue behind: its message is simply sent.
             let status = if row.config.is_group() { "sent" } else { "queued" };
@@ -202,8 +205,12 @@ pub(super) async fn call(hub: &Arc<Hub>, method: &str, b: Value) -> Result<Contr
                 tracing::warn!(%error, bot, "couldn't mark bot read after send");
             }
             if row.config.is_group() {
+                // Each member reads it in its room prompt (`chat::group`).
                 crate::chat::group::start(hub, &row.config, lane);
             } else {
+                // `/skill …` reaches the agent as "read this skill first"; the chat keeps what was typed.
+                let root = crate::chat::uploads::root(&row.config);
+                let prompt = crate::chat::prompt::of_message(&hub.store, &row.config.skills, &root, text, &attachments);
                 hub.send_cmd(bot, Cmd::Send { lane, entry_id: e.id.clone(), text: prompt })?;
             }
             json!({"entry": e})
@@ -248,4 +255,32 @@ pub(super) async fn call(hub: &Arc<Hub>, method: &str, b: Value) -> Result<Contr
         }
         _ => return Ok(ControlFlow::Continue(b)),
     }))
+}
+
+/// A new bot's agent (`agents` as `backends::list` gives them): Claude when it runs here, else the
+/// first one Codync knows that does. A registry agent nobody chose is never the default.
+fn default_backend(agents: &[Value]) -> &str {
+    let runnable = || agents.iter().filter(|a| a["available"] == true);
+    if runnable().any(|a| a["id"] == "claude") {
+        return "claude";
+    }
+    runnable().find(|a| a["curated"] == true).and_then(|a| a["id"].as_str()).unwrap_or("claude")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn the_default_agent_is_claude_then_the_first_known_one() {
+        assert_eq!(default_backend(&[]), "claude", "nothing installed");
+        let mut agents = vec![
+            json!({"id": "goose", "available": true, "curated": false}),
+            json!({"id": "codex", "available": true, "curated": true}),
+            json!({"id": "claude", "available": false, "curated": true}),
+        ];
+        assert_eq!(default_backend(&agents), "codex");
+        agents[2]["available"] = true.into();
+        assert_eq!(default_backend(&agents), "claude");
+    }
 }

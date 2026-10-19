@@ -43,7 +43,7 @@ export class BotMirror extends Observable {
   routineDrafts = new Map<string, string>()
   readonly composerDrafts: ComposerDrafts
   lastError: string | null = null
-  /** A kit view selected a bot on this store (new chat, editor); the account picks it up. */
+  /** A kit view selected a bot on this store (new bot or group, editor); the account picks it up. */
   selection: string | null = null
   /** Permission cards whose answer is on its way, with the chosen option. */
   answering = new Map<string, string>()

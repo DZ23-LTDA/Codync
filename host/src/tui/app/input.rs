@@ -6,8 +6,8 @@ use serde_json::json;
 
 use super::editor::move_line;
 use super::{
-    After, App, Click, Confirm, ConfirmAct, Editor, Field, Focus, Goto, GroupField, Kind, Mark, Overlay, PendingSend,
-    Status, TraceMode, Width, mismatch_text, page, tilde,
+    After, App, Click, Confirm, ConfirmAct, Editor, Field, Focus, Goto, GroupField, Kind, Mark, NewBotField, Overlay,
+    PendingSend, Status, TraceMode, Width, mismatch_text, page, tilde,
 };
 
 impl App {
@@ -36,7 +36,7 @@ impl App {
         match self.overlays.last_mut()? {
             Overlay::Goto(g) => Some(&mut g.query),
             Overlay::Help(e) => Some(e),
-            Overlay::Agents(a) => Some(&mut a.query),
+            Overlay::NewBot(n) => (n.field == NewBotField::Name).then_some(&mut n.name),
             Overlay::Folder(p) => Some(&mut p.query),
             Overlay::Group(g) => match g.field {
                 GroupField::Name => Some(&mut g.name),

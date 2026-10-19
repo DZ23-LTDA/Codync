@@ -41,6 +41,16 @@ fun AppStore.saveGroup(draft: GroupDraft, onSaved: () -> Unit) = action("editor"
     onSaved()
 }
 
+/** `/fast`: a bot's own Fast mode, or a group's members' together (each member's own setting, so it holds in their chats too). */
+fun AppStore.toggleFastMode(bot: Bot) {
+    if (bot.kind != "group") return setFastMode(bot, !bot.fastMode)
+    val group = GroupFastMode(bot.memberBots(state.value.bots))
+    for (member in group.members) setFastMode(member, group.state == FastModeState.Off)
+}
+private fun AppStore.setFastMode(bot: Bot, on: Boolean) {
+    command("updateBot", buildJsonObject { put("id", bot.id); put("fastMode", on) }, "roster:" + bot.id)
+}
+
 fun AppStore.deleteBot(bot: Bot, onDeleted: () -> Unit) = action("delete:" + bot.id) {
     val active = ready()
     active.call("deleteBot", body("botId" to bot.id))

@@ -4,8 +4,8 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 /// The message box under a chat or a thread: send, or stop while the bot (or the
-/// group) is working there. In a group, typing `@` suggests its bots; with one bot, a
-/// leading `/` lists its commands.
+/// group) is working there. A leading `/` lists commands (a group's act on its bots);
+/// in a group, typing `@` suggests its bots.
 struct Composer: View {
     let botId: String
     /// Replies go to the thread on this message.
@@ -46,7 +46,7 @@ struct Composer: View {
     private var placeholder: String {
         let name = bot?.name ?? ""
         if thread != nil { return "Reply…" }
-        if bot?.isGroup == true { return "Message everyone · @ to ask one bot" }
+        if bot?.isGroup == true { return "Ask everyone · @ to ask one bot" }
         return working ? "Queue a message for \(name)" : "Ask \(name)"
     }
 
@@ -59,17 +59,21 @@ struct Composer: View {
     }
 
     private var suggestions: [Bot] {
-        guard let query = mentionQuery, let bot else { return [] }
-        return model.members(of: bot).filter {
+        guard let query = mentionQuery else { return [] }
+        return members.filter {
             query.isEmpty || $0.name.localizedCaseInsensitiveContains(query)
         }
     }
 
+    /// A group's bots, which its commands act on.
+    private var members: [Bot] { bot.map(model.members(of:)) ?? [] }
+
     /// The bot's `/` commands while the draft is `/partial`; skills only from hosts that run them.
     private var commands: [SlashCommand] {
         guard let query = SlashCommands.query(draft) else { return [] }
-        let skillsShown = !AppVersion.isBelow(model.hello?.version ?? "", SlashCommands.minSkillsHost)
-        return SlashCommands.list(for: bot, query: query, skills: skillsShown ? model.installedSkills : [])
+        let floor = bot?.isGroup == true ? SlashCommands.minGroupSkillsHost : SlashCommands.minSkillsHost
+        let skillsShown = !AppVersion.isBelow(model.hello?.version ?? "", floor)
+        return SlashCommands.list(for: bot, members: members, query: query, skills: skillsShown ? model.installedSkills : [])
     }
 
     var body: some View {
@@ -251,7 +255,7 @@ struct Composer: View {
         .onChange(of: draft) { _, value in
             model.setComposerDraft(value, for: botId, thread: thread)
             // Starting a command: list the computer's skills again.
-            if value == "/", bot?.isGroup == false { Task { await model.refreshPlugins() } }
+            if value == "/" { Task { await model.refreshPlugins() } }
         }
         .onChange(of: model.routineDrafts[botId]) { _, value in
             guard thread == nil, let value else { return }
@@ -346,7 +350,7 @@ struct Composer: View {
         guard let bot else { return }
         switch command.action {
         case .fast:
-            model.setFastMode(bot, !bot.fastMode)
+            model.toggleFastMode(bot)
             draft = ""
         case .skill(let id):
             draft = "/\(id) "
@@ -355,7 +359,7 @@ struct Composer: View {
     }
 
     private func submit() {
-        if files.isEmpty, let command = SlashCommands.builtIn(for: bot, draft: draft) { return run(command) }
+        if files.isEmpty, let command = SlashCommands.builtIn(for: bot, members: members, draft: draft) { return run(command) }
         guard canSend else { return }
         withAnimation(Motion.reduced(Motion.conversation, reduceMotion)) {
             guard model.sendComposerDraft(to: botId, thread: thread, files: files) else { return }

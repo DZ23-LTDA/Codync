@@ -126,7 +126,7 @@ npm run typecheck && npm test
 ```
 
 UI checks: `CODYNC_SHOW_INACTIVE=1` opens the window without taking focus,
-`CODYNC_DEBUG_OPEN=compose|group|plugins|computers|<bot name>` opens a screen, and
+`CODYNC_DEBUG_OPEN=newBot|newGroup|plugins|computers|<bot name>` opens a screen, and
 `CODYNC_REMOTE_DEBUG=<port>` lets a script drive the renderer over the DevTools protocol.
 Each packaging script names its environment:
 

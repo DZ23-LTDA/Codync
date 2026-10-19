@@ -12,20 +12,17 @@ import { AutoTextArea } from './parts'
 import './bots.css'
 
 /**
- * Create a group chat, or change its name, what it's for and who's in it. Bots are
- * picked like recipients: chips on top, a search, and the bots not in it yet.
+ * Change a group chat's name, what it's for and who's in it. Bots are added from a
+ * search of the ones not in it yet. New groups start in `NewGroupView`.
  */
-export function GroupEditorView({ group, members: initialMembers = [] }: { group: Bot | null; members?: string[] }) {
+export function GroupEditorView({ group }: { group: Bot }) {
   const store = useStore()
   const dismiss = useDismiss()
-  // The group being edited; null creates one.
-  const groupId = group?.id ?? null
-  const [name, setName] = useState(group?.name ?? '')
-  const [about, setAbout] = useState(group?.description ?? '')
-  const [members, setMembers] = useState<string[]>(group?.members ?? initialMembers)
+  const [name, setName] = useState(group.name)
+  const [about, setAbout] = useState(group.description)
+  const [members, setMembers] = useState<string[]>(group.members)
   const [query, setQuery] = useState('')
-  // A new group starts in the picker; an existing one shows its members first.
-  const [adding, setAdding] = useState(group === null && initialMembers.length === 0)
+  const [adding, setAdding] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [confirmDelete, setConfirmDelete] = useState<Bot | null>(null)
@@ -34,11 +31,10 @@ export function GroupEditorView({ group, members: initialMembers = [] }: { group
   // Bots that can still join, filtered by the search.
   const q = query.trim().toLowerCase()
   const candidates = store.roster.filter((b) => !isGroup(b) && !members.includes(b.id) && (!q || b.name.toLowerCase().includes(q)))
-  const isNew = groupId === null
   const canSave = members.length > 0 && !saving
   // "Alice, Bob" when no name is typed.
   const defaultName = picked.length ? picked.map((b) => b.name).join(', ') : 'Name'
-  const current = groupId ? store.bots.get(groupId) : undefined
+  const current = store.bots.get(group.id)
 
   const toggle = (id: string) => {
     setMembers((list) => (list.includes(id) ? list.filter((m) => m !== id) : [...list, id]))
@@ -48,21 +44,16 @@ export function GroupEditorView({ group, members: initialMembers = [] }: { group
   const save = () => {
     setSaving(true)
     setError(null)
-    const typed = name.trim()
-    const finalName = typed || defaultName
-    const description = about.trim()
-    const done = groupId
-      ? store.updateGroup({ id: groupId, kind: 'group', name: finalName, description, members, pinned: store.bots.get(groupId)?.pinned })
-      : store.createGroup(finalName, description, members)
-    void Promise.resolve(done)
-      .then(() => dismiss())
+    store
+      .updateGroup({ id: group.id, kind: 'group', name: name.trim() || defaultName, description: about.trim(), members, pinned: current?.pinned })
+      .then(dismiss)
       .catch((e: unknown) => setError(errorText(e)))
       .finally(() => setSaving(false))
   }
 
   return (
     <SheetPage>
-      <ModalHeader icon="person.2" title={isNew ? 'New group chat' : 'Group chat'} trailing={saving ? <Spinner /> : <IconButton title={isNew ? 'Create' : 'Save'} icon="checkmark" disabled={!canSave} onClick={save} />} />
+      <ModalHeader icon="person.2" title="Group chat" trailing={saving ? <Spinner /> : <IconButton title="Save" icon="checkmark" disabled={!canSave} onClick={save} />} />
       <div className="group-scroll">
         <div className="group-form">
           <div className="group-identity">

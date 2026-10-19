@@ -1,27 +1,15 @@
-//! Keys in the pickers: go-to, actions, agents and folders.
+//! Keys in the pickers: go-to, actions and folders.
 
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
-use serde_json::{Value, json};
+use serde_json::json;
 
 use super::super::manage::{AnalyticsSheet, Reply};
 use super::{
-    ACTIONS, Action, After, AgentPicker, App, Bot, ConfirmAct, Dir, Editor, FILTERS, FolderPicker, Goto, GotoItem,
-    NEW_GROUP, Overlay, contains, fuzzy,
+    ACTIONS, Action, After, App, Bot, ConfirmAct, Dir, Editor, FILTERS, FolderPicker, Goto, GotoItem, Overlay,
+    contains, fuzzy,
 };
 
 impl App {
-    /// Agents offered for a new bot: runnable ones on this computer first.
-    pub fn agent_choices(&self, query: &str) -> Vec<&Value> {
-        let mut v: Vec<&Value> = self
-            .backends
-            .iter()
-            .filter(|b| b["available"].as_bool().unwrap_or(false) || b["registry"].is_string())
-            .filter(|b| fuzzy(query, &[b["name"].as_str().unwrap_or_default(), b["id"].as_str().unwrap_or_default()]))
-            .collect();
-        v.sort_by_key(|b| !b["installed"].as_bool().unwrap_or(false));
-        v
-    }
-
     pub fn goto_items(&self, g: &Goto) -> Vec<GotoItem> {
         let q = g.query.text.trim();
         let want = FILTERS[g.filter].1;
@@ -107,7 +95,7 @@ impl App {
                 KeyCode::Esc | KeyCode::Char('q') => None,
                 _ => Some(Overlay::Confirm(c)),
             },
-            Overlay::Agents(a) => self.agents_key(a, k),
+            Overlay::NewBot(n) => self.new_bot_key(n, k),
             Overlay::Folder(p) => self.folder_key(p, k),
             Overlay::Form(f) => self.form_key(f, k),
             Overlay::Group(g) => self.group_key(g, k),
@@ -172,40 +160,6 @@ impl App {
             }
         }
         Some(Overlay::Goto(g))
-    }
-
-    /// The agent picker's last row, "New group chat", when the filter matches it.
-    pub fn agent_group_row(query: &str) -> bool {
-        fuzzy(query, &[NEW_GROUP])
-    }
-
-    fn agents_key(&mut self, mut a: AgentPicker, k: KeyEvent) -> Option<Overlay> {
-        let agents = self.agent_choices(&a.query.text).len();
-        let n = agents + usize::from(Self::agent_group_row(&a.query.text));
-        match k.code {
-            KeyCode::Esc => return None,
-            KeyCode::Down => a.cursor = (a.cursor + 1).min(n.saturating_sub(1)),
-            KeyCode::Up => a.cursor = a.cursor.saturating_sub(1),
-            KeyCode::Enter if a.cursor == agents && Self::agent_group_row(&a.query.text) => {
-                self.new_group();
-                return None;
-            }
-            KeyCode::Enter => {
-                let backend =
-                    self.agent_choices(&a.query.text).get(a.cursor).and_then(|b| b["id"].as_str()).map(str::to_owned);
-                if let Some(backend) = backend {
-                    self.overlays.push(Overlay::Agents(a));
-                    self.new_bot_form(backend);
-                    return None;
-                }
-            }
-            _ => {
-                if a.query.key(k) {
-                    a.cursor = 0;
-                }
-            }
-        }
-        Some(Overlay::Agents(a))
     }
 
     pub(super) fn open_folder(&mut self, start: &str) {

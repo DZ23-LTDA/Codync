@@ -8,8 +8,8 @@ Files travel in both directions: users attach inputs, and bots explicitly share 
   (`apps/desktop/src/renderer/views/thread/Composer.tsx`); on the iPhone through Paste in the
   + menu.
   HEIC/TIFF/BMP become JPEG (`OutgoingFile.prepared`, `Thread/Attachments.swift`). Picked files show as chips above
-  the text and can be removed; a message can be files only. Not in group chats (a group has no
-  folder of its own). Up to 100 MB per file.
+  the text and can be removed; a message can be files only. Group chats take files too: they're
+  kept in the group's uploads folder and listed to each member under the message. Up to 100 MB per file.
 - Upload: `upload {botId, uploadId, name, offset, data (base64), done}`, 384 KiB per call so each
   stays under the channel's 1 MiB message limit. A repeated chunk is accepted (retry); anything out
   of order is refused. Then `send {…, attachments: [uploadId]}`; the text may be empty.

@@ -84,7 +84,7 @@ public struct ThreadView: View {
                 BotDetailsView(botId: botId, request: request)
             }
             .codyncSheet(isPresented: $editingGroup) {
-                GroupEditorView(group: bot)
+                if let bot { GroupEditorView(group: bot) }
             }
             .codyncDialog("Start a new session?", isPresented: $confirmNewSession,
                           message: "The conversation stays here, but the agent starts with a fresh context.") {

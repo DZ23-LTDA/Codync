@@ -10,8 +10,6 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.text.input.setTextAndPlaceCursorAtEnd
-import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.put
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.animateDpAsState
@@ -124,24 +122,26 @@ private enum class Trailing { Interrupt, Stop, Call, Send }
     }
     val placeholder = when {
         thread != null -> "Reply…"
-        bot.kind == "group" -> "Message everyone · @ to ask one bot"
+        bot.kind == "group" -> "Ask everyone · @ to ask one bot"
         working -> "Queue a message for ${bot.name}"
         else -> "Ask ${bot.name}"
     }
     val typed = text.text.toString()
-    val commands = SlashCommands.query(typed)?.let { SlashCommands.list(bot, it, state.plugins?.skills.orEmpty(), state.hello?.text("version")) }.orEmpty()
+    val members = bot.memberBots(state.bots)
+    val commands = SlashCommands.query(typed)?.let { SlashCommands.list(bot, it, state.plugins?.skills.orEmpty(), state.hello?.text("version"), members) }.orEmpty()
     // Starting a command: list the computer's skills again, once each time the draft becomes "/".
-    val startingCommand = typed == "/" && bot.kind != "group"
+    val startingCommand = typed == "/"
     LaunchedEffect(startingCommand) { if (startingCommand && online) store.refreshPlugins() }
+    // The one way a group's box differs: @ asks one of its bots.
     val mentions = if (bot.kind != "group") emptyList() else mentionQuery(typed)?.let { query ->
-        bot.members.mapNotNull { id -> state.bots.firstOrNull { it.id == id } }.filter { query.isEmpty() || it.name.contains(query, true) }
+        members.filter { query.isEmpty() || it.name.contains(query, true) }
     }.orEmpty()
     fun clear() = text.edit { replace(0, length, "") }
     fun run(command: SlashCommand) {
         val skill = command.skill
         when {
             skill != null -> text.setTextAndPlaceCursorAtEnd("/$skill ")
-            else -> { store.command("updateBot", buildJsonObject { put("id", bot.id); put("fastMode", !bot.fastMode) }, "roster:" + bot.id); clear() }
+            else -> { store.toggleFastMode(bot); clear() }
         }
     }
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -183,7 +183,7 @@ private enum class Trailing { Interrupt, Stop, Call, Send }
                         Trailing.Stop -> store.command("stop", body("botId" to bot.id))
                         Trailing.Call -> onCall?.invoke()
                         Trailing.Send -> {
-                            val command = if (files.isEmpty()) SlashCommands.builtIn(bot, typed) else null
+                            val command = if (files.isEmpty()) SlashCommands.builtIn(bot, typed, members) else null
                             if (command != null) run(command) else store.sendDraft(bot.id, thread, typed) { clear() }
                         }
                     }

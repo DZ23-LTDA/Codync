@@ -29,14 +29,14 @@ Registry-backed package connectors follow their upstream release. The host check
 
 ## Commands
 
-Typing `/` at the start of a message to a bot (desktop, iPhone, terminal; not in a group, where each member has its own agent and skills) lists that bot's commands, filtered by what follows the `/` (a command's name or title): the built-in ones first, then the skills the bot has on. Each row shows an icon, the title and what it does. The list floats above the box on the desktop (↑/↓ move the highlight, Tab or Return picks it, Escape hides the list until the draft changes, hover and click work too), sits inline above the box on the iPhone (a tap picks; it isn't a menu, so the system-menu rule doesn't apply), and is the highlighted list over the transcript in the terminal (↑/↓, Tab or ↵).
+Typing `/` at the start of a message to a bot (desktop, iPhone, Android, terminal) lists that bot's commands, filtered by what follows the `/` (a command's name or title): the built-in ones first, then the skills the bot has on. A group chat lists its members' commands the same way: Fast mode for every member that offers it (on once all of them are; picking it turns each member's own Fast mode on or back off, so it also applies in their own chats), then every skill one of them has on. A `/skill …` message in a group reaches each member that has the skill on as "read this skill first"; the others read it as typed. Each row shows an icon, the title and what it does. The list floats above the box on the desktop (↑/↓ move the highlight, Tab or Return picks it, Escape hides the list until the draft changes, hover and click work too), sits inline above the box on the iPhone (a tap picks; it isn't a menu, so the system-menu rule doesn't apply), and is the highlighted list over the transcript in the terminal (↑/↓, Tab or ↵).
 
 | Command | Title | Does |
 | --- | --- | --- |
 | `/fast` | Fast mode | Switches [Fast mode](#fast-mode) with `updateBot`; listed only while the bot offers it. Its detail says what picking it does, or why the agent refused it (warning color). |
 | `/<skill id>` | the skill's name | Fills in `/<skill id> ` for the rest of the message. |
 
-Picking a built-in command, or sending a message that is just one (`/fast`), runs it in the client and clears the box; nothing reaches the agent. Return on a skill whose name is already typed out sends the message. The host sees a message starting with `/<id of a skill the bot has on>` and hands the agent `[Codync: the user picked the "<name>" skill for this message. Read <path> first and follow it.]` followed by the rest of the message; the chat keeps the text as typed. Any other `/command`, including `/fast` for a bot without Fast mode on offer, reaches the agent unchanged, so its own commands keep working. Clients list skills and load skill instructions only from hosts 2.14.1 and newer.
+Picking a built-in command, or sending a message that is just one (`/fast`), runs it in the client and clears the box; nothing reaches the agent. Return on a skill whose name is already typed out sends the message. The host sees a message starting with `/<id of a skill the bot has on>` and hands the agent `[Codync: the user picked the "<name>" skill for this message. Read <path> first and follow it.]` followed by the rest of the message; the chat keeps the text as typed. Any other `/command`, including `/fast` for a bot without Fast mode on offer, reaches the agent unchanged, so its own commands keep working. Clients list skills and load skill instructions only from hosts 2.14.1 and newer, and list skills in a group only from hosts 2.20.1 and newer.
 
 ## Sign-in for remote connectors (`host/src/market/oauth.rs`)
 
@@ -84,7 +84,7 @@ The bot's runtime carries what the agent says (`fastModeSupport`, `fastModeIssue
 
 `offered` and `unsupported` are kept across host restarts (`fast-mode.<bot>` in the kv store); a refusal isn't, so a new host asks again.
 
-Clients show Fast mode for an agent bot unless its runtime says `unsupported` (an `unknown` bot may offer it; its first session settles it), and always while it's on (so it can be turned off); never for a group:
+Clients show Fast mode for an agent bot unless its runtime says `unsupported` (an `unknown` bot may offer it; its first session settles it), and always while it's on (so it can be turned off). A group has no Fast mode of its own: its `/fast` sets its members' (see [commands](#commands)). It shows in:
 
 - Composer: the `/fast` [command](#commands), not a button. The terminal UI also shows `⚡ fast` or `⚡ refused` in the chat header.
 - Bot settings: a Fast mode switch row under Model when the agent's model list offers it (never for a custom command), when the bot's own sessions do, or while it's on. While refused, its detail gives the reason. The terminal UI form always lists the field and notes when the agent doesn't offer it.

@@ -175,6 +175,10 @@ impl App {
                             f.saving = false;
                             f.error = Some(e);
                         }
+                        Some(Overlay::NewBot(n)) => {
+                            n.saving = false;
+                            n.error = Some(e);
+                        }
                         Some(Overlay::Group(g)) => {
                             g.saving = false;
                             g.error = Some(e);
@@ -264,10 +268,13 @@ impl App {
                 }
             }
             After::Saved => {
-                let saved = self.overlays.iter().rposition(|o| matches!(o, Overlay::Form(_) | Overlay::Group(_)));
+                let saved = self
+                    .overlays
+                    .iter()
+                    .rposition(|o| matches!(o, Overlay::Form(_) | Overlay::NewBot(_) | Overlay::Group(_)));
                 // A new bot or group opens ready to type; an edit goes back to where it was.
                 let created = saved.is_some_and(|i| match &self.overlays[i] {
-                    Overlay::Form(f) => f.bot_id.is_none(),
+                    Overlay::NewBot(_) => true,
                     Overlay::Group(g) => g.group_id.is_none(),
                     _ => false,
                 });
@@ -295,11 +302,10 @@ impl App {
                 }
                 for o in &mut self.overlays {
                     if let Overlay::Form(f) = o {
-                        // Connectors and skills start on for a new bot.
                         if connectors {
-                            merge_toggles(&mut f.connectors, &self.market.0, f.bot_id.is_none());
+                            merge_toggles(&mut f.connectors, &self.market.0);
                         } else {
-                            merge_toggles(&mut f.skills, &self.market.1, f.bot_id.is_none());
+                            merge_toggles(&mut f.skills, &self.market.1);
                         }
                     }
                 }

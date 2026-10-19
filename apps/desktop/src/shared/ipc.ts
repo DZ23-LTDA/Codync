@@ -64,7 +64,7 @@ export type WindowCommand =
   | { kind: 'setUsageIconStyle'; style: 'character' | 'original' }
   | { kind: 'setRemoteScreen'; on: boolean }
   | { kind: 'computerAccess' }
-  | { kind: 'newChat' }
+  | { kind: 'newBot' }
   | { kind: 'search' }
   | { kind: 'toggleSidebar' }
   | { kind: 'toggleDetails' }
@@ -119,7 +119,7 @@ export interface CodyncBridge {
   computerName: string
   /** This launch was started by the login item (Open at login). */
   openedAtLogin: boolean
-  /** Screenshot/UI checks: CODYNC_DEBUG_OPEN=compose | group | plugins | computers | <bot name>. */
+  /** Screenshot/UI checks: CODYNC_DEBUG_OPEN=newBot | newGroup | plugins | computers | <bot name>. */
   debugOpen: string | null
   host: {
     snapshot(): Promise<HostSnapshot>

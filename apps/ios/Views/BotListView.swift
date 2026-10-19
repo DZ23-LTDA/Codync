@@ -8,6 +8,7 @@ import SwiftUI
 struct BotListView: View {
     @Environment(AppStore.self) private var app
     @Environment(AccountStore.self) private var accounts
+    @State private var creating: NewTarget?
     @State private var editing: EditTarget?
     @State private var editingGroup: GroupTarget?
     @State private var confirmDelete: RosterItem?
@@ -47,11 +48,12 @@ struct BotListView: View {
 
     /// Computers that can take a new bot right now.
     private var onlineStores: [BotStore] {
-        allStores.filter { $0.connection == .online && $0.mismatch == nil }
+        availableStores.filter { $0.connection == .online }
     }
 
-    private var allStores: [BotStore] {
-        accounts.computers.compactMap { accounts.store(for: $0.id) }
+    /// Computers that can take a new bot once they're connected (not ones waiting for an update).
+    private var availableStores: [BotStore] {
+        accounts.computers.compactMap { accounts.store(for: $0.id) }.filter { $0.mismatch == nil }
     }
 
     /// The rows the user can drag: each shown computer's heading (with several computers), in the
@@ -78,7 +80,7 @@ struct BotListView: View {
                 }
                 // A computer waiting for an update has its card instead; its bots aren't known yet.
                 if roster.isEmpty && shownStores.allSatisfy({ $0.mismatch == nil }) {
-                    EmptyRoster(canCreate: allStores.contains { $0.mismatch == nil }, hasComputer: !accounts.computers.isEmpty,
+                    EmptyRoster(canCreate: !availableStores.isEmpty, hasComputer: !accounts.computers.isEmpty,
                                 create: newBot, showComputers: { app.showComputers = true })
                 }
                 ForEach(lines) { line in
@@ -116,42 +118,49 @@ struct BotListView: View {
                         .disabled(onlineStores.isEmpty)
                 }
                 // A computer that needs an update can't take a new bot.
-                .disabled(!allStores.contains { $0.mismatch == nil })
+                .disabled(availableStores.isEmpty)
             }
         }
         .refreshable {
             for computer in accounts.computers { accounts.store(for: computer.id)?.restartStream() }
             await accounts.refreshCloud()
         }
-        .codyncSheet(item: $editing) { target in
-            // A new bot can move to another computer until it's created.
-            let computerId = editing?.computerId ?? target.computerId
-            if let store = accounts.store(for: computerId) {
-                BotEditorView(draft: target.draft,
-                              computers: allStores.map {
-                                  ($0.computer.id, $0.connection == .online ? $0.hostName : "\($0.hostName) (offline)")
-                              },
-                              computer: target.draft.id == nil
-                                  ? Binding(get: { computerId }, set: { editing?.computerId = $0 })
-                                  : nil)
-                    .environment(store)
-                    .onChange(of: store.selection) { _, botId in
-                        // A new bot opens its chat, on the computer it was created on.
-                        guard let botId else { return }
-                        store.selection = nil
-                        accounts.selection = BotReference(accountId: accounts.accountId, computerId: computerId, botId: botId)
+        .codyncSheet(item: $creating) { target in
+            if let store = accounts.store(for: target.computerId) {
+                Group {
+                    switch target.kind {
+                    case .bot:
+                        // A new bot can move to another computer until it's created: a new target
+                        // (same sheet) keeps the sheet on that computer while it slides away.
+                        NewBotView(computers: availableStores.map {
+                                       ($0.computer.id, $0.connection == .online ? $0.hostName : "\($0.hostName) (offline)")
+                                   },
+                                   computer: Binding(get: { target.computerId },
+                                                     set: { creating = NewTarget(kind: .bot, computerId: $0) }))
+                    case .group:
+                        NewGroupView()
                     }
+                }
+                .environment(store)
+            }
+        }
+        // A new bot or group selects itself; open its chat on the computer it was created on. Watched
+        // here, not in the sheet: the dialog closes as it selects, and a closing sheet sees no change.
+        .onChange(of: availableStores.map(\.selection)) {
+            for store in availableStores {
+                guard let botId = store.selection else { continue }
+                store.selection = nil
+                accounts.selection = BotReference(accountId: accounts.accountId, computerId: store.computer.id, botId: botId)
+            }
+        }
+        .codyncSheet(item: $editing) { target in
+            if let store = accounts.store(for: target.computerId) {
+                BotEditorView(draft: target.draft).environment(store)
             }
         }
         .codyncSheet(item: $editingGroup) { target in
             if let store = accounts.store(for: target.computerId) {
-                GroupEditorView(group: target.group)
-                    .environment(store)
-                    .onChange(of: store.selection) { _, botId in
-                        guard let botId else { return }
-                        store.selection = nil
-                        accounts.selection = BotReference(accountId: accounts.accountId, computerId: target.computerId, botId: botId)
-                    }
+                GroupEditorView(group: target.group).environment(store)
             }
         }
         .codyncDialog("Delete \(confirmDelete?.bot.name ?? "bot")?",
@@ -250,16 +259,16 @@ struct BotListView: View {
     private func newGroup() {
         guard let store = onlineStores.first else { return }
         Task {
-            // Let the menu fold away before the editor slides up.
+            // Let the menu fold away before the dialog slides up.
             try? await Task.sleep(for: .milliseconds(200))
-            editingGroup = GroupTarget(computerId: store.computer.id, group: nil)
+            creating = NewTarget(kind: .group, computerId: store.computer.id)
         }
     }
 
-    /// A new bot starts on the first computer online; the editor's Computer row can move it.
+    /// A new bot starts on the first computer online; the dialog's Computer row can move it.
     private func newBot() {
-        guard let store = onlineStores.first ?? allStores.first(where: { $0.mismatch == nil }) else { return }
-        editing = EditTarget(computerId: store.computer.id, draft: BotDraft())
+        guard let store = onlineStores.first ?? availableStores.first else { return }
+        creating = NewTarget(kind: .bot, computerId: store.computer.id)
     }
 }
 
@@ -363,15 +372,22 @@ private struct ComputerSection: View {
     }
 }
 
+private struct NewTarget: Identifiable {
+    enum Kind { case bot, group }
+    let id = UUID()
+    let kind: Kind
+    let computerId: ComputerID
+}
+
 private struct GroupTarget: Identifiable {
     let id = UUID()
     let computerId: ComputerID
-    let group: Bot?
+    let group: Bot
 }
 
 private struct EditTarget: Identifiable {
     let id = UUID()
-    var computerId: ComputerID
+    let computerId: ComputerID
     let draft: BotDraft
 }
 

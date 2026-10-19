@@ -24,10 +24,12 @@ data class BotDraft(
     val hidden: Boolean = false,
     val notify: Boolean? = null,
     val connectors: List<String>? = null,
-    val skills: List<String> = emptyList(),
+    /** Unset on a new bot, like [connectors]: the host turns on every installed one. */
+    val skills: List<String>? = null,
     val computer: Boolean = false,
 ) {
-    val isValid: Boolean get() = id == null || name.isNotBlank()
+    /** A saved bot keeps a name; only a new one goes without (the host names it after its first conversations). */
+    val isValid: Boolean get() = name.isNotBlank()
     fun toggleNotifications(): BotDraft = copy(notify = !(notify ?: true))
     fun body(): JsonObject {
         val normalized = if (backend == "custom") this else copy(command = null)

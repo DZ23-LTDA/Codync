@@ -8,6 +8,7 @@ mod forms;
 mod input;
 mod model;
 mod navigate;
+mod new_bot;
 mod overlay_keys;
 mod slash;
 mod ui;
@@ -17,8 +18,8 @@ pub use exchange::{ConversationRow, Exchange, Item, Outcome, conversation, group
 pub use model::{After, AgentModel, Bot, Entry, Kind, Mark, ModelOption, Msg, Status};
 pub use slash::SlashAction;
 pub use ui::{
-    ACTIONS, Action, AgentPicker, COLORS, Click, Confirm, ConfirmAct, Dir, FIELDS, FILTERS, Field, Focus, FolderPicker,
-    Form, Goto, GotoItem, GroupField, GroupForm, Hits, NEW_GROUP, Overlay, SHAPES, Toast, Toggle, TraceMode, Width,
+    ACTIONS, Action, COLORS, Click, Confirm, ConfirmAct, Dir, FIELDS, FILTERS, Field, Focus, FolderPicker, Form, Goto,
+    GotoItem, GroupField, GroupForm, Hits, NewBot, NewBotField, Overlay, SHAPES, Toast, Toggle, TraceMode, Width,
 };
 
 use serde_json::{Value, json};
@@ -430,11 +431,12 @@ pub(super) fn cycle(i: usize, d: isize, n: usize) -> usize {
     usize::try_from((isize::try_from(i).unwrap_or(0) + d).rem_euclid(n)).unwrap_or(0)
 }
 
-fn merge_toggles(have: &mut Vec<Toggle>, all: &[Toggle], on: bool) {
+/// Names the bot's connectors / skills, and lists the installed ones it doesn't use, off.
+fn merge_toggles(have: &mut Vec<Toggle>, all: &[Toggle]) {
     for t in all {
         match have.iter_mut().find(|h| h.id == t.id) {
             Some(h) => h.name.clone_from(&t.name),
-            None => have.push(Toggle { id: t.id.clone(), name: t.name.clone(), on }),
+            None => have.push(Toggle { id: t.id.clone(), name: t.name.clone(), on: false }),
         }
     }
 }

@@ -1,29 +1,26 @@
 import CodyncKit
 import SwiftUI
 
-/// Create a group chat, or change its name, what it's for and who's in it. Bots are
-/// picked like recipients: chips on top, a search, and the bots not in it yet.
+/// Change a group chat's name, what it's for and who's in it. Bots are picked like
+/// recipients: chips on top, a search, and the bots not in it yet.
 public struct GroupEditorView: View {
     @Environment(BotStore.self) private var model
     @Environment(\.dismissModal) private var dismiss
-    /// The group being edited; nil creates one.
-    let groupId: String?
+    let groupId: String
     @State private var name: String
     @State private var about: String
     @State private var members: [String]
     @State private var query = ""
-    /// A new group starts in the picker; an existing one shows its members first.
-    @State private var adding: Bool
+    @State private var adding = false
     @State private var saving = false
     @State private var error: String?
     @State private var confirmDelete: Bot?
 
-    public init(group: Bot? = nil, members: [String] = []) {
-        groupId = group?.id
-        _name = State(initialValue: group?.name ?? "")
-        _about = State(initialValue: group?.description ?? "")
-        _members = State(initialValue: group?.members ?? members)
-        _adding = State(initialValue: group == nil && members.isEmpty)
+    public init(group: Bot) {
+        groupId = group.id
+        _name = State(initialValue: group.name)
+        _about = State(initialValue: group.description)
+        _members = State(initialValue: group.members)
     }
 
     private var picked: [Bot] { members.compactMap { model.bots[$0] } }
@@ -32,16 +29,15 @@ public struct GroupEditorView: View {
         let q = query.trimmingCharacters(in: .whitespaces)
         return model.roster.filter { !$0.isGroup && !members.contains($0.id) && (q.isEmpty || $0.name.localizedCaseInsensitiveContains(q)) }
     }
-    private var isNew: Bool { groupId == nil }
     private var canSave: Bool { !members.isEmpty && !saving }
 
     public var body: some View {
         VStack(spacing: 0) {
-            ModalHeader(isNew ? "New group chat" : "Group chat") {
+            ModalHeader("Group chat") {
                 if saving {
                     Spinner()
                 } else {
-                    IconButton(isNew ? "Create" : "Save", systemImage: "checkmark") { save() }
+                    IconButton("Save", systemImage: "checkmark") { save() }
                         .disabled(!canSave)
                 }
             }
@@ -110,7 +106,7 @@ public struct GroupEditorView: View {
                     if let error {
                         Text(error).font(.footnote).foregroundStyle(Palette.danger).transition(.opacity)
                     }
-                    if let group = groupId.flatMap({ model.bots[$0] }) {
+                    if let group = model.bots[groupId] {
                         Button("Delete group chat", role: .destructive) { confirmDelete = group }
                             .foregroundStyle(Palette.danger)
                             .buttonStyle(PressScale())
@@ -159,14 +155,10 @@ public struct GroupEditorView: View {
         let about = about.trimmingCharacters(in: .whitespacesAndNewlines)
         Task {
             do {
-                if let groupId {
-                    var draft = GroupDraft(name: finalName, description: about, members: members)
-                    draft.id = groupId
-                    draft.pinned = model.bots[groupId]?.pinned
-                    try await model.updateGroup(draft)
-                } else {
-                    _ = try await model.createGroup(name: finalName, description: about, members: members)
-                }
+                var draft = GroupDraft(name: finalName, description: about, members: members)
+                draft.id = groupId
+                draft.pinned = model.bots[groupId]?.pinned
+                try await model.updateGroup(draft)
                 dismiss()
             } catch {
                 withAnimation(Motion.fade) { self.error = error.localizedDescription }

@@ -396,7 +396,7 @@ internal fun currentThinking(entries: List<Entry>, botId: String, thread: String
 
 /** The start of an empty chat: who the bot is and how it works. */
 @Composable internal fun IntroCard(bot: Bot, state: AppState) {
-    val members = bot.members.mapNotNull { id -> state.bots.firstOrNull { it.id == id } }
+    val members = bot.memberBots(state.bots)
     Column(Modifier.fillMaxWidth().padding(horizontal = 24.dp).padding(top = 40.dp), horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(12.dp)) {
         BotAvatar(bot, state.bots, 72.dp)
