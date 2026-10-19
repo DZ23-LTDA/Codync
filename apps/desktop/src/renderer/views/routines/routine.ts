@@ -98,4 +98,37 @@ export interface RoutineSchedulePreview {
   warning?: string | null
 }
 
+/**
+ * The Repeat choices: the host's calendar styles the editor offers. A schedule in any other
+ * style (every few minutes, several days, monthly) opens as Custom, its cron as written.
+ */
+export const repeatChoices = [
+  { id: 'hourly', label: 'Hourly' },
+  { id: 'daily', label: 'Daily' },
+  { id: 'weekdays', label: 'Weekdays' },
+  { id: 'weekly', label: 'Weekly' },
+  { id: 'custom', label: 'Custom' },
+] as const
+
+export type RepeatChoice = (typeof repeatChoices)[number]['id']
+
+export const repeatChoice = (style: string): RepeatChoice => repeatChoices.find((c) => c.id === style)?.id ?? 'custom'
+
+/** The cron the host compiled for a checked schedule, to start Custom from the same times. */
+export const compiledCron = (preview: RoutineSchedulePreview | null) => {
+  const [trigger] = preview?.triggers ?? []
+  return trigger?.type === 'cron' ? (trigger.expression ?? null) : null
+}
+
+/** A timeout in seconds as people say it ("1 hour", "30 minutes", "90 seconds"); other text as typed. */
+export function durationText(text: string) {
+  const value = text.trim()
+  if (!/^\d+$/.test(value) || Number(value) === 0) return `${value}s`
+  const seconds = Number(value)
+  const count = (amount: number, unit: string) => `${amount} ${unit}${amount === 1 ? '' : 's'}`
+  if (seconds % 3600 === 0) return count(seconds / 3600, 'hour')
+  if (seconds % 60 === 0) return count(seconds / 60, 'minute')
+  return count(seconds, 'second')
+}
+
 export const errorText = (e: unknown) => (e instanceof Error ? e.message : String(e))

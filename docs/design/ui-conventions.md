@@ -58,7 +58,7 @@ The iPhone and the desktop no longer share UI code. `CodyncUI` (`apps/ios/Kit/`)
 
 ## Shared application controls
 
-Other custom iPhone screens use `Chrome.swift` and `Controls.swift`. The desktop equivalents are in `Overlay.tsx` (`Sheet`, `Dialog`, `AnchoredMenu`, `ModalHeader`) and `Controls.tsx` (`IconButton`, `DropdownMenu`, `ChoicePicker`, `Switch`, `CardForm`, `CardSection`, `ValueRow`).
+Other custom iPhone screens use `Chrome.swift` and `Controls.swift`. The desktop equivalents are in `Overlay.tsx` (`Sheet`, `Dialog`, `AnchoredMenu`, `ModalHeader`) and `Controls.tsx` (`IconButton`, `DropdownMenu`, `ChoicePicker`, `ChipChoice`, `Switch`, `CardForm`, `CardSection`, `ValueRow`).
 
 | Need | Component |
 |---|---|
@@ -96,7 +96,7 @@ Preserve the original character avatar design: dotted shading, highlight-only co
 
 The details inspector (`apps/desktop/src/renderer/views/thread/DetailsPanel.tsx`) copies Grok Bot's: share (Create template) and close (X) as round buttons in the corner, in the page color with a soft ring, over a 54-point band that drags the window; the bot's 60-point avatar, name and runtime centered on top; then page tabs (`TabChoice`: plain labels, the chosen one on a light capsule) for **Details**, **Memory** and **Settings**, all in one scroll. The chat's `<<` button (in the same ringed style) and the title pill open it; hovering the pill shows a `>` after the name. Details holds what changes often: Instructions, Agent (the agent with its logo, its model and fast mode), the Use the computer switch and Routines (one card per routine); Settings holds the rest: Profile (avatar row, name), Workspace (computer, workspace, permissions), Activity, Connectors and Skills. Both are parts of `BotSettingsForm` (`part`), saved as you edit; the New bot and editor sheets show all of it. Memory is the memory card, its sections in the same tabs and the add/more actions beside each layer's note. Every group in the panel is Grok Bot's outlined card (an outline on the page, no fill, inputs filled instead), a row with a note puts its control under the note, and long notes (skill descriptions, explanations, a note's description) stop at two lines with an ellipsis. A group shows its avatar, name, bot count and members instead of tabs. Use 16-point horizontal insets and 28-point section gaps; sections use the `CardSection` look: filled 16-point groups without borders, hairline-split rows, a note under each option. The iPhone's Details sheet (`BotDetailsView`, from the title menu's Details, Settings and Routines) has the same corner buttons, header, tabs, pages, outlined cards (`cardStyle`) and two-line notes (`noteLines`), and saves as you edit too.
 
-Routines are a compact grouped list: name, a one-line schedule (or the live run state), and an on/off switch per row; tapping a row opens the same form as +, filled in, with delete and test run beside Save. On the desktop the form card fits its content. The header's chat button asks the bot (puts "I want a routine that " in the composer); + opens the form, where When to run is a type choice and cron is typed directly. The empty state is one line of text. A saved webhook routine's form shows the public URL and key as filled monospaced rows with copy, show/hide and replace-key (confirmed) icon buttons, and one caption on how to send and that deliveries pass through the Codync cloud. Agent metadata uses Runtime and Workspace labels for personal bots, or Project folder for explicitly configured projects; project paths remain selectable and wrap. Personal workspace paths stay out of the default details UI. Keep status and section headings readable in both appearances through `Palette`.
+Routines are a compact grouped list: name, a one-line schedule (or the live run state), and an on/off switch per row; tapping a row opens the same form as +, filled in, with delete and test run beside Save. On the desktop the form card fits its content. The header's chat button asks the bot (puts "I want a routine that " in the composer); + opens the form, where When to run is a type choice (a segmented control on the desktop, the system menu on iPhone) and a schedule is a Repeat choice (Hourly, Daily, Weekdays, Weekly, Custom) with only the fields that choice needs (minute, time, weekday, or a typed cron for Custom) and a time zone picked from a searchable list. On the desktop these sit in one `CardSection` of labeled rows, Repeat and the weekday as `ChipChoice` chips with the chosen one on a light capsule. The empty state is one line of text. A saved webhook routine's form shows the public URL and key as monospaced rows (in the same group on the desktop) with copy, show/hide and replace-key (confirmed) icon buttons, and one caption on how to send and that deliveries pass through the Codync cloud. Agent metadata uses Runtime and Workspace labels for personal bots, or Project folder for explicitly configured projects; project paths remain selectable and wrap. Personal workspace paths stay out of the default details UI. Keep status and section headings readable in both appearances through `Palette`.
 
 On iPhone, the routine editor keeps the full-width save action in a fixed footer on the sheet background. When required fields are empty, the footer explains why saving is unavailable.
 
@@ -232,6 +232,14 @@ overlays the content without changing layout or intercepting input. This is an
 explicit exception to the filled-surface border rule. iOS keeps the system sheet's
 and system menu's own edge treatment; terminal dialogs retain their existing
 character borders. Neither receives an extra desktop-style outline.
+
+Desktop sheets and dialogs sit a step above the page (`--sheet`, raised in dark
+mode, over a deeper scrim); inside them grouped rows and fields are quiet tints of
+the text color, and a sheet's `ModalHeader` leads with an icon tile (a symbol, or
+the item's logo for an agent) beside the title and its line. Forms fit their content
+instead of a fixed height. A confirmation dialog is left-aligned with its answers in
+a row on the right, Cancel first. These are desktop treatments: iOS keeps the system
+sheet and `.codyncDialog`, and the terminal keeps its character dialogs.
 
 The desktop sidebar computer filter shares the toolbar's subtle outline and 32px
 height, with a capsule enclosing both the computer glyph and its chevron. This

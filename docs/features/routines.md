@@ -7,11 +7,15 @@ conversation details panel and the iPhone's **More → Routines** show a compact
 that " in the composer; **+** opens the form for doing it by hand. A row opens
 the same form filled in, with delete and test run beside Save; the row's switch
 pauses and resumes. Run results appear in the chat. The form is name, instruction, a **When to run** type (Schedule or Webhook, the two
-Claude Code routines also offer besides GitHub events) and a run timeout; cron is
-written directly as five fields plus an IANA time zone, and the host checks it and
-shows the summary and next run. One-off times, intervals, events and multiple
+Claude Code routines also offer besides GitHub events) and a run timeout. A schedule
+picks how often it repeats (Hourly, Daily, Weekdays, Weekly, or Custom for a cron
+written as five fields), the time and day, and an IANA time zone chosen from a list
+filtered as you type (the device's own zone by default); the host compiles the
+cron, checks it and shows the summary and next run. One-off times, intervals, events and multiple
 triggers are left to the bot: editing such a routine shows its current triggers as
-the selected type and keeps them until Schedule or Webhook replaces them. The TUI (`n` form with a typed When, `c` asks the bot) match.
+the selected type and keeps them until Schedule or Webhook replaces them. The TUI (`n` form with a typed When: `daily 09:00`, `weekdays 09:00`,
+`weekly mon 09:00`, `hourly :30`, `every 2h`, a cron or `webhook`, optionally ending
+in a time zone that Tab completes; `c` asks the bot) match.
 A saved webhook routine's form shows its public URL and key (copy, reveal, replace
 with confirmation; TUI `w` copies a curl command and `W` replaces the
 key). Creation/update notices open the routine.
@@ -20,8 +24,8 @@ key). Creation/update notices open the routine.
 
 The editor keeps task fields first, then a When to run type menu and its settings.
 Inputs use the shared palette with a visible filled surface. New recurring schedules
-default to a typed cron expression and an explicit IANA time zone; the host
-describes it and shows the next run. Run timeout is under an animated Run settings
+default to Daily at 09:00 in the device's time zone; Custom takes a typed cron. The
+host describes the schedule and shows the next run. Run timeout is under an animated Run settings
 expansion. A fixed footer keeps Create routine / Save changes and inline errors
 visible while the form scrolls.
 The layout uses the same light/dark tokens, type family and custom controls as the
@@ -215,8 +219,8 @@ the routine by name. No reference routine was run, paused or deleted during this
 comparison.
 
 Codync retains that compact sidebar and the chat-based setup path, while providing
-a direct editor where cron is typed as written (the earlier frequency/clock pickers
-were removed as too heavy). Existing duration intervals keep their cadence until
+a direct editor: a light Repeat choice with the time and day for the common
+schedules, and Custom for a cron typed as written. Existing duration intervals keep their cadence until
 explicitly replaced. Editing hydrates the original expression, timezone and interval
 exactly; compound and provider-event triggers retain a lossless Keep existing
 triggers fallback. Expired one-shot timestamps are preserved when editing other fields.
@@ -227,9 +231,14 @@ Edit with bot includes the routine ID in a draft without sending it.
 
 ## Cron scheduling contract
 
-All newly configured recurring schedules in the editors use `cron` (sent as
-`calendarStyle: custom` with the typed expression) and run through the host's
-existing Croner scheduler. The host keeps preset compilation for its API. Cron generation, parsing, validation, timezone checks, descriptions and next-run
+All newly configured recurring schedules in the editors use `cron` and run through
+the host's existing Croner scheduler. The editors send the Repeat choice as
+`calendarStyle` (`hourly`, `daily`, `weekdays`, `weekly`) with the hour, minute and
+weekday, or `custom` with the typed expression, and the host compiles it. A loaded
+schedule in a style the editors don't offer (every few minutes, several days,
+monthly) opens as Custom with its cron unchanged; switching to Custom starts from
+the cron the host compiled (empty while the host is still checking the last change).
+Cron generation, parsing, validation, timezone checks, descriptions and next-run
 calculation all live in `host/src/routines/editor.rs` and `schedule.rs`. The Swift
 draft is only a Codable form DTO. The editor debounces preview requests, discards
 stale responses, shows host errors and disables Save until the current draft is

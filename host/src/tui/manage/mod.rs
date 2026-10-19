@@ -15,13 +15,14 @@ mod pages;
 mod replies;
 mod routines;
 mod skill;
+mod when;
 
 pub use analytics::AnalyticsSheet;
 pub use fields::{handoff_fields, memory_file_fields};
 pub use memory::{MemoryMode, MemorySheet, Section};
 pub use pages::Page;
-pub use routines::local_zone;
 pub use skill::SkillSheet;
+pub use when::{complete_zone, local_zone};
 
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use serde_json::{Value, json};

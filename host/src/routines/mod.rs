@@ -1,6 +1,6 @@
 //! Durable bot routines, shared by API clients and the built-in MCP server.
 mod editor;
-pub use editor::preview as schedule_preview;
+pub use editor::{ScheduleDraft, preview as schedule_preview};
 pub mod hooks;
 use hooks::Refused;
 mod runner;
@@ -213,7 +213,7 @@ impl Routines {
             bail!("routine name or instruction is empty or too long");
         }
         let triggers: Vec<Trigger> = if let Some(draft) = body.get("schedule") {
-            serde_json::from_value::<editor::ScheduleDraft>(draft.clone()).context("invalid schedule")?.triggers()?
+            serde_json::from_value::<ScheduleDraft>(draft.clone()).context("invalid schedule")?.triggers()?
         } else {
             serde_json::from_value(body["triggers"].clone()).context("invalid triggers")?
         };
