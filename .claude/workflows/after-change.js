@@ -151,5 +151,5 @@ return {
   cleanup,
   refactor: { suggested: refactors, applied },
   stopped,
-  next: 'Unless an e2e check failed or a skipped fix matters: commit in this worktree, rebase on origin/dev, fast-forward dev, push origin dev, pull dev in the main checkout. Then leave the worktree and, from the main checkout, delete it: `git worktree remove --force <worktree>`, `git branch -D <branch>`, then `npm run dev -- --prune` in apps/desktop. Check that no `npm run dev` from it is still running.',
+  next: 'Unless an e2e check failed or a skipped fix matters: commit in this worktree, rebase on origin/dev, fast-forward dev, push origin dev, pull dev in the main checkout. Only once that merge is pushed (never before, and not at all if the merge or push fails), leave the worktree and, from the main checkout, delete it: `git worktree remove --force <worktree>`, `git branch -D <branch>`, then `npm run dev -- --prune` in apps/desktop. Check that no `npm run dev` from it is still running.',
 }
