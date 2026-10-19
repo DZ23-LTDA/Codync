@@ -67,6 +67,7 @@ export type WindowCommand =
   | { kind: 'search' }
   | { kind: 'toggleSidebar' }
   | { kind: 'toggleDetails' }
+  | { kind: 'refresh' }
   | { kind: 'respondPermission'; ref: string; entryId: string; optionId: string }
   | { kind: 'sendMessage'; ref: string; text: string }
 

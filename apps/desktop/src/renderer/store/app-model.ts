@@ -136,6 +136,12 @@ export class AppModel extends Observable {
     this.changed()
   }
 
+  /** ⌘R, as the iPhone's pull to refresh: reconnect every computer and reload the account's computers. */
+  refresh() {
+    for (const store of this.stores.values()) store.restartStream()
+    void this.cloud.refresh()
+  }
+
   store(id: string) {
     return this.stores.get(id) ?? null
   }
