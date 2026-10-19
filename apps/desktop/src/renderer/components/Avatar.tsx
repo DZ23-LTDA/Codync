@@ -1,6 +1,6 @@
 import { memo, useEffect, useRef, type CSSProperties } from 'react'
 import { isGroup, isWorking, needsInput, type Bot } from '@shared/models'
-import { avatarColor, palette, useDark, useReduceMotion } from '../lib/theme'
+import { avatarColor, palette, useDark, usePixelRatio, useReduceMotion } from '../lib/theme'
 import { Icon } from './Icon'
 import './avatar.css'
 
@@ -118,12 +118,12 @@ export const CharacterAvatar = memo(function CharacterAvatar({ shape, color, tin
   const canvas = useRef<HTMLCanvasElement>(null)
   const dark = useDark() || forceDark === true
   const reduce = useReduceMotion()
+  const ratio = usePixelRatio()
   const fill = tint ?? avatarColor(color)
 
   useEffect(() => {
     const el = canvas.current
     if (!el) return
-    const ratio = window.devicePixelRatio || 1
     el.width = Math.round(size * ratio)
     el.height = Math.round(size * ratio)
     const ctx = el.getContext('2d')!
@@ -153,7 +153,7 @@ export const CharacterAvatar = memo(function CharacterAvatar({ shape, color, tin
       onScreen.disconnect()
       cancelAnimationFrame(frame)
     }
-  }, [shape, fill, size, mood, dark, reduce])
+  }, [shape, fill, size, mood, dark, reduce, ratio])
 
   return <canvas ref={canvas} aria-hidden style={{ width: size, height: size, display: 'block', flex: 'none' }} />
 })

@@ -5,7 +5,7 @@ import { Icon } from '../../components/Icon'
 import { Sheet } from '../../components/Overlay'
 import { Text } from '../../components/Text'
 import { useModel } from '../../lib/observable'
-import { avatarColor, useDark, useReduceMotion, withAlpha } from '../../lib/theme'
+import { avatarColor, useDark, usePixelRatio, useReduceMotion, withAlpha } from '../../lib/theme'
 import { useStore } from '../../store/context'
 import { VoiceChatSettingsView } from '../settings/VoiceChatSettingsView'
 import { CallOperator } from './call-operator'
@@ -237,6 +237,7 @@ function CallLevelDots({ engine, working, color, label }: { engine: VoiceEngine 
   const canvas = useRef<HTMLCanvasElement>(null)
   const dark = useDark()
   const reduceMotion = useReduceMotion()
+  const scale = usePixelRatio()
   const live = useRef({ engine, working, color, dark, reduceMotion })
   live.current = { engine, working, color, dark, reduceMotion }
 
@@ -244,7 +245,6 @@ function CallLevelDots({ engine, working, color, label }: { engine: VoiceEngine 
     const el = canvas.current
     const ctx = el?.getContext('2d')
     if (!el || !ctx) return
-    const scale = window.devicePixelRatio || 1
     el.width = DOTS_WIDTH * scale
     el.height = DOTS_HEIGHT * scale
     let frame = 0
@@ -273,7 +273,7 @@ function CallLevelDots({ engine, working, color, label }: { engine: VoiceEngine 
     }
     frame = requestAnimationFrame(draw)
     return () => cancelAnimationFrame(frame)
-  }, [])
+  }, [scale])
 
   return <canvas ref={canvas} role="img" aria-label={label} className="call-dots" style={{ width: DOTS_WIDTH, height: DOTS_HEIGHT }} />
 }
