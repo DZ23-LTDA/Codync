@@ -73,7 +73,8 @@ follows the App Store:
 - **Release gate** (`tools/release-gate.py`, run by `.github/workflows/release-gate.yml` after
   each release and hourly): releases are published without GitHub's *latest* mark. The gate
   marks the newest fully uploaded release whose `MIN_APP` the App Store's iPhone version meets
-  (`itunes.apple.com/lookup?id=6760984418`) and points the Homebrew tap (cask and formula) at
+  (`itunes.apple.com/lookup?id=6760984418`, with a query string of its own each time: Apple's CDN
+  keeps the bare URL for up to a day after a release) and points the Homebrew tap (cask and formula) at
   it. The website's download links (`releases/latest/download/…`), `packaging/install.sh`,
   electron-updater and `codync-host update` all read the latest release, so none of them sees
   a release that waits. Every release after a raise waits with it, desktop-only ones too, until

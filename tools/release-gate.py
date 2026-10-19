@@ -21,6 +21,7 @@ import os
 import re
 import subprocess
 import tempfile
+import time
 import urllib.request
 from pathlib import Path
 
@@ -51,7 +52,8 @@ def parse(version):
 
 
 def app_store_version():
-    with urllib.request.urlopen(APP_STORE_LOOKUP, timeout=20) as response:
+    # Apple's CDN keeps the bare URL for up to a day after a release; a query string of its own skips it.
+    with urllib.request.urlopen(f"{APP_STORE_LOOKUP}&_={time.time_ns()}", timeout=20) as response:
         results = json.load(response)["results"]
     return results[0]["version"] if results else None
 
