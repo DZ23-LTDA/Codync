@@ -61,12 +61,8 @@ private enum class Root { Loading, Welcome, Pairing, Tabs }
         }
     }
     val signedIn = state.account.userId != null
-    AnalyticsMilestones(state)
+    // Signed in, setup counts as complete (`loadContext`): the account's computers ask for access on their own.
     val onboarding = !state.setupComplete && state.computers.isEmpty() && state.cloudComputers.isEmpty()
-    // Signing in to an account that has computers completes setup, as pairing or skipping does.
-    LaunchedEffect(state.cloudComputers.isNotEmpty(), state.loading) {
-        if (!state.loading && !state.setupComplete && state.cloudComputers.isNotEmpty()) store.skipSetup()
-    }
     val root = when {
         state.loading -> Root.Loading
         onboarding && !welcomed && !signedIn -> Root.Welcome
@@ -101,22 +97,37 @@ private enum class Root { Loading, Welcome, Pairing, Tabs }
     }
     // The account sheet holds its own push (Computers & settings), as the iOS sheet's NavigationStack.
     CodyncSheet(showAccount && (state.setupComplete || signedIn) && !state.loading, { showAccount = false; accountSettings = false }) {
+        // Counted by the top page, outside NavStack: it composes the page below again while sliding.
+        AnalyticsOnAppear(AnalyticsEvent.ScreenViewed(if (accountSettings) AnalyticsScreen.Settings else AnalyticsScreen.Account))
         NavStack(listOfNotNull("account", "settings".takeIf { accountSettings }), key = { it }, pop = { accountSettings = false }) { page ->
             if (page == "account") AccountSwitcherView(state, store, { accountSettings = true }) { showPairing = true }
             else SettingsView(state, store, { accountSettings = false }, { showPairing = true }, { access = it }, openMarketplace)
         }
     }
     CodyncSheet(showComputers && !state.loading, { showComputers = false }) {
+        AnalyticsOnAppear(AnalyticsEvent.ScreenViewed(AnalyticsScreen.Computers))
         SettingsView(state, store, null, { showPairing = true }, { access = it }, openMarketplace)
     }
     CodyncSheet(access, { access = null }) { AccessRequestView(state, store, it) }
-    CodyncSheet(showPairing && !state.loading, { showPairing = false }) { PairingView(state, store, inModal = true) }
-    CodyncSheet(showUsage && !state.loading, { showUsage = false }) { UsageScreen(state, store::refreshUsage, store::reloadUsage) }
-    CodyncSheet(showMarketplace && root == Root.Tabs, { showMarketplace = false }) { MarketplaceView(state, store) }
+    CodyncSheet(showPairing && !state.loading, { showPairing = false }) {
+        AnalyticsOnAppear(AnalyticsEvent.ScreenViewed(AnalyticsScreen.Pairing))
+        PairingView(state, store, inModal = true)
+    }
+    CodyncSheet(showUsage && !state.loading, { showUsage = false }) {
+        AnalyticsOnAppear(AnalyticsEvent.ScreenViewed(AnalyticsScreen.Usage))
+        UsageScreen(state, store::refreshUsage, store::reloadUsage)
+    }
+    CodyncSheet(showMarketplace && root == Root.Tabs, { showMarketplace = false }) {
+        AnalyticsOnAppear(AnalyticsEvent.ScreenViewed(AnalyticsScreen.Marketplace))
+        MarketplaceView(state, store)
+    }
+    // An existing bot or group's editor is its details; a new one's isn't.
     CodyncSheet(groupEditor.takeIf { !state.loading }, { groupEditor = null }) { draft ->
+        if (draft.id != null) AnalyticsOnAppear(AnalyticsEvent.ScreenViewed(AnalyticsScreen.BotDetails))
         key(state.contextId, state.generation, draft.id) { GroupEditor(state, draft, store) }
     }
     CodyncSheet(editor.takeIf { !state.loading }, { editor = null }) { draft ->
+        if (draft.id != null) AnalyticsOnAppear(AnalyticsEvent.ScreenViewed(AnalyticsScreen.BotDetails))
         key(state.contextId, state.generation, draft.id) { BotEditor(state, draft, store) }
     }
     // The remote screen opens over the app once its sheets have slid away.
@@ -134,25 +145,8 @@ private enum class Root { Loading, Welcome, Pairing, Tabs }
     if (!visible.currentState && !visible.targetState) return
     Overlay {
         AnimatedVisibility(visible, enter = fadeIn(Motion.layout()), exit = fadeOut(Motion.fade())) {
+            AnalyticsOnAppear(AnalyticsEvent.ScreenViewed(AnalyticsScreen.RemoteScreen))
             ScreenView(state, store, state.screenRequest?.watching, store::closeScreen)
         }
-    }
-}
-
-/** The app-level analytics events (iOS reports the same): setup finished, signed in, signed out. */
-@Composable private fun AnalyticsMilestones(state: AppState) {
-    var setup by remember { mutableStateOf<Boolean?>(null) }
-    var user by remember { mutableStateOf<String?>(null) }
-    var known by remember { mutableStateOf(false) }
-    LaunchedEffect(state.loading, state.setupComplete) {
-        if (state.loading) return@LaunchedEffect
-        if (setup == false && state.setupComplete) Analytics.capture(AnalyticsEvent.OnboardingCompleted)
-        setup = state.setupComplete
-    }
-    LaunchedEffect(state.account.ready, state.account.userId) {
-        if (!state.account.ready) return@LaunchedEffect
-        val now = state.account.userId
-        if (known && now != user) Analytics.capture(if (now != null) AnalyticsEvent.SignedIn else AnalyticsEvent.SignedOut)
-        user = now; known = true
     }
 }

@@ -22,6 +22,7 @@ import kotlinx.coroutines.launch
  * Opened from a call's gear and from Settings.
  */
 @Composable internal fun VoiceChatSettings(state: AppState, store: AppStore) {
+    AnalyticsOnAppear(AnalyticsEvent.ScreenViewed(AnalyticsScreen.VoiceSettings))
     val context = LocalContext.current
     val choices = remember { store.voiceChoices() }
     var engine by remember { mutableStateOf(choices.provider) }

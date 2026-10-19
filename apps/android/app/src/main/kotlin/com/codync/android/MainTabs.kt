@@ -38,6 +38,7 @@ private enum class AppTab { Bots, State }
     var tab by rememberSaveable { mutableStateOf(AppTab.Bots) }
     // Opening a bot (notification, widget, link) always lands on the Bots tab.
     if (state.selectedBot != null && tab != AppTab.Bots) tab = AppTab.Bots
+    AnalyticsOnAppear(AnalyticsEvent.ScreenViewed(if (tab == AppTab.Bots) AnalyticsScreen.Bots else AnalyticsScreen.State))
     val bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
     val barSpace = bottom + 62.dp + 24.dp
     GlassStage(Modifier.fillMaxSize(), chrome = {

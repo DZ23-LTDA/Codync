@@ -80,6 +80,8 @@ private enum class ComputerOS { Mac, Linux }
     var step by rememberSaveable { mutableStateOf(Step.Install) }
     var os by rememberSaveable { mutableStateOf(ComputerOS.Mac) }
     val dismiss = LocalDismissModal.current
+    // In a sheet it's the Pairing screen (reported where it opens); otherwise first-run steps.
+    if (!inModal) AnalyticsOnAppear(AnalyticsEvent.OnboardingStepViewed(if (step == Step.Install) OnboardingStep.Install else OnboardingStep.Scan))
     BackHandler(step == Step.Scan) { step = Step.Install }
     Column(Modifier.fillMaxSize().background(Palette.background)) {
         ScreenHeader({ if (step == Step.Scan) BackButton { step = Step.Install } else leading() }, {
@@ -128,19 +130,19 @@ private enum class ComputerOS { Mac, Linux }
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     if (shown == ComputerOS.Mac) {
                         Hint("Install with Homebrew")
-                        CommandBlock("brew install --cask leepokai/codync/codync")
+                        CommandBlock("brew install --cask leepokai/codync/codync", records = OutboundLink.InstallCommand)
                         Hint("or download the Mac app")
-                        CommandBlock("https://github.com/leepokai/Codync/releases/latest/download/codync-macos.dmg")
+                        CommandBlock("https://github.com/leepokai/Codync/releases/latest/download/codync-macos.dmg", records = OutboundLink.InstallCommand)
                     } else {
                         Hint("Run the installer")
-                        CommandBlock("curl -fsSL https://raw.githubusercontent.com/leepokai/Codync/main/packaging/install.sh | sh\ncodync-host install")
+                        CommandBlock("curl -fsSL https://raw.githubusercontent.com/leepokai/Codync/main/packaging/install.sh | sh\ncodync-host install", records = OutboundLink.InstallCommand)
                         Hint("or install with Homebrew")
-                        CommandBlock("brew install leepokai/codync/codync-host\ncodync-host install")
+                        CommandBlock("brew install leepokai/codync/codync-host\ncodync-host install", records = OutboundLink.InstallCommand)
                     }
                     Text(if (shown == ComputerOS.Mac) "Open Codync and it sets up the host on its own."
                         else "codync-host install keeps it running in the background.", style = Type.subheadline, color = Palette.secondary)
                     Hint("Every install option")
-                    CommandBlock("https://www.codync.dev/#install")
+                    CommandBlock("https://www.codync.dev/#install", records = OutboundLink.InstallCommand)
                 }
             }
             DemoButton()
@@ -166,8 +168,8 @@ private enum class ComputerOS { Mac, Linux }
 /** A small label above a `CommandBlock`. */
 @Composable private fun Hint(text: String) = Text(text, style = Type.footnote, color = Palette.secondary)
 
-/** A terminal command with a copy button. */
-@Composable private fun CommandBlock(command: String) {
+/** A terminal command with a copy button; copying it counts as opening `records`. */
+@Composable private fun CommandBlock(command: String, records: OutboundLink? = null) {
     val clipboard = LocalClipboard.current
     val scope = rememberCoroutineScope()
     var copied by remember { mutableStateOf(false) }
@@ -180,6 +182,7 @@ private enum class ComputerOS { Mac, Linux }
             IconButton(if (done) "Copied" else "Copy", if (done) "checkmark" else "doc.on.doc") {
                 scope.launch {
                     clipboard.setClipEntry(ClipEntry(ClipData.newPlainText("Command", command)))
+                    records?.let { Analytics.capture(AnalyticsEvent.LinkOpened(it)) }
                     copied = true; delay(1500); copied = false
                 }
             }
@@ -200,17 +203,14 @@ private enum class ComputerOS { Mac, Linux }
     fun pair(text: String) {
         if (state.pairing || text.isBlank()) return
         error = null; started = true
-        store.pair(text.trim())
+        store.pair(text.trim(), PairedVia.Qr)
     }
     // The store pairs in the background: its finish (and its error) belong to this page.
     LaunchedEffect(state.pairing, state.error) {
         if (!started || state.pairing) return@LaunchedEffect
         started = false
         val failure = state.error
-        if (failure == null) {
-            state.computers.firstOrNull()?.let { Analytics.capture(AnalyticsEvent.ComputerPaired, mapOf("via" to "qr", "computer" to Analytics.computerTag(it.id))) }
-            pasted = ""; paired()
-        }
+        if (failure == null) { pasted = ""; paired() }
         else { error = failure; attempt++; store.clearError() }
     }
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 24.dp).padding(bottom = 24.dp),
@@ -250,7 +250,7 @@ private enum class ComputerOS { Mac, Linux }
             IconLabel("Connects on Wi-Fi, over Tailscale, or from anywhere through Cloudflare, on its own. End-to-end encrypted.", "lock.fill")
             if (tailscale) IconLabel("Tailscale is on: Codync connects over it directly.", "checkmark.circle.fill")
             else IconLabel("Use Tailscale? Direct and faster away from home.", "arrow.up.right",
-                modifier = Modifier.plainButton { uri.openUri("https://tailscale.com/download") })
+                modifier = Modifier.plainButton { uri.open("https://tailscale.com/download", OutboundLink.Tailscale) })
         }
     }
 }

@@ -1,5 +1,9 @@
 package com.codync.android
 
+import com.codync.android.core.HostError
+import com.codync.android.core.PairingProblem
+import java.io.IOException
+import kotlinx.serialization.json.JsonObject
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
@@ -7,6 +11,26 @@ class AnalyticsTest {
     @Test fun `the computer tag matches the host's hash`() {
         // sha256("codync-analytics:<id>")[0..8], as host/src/analytics.rs and the iPhone compute it.
         assertEquals("fbfcd4f4fe9f876c", Analytics.computerTag("tZ1WMzsVltt-fj7mUDwZsg"))
+    }
+
+    @Test fun `event properties encode as JSON booleans numbers and catalog strings`() {
+        fun json(event: AnalyticsEvent) = JsonObject(event.properties).toString()
+        assertEquals("""{"granted":true,"source":"automatic"}""", json(AnalyticsEvent.NotificationsAnswered(true, PromptSource.Automatic)))
+        assertEquals("""{"notifications":"not_asked","widgets":2}""", json(AnalyticsEvent.AppOpened(NotificationAccess.NotAsked, 2)))
+        // A widget count the launcher couldn't give is left out, not sent as null.
+        assertEquals("""{"notifications":"allowed"}""", json(AnalyticsEvent.AppOpened(NotificationAccess.Allowed, null)))
+        assertEquals("""{"setting":"live_activities","on":false}""", json(AnalyticsEvent.SettingChanged(PhoneSetting.LiveActivities, false)))
+        assertEquals("""{"via":"link","computer":"fbfcd4f4fe9f876c"}""", json(AnalyticsEvent.ComputerPaired(PairedVia.Link, "tZ1WMzsVltt-fj7mUDwZsg")))
+        assertEquals("{}", json(AnalyticsEvent.SignedOut))
+    }
+
+    @Test fun `pairing failures map to the catalog's reasons`() {
+        assertEquals(PairingFailure.NotPairingLink, PairingFailure.of(PairingProblem(PairingProblem.Kind.NotPairingLink)))
+        assertEquals(PairingFailure.UpgradeRequired, PairingFailure.of(HostError(426, "Update")))
+        assertEquals(PairingFailure.Expired, PairingFailure.of(HostError(403, "Expired code")))
+        assertEquals(PairingFailure.Timeout, PairingFailure.of(IOException("Late", java.net.SocketTimeoutException())))
+        assertEquals(PairingFailure.Unreachable, PairingFailure.of(IOException("Offline")))
+        assertEquals(PairingFailure.Other, PairingFailure.of(IllegalArgumentException("Use Start over")))
     }
 
     @Test fun `a crash keeps its type and Codync frames but never its message`() {
