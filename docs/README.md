@@ -50,7 +50,7 @@ Source review, a passing build, local integration tests and production acceptanc
 
 - [Android parity and acceptance](plans/android-app.md)
 - [Harness memory](plans/harness-memory.md) (the switch that keeps a harness's own memory on; a choice of it instead of Codync's, planned)
-- [Error tracking detail](plans/error-tracking-detail.md) (proposal: symbolicated iPhone crashes, sessions, consented problem reports)
+- [Error tracking detail](plans/error-tracking-detail.md) (symbolicated iPhone crashes and sessions, built; consented problem reports, proposed)
 
 ## Investigations
 

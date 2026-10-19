@@ -55,4 +55,5 @@ frames from `localhost:5173`) reports into the project with `env = main`. Its `d
 ## Open
 
 - 10 and 11 need more detail than the reports carry; see [error tracking detail](../plans/error-tracking-detail.md).
+  From 2.19.2 PostHog symbolicates iPhone crashes itself and every error carries its session.
 - 7: watch `agent_reason` and `rpc_code` on failed Claude turns after 2.19.1; bursts that remain with `rate_limit` or `overloaded` are the provider, not Codync.

@@ -11,10 +11,11 @@ use anyhow::Result;
 use serde::Deserialize;
 use serde_json::{Map, Value, json};
 use std::sync::{Arc, Mutex};
-use std::time::Duration;
+use std::time::{Duration, SystemTime};
 use tokio::sync::{mpsc, oneshot};
 
 pub mod errors;
+mod session;
 mod turns;
 
 pub use turns::{TurnOutcome, TurnSource, turn_finished};
@@ -94,6 +95,7 @@ pub struct Analytics {
     enabled: Mutex<bool>,
     tx: mpsc::UnboundedSender<Msg>,
     rx: Mutex<Option<mpsc::UnboundedReceiver<Msg>>>,
+    session: Mutex<session::Session>,
 }
 
 enum Msg {
@@ -108,7 +110,7 @@ impl Analytics {
     pub fn load(store: &Store) -> Self {
         let enabled = store.kv_get(KV_ENABLED).as_deref() != Some("0");
         let (tx, rx) = mpsc::unbounded_channel();
-        Self { enabled: Mutex::new(enabled), tx, rx: Mutex::new(Some(rx)) }
+        Self { enabled: Mutex::new(enabled), tx, rx: Mutex::new(Some(rx)), session: Mutex::default() }
     }
 
     pub fn state(&self) -> bool {
@@ -233,6 +235,7 @@ fn queue(hub: &Hub, event: &str, distinct_id: &str, mut properties: Map<String, 
         ("arch".into(), std::env::consts::ARCH.into()),
         // Joins this computer's events across accounts and with its phones' `computer_paired`.
         ("computer".into(), computer_tag(&hub.identity.computer_id()).into()),
+        ("$session_id".into(), hub.analytics.session.locked().id(SystemTime::now()).to_string().into()),
     ]);
     let _ = hub.analytics.tx.send(Msg::Event(json!({
         "event": event,

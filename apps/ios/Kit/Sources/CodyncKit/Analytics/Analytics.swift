@@ -52,6 +52,7 @@ public final class Analytics {
     public static let enabledKey = "analyticsEnabled"
     private static let installKey = "analyticsInstallID"
     private static let identifiedKey = "analyticsIdentifiedUsers"
+    private static let sessionKey = "analyticsSession"
     private static let batchSize = 20
     private static let maxPending = 500
     private static let flushDelay = Duration.seconds(30)
@@ -64,10 +65,14 @@ public final class Analytics {
     private var timer: Task<Void, Never>?
     private var sending = false
     private var foreground = false
+    private var session = AnalyticsSession()
+    /// The session the last launch ended in: where a crash MetricKit reports now happened.
+    private let lastLaunchSession: String?
 
     init(defaults: UserDefaults = .standard, upload: @escaping @Sendable (Data) async -> Bool = Analytics.post) {
         self.defaults = defaults
         self.upload = upload
+        lastLaunchSession = defaults.string(forKey: Self.sessionKey)
     }
 
     public var isEnabled: Bool { defaults.object(forKey: Self.enabledKey) as? Bool ?? true }
@@ -86,19 +91,29 @@ public final class Analytics {
         record(event.rawValue, properties.mapValues(Value.string))
     }
 
-    /// One event for the signed-in account (merging the install ID into it once), else the install ID.
     func record(_ name: String, _ extra: [String: Value]) {
         guard isEnabled else { return }
+        record(name, extra, sessionID: currentSession())
+    }
+
+    /// A crash MetricKit reported from the last launch, in the session that launch ended in.
+    func recordCrash(_ properties: [String: Value]) {
+        guard isEnabled else { return }
+        record("$exception", properties, sessionID: lastLaunchSession)
+    }
+
+    /// One event for the signed-in account (merging the install ID into it once), else the install ID.
+    private func record(_ name: String, _ extra: [String: Value], sessionID: String?) {
         if let user = userID() {
             var identified = defaults.stringArray(forKey: Self.identifiedKey) ?? []
             if !identified.contains(user) {
-                enqueue("$identify", user, ["$anon_distinct_id": .string(installID)])
+                enqueue("$identify", user, ["$anon_distinct_id": .string(installID)], sessionID)
                 identified.append(user)
                 defaults.set(identified, forKey: Self.identifiedKey)
             }
-            enqueue(name, user, extra)
+            enqueue(name, user, extra, sessionID)
         } else {
-            enqueue(name, installID, extra)
+            enqueue(name, installID, extra, sessionID)
         }
     }
 
@@ -142,9 +157,17 @@ public final class Analytics {
         return id
     }
 
-    private func enqueue(_ name: String, _ distinctID: String, _ extra: [String: Value]) {
+    /// Kept for the next launch, whose crash reports belong to it.
+    private func currentSession() -> String {
+        let id = session.id(at: .now)
+        defaults.set(id, forKey: Self.sessionKey)
+        return id
+    }
+
+    private func enqueue(_ name: String, _ distinctID: String, _ extra: [String: Value], _ sessionID: String?) {
         var properties = Self.common.merging(extra) { $1 }
         properties["$process_person_profile"] = .bool(true)
+        properties["$session_id"] = sessionID.map(Value.string)
         pending.append(Event(event: name, distinct_id: distinctID,
                              timestamp: Date.now.ISO8601Format(), properties: properties))
         if pending.count > Self.maxPending { pending.removeFirst(pending.count - Self.maxPending) }

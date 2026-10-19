@@ -56,6 +56,7 @@ internal object Analytics {
     private var timer: Job? = null
     private var sending = false
     private var foreground = false
+    private val session = AnalyticsSession()
 
     fun start(context: Context) {
         if (prefs != null) return
@@ -114,8 +115,11 @@ internal object Analytics {
     private fun installId(stored: SharedPreferences): String = stored.getString("install", null)
         ?: UUID.randomUUID().toString().also { stored.edit().putString("install", it).apply() }
 
+    /** The current `$session_id`; a crash written down on another thread takes it along to the next launch. */
+    fun sessionId(): String = session.id(System.currentTimeMillis())
+
     private fun enqueue(name: String, distinctId: String, extra: Map<String, JsonElement>) {
-        pending += event(name, distinctId, Instant.now().toString(), extra)
+        pending += event(name, distinctId, Instant.now().toString(), mapOf("\$session_id" to JsonPrimitive(sessionId())) + extra)
         if (pending.size > MAX_PENDING) repeat(pending.size - MAX_PENDING) { pending.removeAt(0) }
         if (pending.size >= BATCH_SIZE) flush() else scheduleFlush()
     }

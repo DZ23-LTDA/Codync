@@ -22,6 +22,12 @@ UI: *About usage analytics…*) shows the same promise in the app, in one text p
   user id. Otherwise a random install id (the host id on a computer, a UUID on the iPhone).
   The first signed-in event sends `$identify` with `$anon_distinct_id` so earlier events join
   the account.
+- **Sessions.** Every event carries a `$session_id` (a UUIDv7) that changes after 30 minutes
+  without events or 24 hours in all, as in PostHog's own SDKs, and on each launch of an app or
+  start of the host (host `analytics/session.rs`, `AnalyticsSession` on the iPhone and Android),
+  so an error's page shows the events that led up to it. Nothing is recorded for it beyond the
+  events themselves. A crash reported on the next launch keeps the session it happened in, with
+  the time it was reported.
 - **Location, never the IP.** The project's GeoIP transformation turns the sender's IP into an
   approximate location (`$geoip_country_name`, `$geoip_city_name`, …), then the project's
   *Discard client IP data* drops the IP before storage.
@@ -69,7 +75,8 @@ Besides `env`, `app_version`, `$os`, `$lib`:
 
 Crashes and uncaught errors go to PostHog Error Tracking as `$exception` events with the same
 switch, identity and common properties as everything else, plus `process`. No SDK: each client
-builds PostHog's generic `custom` frames (oldest first, the failing one last).
+builds PostHog frames itself (oldest first, the failing one last): generic `custom` frames, or
+`apple` frames on the iPhone.
 
 - **Host** (`host/src/analytics/errors.rs`): its own panics (a panic hook queues them for the
   analytics task), and `reportError`, loopback only, for the computer's apps. Process `host`.
@@ -83,16 +90,21 @@ builds PostHog's generic `custom` frames (oldest first, the failing one last).
   Processes `desktop-main`, `desktop-renderer`. The renderer is built unminified so function
   names stay readable.
 - **iPhone** (`CodyncKit` `CrashReports`): MetricKit's crash diagnostics, delivered on the next
-  launch, straight to PostHog with the version that crashed. Frames are `binary + offset`
-  (unsymbolicated; Xcode Organizer has the symbolicated crash). Process `ios`.
+  launch, straight to PostHog with the version that crashed and the session it ended. Frames are
+  code addresses with the binaries they ran in (`$debug_images`: each binary's UUID and load
+  address). PostHog symbolicates them with the release's dSYMs, which the *iOS dSYMs* workflow
+  uploads from its Xcode Cloud archive after *Submit iOS* (`tools/upload-dsyms.py`, secret
+  `POSTHOG_CLI_API_KEY`: a personal API key with *error tracking write* on this project). A frame
+  it can't resolve, such as the system's, shows `binary + offset`. Process `ios`.
 - **Android** (`CrashReports.kt`): an uncaught exception is written down as it happens and sent
   on the next launch: its type and frames (class, method, file name, line), never the message.
   Process `android`.
 
 What leaves the device: the error's type (`Panic`, `TypeError`, `EXC_BAD_ACCESS`), how it was
-caught, function names, and file names and line numbers inside Codync's code; an absolute path
-keeps only its file name. Never the error's message: only a panic message written as a literal
-in the code, an Electron crash reason or a signal name. Release host builds are stripped, so a
+caught, function names, and file names and line numbers inside Codync's code (on the iPhone,
+code addresses and binary UUIDs instead); an absolute path keeps only its file name. Never the
+error's message: only a panic message written as a literal in the code, an Electron crash reason
+or a signal name. Release host builds are stripped, so a
 host panic is its location only.
 
 Alerts email the owner, from insights on the *Codync users* dashboard (production only): *Any
