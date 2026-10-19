@@ -5,6 +5,7 @@ import { Dialog, ModalHeader, Sheet } from '../../components/Overlay'
 import { HStack } from '../../components/Stack'
 import { useModel } from '../../lib/observable'
 import { useStore } from '../../store/context'
+import { useScreenViewed } from '../../store/analytics'
 import { MemoryStore, authorLabel, type MemoryEntry } from '../../store/memory-store'
 import { FormSheet } from '../marketplace/pieces'
 import { relativeTime } from '../thread/chat-items'
@@ -18,6 +19,7 @@ type Section = 'yours' | 'bot' | 'dreams' | 'harness'
 export function MemoryCard({ botId }: { botId: string }) {
   const host = useStore()
   const memory = useModel(useMemo(() => new MemoryStore(botId, () => host.ready()), [botId, host]))
+  useScreenViewed('memory')
   const bot = host.bots.get(botId)
   const [section, setSection] = useState<Section>('bot')
   const [draft, setDraft] = useState<{ id?: number; text: string } | null>(null)

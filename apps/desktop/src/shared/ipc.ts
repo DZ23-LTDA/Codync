@@ -1,3 +1,4 @@
+import type { SignInFailure, SignInProvider } from './analytics'
 import type { SharedFile } from './models'
 import type { SSHBridge } from './ssh'
 import type { ScreenAgentState } from './computer-access'
@@ -70,6 +71,8 @@ export type WindowCommand =
   | { kind: 'refresh' }
   | { kind: 'respondPermission'; ref: string; entryId: string; optionId: string }
   | { kind: 'sendMessage'; ref: string; text: string }
+  /** The chat window was shown again after being hidden (`window_opened`). */
+  | { kind: 'windowOpened' }
 
 /** The app's own updates (electron-updater, release builds only). */
 export interface UpdateState {
@@ -114,6 +117,8 @@ export interface CodyncBridge {
   appVersion: string
   /** The computer's name ("Kevin's MacBook Pro"). */
   computerName: string
+  /** This launch was started by the login item (Open at login). */
+  openedAtLogin: boolean
   /** Screenshot/UI checks: CODYNC_DEBUG_OPEN=compose | group | plugins | computers | <bot name>. */
   debugOpen: string | null
   host: {
@@ -129,7 +134,8 @@ export interface CodyncBridge {
   account: {
     state(): Promise<AccountState>
     onChange(cb: (s: AccountState) => void): () => void
-    signIn(provider: 'apple' | 'google'): Promise<void>
+    /** Why it ended without an account; null once signed in (or while another sign-in runs). */
+    signIn(provider: SignInProvider): Promise<SignInFailure | null>
     signOut(): Promise<void>
     /** The signed-in session's JWT for the Codync cloud. */
     token(): Promise<string>

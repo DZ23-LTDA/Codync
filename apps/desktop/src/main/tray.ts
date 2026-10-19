@@ -8,6 +8,7 @@ import { setShowInDock, showInDock } from './dock'
 import { identity } from './environment'
 import { islandSupported, type Island } from './island'
 import { islandLabel } from '../shared/island'
+import { launchAtLogin, setLaunchAtLogin } from './login-item'
 
 interface Deps {
   openChat: () => unknown
@@ -25,7 +26,7 @@ const TEXT_SIZES = [11, 12, 13, 14, 15, 16, 18]
 export class Tray {
   private tray: ElectronTray
   private summary: TraySummary | null = null
-  private launchAtLogin = app.getLoginItemSettings().openAtLogin
+  private launchAtLogin = launchAtLogin()
 
   constructor(private deps: Deps) {
     this.tray = new ElectronTray(this.icon(false))
@@ -200,8 +201,7 @@ export class Tray {
         type: 'checkbox',
         checked: this.launchAtLogin,
         click: () => {
-          app.setLoginItemSettings({ openAtLogin: !this.launchAtLogin })
-          this.launchAtLogin = app.getLoginItemSettings().openAtLogin
+          this.launchAtLogin = setLaunchAtLogin(!this.launchAtLogin)
           this.rebuild()
         },
       },

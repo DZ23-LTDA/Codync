@@ -7,6 +7,7 @@ import { Sheet, usePresence } from '../../components/Overlay'
 import { HStack, IconSlot, Spacer } from '../../components/Stack'
 import { Text } from '../../components/Text'
 import { prefs, usePref } from '../../lib/prefs'
+import { useScreenViewed } from '../../store/analytics'
 import { useStore } from '../../store/context'
 import { UpdateNeededCard } from '../UpdateNeededCard'
 import { buildChat, rowIn, useArrivals, type ChatItem } from './chat-items'
@@ -60,6 +61,8 @@ export const ThreadView = memo(function ThreadView({ botId }: { botId: string })
   const [detailsWidth, setDetailsWidth] = usePref(prefs.detailsPanelWidth)
   const [repliesWidth, setRepliesWidth] = usePref(prefs.repliesPanelWidth)
   useReading(store, botId, null)
+  // The chat window remounts this per conversation (`key`), so each one opened counts.
+  useScreenViewed('chat')
 
   useLayoutEffect(() => {
     const el = root.current

@@ -3,6 +3,7 @@ import { IconButton, Switch } from '../../components/Controls'
 import { Sheet } from '../../components/Overlay'
 import { HStack, Spacer, VStack } from '../../components/Stack'
 import { Text } from '../../components/Text'
+import { useScreenViewed } from '../../store/analytics'
 import { useStore } from '../../store/context'
 import { errorText, isActiveRun, type Routine, type RoutineListing, type RoutineRun } from './routine'
 import { RoutineEditorView } from './RoutineEditorView'
@@ -47,6 +48,8 @@ export function RoutinesView({ botId, initialId, onClose }: { botId: string; ini
   current.current = botId
 
   const open = (routineId: string | null) => setEditing({ id: crypto.randomUUID(), routineId })
+  // The list is part of the details panel; a routine's editor is the routines screen.
+  useScreenViewed(editing ? 'routines' : null, editing?.id)
 
   const load = async () => {
     const asked = botId

@@ -10,6 +10,7 @@ import { Text } from '../../components/Text'
 import { useModel } from '../../lib/observable'
 import { useAccount } from '../../store/account'
 import type { BotStore } from '../../store/bot-store'
+import { useScreenViewed } from '../../store/analytics'
 import { StoreContext, useApp } from '../../store/context'
 import { ComputerBadge } from '../ComputerBadge'
 import { deviceIcon, errorText, liveClient, relativeDay, Reveal, SectionHeader, statusText, thisMac } from './parts'
@@ -317,6 +318,7 @@ function deviceDetail(device: AuthorizedDevice) {
 /** A one-time pairing QR (v3) from a computer this app manages: its keys, a code, and how to reach it. */
 function PairingPanel({ store }: { store: BotStore }) {
   useModel(store)
+  useScreenViewed('pairing')
   const [info, setInfo] = useState<PairingInfo | null>(null)
   const [qr, setQr] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)

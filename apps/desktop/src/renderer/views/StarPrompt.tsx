@@ -9,6 +9,7 @@ import { useModel } from '../lib/observable'
 import { prefs, usePref } from '../lib/prefs'
 import { afterStarAsk, dueStarAsk } from '../lib/star-ask'
 import { useApp } from '../store/context'
+import { analytics } from '../store/analytics'
 
 const [OWNER, NAME] = ['leepokai', 'Codync']
 const REPO = `https://github.com/${OWNER}/${NAME}`
@@ -38,9 +39,11 @@ export function StarPrompt() {
   const open = due !== null && onboarded && !closed && local?.connection.kind === 'online'
 
   const finish = (starred: boolean) => {
-    if (closed) return
+    if (closed || !due) return
     setClosed(true)
     setState(afterStarAsk(state, starred, Date.now()))
+    // Covers the GitHub link too: it opens only on a star.
+    analytics.track({ event: 'star_prompt_answered', ask: due, starred })
     if (starred) window.codync.app.openExternal(REPO)
   }
 

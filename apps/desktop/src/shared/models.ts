@@ -369,9 +369,6 @@ export interface Hello {
   analytics?: boolean
 }
 
-/** Events only the desktop app knows about; the host records everything else from API calls. */
-export type AnalyticsEvent = 'app_opened' | 'onboarding_completed' | 'signed_in' | 'signed_out'
-
 export interface PairingInfo {
   pairingUrl: string
   urls: string[]

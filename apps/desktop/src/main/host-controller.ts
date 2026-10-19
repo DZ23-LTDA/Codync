@@ -9,6 +9,7 @@ import type { HostState, LocalHost } from '../shared/ipc'
 import { unregisterScreenAgent } from './screen'
 import { identity } from './environment'
 import { hostEnvironmentError } from '../shared/environment'
+import type { HostSetupStage } from './analytics'
 
 /** `CODYNC_PORT` / `CODYNC_HOME` point the app at a dev host started with `codync-host serve`. */
 export const devPort = process.env.CODYNC_PORT ? Number(process.env.CODYNC_PORT) : null
@@ -72,9 +73,17 @@ function serviceDefinition(): string | null {
 
 const serviceInstalled = () => serviceDefinition() !== null
 
+/** A failed check of the host binary, and the `host_setup_failed` stage it counts as. */
+class SetupError extends Error {
+  constructor(readonly stage: HostSetupStage, message: string) {
+    super(message)
+  }
+}
+
 /**
  * Manages the local codync-host (binary, background service, health): bundled with the app,
- * else a Homebrew / cargo install.
+ * else a Homebrew / cargo install. Emits `change`, and `setupFailed` (a `HostSetupStage`) when
+ * it couldn't get a working host.
  */
 export class HostController extends EventEmitter {
   state: HostState = { kind: 'starting' }
@@ -116,6 +125,11 @@ export class HostController extends EventEmitter {
     this.emit('change')
   }
 
+  private setupFailed(stage: HostSetupStage, state: HostState) {
+    this.emit('setupFailed', stage)
+    this.setState(state)
+  }
+
   private setLocal(local: LocalHost | null) {
     this.local = local
     this.emit('change')
@@ -131,7 +145,7 @@ export class HostController extends EventEmitter {
 
   async refresh() {
     if (this.preparingForUpdate) return
-    if (!this.binary && devPort === null) return this.setState({ kind: 'missingBinary' })
+    if (!this.binary && devPort === null) return this.setupFailed('missing_binary', { kind: 'missingBinary' })
     if (devPort === null && prefs.get('hostRestartAfterAppUpdate') === true && serviceInstalled()) return this.install()
     if (devPort === null && !serviceInstalled()) {
       // The app is the way to run the host: set it up right away, unless the user took it out.
@@ -146,10 +160,10 @@ export class HostController extends EventEmitter {
 
   private async verifyBinary(bin: string) {
     const result = await run(bin, ['compat'])
-    if (result.status !== 0) throw new Error(result.output || 'Cannot verify the host environment.')
+    if (result.status !== 0) throw new SetupError('verify', result.output || 'Cannot verify the host environment.')
     const info = JSON.parse(result.output) as { environment?: string }
     const mismatch = hostEnvironmentError(identity.environment, info.environment)
-    if (mismatch) throw new Error(mismatch)
+    if (mismatch) throw new SetupError('environment', mismatch)
   }
 
   /** A service operation must never invoke the other environment's binary. */
@@ -164,13 +178,14 @@ export class HostController extends EventEmitter {
       await this.verifyBinary(bin)
       const result = await run(bin, ['install', '--port', String(port)])
       if (result.status !== 0) {
-        this.setState({ kind: 'failed', message: result.output || 'Install failed' })
+        this.setupFailed('install', { kind: 'failed', message: result.output || 'Install failed' })
       } else {
         await sleep(1000)
         this.connect()
       }
     } catch (error) {
-      this.setState({ kind: 'failed', message: error instanceof Error ? error.message : String(error) })
+      // Only the binary's checks throw here (unreadable `compat` output too).
+      this.setupFailed(error instanceof SetupError ? error.stage : 'verify', { kind: 'failed', message: error instanceof Error ? error.message : String(error) })
     } finally {
       this.installing = false
     }
@@ -271,7 +286,7 @@ export class HostController extends EventEmitter {
         if (devPort === null && prefs.get('hostRestartAfterAppUpdate') === true) prefs.set('hostRestartAfterAppUpdate', false)
       } else {
         this.failures++
-        if (this.failures > 5) this.setState({ kind: 'failed', message: "The host isn't responding. See the log for details." })
+        if (this.failures > 5) this.setupFailed('not_responding', { kind: 'failed', message: "The host isn't responding. See the log for details." })
         else if (this.state.kind !== 'running') this.setState({ kind: 'starting' })
       }
       if (generation === this.generation) this.loop = setTimeout(tick, 5000)
@@ -289,7 +304,7 @@ export class HostController extends EventEmitter {
     if (!health?.computerId) return false
     const mismatch = hostEnvironmentError(identity.environment, health.environment)
     if (mismatch) {
-      this.setState({ kind: 'failed', message: mismatch })
+      this.setupFailed('environment', { kind: 'failed', message: mismatch })
       return false
     }
     const token = await readToken()

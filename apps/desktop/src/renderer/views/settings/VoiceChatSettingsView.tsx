@@ -8,6 +8,7 @@ import { HStack, Spacer, VStack } from '../../components/Stack'
 import { Text } from '../../components/Text'
 import { usePref } from '../../lib/prefs'
 import { useStore } from '../../store/context'
+import { useScreenViewed } from '../../store/analytics'
 import { errorText, liveClient, Reveal } from './parts'
 import * as voice from './voice-settings'
 import type { VoiceModels, VoiceProvider } from './voice-settings'
@@ -18,6 +19,7 @@ import type { VoiceModels, VoiceProvider } from './voice-settings'
  * in `StoreContext`. `showsHeader` is false inside Settings, which titles the page itself.
  */
 export function VoiceChatSettingsView({ showsHeader = true }: { showsHeader?: boolean }) {
+  useScreenViewed('voice_settings')
   const [engine, setEngine] = usePref(voice.engine)
   const [rate, setRate] = usePref(voice.rate)
   const [language, setLanguage] = usePref(voice.language)

@@ -1,3 +1,4 @@
+import type { VoiceCallEngine } from '@shared/analytics'
 import { isWorking } from '@shared/models'
 import { createContext, useContext, useEffect, useRef, useState } from 'react'
 import { BotAvatar } from '../../components/Avatar'
@@ -6,6 +7,7 @@ import { Sheet } from '../../components/Overlay'
 import { Text } from '../../components/Text'
 import { useModel } from '../../lib/observable'
 import { avatarColor, useDark, usePixelRatio, useReduceMotion, withAlpha } from '../../lib/theme'
+import { analytics } from '../../store/analytics'
 import { useStore } from '../../store/context'
 import { VoiceChatSettingsView } from '../settings/VoiceChatSettingsView'
 import { CallOperator } from './call-operator'
@@ -47,6 +49,9 @@ export function CallView({ botId, onSpeaking, interrupt, onEnd }: {
   /** When the current cloud engine started, for this month's minutes. */
   const cloudStartedAt = useRef<number | null>(null)
   const closed = useRef(false)
+  /** What carries the current engine's audio, and whether the call has been counted (once its first engine runs). */
+  const engineName = useRef<VoiceCallEngine>('on_device')
+  const counted = useRef(false)
   const bot = store.bots.get(botId)
   const color = bot ? avatarColor(bot.avatarColor) : null
 
@@ -84,6 +89,7 @@ export function CallView({ botId, onSpeaking, interrupt, onEnd }: {
         send,
       })
       cloudStartedAt.current = Date.now()
+      engineName.current = 'cloud'
     } else if (provider) {
       const model = VoiceSettings.model(provider)
       const voice = VoiceSettings.voice(provider)
@@ -92,8 +98,10 @@ export function CallView({ botId, onSpeaking, interrupt, onEnd }: {
           ? new OpenAIRealtimeEngine(credential(provider, model, voice), op)
           : new GeminiLiveEngine(model, voice, credential(provider, model, voice), op)
       cloudStartedAt.current = Date.now()
+      engineName.current = provider
     } else {
       next = new OnDeviceEngine(send)
+      engineName.current = 'on_device'
     }
     // Picks up the computer's newest models for the next call; this one starts right away.
     if (provider) void rememberStatus()
@@ -151,6 +159,10 @@ export function CallView({ botId, onSpeaking, interrupt, onEnd }: {
     if (!session) return
     onSpeaking(phase === 'speaking')
     interrupt.current = phase === 'speaking' ? () => session.interrupt() : null
+    if (session.isActive && !counted.current) {
+      counted.current = true
+      analytics.track({ event: 'voice_call_started', engine: engineName.current })
+    }
     // A cloud engine that can't start or drops mid-call hands over to on-device voice.
     if (phase === 'failed' && session.provider && onDeviceAvailable()) {
       countCloudMinutes()
