@@ -32,7 +32,9 @@
   --chat-user: #e2e2e2;
   /* Floating transcript controls (chevrons, Jump to latest, inspector actions). */
   --chat-button: #eeeeee;
-  --composer-fill: #f3f3f3;
+  /* Light: the message box is the page color with a ring, like the details buttons; dark: a lighter fill. */
+  --composer-fill: var(--background);
+  --composer-stroke: var(--chrome-stroke);
   --chrome-fill: #f3f3f3;
   --chrome-stroke: rgba(0, 0, 0, 0.09);
   --stroke-strong: rgba(0, 0, 0, 0.14);
@@ -115,6 +117,7 @@
     --chat-user: #363636;
     --chat-button: #303030;
     --composer-fill: #2f2f2f;
+    --composer-stroke: transparent;
     --chrome-fill: #181818;
     --chrome-stroke: rgba(255, 255, 255, 0.10);
     --stroke-strong: rgba(255, 255, 255, 0.17);

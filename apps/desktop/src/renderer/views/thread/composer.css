@@ -88,7 +88,7 @@
   min-width: 0;
   background: var(--composer-fill);
   border-radius: var(--radius-xl);
-  box-shadow: var(--shadow-s);
+  box-shadow: 0 0 0 1px var(--composer-stroke), var(--shadow-s);
   display: flex;
   flex-direction: column;
 }
