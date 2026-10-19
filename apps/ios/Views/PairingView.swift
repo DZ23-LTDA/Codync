@@ -260,7 +260,7 @@ private struct ScanPage: View {
                     .transition(.opacity)
                 }
 
-                // Signed in, account computers show up and ask for access themselves.
+                // Signed in, account computers show up in Computers, where a tap asks one for access.
                 if account.isConfigured && !account.isSignedIn { SignInButtons() }
 
                 // How it connects is never a choice here: every paired computer gets every route.

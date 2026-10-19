@@ -243,7 +243,7 @@ private enum class ComputerOS { Mac, Linux }
                     "wifi.exclamationmark", Palette.secondary)
             }
         }
-        // Signed in, account computers show up and ask for access themselves.
+        // Signed in, account computers show up in Computers, where a tap asks one for access.
         if (state.account.configured && state.account.userId == null) SignInButtons(state, store)
         // How it connects is never a choice here: every paired computer gets every route.
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {

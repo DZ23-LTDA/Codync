@@ -61,7 +61,7 @@ private enum class Root { Loading, Welcome, Pairing, Tabs }
         }
     }
     val signedIn = state.account.userId != null
-    // Signed in, setup counts as complete (`loadContext`): the account's computers ask for access on their own.
+    // Signed in, setup counts as complete (`loadContext`): the account's computers are asked for access from Computers.
     val onboarding = !state.setupComplete && state.computers.isEmpty() && state.cloudComputers.isEmpty()
     val root = when {
         state.loading -> Root.Loading

@@ -323,7 +323,7 @@ private extension View {
     }
 }
 
-/// Account computers this iPhone asked on its own after sign-in: the code to check, until they answer.
+/// Access requests still waiting after their sheet closed: the code to check, until the computer answers.
 private struct AccessBanners: View {
     @Environment(AccountStore.self) private var accounts
 

@@ -100,10 +100,12 @@ struct AccessRequestView: View {
         }
     }
 
-    /// Runs until the computer answered with its nonce; closing the sheet cancels it.
+    /// Runs until the computer answered with its nonce; the code then shows through `pendingAccess`.
+    /// Closing the sheet leaves the request, and this wait, running to its end with the result
+    /// ignored; the code then shows in the banner.
     private func request() async {
         do {
-            _ = try await accounts.requestAccess(computer.computerId)
+            try await accounts.requestAccess(computer.computerId)
         } catch is CancellationError {
             return
         } catch {

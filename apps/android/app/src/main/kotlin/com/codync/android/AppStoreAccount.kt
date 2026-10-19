@@ -52,10 +52,6 @@ fun AppStore.refreshCloud() = action("cloud") {
         mutableState.update { it.copy(cloudComputers = computers) }
         // Signed in to an account with computers, before pairing any (iOS: the same moment).
         if (computers.isNotEmpty() && state.value.computers.isEmpty()) Analytics.completeOnboarding(OnboardingVia.Account)
-        // Online computers this phone has no grant on yet; a granted one needs Revoke before asking again.
-        val target = computers.firstOrNull { remote -> state.value.computers.isEmpty() && remote.online == true &&
-            remote.access != "granted" && remote.computerId !in asked }
-        if (target != null) requestAccess(target)
     } catch (error: CloudError) { if (!error.isTransient) throw error }
 }
 
@@ -65,7 +61,6 @@ suspend fun AppStore.refreshComputers() { refreshCloud(); actions["cloud"]?.join
 fun AppStore.requestAccess(target: CloudComputer) = action("access") {
     val client = requireNotNull(cloud) { "Sign in to reach your account." }
     require(state.value.computers.isEmpty() || state.value.computers.first().id == target.computerId) { "Forget the current computer before connecting a different one." }
-    asked.add(target.computerId)
     val ticket = client.requestAccess(target.computerId, target.signKey)
     Analytics.capture(AnalyticsEvent.AccessRequested)
     mutableState.update { it.copy(access = ticket) }
@@ -137,9 +132,7 @@ fun AppStore.setColor(color: String) = action("color") {
 fun AppStore.forgetComputer() = sessionAction {
     transitions.withLock {
         val userId = state.value.account.userId
-        val id = state.value.computers.firstOrNull()?.id
         retireContext()
-        if (id != null) asked.add(id)
         withContext(Dispatchers.IO) {
             local.saveComputers(emptyList())
             local.directory.listFiles()?.filter { it.name.startsWith("mirror-") || it.name.startsWith("drafts-") }?.forEach { it.delete() }
