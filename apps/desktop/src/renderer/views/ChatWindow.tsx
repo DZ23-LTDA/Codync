@@ -75,6 +75,8 @@ export function ChatWindow() {
             if (ref) app.store(ref.computerId)?.stop(ref.botId)
             return
           }
+          case 'refresh':
+            return app.refresh()
           case 'setRemoteScreen':
             void app.setRemoteScreen(c.on)
             return

@@ -41,6 +41,8 @@ public struct EntryData: Codable, Hashable, Sendable {
     public var thread: ThreadSummary?
     /// The user's emoji reactions, oldest first.
     public var reactions: [String]?
+    /// The bots' reactions, one per bot, oldest first.
+    public var botReactions: [BotReaction]?
     /// Files sent with a user message.
     public var attachments: [Attachment]?
     /// Immutable files explicitly sent by the bot.
@@ -57,6 +59,25 @@ public struct EntryData: Codable, Hashable, Sendable {
 
 /// A memory line from an older host, known only to keep it out of the chat.
 public struct MemoryLine: Codable, Hashable, Sendable {}
+
+/// One bot's emoji on a message.
+public struct BotReaction: Codable, Hashable, Sendable {
+    public var bot: String
+    public var emoji: String
+}
+
+extension EntryData {
+    /// The bots' reactions by emoji, in the order each first appeared.
+    public var botReactionGroups: [(emoji: String, bots: [String])] {
+        (botReactions ?? []).reduce(into: []) { groups, r in
+            if let i = groups.firstIndex(where: { $0.emoji == r.emoji }) {
+                groups[i].bots.append(r.bot)
+            } else {
+                groups.append((r.emoji, [r.bot]))
+            }
+        }
+    }
+}
 
 /// A file sent with a message; the agent reads it on the computer.
 public struct Attachment: Codable, Hashable, Sendable, Identifiable {

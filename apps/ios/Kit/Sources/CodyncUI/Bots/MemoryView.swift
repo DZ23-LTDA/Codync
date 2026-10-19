@@ -6,15 +6,20 @@ import SwiftUI
 struct MemoryCard: View {
     let botId: String
     @Environment(BotStore.self) private var host
+    @Environment(\.verticalSizeClass) private var verticalSizeClass
     @State private var memory: MemoryStore?
     @State private var section: Section = .bot
     @State private var editor: MemoryEditTarget?
     @State private var confirmClear = false
     @State private var aboutHarness = false
+    @State private var openDreams: Set<DreamRun.ID> = []
 
     enum Section: Hashable { case yours, bot, dreams, harness }
 
     private var bot: Bot? { host.bots[botId] }
+    /// A long memory stops at a few lines, fewer when the screen is short (landscape); tapping it shows the rest
+    /// (an entry opens its editor, a dream unfolds).
+    private var lines: Int { verticalSizeClass == .compact ? 2 : 5 }
 
     var body: some View {
         VStack(spacing: 10) {
@@ -111,7 +116,7 @@ struct MemoryCard: View {
                     VStack(alignment: .leading, spacing: 4) {
                         HStack(alignment: .firstTextBaseline, spacing: 6) {
                             if entry.pinned { Image(systemName: "pin.fill").font(.caption2).foregroundStyle(Palette.secondary) }
-                            Text(entry.text).foregroundStyle(entry.archived ? Palette.tertiary : Palette.text)
+                            Text(entry.text).foregroundStyle(entry.archived ? Palette.tertiary : Palette.text).lineLimit(lines)
                         }
                         Text("\(author(entry)) · \(Date(milliseconds: entry.updatedAt).formatted(.relative(presentation: .named)))\(entry.archived ? " · archived" : "")")
                             .font(.caption).foregroundStyle(Palette.secondary)
@@ -136,11 +141,14 @@ struct MemoryCard: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("\(Date(milliseconds: run.at).formatted(.relative(presentation: .named)))\(run.undone ? " · undone" : "")")
                         .fontWeight(.semibold)
-                    ForEach(run.added, id: \.id) { Text("+ \($0.text)") }
-                    ForEach(run.archived, id: \.id) { Text("− \($0.text)").foregroundStyle(Palette.tertiary) }
+                    let limit = openDreams.contains(run.id) ? nil : lines
+                    ForEach(run.added, id: \.id) { Text("+ \($0.text)").lineLimit(limit) }
+                    ForEach(run.archived, id: \.id) { Text("− \($0.text)").foregroundStyle(Palette.tertiary).lineLimit(limit) }
                     ForEach(run.files ?? [], id: \.version) { Label("Added to \($0.name)", systemImage: "doc.text").foregroundStyle(Palette.secondary) }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
+                .contentShape(Rectangle())
+                .onTapGesture { withAnimation(Motion.layout) { openDreams.formSymmetricDifference([run.id]) } }
                 if !run.undone {
                     IconButton("Undo this dream", systemImage: "arrow.uturn.backward") {
                         Task { await memory.mutate("undoDream", id: run.id) }

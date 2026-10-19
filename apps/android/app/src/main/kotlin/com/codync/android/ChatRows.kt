@@ -37,6 +37,7 @@ import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
@@ -118,7 +119,7 @@ internal fun chatItems(entries: List<Entry>, pending: List<PendingSend>): List<C
         "user" -> Column(Modifier.fillMaxWidth().padding(top = if (groupStart) 12.dp else 4.dp).animateContentSize(Motion.layoutSize),
             horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(4.dp)) {
             UserBubble(entry, state, store, reply)
-            ReactionsRow(entry, store)
+            ReactionsRow(entry, state, store)
             ThreadChip(entry, state, reply)
         }
         "agent" -> Column(Modifier.fillMaxWidth().padding(top = if (groupStart) 12.dp else 4.dp).animateContentSize(Motion.layoutSize),
@@ -126,7 +127,7 @@ internal fun chatItems(entries: List<Entry>, pending: List<PendingSend>): List<C
             if (group && groupStart) AuthorLabel(entry.data.text("author"), state)
             AgentBubble(entry, state, store, openTrace, reply)
             Column(Modifier.padding(start = if (group) 34.dp else 0.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                ReactionsRow(entry, store)
+                ReactionsRow(entry, state, store)
                 ThreadChip(entry, state, reply)
             }
         }
@@ -275,20 +276,39 @@ internal val Entry.reactions: List<String> get() = (data["reactions"] as? JsonAr
     }
 }
 
-/** The user's reactions under a message; tapping one takes it back. */
-@Composable private fun ReactionsRow(entry: Entry, store: AppStore) {
-    val reactions = entry.reactions
-    if (reactions.isEmpty()) return
+/** A message's reactions: the user's (tapping one takes it back), then the bots', each emoji with the avatars of the
+ *  bots that chose it. */
+@Composable private fun ReactionsRow(entry: Entry, state: AppState, store: AppStore) {
+    val mine = entry.reactions
+    val theirs = entry.botReactions.mapValues { (_, ids) -> ids.mapNotNull { id -> state.bots.firstOrNull { it.id == id } } }
+        .filterValues { it.isNotEmpty() }
+    if (mine.isEmpty() && theirs.isEmpty()) return
     Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-        for (emoji in reactions) {
+        for (emoji in mine) {
             val (source, pressed) = rememberPress()
             Text(emoji, Modifier.pressScale(pressed).clip(Capsule()).background(Palette.surface)
                 .clickable(source, null, role = Role.Button) { store.command("react", body("entryId" to entry.id, "emoji" to emoji), "react:" + entry.id) }
                 .semantics { contentDescription = "Remove reaction $emoji" }
                 .padding(horizontal = 8.dp, vertical = 3.dp), style = Type.system(15f))
         }
+        for ((emoji, bots) in theirs) {
+            Row(Modifier.clip(Capsule()).background(Palette.surface)
+                .clearAndSetSemantics { contentDescription = "${bots.joinToString { it.name }} reacted $emoji" }
+                .padding(horizontal = 8.dp, vertical = 3.dp), verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(emoji, style = Type.system(15f))
+                Row(horizontalArrangement = Arrangement.spacedBy((-5).dp)) {
+                    for (bot in bots.take(3)) CharacterAvatar(bot.avatarShape, bot.avatarColor, 16.dp)
+                }
+            }
+        }
     }
 }
+
+/** The bots' reactions by emoji, in the order each first appeared: each emoji with the bots that chose it. */
+internal val Entry.botReactions: Map<String, List<String>> get() =
+    (data["botReactions"] as? JsonArray).orEmpty().mapNotNull { it as? JsonObject }
+        .groupBy({ it["emoji"]?.jsonPrimitive?.contentOrNull.orEmpty() }, { it["bot"]?.jsonPrimitive?.contentOrNull.orEmpty() })
 
 /** A routine's run in the main chat: tapping it opens Routines on that routine. */
 @Composable internal fun RoutineNotice(entry: Entry, open: () -> Unit) {

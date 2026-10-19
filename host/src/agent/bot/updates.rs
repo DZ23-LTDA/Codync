@@ -1,7 +1,7 @@
 //! Agent → client: `session/update`s, permission requests and streamed text mapped onto entries.
 
 use super::fast_mode::Listing;
-use super::{Actor, Seg, SegKind};
+use super::{Actor, Reacted, Seg, SegKind};
 use crate::agent::acp::{self, Incoming};
 use crate::hub::BotStatus;
 use crate::remote::push::{self, AlertKind};
@@ -243,6 +243,33 @@ impl Actor {
             .ok_or_else(|| anyhow::anyhow!("couldn't save the message"))?;
         self.sent.push(text);
         self.set_activity("Working…");
+        Ok(())
+    }
+
+    /// `react`: the emoji goes on the user's message this turn answers, or in a room on a message the bot was shown.
+    pub(super) fn react(&mut self, emoji: &str, to: Option<&str>) -> anyhow::Result<()> {
+        if self.turn.is_none() {
+            anyhow::bail!("no turn is running");
+        }
+        let target = match (&self.active_group, self.turn_entries.last()) {
+            (Some(g), _) => crate::chat::reactions::in_room(&self.hub, &g.lane, &self.cfg.id, to, g.shown)?,
+            (None, Some(id)) => id.clone(),
+            (None, None) => anyhow::bail!("react works only on a message you're answering in a chat or a group chat"),
+        };
+        let in_chat = self.active_group.is_none();
+        if crate::chat::reactions::reacted_lately(&self.hub, &self.lane, &self.cfg.id, &target)? {
+            if in_chat {
+                self.reacted = Reacted::Refused;
+            }
+            anyhow::bail!(
+                "you reacted in this chat a moment ago and reactions stay rare: no reaction this time. If the message \
+                 needs no words, end your turn by replying exactly \"(pass)\"; don't tell the user about this."
+            );
+        }
+        self.hub.bot_react(&target, &self.cfg.id, emoji)?;
+        if in_chat {
+            self.reacted = Reacted::With(emoji.trim().to_owned());
+        }
         Ok(())
     }
 

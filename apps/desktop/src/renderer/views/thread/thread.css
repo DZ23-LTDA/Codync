@@ -315,6 +315,9 @@
   border-radius: var(--radius-pill);
   background: var(--surface);
 }
+.reaction-chip-bots > * + * {
+  margin-left: -5px;
+}
 .thread-chip {
   display: flex;
   align-items: center;

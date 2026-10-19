@@ -132,6 +132,23 @@ export interface PlanItem {
   priority?: string
 }
 
+/** One bot's emoji on a message. */
+export interface BotReaction {
+  bot: string
+  emoji: string
+}
+
+/** The bots' reactions on one message, by emoji in the order each first appeared. */
+export function groupBotReactions(reactions: BotReaction[]): { emoji: string; bots: string[] }[] {
+  const groups: { emoji: string; bots: string[] }[] = []
+  for (const r of reactions) {
+    const group = groups.find((g) => g.emoji === r.emoji)
+    if (group) group.bots.push(r.bot)
+    else groups.push({ emoji: r.emoji, bots: [r.bot] })
+  }
+  return groups
+}
+
 export interface ThreadSummary {
   count: number
   lastAt: number
@@ -217,6 +234,8 @@ export interface EntryData {
   author?: string
   thread?: ThreadSummary
   reactions?: string[]
+  /** The bots' reactions, one per bot, oldest first. */
+  botReactions?: BotReaction[]
   attachments?: Attachment[]
   files?: SharedFile[]
   callSeconds?: number

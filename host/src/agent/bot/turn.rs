@@ -1,6 +1,6 @@
 //! Starting a turn and wrapping it up: final reply, notices, replies to waiters, alerts and memory.
 
-use super::{Actor, Conn, Done, Instructions, NoticeStyle, Queued, Seg};
+use super::{Actor, Conn, Done, Instructions, NoticeStyle, Queued, Reacted, Seg};
 use crate::agent::acp::{self, Incoming};
 use crate::analytics::{self, TurnOutcome, TurnSource};
 use crate::chat::context::{self, Snapshot};
@@ -105,6 +105,7 @@ impl Actor {
         self.plan_entry = None;
         self.last_text = None;
         self.sent.clear();
+        self.reacted = Reacted::No;
         self.files.summary = None;
         self.files.cancel();
         // A delegated or group turn has no live waiter after a host restart. Its persisted
@@ -242,17 +243,21 @@ impl Actor {
         let grouped = self.active_group.is_some() || routine;
         let delegated = self.active_request.as_ref().is_some_and(crate::chat::team::BotRequest::expects_reply);
         let sent = std::mem::take(&mut self.sent);
+        let reacted = std::mem::take(&mut self.reacted);
         if !sent.is_empty() {
             // The bot talked through send_message: what it wrote as its reply stays in the trace.
             self.last_text = None;
             final_text = Some(sent.join("\n\n"));
+        } else if !matches!(reacted, Reacted::No) {
+            // A reaction (or one it held back) was its whole reply: what it wrote stays in the trace too.
+            self.last_text = None;
         }
         if let Some(id) = self.last_text.take().filter(|_| !stopped)
             && let Some(mut e) = self.hub.store.entry(&id)
         {
             let text = e.data["text"].as_str().map(str::to_owned);
-            // A pass in a room stays in the trace; the room doesn't see it.
-            if !(grouped && text.as_deref().is_none_or(crate::chat::group::is_pass)) {
+            // A pass stays in the trace: neither a room nor the user sees it (an ask's reply goes back as it is).
+            if delegated || !text.as_deref().is_none_or(crate::chat::group::is_pass) {
                 // An ask's answer belongs to its requesting bot and exchange notice.
                 // Independent messages still report to the user in this chat.
                 if !delegated {
@@ -348,13 +353,16 @@ impl Actor {
         self.hub.team.cancel_from(&self.cfg.id);
         // A room turn's news comes from the group once the room is done (see `group`).
         let more = self.queue.iter().any(|q| matches!(q, Queued::User { .. }));
+        // It held back its only answer, a reaction: it said nothing, so there is nothing to tell either.
+        let held_back = final_text.is_none() && matches!(reacted, Reacted::Refused);
         if !self.stop_requested
             && !delegated
             && !grouped
-            && let Some(kind) = turn_alert(failed || message_failed, &stop_reason, more)
+            && let Some(kind) = turn_alert(failed || message_failed, &stop_reason, more || held_back)
         {
-            let body = final_text.unwrap_or_else(|| match kind {
-                AlertKind::Done => "Finished.".into(),
+            let body = final_text.unwrap_or_else(|| match (kind, reacted) {
+                (AlertKind::Done, Reacted::With(emoji)) => format!("Reacted {emoji} to your message"),
+                (AlertKind::Done, _) => "Finished.".into(),
                 _ => "The agent didn't finish.".into(),
             });
             push::notify(&self.hub, &self.cfg, None, &self.cfg.name, &body, kind);
@@ -389,13 +397,14 @@ impl Actor {
     }
 }
 
-/// A finished turn alerts once the user's work is done: not while their next message
-/// is already queued. A turn that ended short of `end_turn` always reports the failure.
-fn turn_alert(failed: bool, stop_reason: &str, more: bool) -> Option<AlertKind> {
+/// A finished turn alerts once the user's work is done: not when it's `quiet` (their next message
+/// is already queued, or it said nothing on purpose). A turn that ended short of `end_turn` always
+/// reports the failure.
+fn turn_alert(failed: bool, stop_reason: &str, quiet: bool) -> Option<AlertKind> {
     if failed || !matches!(stop_reason, "end_turn" | "cancelled") {
         return Some(AlertKind::Failed);
     }
-    (stop_reason == "end_turn" && !more).then_some(AlertKind::Done)
+    (stop_reason == "end_turn" && !quiet).then_some(AlertKind::Done)
 }
 
 #[cfg(test)]
@@ -405,7 +414,7 @@ mod tests {
     #[test]
     fn only_finished_tasks_alert() {
         assert_eq!(turn_alert(false, "end_turn", false), Some(AlertKind::Done));
-        assert_eq!(turn_alert(false, "end_turn", true), None, "next message queued");
+        assert_eq!(turn_alert(false, "end_turn", true), None, "next message queued, or a reaction held back");
         assert_eq!(turn_alert(false, "cancelled", false), None);
         assert_eq!(turn_alert(false, "max_turn_requests", false), Some(AlertKind::Failed));
         assert_eq!(turn_alert(true, "error", true), Some(AlertKind::Failed));

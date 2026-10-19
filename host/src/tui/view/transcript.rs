@@ -220,7 +220,7 @@ fn entry_lines(
                 ]));
             }
             out.lines.extend(with_bg(body, width, t.band));
-            reactions(out, e);
+            reactions(out, app, e);
             out.messages.push((e.id.clone(), from, out.lines.len()));
             if main {
                 thread_line(out, app, e);
@@ -253,7 +253,7 @@ fn entry_lines(
             } else {
                 out.lines.extend(md::render(e.text(), width, 1));
             }
-            reactions(out, e);
+            reactions(out, app, e);
             out.messages.push((e.id.clone(), from, out.lines.len()));
             if let Some(ti) = info.get(&e.turn).filter(|ti| ti.steps > 0 && ti.last_message.as_ref() == Some(&e.id)) {
                 let files = if ti.files.is_empty() {
@@ -378,11 +378,24 @@ fn bot_message_line(out: &mut Built, app: &App, e: &Entry, peer: &str, lead: &st
     out.messages.push((e.id.clone(), from, out.lines.len()));
 }
 
-/// A message's reactions, under it.
-fn reactions(out: &mut Built, e: &Entry) {
-    let r: Vec<&str> = e.data["reactions"].as_array().into_iter().flatten().filter_map(|r| r.as_str()).collect();
+/// A message's reactions, under it: the user's, then the bots', each emoji with who chose it.
+fn reactions(out: &mut Built, app: &App, e: &Entry) {
+    let mut r: Vec<String> =
+        e.data["reactions"].as_array().into_iter().flatten().filter_map(|r| r.as_str().map(str::to_owned)).collect();
+    let mut bots: Vec<(&str, Vec<String>)> = vec![];
+    for b in e.data["botReactions"].as_array().into_iter().flatten() {
+        let (Some(emoji), Some(bot)) = (b["emoji"].as_str(), app.bots.get(b["bot"].as_str().unwrap_or_default()))
+        else {
+            continue;
+        };
+        match bots.iter_mut().find(|(e, _)| *e == emoji) {
+            Some((_, names)) => names.push(bot.name.clone()),
+            None => bots.push((emoji, vec![bot.name.clone()])),
+        }
+    }
+    r.extend(bots.into_iter().map(|(emoji, names)| format!("{emoji} {}", names.join(", "))));
     if !r.is_empty() {
-        out.lines.push(Line::from(Span::raw(format!("   {}", r.join(" ")))));
+        out.lines.push(Line::from(Span::raw(format!("   {}", r.join("  ")))));
     }
 }
 
