@@ -1,6 +1,6 @@
 import { FileDownloadCard } from './FileDownloadCard'
 import { memo, useEffect, useRef, useState } from 'react'
-import { isGroup, isWorking, needsInput, type Bot, type Entry, type ThreadSummary } from '@shared/models'
+import { groupBotReactions, isGroup, isWorking, needsInput, type Bot, type Entry, type ThreadSummary } from '@shared/models'
 import { BotAvatar } from '../../components/Avatar'
 import { Hairline, IconButton } from '../../components/Controls'
 import { Icon } from '../../components/Icon'
@@ -290,18 +290,37 @@ function Timer({ since }: { since: number }) {
   return <Text size="footnote" tone="tertiary" tabular>{h ? `${h}:${String(m).padStart(2, '0')}:${sec}` : `${m}:${sec}`}</Text>
 }
 
-/** The user's reactions under a message; clicking one takes it back. */
+/** A message's reactions: the user's (clicking one takes it back), then the bots', each emoji with the avatars of the
+ * bots that chose it. */
 export function ReactionsRow({ entry }: { entry: Entry }) {
   const store = useStore()
-  const reactions = entry.data.reactions
-  if (!reactions?.length) return null
+  const mine = entry.data.reactions ?? []
+  const theirs = groupBotReactions(entry.data.botReactions ?? [])
+    .map(({ emoji, bots }) => ({ emoji, bots: bots.map((id) => store.bots.get(id)).filter((b): b is Bot => !!b) }))
+    .filter((g) => g.bots.length)
+  if (!mine.length && !theirs.length) return null
   return (
     <HStack align="stretch" gap={4}>
-      {reactions.map((emoji) => (
+      {mine.map((emoji) => (
         <button key={emoji} className="press reaction-chip" title={`Remove ${emoji}`} aria-label={`Remove reaction ${emoji}`} onClick={() => store.react(entry, emoji)}>
           <Text size="body">{emoji}</Text>
         </button>
       ))}
+      {theirs.map(({ emoji, bots }) => {
+        const label = `${bots.map((b) => b.name).join(', ')} reacted ${emoji}`
+        return (
+          <HStack key={`bots-${emoji}`} gap={4} className="reaction-chip" title={label} aria-label={label} role="img">
+            <Text size="body">{emoji}</Text>
+            <HStack as="span" className="reaction-chip-bots">
+              {bots.slice(0, 3).map((b) => (
+                <span key={b.id}>
+                  <BotAvatar bot={b} size={16} animated={false} />
+                </span>
+              ))}
+            </HStack>
+          </HStack>
+        )
+      })}
     </HStack>
   )
 }

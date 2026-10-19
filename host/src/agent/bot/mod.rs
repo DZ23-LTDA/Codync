@@ -66,6 +66,13 @@ pub enum Cmd {
         text: String,
         reply: tokio::sync::oneshot::Sender<Result<()>>,
     },
+    /// `react` from the bot's `chat` MCP server: an emoji on the message the turn answers.
+    React {
+        emoji: String,
+        /// In a room: whose message (see `chat::reactions::in_room`).
+        to: Option<String>,
+        reply: tokio::sync::oneshot::Sender<Result<()>>,
+    },
     SendFile {
         path: String,
         name: Option<String>,
@@ -162,6 +169,7 @@ pub fn spawn(hub: Arc<Hub>, cfg: BotConfig) -> BotHandle {
         plan_entry: None,
         last_text: None,
         sent: Vec::new(),
+        reacted: None,
         files: files::FileShares::default(),
         perms: HashMap::new(),
         stop_requested: false,
@@ -319,6 +327,8 @@ struct Actor {
     last_text: Option<String>,
     /// Messages the bot sent the user this turn (`send_message`); none: its last text is the reply.
     sent: Vec<String>,
+    /// The emoji the bot put on the user's message this turn (`react`); with no message sent, it is the reply.
+    reacted: Option<String>,
     files: files::FileShares,
     /// permission entry id -> JSON-RPC request id
     perms: HashMap<String, Value>,

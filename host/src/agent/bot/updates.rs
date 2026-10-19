@@ -246,6 +246,23 @@ impl Actor {
         Ok(())
     }
 
+    /// `react`: the emoji goes on the user's message this turn answers, or in a room on a message the bot was shown.
+    pub(super) fn react(&mut self, emoji: &str, to: Option<&str>) -> anyhow::Result<()> {
+        if self.turn.is_none() {
+            anyhow::bail!("no turn is running");
+        }
+        let target = match (&self.active_group, self.turn_entries.last()) {
+            (Some(g), _) => crate::chat::reactions::in_room(&self.hub, &g.lane, &self.cfg.id, to, g.shown)?,
+            (None, Some(id)) => id.clone(),
+            (None, None) => anyhow::bail!("react works only on a message you're answering in a chat or a group chat"),
+        };
+        self.hub.bot_react(&target, &self.cfg.id, emoji)?;
+        if self.active_group.is_none() {
+            self.reacted = Some(emoji.trim().to_owned());
+        }
+        Ok(())
+    }
+
     // MARK: streaming text segments
 
     pub(super) fn append(&mut self, kind: SegKind, text: &str) {

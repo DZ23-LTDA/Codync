@@ -105,6 +105,7 @@ impl Actor {
         self.plan_entry = None;
         self.last_text = None;
         self.sent.clear();
+        self.reacted = None;
         self.files.summary = None;
         self.files.cancel();
         // A delegated or group turn has no live waiter after a host restart. Its persisted
@@ -242,10 +243,15 @@ impl Actor {
         let grouped = self.active_group.is_some() || routine;
         let delegated = self.active_request.as_ref().is_some_and(crate::chat::team::BotRequest::expects_reply);
         let sent = std::mem::take(&mut self.sent);
+        // The emoji the bot put on the user's message, when that was its whole reply.
+        let reaction = self.reacted.take().filter(|_| sent.is_empty());
         if !sent.is_empty() {
             // The bot talked through send_message: what it wrote as its reply stays in the trace.
             self.last_text = None;
             final_text = Some(sent.join("\n\n"));
+        } else if reaction.is_some() {
+            // A reaction was its whole reply: what it wrote stays in the trace too.
+            self.last_text = None;
         }
         if let Some(id) = self.last_text.take().filter(|_| !stopped)
             && let Some(mut e) = self.hub.store.entry(&id)
@@ -353,8 +359,9 @@ impl Actor {
             && !grouped
             && let Some(kind) = turn_alert(failed || message_failed, &stop_reason, more)
         {
-            let body = final_text.unwrap_or_else(|| match kind {
-                AlertKind::Done => "Finished.".into(),
+            let body = final_text.unwrap_or_else(|| match (kind, reaction) {
+                (AlertKind::Done, Some(emoji)) => format!("Reacted {emoji} to your message"),
+                (AlertKind::Done, None) => "Finished.".into(),
                 _ => "The agent didn't finish.".into(),
             });
             push::notify(&self.hub, &self.cfg, None, &self.cfg.name, &body, kind);

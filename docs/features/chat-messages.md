@@ -41,6 +41,22 @@ it has no pointer tooltip or link-opening action.
 - Clients never stream text into a bubble: the chat shows user messages, `final` agent entries,
   permission cards and notices (`isChat`). Nothing pops in and out while a turn runs.
 
+## Bot reactions
+
+- The `chat` server's `react {emoji, to?}` (`host/src/chat/reactions.rs`) goes through the bot's actor,
+  which puts one emoji on the message the turn answers: in its own chat or thread, the user's message that
+  started the turn; in a group, the newest message its prompt showed from `to` ("user" or a participant's
+  name), or from anyone else. Routines and bot requests can't react. Each bot keeps one reaction per
+  message; a new emoji replaces it.
+- Stored as `data.botReactions: [{bot, emoji}]` beside the user's own `data.reactions`. The first one also
+  records `data.contentRev`, the rev before it, which the unread count uses, so a read message stays read.
+- The instructions ask for reactions where a person would react (thanks, good news, a joke, a plain OK), and
+  not on most messages. A reaction can be the whole reply: a turn that reacted and sent no message
+  doesn't fall back to its last text, and its push says "Reacted ❤️ to your message".
+- Clients show each bot emoji as a chip with the avatars of the bots that chose it (up to three), after the
+  user's own chips; it isn't tappable, and a bot that was deleted drops out. The terminal UI lists
+  `❤️ Ann, Ben` after the user's reactions.
+
 ## While it works
 
 The working line under the last message shows the bot's activity; composing a `send_message`

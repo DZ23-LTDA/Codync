@@ -100,6 +100,12 @@ def prompt(request):
             time.sleep(0.3)
         send({"id": request["id"], "result": {"stopReason": "end_turn"}})
         return
+    if text.split("\n\n")[-1] == "THANKS":
+        response = mcp_call("chat", "react", {"emoji": "❤️"})
+        assert not response.get("isError"), response
+        update({"sessionUpdate": "agent_message_chunk", "content": {"type": "text", "text": "Reacted with a heart"}})
+        send({"id": request["id"], "result": {"stopReason": "end_turn"}})
+        return
     if "PERMISSION" in text:
         send({"id": "permission", "method": "session/request_permission", "params": {
             "sessionId": "session", "toolCall": {"toolCallId": "edit", "title": "Edit a file"},
@@ -119,6 +125,10 @@ def prompt(request):
         room = text.split("New messages in the room (oldest first):\n", 1)[-1].split("\n\n", 1)[0]
         last = room.strip().splitlines()[-1] if "New messages" in text else ""
         reply = "reply: group" if last.startswith("User:") else "(pass)"
+        if "REACT" in last:
+            response = mcp_call("chat", "react", {"emoji": "👍", "to": "user"})
+            assert not response.get("isError"), response
+            reply = "(pass)"
         # Two chunks, apart: the streamed entry is rewritten before it's final.
         update({"sessionUpdate": "agent_message_chunk", "content": {"type": "text", "text": reply[:3]}})
         time.sleep(0.4)

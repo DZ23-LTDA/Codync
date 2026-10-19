@@ -19,6 +19,7 @@ use std::time::Duration;
 use tokio::sync::{broadcast, watch};
 
 mod order;
+mod reactions;
 mod sync;
 
 /// What a bot is doing right now (wire values: `idle` / `working` / `needsInput` / `error`).
@@ -46,9 +47,6 @@ pub struct Runtime {
     pub session: Option<String>,
     pub fast_mode: crate::agent::config::FastModeSupport,
 }
-
-/// Reactions per message: a handful of distinct emoji.
-const MAX_REACTIONS: usize = 8;
 
 pub struct Hub {
     pub analytics: crate::analytics::Analytics,
@@ -465,31 +463,6 @@ impl Hub {
             self.update_thread_summary(e);
         }
         updated
-    }
-
-    /// Toggles the user's `emoji` reaction on a chat message (`data.reactions`, oldest first).
-    /// A message keeps `reactions: []` once reacted to, so it never turns unread again.
-    pub fn react(&self, id: &str, emoji: &str) -> Result<Entry> {
-        let emoji = emoji.trim();
-        if emoji.is_empty() || emoji.len() > 32 || emoji.chars().any(|c| c.is_alphanumeric() || c.is_whitespace()) {
-            bail!("`emoji` must be one emoji");
-        }
-        let mut e = self.store.entry(id).ok_or_else(|| anyhow!("unknown message"))?;
-        let visible =
-            e.kind == EntryKind::User.as_str() || (e.kind == EntryKind::Agent.as_str() && e.data["final"] == true);
-        if !visible {
-            bail!("only chat messages take reactions");
-        }
-        let mut reactions: Vec<String> = serde_json::from_value(e.data["reactions"].clone()).unwrap_or_default();
-        if let Some(i) = reactions.iter().position(|r| r == emoji) {
-            reactions.remove(i);
-        } else if reactions.len() >= MAX_REACTIONS {
-            bail!("a message takes at most {MAX_REACTIONS} reactions");
-        } else {
-            reactions.push(emoji.to_owned());
-        }
-        e.data["reactions"] = json!(reactions);
-        self.set_entry(id, &e.data).ok_or_else(|| anyhow!("couldn't save the reaction"))
     }
 
     /// A message in a thread refreshes the summary on its root (`data.thread`: reply count,

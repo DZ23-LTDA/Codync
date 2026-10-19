@@ -125,8 +125,10 @@ impl Store {
     /// Final agent messages + pending permission cards newer than what the user has read in
     /// `scope`. A thread counts from when it was last read (never read: the main chat's
     /// `read_rev`). A thread root or a reacted-to message doesn't count again when it
-    /// changes: the user replied or reacted, so they have seen it.
+    /// changes: the user replied or reacted, so they have seen it. A bot's reaction isn't a change either
+    /// (`contentRev`, see `Hub::bot_react`).
     pub fn unread(&self, id: &str, read_rev: i64, scope: ReadScope) -> i64 {
+        let seen = "COALESCE(json_extract(data, '$.contentRev'), rev)";
         let mut args: Vec<&dyn rusqlite::ToSql> = vec![&id, &read_rev];
         let filter = match &scope {
             ReadScope::All => "",
@@ -143,8 +145,8 @@ impl Store {
                    ((kind = 'agent' AND json_extract(data, '$.final') = 1) OR
                     (kind = 'permission' AND json_extract(data, '$.status') = 'pending')) AND
                    json_extract(data, '$.reactions') IS NULL AND
-                   CASE WHEN thread_id IS NULL THEN rev > ?2 AND json_extract(data, '$.thread') IS NULL
-                        ELSE rev > COALESCE((SELECT CAST(v AS INTEGER) FROM kv WHERE k = 'read.' || thread_id), ?2) END"
+                   CASE WHEN thread_id IS NULL THEN {seen} > ?2 AND json_extract(data, '$.thread') IS NULL
+                        ELSE {seen} > COALESCE((SELECT CAST(v AS INTEGER) FROM kv WHERE k = 'read.' || thread_id), ?2) END"
             ),
             args.as_slice(),
             |r| r.get(0),

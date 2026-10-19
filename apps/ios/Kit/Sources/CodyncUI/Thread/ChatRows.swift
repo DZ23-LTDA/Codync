@@ -25,6 +25,7 @@ struct ChatRow: View {
                 threadChip
             }
             .animation(Motion.reduced(Motion.layout, reduceMotion), value: entry.data.reactions)
+            .animation(Motion.reduced(Motion.layout, reduceMotion), value: entry.data.botReactions)
             .padding(.top, groupStart ? 12 : 4)
         case "agent":
             VStack(alignment: .leading, spacing: 4) {
@@ -37,6 +38,7 @@ struct ChatRow: View {
                 .padding(.leading, chat?.isGroup == true ? 34 : 0)
             }
             .animation(Motion.reduced(Motion.layout, reduceMotion), value: entry.data.reactions)
+            .animation(Motion.reduced(Motion.layout, reduceMotion), value: entry.data.botReactions)
             .padding(.top, groupStart ? 12 : 4)
         case "permission":
             VStack(alignment: .leading, spacing: 4) {
@@ -368,15 +370,20 @@ extension BotStore {
     }
 }
 
-/// The user's reactions under a message; tapping one takes it back.
+/// A message's reactions: the user's (tapping one takes it back), then the bots', each emoji with
+/// the avatars of the bots that chose it.
 struct ReactionsRow: View {
     let entry: Entry
     @Environment(BotStore.self) private var model
 
     var body: some View {
-        if let reactions = entry.data.reactions, !reactions.isEmpty {
+        let mine = entry.data.reactions ?? []
+        let theirs = entry.data.botReactionGroups
+            .map { (emoji: $0.emoji, bots: $0.bots.compactMap { model.bots[$0] }) }
+            .filter { !$0.bots.isEmpty }
+        if !mine.isEmpty || !theirs.isEmpty {
             HStack(spacing: 4) {
-                ForEach(reactions, id: \.self) { emoji in
+                ForEach(mine, id: \.self) { emoji in
                     Button { model.react(entry, emoji) } label: {
                         Text(emoji)
                             .font(.system(size: 15))
@@ -388,6 +395,20 @@ struct ReactionsRow: View {
                     .buttonStyle(PressScale())
                     .help("Remove \(emoji)")
                     .accessibilityLabel("Remove reaction \(emoji)")
+                    .transition(.scale.combined(with: .opacity))
+                }
+                ForEach(theirs, id: \.emoji) { group in
+                    HStack(spacing: 4) {
+                        Text(group.emoji).font(.system(size: 15))
+                        HStack(spacing: -5) {
+                            ForEach(group.bots.prefix(3)) { bot in CharacterAvatar(bot: bot, size: 16, animated: false) }
+                        }
+                    }
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 3)
+                    .background(Palette.surface, in: Capsule())
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel("\(group.bots.map(\.name).joined(separator: ", ")) reacted \(group.emoji)")
                     .transition(.scale.combined(with: .opacity))
                 }
             }

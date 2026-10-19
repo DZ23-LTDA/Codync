@@ -35,6 +35,8 @@ const PASS: &str = "(pass)";
 pub struct GroupTurn {
     pub lane: Lane,
     pub prompt: String,
+    /// The newest message `prompt` shows (its `seq`): a reaction goes on what the member saw.
+    pub shown: i64,
     /// The room turn that asked; a member skips it once a newer one started (see [`Rooms::current`]).
     pub epoch: u64,
     /// The reply the room sees, or `None` for a pass.
@@ -140,9 +142,10 @@ async fn run(hub: &Arc<Hub>, group_id: &str, lane: &Lane, epoch: u64) -> Result<
             if replies >= MAX_REPLIES {
                 break 'rounds;
             }
+            let shown = hub.store.messages_after(lane, 0, 1)?.last().map_or(0, |e| e.seq);
             let prompt = member_prompt(hub, &group, &members, member, lane)?;
             let (reply, answer) = oneshot::channel();
-            let turn = GroupTurn { lane: lane.clone(), prompt, epoch, reply };
+            let turn = GroupTurn { lane: lane.clone(), prompt, shown, epoch, reply };
             if hub.send_cmd(&member.id, Cmd::Group(turn)).is_err() {
                 continue;
             }
@@ -237,7 +240,8 @@ fn member_prompt(hub: &Hub, group: &BotConfig, members: &[BotConfig], me: &BotCo
         "You have your full toolkit here. Do the work first, then answer: your final reply of this turn is \
          the one message the room sees. Keep it short and conversational. @-mention another participant only \
          when you need them to act. If you have nothing new worth adding, reply exactly \"{PASS}\". Never \
-         reveal private one-on-one context."
+         reveal private one-on-one context. React with react(emoji, to) where a person would, `to` naming whose \
+         newest message (\"user\" or a participant); a reaction with \"{PASS}\" agrees without adding a message."
     ));
     out.push(String::new());
 
@@ -270,6 +274,7 @@ fn member_prompt(hub: &Hub, group: &BotConfig, members: &[BotConfig], me: &BotCo
 
 fn line(hub: &Hub, group: &BotConfig, e: &Entry, me: &BotConfig) -> String {
     let text = e.data["text"].as_str().unwrap_or_default();
+    let reacted = crate::chat::reactions::describe(hub, e);
     if e.kind == EntryKind::User.as_str() {
         let root = crate::chat::uploads::root(group);
         let files: Vec<_> = e.data["attachments"]
@@ -279,11 +284,15 @@ fn line(hub: &Hub, group: &BotConfig, e: &Entry, me: &BotConfig) -> String {
             .filter_map(|a| crate::chat::uploads::path_of(&root, a))
             .collect();
         let files = if files.is_empty() { String::new() } else { crate::chat::uploads::prompt_suffix(&files) };
-        return format!("User: {text}{files}");
+        return format!("User: {text}{reacted}{files}");
     }
     let author = e.data["author"].as_str().unwrap_or_default();
     let text = crate::agent::acp::truncate(text, LINE_CHARS);
-    if author == me.id { format!("{} (you): {text}", me.name) } else { format!("{}: {text}", hub.bot_name(author)) }
+    if author == me.id {
+        format!("{} (you): {text}{reacted}", me.name)
+    } else {
+        format!("{}: {text}{reacted}", hub.bot_name(author))
+    }
 }
 
 /// A member's final text is a pass (the room doesn't see it).

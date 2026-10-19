@@ -63,6 +63,9 @@ impl Actor {
             Cmd::SendToUser { text, reply } => {
                 let _ = reply.send(self.send_to_user(text));
             }
+            Cmd::React { emoji, to, reply } => {
+                let _ = reply.send(self.react(&emoji, to.as_deref()));
+            }
             Cmd::SendFile { path, name, cancelled, reply } => self.begin_file(path, name, cancelled, reply),
             Cmd::Stop => self.stop().await,
             Cmd::Permission { entry_id, option_id } => self.answer_permission(&entry_id, option_id).await,

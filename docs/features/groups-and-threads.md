@@ -39,7 +39,7 @@ replies itself.
 | `deleteBot` | `botId` | A group's bots stay. A deleted bot leaves its groups. |
 | `reorderBots` | `ids` | The roster as the user dragged it, top first; groups count as rows. See [bot order](computer-order.md#bot-order). |
 | `stop` | `botId` | For a group: ends its room turns (main and threads) and stops members working in it. |
-| `react` | `entryId, emoji` | Toggles the user's reaction on a chat message (`data.reactions`, oldest first, at most 8). A reacted-to message never turns unread again. The bot isn't told. |
+| `react` | `entryId, emoji` | Toggles the user's reaction on a chat message (`data.reactions`, oldest first, at most 8). A reacted-to message never turns unread again. The bot isn't told, except in a group, where members see reactions on the room lines they're shown. Bots react themselves with the `chat` server's `react` ([bot reactions](chat-messages.md#bot-reactions)). |
 | `respondPermission` | `entryId, optionId?` | Routed to `data.author`, so cards in a group reach the bot that asked. |
 | `markRead` | `botId, threadId?, all?` | The main chat, one thread (`threadId`), or everything (`all`, the roster's "Mark as read"). A no-op when nothing there is unread, so clients call it whenever a chat or thread is on screen. `send` marks its own lane read. |
 
@@ -53,7 +53,9 @@ replies itself.
 - A member runs the turn in its **own main session** (its history is unified across chats),
   told who's in the room and what was said since it last spoke there, framed as
   `[Group chat: "<name>" - with …]`. Its final reply is the one message the room sees; replying
-  `(pass)` says nothing. A round where nobody speaks ends the room turn.
+  `(pass)` says nothing. A round where nobody speaks ends the room turn. A member can also
+  react to someone's message (`react(emoji, to?)`), so it can agree with a reaction and pass.
+  Room lines carry their reactions: `Ann: Shipped. (reactions: User 👍, Ben 🎉)`.
 - A new message in the same lane, or Stop, ends a running room turn before its next speaker;
   a member still busy elsewhere skips the old room turn's queued request.
 - Tool calls, thoughts and permission cards of a member's group turn are written to the
@@ -76,6 +78,6 @@ replies itself.
 ## Client checklist
 
 Roster row for groups (member avatars), a trace per lane (main chat, or one thread), author label on group replies, the thread summary
-under a root (opens the thread; "N new" while `unread > 0`), "Reply in thread" on any main-chat message (desktop: while the pointer is over a message, its footer beside the time shows quick reactions, reply, copy — never on the bubble; iPhone: long-press, reactions on top of the menu), reactions under a message (tap to take back), a thread view
+under a root (opens the thread; "N new" while `unread > 0`), "Reply in thread" on any main-chat message (desktop: while the pointer is over a message, its footer beside the time shows quick reactions, reply, copy — never on the bubble; iPhone: long-press, reactions on top of the menu), reactions under a message (the user's: tap to take back; the bots': emoji plus the avatars of who chose it), a thread view
 (root, replies, composer sending `threadId`), group create/edit (name, members), Stop in a
 group calls `stop` with the group id.
