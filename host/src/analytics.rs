@@ -4,20 +4,26 @@
 //! What is collected and why: docs/features/analytics.md.
 
 use crate::LockExt as _;
-use crate::api::devices::Caller;
 use crate::hub::Hub;
 use crate::store::Store;
 use anyhow::Result;
 use serde::Deserialize;
 use serde_json::{Map, Value, json};
+use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, SystemTime};
 use tokio::sync::{mpsc, oneshot};
 
 pub mod errors;
+mod lifecycle;
+mod observe;
+pub mod reported;
 mod session;
 mod turns;
 
+pub use lifecycle::{KV_STARTED, Via, device_paired, host_started, phone_connected};
+pub use observe::{answered, observe_call};
+pub use reported::track;
 pub use turns::{TurnOutcome, TurnSource, turn_finished};
 
 const KV_ENABLED: &str = "analytics_enabled";
@@ -30,14 +36,28 @@ const FLUSH_EVERY: Duration = Duration::from_secs(30);
 /// Unsent events kept while offline; the oldest go first.
 const MAX_PENDING: usize = 500;
 
-/// Everything the host reports. Names follow the `object_verb` convention.
+/// Everything the host reports. Names follow the `object_verb` convention; each event's
+/// sender and properties: docs/reference/analytics-events.md.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Event {
     AppOpened,
+    WindowOpened,
+    HostStarted,
     OnboardingCompleted,
+    ComputerAccessFinished,
+    SignInStarted,
+    SignInFailed,
     SignedIn,
     SignedOut,
+    PairingCodeCreated,
+    DevicePaired,
+    AccessRequestDenied,
+    DeviceRevoked,
+    PhoneConnected,
+    StarPromptAnswered,
+    LinkOpened,
+    ScreenViewed,
     BotCreated,
     BotUpdated,
     BotsReordered,
@@ -47,13 +67,28 @@ pub enum Event {
     TurnFinished,
     SessionReset,
     PermissionAnswered,
+    ReactionAdded,
+    HandoffAnswered,
+    MemoryEdited,
     RoutineSaved,
+    RoutineToggled,
     RoutineDeleted,
     RoutineRun,
+    VoiceCallStarted,
     VoiceCallFinished,
     RemoteScreenOpened,
+    ScreenTakenOver,
     ConnectorInstalled,
+    ConnectorsImported,
+    ConnectorRemoved,
+    ConnectorSigninStarted,
     SkillInstalled,
+    SkillRemoved,
+    CredentialSaved,
+    AgentSetupStarted,
+    AgentSignedIn,
+    SettingChanged,
+    HostUpdateInstalled,
     /// Error tracking (`errors`): a panic or an uncaught error.
     Exception,
 }
@@ -62,9 +97,22 @@ impl Event {
     fn name(self) -> &'static str {
         match self {
             Self::AppOpened => "app_opened",
+            Self::WindowOpened => "window_opened",
+            Self::HostStarted => "host_started",
             Self::OnboardingCompleted => "onboarding_completed",
+            Self::ComputerAccessFinished => "computer_access_finished",
+            Self::SignInStarted => "sign_in_started",
+            Self::SignInFailed => "sign_in_failed",
             Self::SignedIn => "signed_in",
             Self::SignedOut => "signed_out",
+            Self::PairingCodeCreated => "pairing_code_created",
+            Self::DevicePaired => "device_paired",
+            Self::AccessRequestDenied => "access_request_denied",
+            Self::DeviceRevoked => "device_revoked",
+            Self::PhoneConnected => "phone_connected",
+            Self::StarPromptAnswered => "star_prompt_answered",
+            Self::LinkOpened => "link_opened",
+            Self::ScreenViewed => "screen_viewed",
             Self::BotCreated => "bot_created",
             Self::BotUpdated => "bot_updated",
             Self::BotsReordered => "bots_reordered",
@@ -74,20 +122,30 @@ impl Event {
             Self::TurnFinished => "turn_finished",
             Self::SessionReset => "session_reset",
             Self::PermissionAnswered => "permission_answered",
+            Self::ReactionAdded => "reaction_added",
+            Self::HandoffAnswered => "handoff_answered",
+            Self::MemoryEdited => "memory_edited",
             Self::RoutineSaved => "routine_saved",
+            Self::RoutineToggled => "routine_toggled",
             Self::RoutineDeleted => "routine_deleted",
             Self::RoutineRun => "routine_run",
+            Self::VoiceCallStarted => "voice_call_started",
             Self::VoiceCallFinished => "voice_call_finished",
             Self::RemoteScreenOpened => "remote_screen_opened",
+            Self::ScreenTakenOver => "screen_taken_over",
             Self::ConnectorInstalled => "connector_installed",
+            Self::ConnectorsImported => "connectors_imported",
+            Self::ConnectorRemoved => "connector_removed",
+            Self::ConnectorSigninStarted => "connector_signin_started",
             Self::SkillInstalled => "skill_installed",
+            Self::SkillRemoved => "skill_removed",
+            Self::CredentialSaved => "credential_saved",
+            Self::AgentSetupStarted => "agent_setup_started",
+            Self::AgentSignedIn => "agent_signed_in",
+            Self::SettingChanged => "setting_changed",
+            Self::HostUpdateInstalled => "host_update_installed",
             Self::Exception => "$exception",
         }
-    }
-
-    /// Events the computer's own apps report through `track` (the rest come from API calls).
-    fn client_reported(self) -> bool {
-        matches!(self, Self::AppOpened | Self::OnboardingCompleted | Self::SignedIn | Self::SignedOut)
     }
 }
 
@@ -96,6 +154,8 @@ pub struct Analytics {
     tx: mpsc::UnboundedSender<Msg>,
     rx: Mutex<Option<mpsc::UnboundedReceiver<Msg>>>,
     session: Mutex<session::Session>,
+    /// The UTC day each phone last connected (`phone_connected`), in memory only.
+    phones: Mutex<HashMap<String, chrono::NaiveDate>>,
 }
 
 enum Msg {
@@ -110,7 +170,13 @@ impl Analytics {
     pub fn load(store: &Store) -> Self {
         let enabled = store.kv_get(KV_ENABLED).as_deref() != Some("0");
         let (tx, rx) = mpsc::unbounded_channel();
-        Self { enabled: Mutex::new(enabled), tx, rx: Mutex::new(Some(rx)), session: Mutex::default() }
+        Self {
+            enabled: Mutex::new(enabled),
+            tx,
+            rx: Mutex::new(Some(rx)),
+            session: Mutex::default(),
+            phones: Mutex::default(),
+        }
     }
 
     pub fn state(&self) -> bool {
@@ -124,84 +190,19 @@ impl Analytics {
     }
 }
 
-/// `track`: an event the computer's own app reports (app opened, signed in, …).
-pub fn track(hub: &Hub, b: &Value) -> Result<()> {
-    let event = Event::deserialize(&b["event"]).map_err(|_| anyhow::anyhow!("unknown event"))?;
-    anyhow::ensure!(event.client_reported(), "unknown event");
-    capture(hub, event, Map::new());
-    Ok(())
-}
-
-/// The event an API call stands for, with its properties, read before the call runs.
-pub fn observe(caller: &Caller, method: &str, b: &Value) -> Option<(Event, Map<String, Value>)> {
-    let mut p = Map::new();
-    let event = match method {
-        "createBot" => {
-            let group = b["kind"] == "group";
-            p.insert("kind".into(), (if group { "group" } else { "bot" }).into());
-            if group {
-                p.insert("members".into(), b["members"].as_array().map_or(0, Vec::len).into());
-            } else {
-                p.insert("agent".into(), b["backend"].clone());
-                p.insert("model".into(), b["model"].clone());
-            }
-            Event::BotCreated
-        }
-        "updateBot" => Event::BotUpdated,
-        "reorderBots" => Event::BotsReordered,
-        "deleteBot" => Event::BotDeleted,
-        "send" => {
-            let in_thread = b["threadId"].as_str().is_some_and(|t| !t.is_empty());
-            p.insert("in_thread".into(), in_thread.into());
-            p.insert("attachments".into(), b["attachments"].as_array().map_or(0, Vec::len).into());
-            Event::MessageSent
-        }
-        "stop" => Event::TurnStopped,
-        "newSession" => Event::SessionReset,
-        "respondPermission" => Event::PermissionAnswered,
-        "saveRoutine" => Event::RoutineSaved,
-        "deleteRoutine" => Event::RoutineDeleted,
-        "runRoutine" => Event::RoutineRun,
-        "logCall" => {
-            p.insert("seconds".into(), b["seconds"].as_u64().unwrap_or(0).into());
-            Event::VoiceCallFinished
-        }
-        "screenPrepare" => Event::RemoteScreenOpened,
-        "installConnector" => {
-            // A catalog name is public; a custom connector's URL or command is not.
-            let catalog = b["registryName"].as_str().unwrap_or("custom");
-            p.insert("connector".into(), catalog.into());
-            Event::ConnectorInstalled
-        }
-        "installSkill" => {
-            p.insert("custom".into(), (!b["source"].is_string()).into());
-            Event::SkillInstalled
-        }
-        _ => return None,
-    };
-    let client = if matches!(caller, Caller::Local) { "local" } else { "remote" };
-    p.insert("client".into(), client.into());
-    Some((event, p))
-}
-
-/// `observe` plus what only the store knows: a resent message (same `clientNonce`) is
-/// not a new one, and a message names its bot's agent.
-pub fn observe_call(hub: &Hub, caller: &Caller, method: &str, b: &Value) -> Option<(Event, Map<String, Value>)> {
-    let (event, mut p) = observe(caller, method, b)?;
-    if event == Event::MessageSent {
-        let bot = b["botId"].as_str().unwrap_or_default();
-        let nonce = b["clientNonce"].as_str().unwrap_or_default();
-        if !nonce.is_empty() && hub.store.find_by_nonce(bot, nonce).is_some() {
-            return None;
-        }
-        if let Ok(Some(row)) = hub.store.bot(bot) {
-            p.insert("kind".into(), (if row.config.is_group() { "group" } else { "bot" }).into());
-            if !row.config.is_group() {
-                p.insert("agent".into(), row.config.backend.into());
-            }
-        }
+/// A phone's platform as the catalog names it.
+fn platform(p: &str) -> &'static str {
+    match p {
+        "ios" => "ios",
+        "android" => "android",
+        "macos" => "macos",
+        _ => "other",
     }
-    Some((event, p))
+}
+
+/// The platform of the paired phone `key` (`other` for one this computer doesn't have).
+fn platform_of(hub: &Hub, key: &str) -> &'static str {
+    platform(hub.store.device(key).as_ref().map_or("", |d| d.platform.as_str()))
 }
 
 /// Queues one event unless the owner turned analytics off. Signed in to a Codync account,
@@ -329,46 +330,6 @@ mod tests {
     use super::*;
 
     #[test]
-    fn observed_events_carry_no_content() {
-        let b = json!({"botId": "b1", "text": "secret plan", "threadId": "e1", "attachments": ["u1", "u2"]});
-        let (event, p) = observe(&Caller::Local, "send", &b).expect("send is tracked");
-        assert_eq!(event, Event::MessageSent);
-        assert_eq!(Value::Object(p.clone()), json!({"in_thread": true, "attachments": 2, "client": "local"}));
-        assert!(!Value::Object(p).to_string().contains("secret"));
-
-        let custom = json!({"name": "mine", "command": "/Users/me/bin/server"});
-        let (_, p) = observe(&Caller::Local, "installConnector", &custom).expect("tracked");
-        assert_eq!(p["connector"], "custom");
-        assert!(observe(&Caller::Local, "history", &json!({})).is_none());
-    }
-
-    #[tokio::test]
-    async fn a_resent_message_counts_once_and_names_its_agent() {
-        let dir = std::env::temp_dir().join(format!("codync-analytics-{}", uuid::Uuid::new_v4()));
-        std::fs::create_dir_all(&dir).unwrap();
-        let store = Store::open(std::path::Path::new(":memory:")).unwrap();
-        let hub = Hub::new(
-            store,
-            "h".into(),
-            crate::remote::identity::Identity::load_or_create(&dir).unwrap(),
-            "t".into(),
-            0,
-        );
-        let cfg = serde_json::from_value(json!({"id": "b1", "name": "b", "backend": "codex", "cwd": "/tmp"})).unwrap();
-        hub.store.save_bot(&cfg).unwrap();
-        let send = json!({"botId": "b1", "text": "hi", "clientNonce": "n1"});
-
-        let (_, p) = observe_call(&hub, &Caller::Local, "send", &send).expect("a new message is tracked");
-        assert_eq!((p["agent"].as_str(), p["kind"].as_str()), (Some("codex"), Some("bot")));
-        let lane = crate::store::Lane::main("b1");
-        hub.store
-            .insert_entry(&lane, crate::store::EntryKind::User, 1, &json!({"text": "hi", "clientNonce": "n1"}))
-            .unwrap();
-        assert!(observe_call(&hub, &Caller::Local, "send", &send).is_none(), "a replay is the same message");
-        std::fs::remove_dir_all(&dir).unwrap();
-    }
-
-    #[test]
     fn on_until_the_owner_turns_it_off() {
         let store = Store::open(std::path::Path::new(":memory:")).unwrap();
         assert!(Analytics::load(&store).state());
@@ -380,12 +341,5 @@ mod tests {
     fn computer_tag_matches_the_iphone() {
         // Same vector as the iPhone's AnalyticsTests.
         assert_eq!(computer_tag("AAECAwQFBgcICQoLDA0ODw"), "2d6878bee20aba04");
-    }
-
-    #[test]
-    fn only_app_events_can_be_tracked_directly() {
-        assert!(Event::deserialize(&json!("app_opened")).is_ok_and(Event::client_reported));
-        assert!(!Event::deserialize(&json!("message_sent")).is_ok_and(Event::client_reported));
-        assert!(Event::deserialize(&json!("anything_else")).is_err());
     }
 }
