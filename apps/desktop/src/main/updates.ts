@@ -1,4 +1,4 @@
-import { execFile } from 'node:child_process'
+import { execFile, execFileSync, spawn } from 'node:child_process'
 import { EventEmitter } from 'node:events'
 import { existsSync } from 'node:fs'
 import { homedir } from 'node:os'
@@ -19,6 +19,30 @@ const { autoUpdater } = electronUpdater
  * stopped first, and a restart marker makes the next launch reinstall it from the new bundle.
  */
 const enabled = app.isPackaged && isMainEnvironment()
+const shipIt = `${identity.appId}.ShipIt`
+
+const bundlePath = () => join(app.getPath('exe'), '../../..')
+
+/**
+ * macOS's installer (ShipIt) cancels when the old app runs again while it swaps the bundle
+ * ("App Still Running"), and someone who sees no window for those seconds opens it. An old copy
+ * launched during an install quits at once and opens the app again once the installer stops:
+ * the new release after an install, this one after a failed attempt.
+ */
+export function yieldsToInstall(): boolean {
+  const pending = prefs.get('updateInstalling') as { version: string; at: number } | undefined
+  if (!pending) return false
+  const installing = pending.version !== app.getVersion() && Date.now() - pending.at < 120_000 && shipItRunning()
+  if (installing) reopenAfterInstall()
+  else prefs.set('updateInstalling', undefined)
+  return installing
+}
+
+/** A detached wait (two minutes at most) for the installer job to stop, then `open`. */
+function reopenAfterInstall() {
+  const script = 'for _ in $(seq 120); do /bin/launchctl list "$0" 2>/dev/null | grep -q \'"PID" =\' || break; sleep 1; done; exec /usr/bin/open "$1"'
+  spawn('/bin/sh', ['-c', script, shipIt, bundlePath()], { detached: true, stdio: 'ignore' }).unref()
+}
 
 export class Updates extends EventEmitter {
   state: UpdateState = {
@@ -62,7 +86,7 @@ export class Updates extends EventEmitter {
     // `app.focus` there (cooperative activation); opening its own bundle brings it forward.
     if (prefs.get('updateRelaunchInFront') === true) {
       prefs.set('updateRelaunchInFront', false)
-      if (process.platform === 'darwin') void shell.openPath(join(app.getPath('exe'), '../../..'))
+      if (process.platform === 'darwin') void shell.openPath(bundlePath())
     }
 
     autoUpdater.autoDownload = false
@@ -131,6 +155,7 @@ export class Updates extends EventEmitter {
     this.updateGeneration++
     this.installWhenDownloaded = false
     prefs.set('updateRelaunchInFront', false)
+    prefs.set('updateInstalling', undefined)
     // A preparation still stopping the host restores it after stop completes.
     if (this.prepared) {
       this.prepared = false
@@ -201,6 +226,8 @@ export class Updates extends EventEmitter {
           return false
         }
         this.prepared = true
+        // Both installer paths (Restart, and Quit with a staged update) pass here right before quitting.
+        prefs.set('updateInstalling', { version: this.state.availableVersion, at: Date.now() })
         this.set({ error: null })
         return true
       } catch (error) {
@@ -235,11 +262,20 @@ export class Updates extends EventEmitter {
  */
 function removeStuckShipIt() {
   if (process.platform !== 'darwin') return
-  const label = `${identity.appId}.ShipIt`
-  if (existsSync(join(homedir(), 'Library/Caches', label, 'ShipItState.plist'))) return
-  execFile('/bin/launchctl', ['list', label], (error, stdout) => {
+  if (existsSync(join(homedir(), 'Library/Caches', shipIt, 'ShipItState.plist'))) return
+  execFile('/bin/launchctl', ['list', shipIt], (error, stdout) => {
     // Not submitted, or running right now (the next check finds it idle).
     if (error || stdout.includes('"PID" =')) return
-    execFile('/bin/launchctl', ['remove', label], () => {})
+    execFile('/bin/launchctl', ['remove', shipIt], () => {})
   })
+}
+
+function shipItRunning() {
+  if (process.platform !== 'darwin') return false
+  try {
+    return execFileSync('/bin/launchctl', ['list', shipIt], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).includes('"PID" =')
+  } catch {
+    // Not submitted.
+    return false
+  }
 }

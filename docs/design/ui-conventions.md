@@ -30,9 +30,10 @@ Updates page and the update-needed card): **Check for updates** → **Update to 
 **Restarting…**. A finished download never quits the app on its own; the person restarts,
 or it installs once idle. While a release is available, a filled arrow badge sits right
 of **Extensions** in the sidebar footer (under the
-Extensions icon in the collapsed rail), tooltip **Update**; it asks **Update to Codync
-<version>?** and then restarts into the release, downloading it first if needed, and it
-is gone once the app runs the latest version. The TUI action list has **Check for updates**. Download and
+Extensions icon in the collapsed rail), its tooltip the same action label; one click
+restarts into the release, downloading it first if needed (a ring fills with the download
+while the app stays usable, then a spinner while it restarts), and it is gone once the app
+runs the latest version. The TUI action list has **Check for updates**. Download and
 install go through electron-updater (`apps/desktop/src/main/updates.ts`); there is no
 separate update window.
 

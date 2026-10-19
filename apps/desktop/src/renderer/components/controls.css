@@ -41,9 +41,28 @@
     transform: rotate(360deg);
   }
 }
+
+.progress-ring {
+  flex: none;
+}
+.progress-ring circle {
+  fill: none;
+  stroke: currentColor;
+}
+.progress-ring-track {
+  opacity: 0.3;
+}
+.progress-ring-fill {
+  stroke-linecap: round;
+  transition: stroke-dashoffset var(--hover);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .spinner {
     animation: none;
+  }
+  .progress-ring-fill {
+    transition: none;
   }
 }
 

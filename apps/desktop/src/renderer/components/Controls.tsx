@@ -27,14 +27,39 @@ export function Button({ kind = 'primary', children, onClick, disabled, classNam
 
 /** Loading indicator: a thin arc that turns. */
 export function Spinner({ size = 14 }: { size?: number }) {
-  const w = Math.max(1.5, size / 9)
-  const r = (size - w) / 2
-  const c = 2 * Math.PI * r
+  const { w, r, c, center } = ring(size)
   return (
     <svg className="spinner" width={size} height={size} viewBox={`0 0 ${size} ${size}`} aria-label="Loading" role="img">
-      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="var(--secondary)" strokeWidth={w} strokeLinecap="round" strokeDasharray={`${c * 0.7} ${c}`} />
+      <circle cx={center} cy={center} r={r} fill="none" stroke="var(--secondary)" strokeWidth={w} strokeLinecap="round" strokeDasharray={`${c * 0.7} ${c}`} />
     </svg>
   )
+}
+
+/** Determinate progress (`value` 0...1): a ring that fills clockwise, in the color around it. */
+export function ProgressRing({ value, size = 14 }: { value: number; size?: number }) {
+  const { w, r, c, center } = ring(size)
+  return (
+    <svg className="progress-ring" width={size} height={size} viewBox={`0 0 ${size} ${size}`} aria-hidden>
+      <circle className="progress-ring-track" cx={center} cy={center} r={r} strokeWidth={w} />
+      <circle
+        className="progress-ring-fill"
+        cx={center}
+        cy={center}
+        r={r}
+        strokeWidth={w}
+        strokeDasharray={c}
+        strokeDashoffset={c * (1 - value)}
+        transform={`rotate(-90 ${center} ${center})`}
+      />
+    </svg>
+  )
+}
+
+/** The geometry `Spinner` and `ProgressRing` share: stroke width, radius, circumference. */
+function ring(size: number) {
+  const w = Math.max(1.5, size / 9)
+  const r = (size - w) / 2
+  return { w, r, c: 2 * Math.PI * r, center: size / 2 }
 }
 
 /** On/off switch: label on the left, a flat capsule track on the right. */

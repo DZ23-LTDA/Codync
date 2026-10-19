@@ -11,7 +11,7 @@ import { readClipboardFiles, readFiles } from './files'
 import { Tray } from './tray'
 import { applyDockVisibility, setShowInDock, showInDock } from './dock'
 import { AccountService } from './account'
-import { Updates } from './updates'
+import { Updates, yieldsToInstall } from './updates'
 import { handleURL, registerAuthIPC, registerSchemes, urlFromArgv } from './auth'
 import { registerSpeech } from './speech'
 import { registerScreenIPC } from './screen'
@@ -206,7 +206,9 @@ function registerIPC(tray: Tray) {
   })
 }
 
-if (!app.requestSingleInstanceLock()) {
+if (yieldsToInstall()) {
+  app.exit(0)
+} else if (!app.requestSingleInstanceLock()) {
   if (!app.isPackaged) console.error(`${app.getName()} is already running. Quit it first, or run another copy beside it: npm run dev -- --name <name>`)
   app.quit()
 } else {

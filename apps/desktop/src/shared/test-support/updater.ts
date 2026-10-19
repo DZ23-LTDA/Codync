@@ -17,14 +17,18 @@ export function updaterFixture(options: { packaged?: boolean; main?: boolean; pr
   const calls = { check: 0, download: 0, install: 0, prepare: 0, resume: 0, quit: 0 }
   // macOS's installer job: whether its update request exists, and its launchd state.
   const shipIt = { ...(options.shipIt ?? { request: true, job: 'idle' }), removed: 0 }
+  const list = () => {
+    if (shipIt.job === 'none') throw new Error('Could not find service')
+    return shipIt.job === 'running' ? '{\n\t"PID" = 42;\n};' : '{\n\t"LastExitStatus" = 256;\n};'
+  }
   const launchctl = (_bin: string, args: string[], done: (error: Error | null, stdout: string) => void) => {
     if (args[0] === 'remove') {
       shipIt.removed++
       return done(null, '')
     }
-    if (shipIt.job === 'none') return done(new Error('Could not find service'), '')
-    done(null, shipIt.job === 'running' ? '{\n\t"PID" = 42;\n};' : '{\n\t"LastExitStatus" = 256;\n};')
+    try { done(null, list()) } catch (error) { done(error as Error, '') }
   }
+  const spawned: string[][] = []
   const opened: string[] = []
   const preferences = new Map(Object.entries(options.prefs ?? {}))
   const timers = new Map<number, { callback: () => unknown; ms: number }>()
@@ -43,6 +47,7 @@ export function updaterFixture(options: { packaged?: boolean; main?: boolean; pr
     isPackaged: options.packaged ?? true,
     quit: () => { calls.quit++ },
     getPath: () => '/Applications/Codync.app/Contents/MacOS/Codync',
+    getVersion: () => '2.11.2',
   })
   const handlers = new Map<string, (...args: unknown[]) => unknown>()
   const ipc = Object.assign(new EventEmitter(), {
@@ -65,8 +70,12 @@ export function updaterFixture(options: { packaged?: boolean; main?: boolean; pr
     timers.set(id, { callback, ms })
     return id
   }
-  const { Updates } = loadMainModule<{ Updates: new (host: unknown) => UpdatesInstance }>('updates', {
-    'node:child_process': { execFile: launchctl },
+  const { Updates, yieldsToInstall } = loadMainModule<{ Updates: new (host: unknown) => UpdatesInstance; yieldsToInstall: () => boolean }>('updates', {
+    'node:child_process': {
+      execFile: launchctl,
+      execFileSync: list,
+      spawn: (_bin: string, args: string[]) => { spawned.push([...args]); return { unref() {} } },
+    },
     'node:events': { EventEmitter },
     'node:fs': { existsSync: (file: string) => shipIt.request && file === '/Users/me/Library/Caches/com.pokai.Codync.ShipIt/ShipItState.plist' },
     'node:os': { homedir: () => '/Users/me' },
@@ -91,5 +100,5 @@ export function updaterFixture(options: { packaged?: boolean; main?: boolean; pr
     }
     await settle()
   }
-  return { updates, app, ipc, handlers, updater, calls, opened, behavior, preferences, sent, timers, shipIt, emit, tick, advance: (ms: number) => { now += ms } }
+  return { updates, yieldsToInstall, app, ipc, handlers, updater, calls, opened, spawned, behavior, preferences, sent, timers, shipIt, emit, tick, now: () => now, advance: (ms: number) => { now += ms } }
 }
