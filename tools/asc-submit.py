@@ -59,8 +59,9 @@ def ios_changed(base, tag):
 
 
 def release_notes(version):
-    """{locale: text} from the `## <version>` section, split by `### <locale>` headings."""
-    text = NOTES.read_text() if NOTES.exists() else ""
+    """{locale: text} from the `## <version>` section, split by `### <locale>` headings, without
+    emoji (the App Store rejects them)."""
+    text = EMOJI.sub("", NOTES.read_text()) if NOTES.exists() else ""
     section = re.search(rf"^## {re.escape(version)}\s*$(.*?)(?=^## |\Z)", text, re.M | re.S)
     if not section:
         return {}
