@@ -41,4 +41,17 @@ print("ok")
 # Release history: v2.2.3 changed only the Mac app, host and website; v2.3.1 changed kit/.
 assert not asc.ios_changed("v2.2.2", "v2.2.3")
 assert asc.ios_changed("v2.3.0", "v2.3.1")
+assert not asc.ios_changed("v2.19.2", "v2.19.3")  # only WhatsNew.md under apps/ios
+assert asc.ios_changed("v2.19.1", "v2.19.2")
+print("ok")
+
+# The base version: skip the run's own version and any never sent or pulled back, keep a rejected one.
+def store(*vs):
+    return [{"attributes": {"versionString": v, "appVersionState": s}} for v, s in vs]
+
+
+assert asc.last_sent(store(("2.19.3", "PREPARE_FOR_SUBMISSION"), ("2.19.2", "READY_FOR_DISTRIBUTION")), "2.19.4") == "2.19.2"
+assert asc.last_sent(store(("2.19.3", "WAITING_FOR_REVIEW"), ("2.19.2", "READY_FOR_DISTRIBUTION")), "2.19.3") == "2.19.2"
+assert asc.last_sent(store(("2.20.0", "REJECTED"), ("2.19.2", "READY_FOR_DISTRIBUTION")), "2.20.1") == "2.20.0"
+assert asc.last_sent(store(("2.19.3", "DEVELOPER_REJECTED")), "2.19.4") is None
 print("ok")

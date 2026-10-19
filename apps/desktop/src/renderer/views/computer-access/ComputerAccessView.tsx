@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { Button, IconButton, Spinner } from '../../components/Controls'
 import { Icon } from '../../components/Icon'
+import { useScreenViewed } from '../../store/analytics'
 import { useComputerAccess } from './use-computer-access'
 import appIcon from '../../../../resources/icon.png'
 import './computer-access.css'
@@ -8,6 +9,7 @@ import './computer-access.css'
 /** Shared by onboarding and Settings. Permission requests remain explicit and local. */
 export function ComputerAccessView({ onContinue }: { onContinue?: (ready: boolean) => void }) {
   const access = useComputerAccess()
+  useScreenViewed('computer_access')
   const { screen, step, busy } = access
   const mac = window.codync.platform === 'darwin'
   const windows = window.codync.platform === 'win32'

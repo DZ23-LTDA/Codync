@@ -62,6 +62,8 @@ struct PairingView<Leading: View>: View {
             }
         }
         .background(Palette.background)
+        // First run, each page is an onboarding step; afterwards, the whole sheet is one screen.
+        .tracked(inModal ? .screenViewed(.pairing) : .onboardingStepViewed(step == .install ? .install : .scan))
     }
 
     private func go(_ next: Step) {
@@ -112,14 +114,14 @@ private struct InstallPage: View {
                         // Copied here, pasted on the computer (Universal Clipboard or a message to yourself).
                         if os == .mac {
                             Hint("Install with Homebrew")
-                            CommandBlock("brew install --cask leepokai/codync/codync")
+                            CommandBlock("brew install --cask leepokai/codync/codync", records: .installCommand)
                             Hint("or download the Mac app")
-                            CommandBlock("https://github.com/leepokai/Codync/releases/latest/download/codync-macos.dmg")
+                            CommandBlock("https://github.com/leepokai/Codync/releases/latest/download/codync-macos.dmg", records: .installCommand)
                         } else {
                             Hint("Run the installer")
-                            CommandBlock("curl -fsSL https://raw.githubusercontent.com/leepokai/Codync/main/packaging/install.sh | sh\ncodync-host install")
+                            CommandBlock("curl -fsSL https://raw.githubusercontent.com/leepokai/Codync/main/packaging/install.sh | sh\ncodync-host install", records: .installCommand)
                             Hint("or install with Homebrew")
-                            CommandBlock("brew install leepokai/codync/codync-host\ncodync-host install")
+                            CommandBlock("brew install leepokai/codync/codync-host\ncodync-host install", records: .installCommand)
                         }
                         Text(os == .mac
                              ? "Open Codync and it sets up the host on its own."
@@ -128,7 +130,7 @@ private struct InstallPage: View {
                             .foregroundStyle(Palette.secondary)
                             .contentTransition(.opacity)
                         Hint("Every install option")
-                        CommandBlock("https://www.codync.dev/#install")
+                        CommandBlock("https://www.codync.dev/#install", records: .installCommand)
                     }
                     .animation(Motion.layout, value: os)
 
@@ -158,12 +160,16 @@ private struct Hint: View {
     }
 }
 
-/// A terminal command with a copy button.
+/// A terminal command with a copy button; copying it counts as opening `records`.
 private struct CommandBlock: View {
     let command: String
+    let records: AnalyticsEvent.Link?
     @State private var copied = false
 
-    init(_ command: String) { self.command = command }
+    init(_ command: String, records: AnalyticsEvent.Link? = nil) {
+        self.command = command
+        self.records = records
+    }
 
     var body: some View {
         HStack(alignment: .top, spacing: 8) {
@@ -176,6 +182,7 @@ private struct CommandBlock: View {
                 .contentTransition(.opacity)
             IconButton(copied ? "Copied" : "Copy", systemImage: copied ? "checkmark" : "doc.on.doc") {
                 UIPasteboard.general.string = command
+                if let records { Analytics.shared.capture(.linkOpened(records)) }
                 withAnimation(Motion.morph) { copied = true }
                 Task {
                     try? await Task.sleep(for: .seconds(1.5))
@@ -263,7 +270,10 @@ private struct ScanPage: View {
                     if tailscaleOn {
                         Label("Tailscale is on: Codync connects over it directly.", systemImage: "checkmark.circle.fill")
                     } else {
-                        Button { openURL(Tailscale.downloadURL) } label: {
+                        Button {
+                            Analytics.shared.capture(.linkOpened(.tailscale))
+                            openURL(Tailscale.downloadURL)
+                        } label: {
                             Label("Use Tailscale? Direct and faster away from home.", systemImage: "arrow.up.right")
                         }
                         .buttonStyle(PressScale())
@@ -308,7 +318,7 @@ private struct ScanPage: View {
     private func pair(_ text: String) {
         let p: Pairing
         do {
-            p = try Pairing.parse(text.trimmingCharacters(in: .whitespacesAndNewlines))
+            p = try app.pairing(from: text.trimmingCharacters(in: .whitespacesAndNewlines))
         } catch {
             show(error)
             return
@@ -318,7 +328,7 @@ private struct ScanPage: View {
         Task {
             defer { pairing = false }
             do {
-                _ = try await app.pair(p)
+                _ = try await app.pair(p, via: .qr)
                 pasted = ""
                 paired()
             } catch {

@@ -15,7 +15,7 @@ use super::style::theme;
 const DETAILS: [(&str, &str); 7] = [
     (
         "Features you use",
-        "Opening the app, creating or deleting a bot, sending a message (how many attachments, never the files), running a routine or a voice call, installing a connector. Each comes with the app version, the platform, and the bot's agent and model.",
+        "Opening the app and its screens, setting up and pairing (and whether you allow notifications), creating or deleting a bot, sending a message (how many attachments, never the files), running a routine or a voice call, installing a connector. Each comes with the app version, the platform, and the bot's agent and model.",
     ),
     (
         "Crashes and errors",

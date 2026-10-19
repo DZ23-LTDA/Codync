@@ -59,7 +59,7 @@ export function SkillSheet({ skill }: { skill: SkillRef }) {
 
   return (
     <SheetPage>
-      <ModalHeader title={skill.name} trailing={trailing} />
+      <ModalHeader icon="book.pages" title={skill.name} trailing={trailing} />
       <CardForm>
         {skill.description ? (
           <CardSection>

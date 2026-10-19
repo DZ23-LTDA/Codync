@@ -18,7 +18,7 @@ export function HarnessMemorySheet({ harness, readable }: { harness: string; rea
   ]
   return (
     <SheetPage>
-      <ModalHeader title={`${harness}'s own memory`} />
+      <ModalHeader icon="brain" title={`${harness}'s own memory`} />
       <CardForm>
         <CardSection>
           {details.map((d) => (

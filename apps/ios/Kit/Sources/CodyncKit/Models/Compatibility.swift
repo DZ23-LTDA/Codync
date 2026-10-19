@@ -72,7 +72,9 @@ public enum AppStoreRelease {
             struct Result: Decodable { var version: String? }
             var results: [Result]
         }
-        var request = URLRequest(url: URL(string: "https://itunes.apple.com/lookup?id=\(appID)")!)
+        // Apple's CDN keeps the bare URL for up to a day after a release; a query string of its own skips it.
+        let url = URL(string: "https://itunes.apple.com/lookup?id=\(appID)&_=\(Int(Date.now.timeIntervalSince1970))")!
+        var request = URLRequest(url: url)
         request.timeoutInterval = 10
         request.cachePolicy = .reloadIgnoringLocalCacheData
         let (data, response) = try await session.data(for: request)

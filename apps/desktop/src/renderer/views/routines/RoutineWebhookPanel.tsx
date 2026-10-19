@@ -1,11 +1,11 @@
 import { useEffect, useState, type ReactNode } from 'react'
-import { IconButton } from '../../components/Controls'
+import { CardSection, IconButton } from '../../components/Controls'
 import { Dialog } from '../../components/Overlay'
-import { HStack, VStack } from '../../components/Stack'
+import { VStack } from '../../components/Stack'
 import { Text } from '../../components/Text'
 import { useStore } from '../../store/context'
-import { Field } from '../bots/parts'
 import { errorText, type RoutineWebhook } from './routine'
+import { LabeledRow } from './RoutineScheduleFields'
 import './routines.css'
 
 /** A saved webhook routine's address and key: copy either, reveal or replace the key. */
@@ -39,8 +39,8 @@ export function RoutineWebhookPanel({ botId, routineId }: { botId: string; routi
     void load(false)
   }, [routineId])
 
-  const value = (text: string, copy: 'url' | 'key', extra?: ReactNode) => (
-    <HStack gap={8} className="routine-webhook-value">
+  const row = (label: string, text: string, copy: 'url' | 'key', extra?: ReactNode) => (
+    <LabeledRow label={label} className="webhook-row">
       <Text size="callout" mono lines={2} grow className="routine-webhook-text">
         {text}
       </Text>
@@ -54,31 +54,31 @@ export function RoutineWebhookPanel({ botId, routineId }: { botId: string; routi
           setCopied(copy)
         }}
       />
-    </HStack>
+    </LabeledRow>
   )
 
   return (
-    <VStack gap={14}>
+    <VStack gap={10}>
       {webhook ? (
-        <>
-          <Field label={webhook.url ? 'URL' : 'Local URL'}>{value(webhook.url ?? webhook.localUrl, 'url')}</Field>
-          <Field label="Key">
-            {value(
-              showKey ? webhook.key : '•'.repeat(16),
-              'key',
-              <>
-                <IconButton title={showKey ? 'Hide key' : 'Show key'} icon={showKey ? 'eye.slash' : 'eye'} onClick={() => setShowKey((s) => !s)} />
-                <IconButton title="Replace key" icon="arrow.triangle.2.circlepath" disabled={rotating || store.isOffline} onClick={() => setConfirmRotate(true)} />
-              </>,
-            )}
-          </Field>
-          <Text size="caption" tone="secondary" className="routine-caption">
-            {webhook.url
+        <CardSection
+          footer={
+            webhook.url
               ? 'POST with Authorization: Bearer <key>. For GitHub, use content type application/json and the key as the secret. ' +
                 'Deliveries wait up to 72 hours while this computer is off. They pass through the Codync cloud, which can read them.'
-              : 'The Codync cloud is off, so only this computer can send to it.'}
-          </Text>
-        </>
+              : 'The Codync cloud is off, so only this computer can send to it.'
+          }
+        >
+          {row(webhook.url ? 'URL' : 'Local URL', webhook.url ?? webhook.localUrl, 'url')}
+          {row(
+            'Key',
+            showKey ? webhook.key : '•'.repeat(16),
+            'key',
+            <>
+              <IconButton title={showKey ? 'Hide key' : 'Show key'} icon={showKey ? 'eye.slash' : 'eye'} onClick={() => setShowKey((s) => !s)} />
+              <IconButton title="Replace key" icon="arrow.triangle.2.circlepath" disabled={rotating || store.isOffline} onClick={() => setConfirmRotate(true)} />
+            </>,
+          )}
+        </CardSection>
       ) : error ? (
         <Text size="caption" tone="danger" className="routine-caption">{error}</Text>
       ) : (

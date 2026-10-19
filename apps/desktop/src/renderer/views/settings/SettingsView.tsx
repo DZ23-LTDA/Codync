@@ -1,4 +1,5 @@
 import { Fragment, useEffect, useState } from 'react'
+import type { Screen } from '@shared/analytics'
 import { islandLabel } from '@shared/island'
 import { Button, CardForm, CardSection, ChoicePicker, IconButton, ProgressBar, Switch, ValueRow } from '../../components/Controls'
 import { Icon } from '../../components/Icon'
@@ -8,6 +9,7 @@ import { Text } from '../../components/Text'
 import { useModel } from '../../lib/observable'
 import { DEFAULT_TEXT_SIZE, prefs, TEXT_SIZES, usePref } from '../../lib/prefs'
 import { useAccount } from '../../store/account'
+import { useScreenViewed } from '../../store/analytics'
 import { StoreContext, useApp } from '../../store/context'
 import { ComputerBadge } from '../ComputerBadge'
 import { UpdateButton, useUpdates } from '../UpdateButton'
@@ -32,12 +34,16 @@ const pages: { id: SettingsPage; title: string; label?: string; group: string; i
   { id: 'updates', title: 'Updates', group: thisComputer, icon: 'arrow.down.circle' },
 ]
 
+/** Each page as `screen_viewed` names it; Computer access and Voice chat report themselves. */
+const pageScreens: Record<SettingsPage, Screen | null> = { general: 'settings', updates: 'settings', computers: 'computers', usage: 'usage', access: null, voice: null }
+
 export function SettingsView({ page: initial }: { page: SettingsPage }) {
   // Kept here: the sheet's content doesn't follow the window's state once shown.
   const [page, setPage] = useState(initial)
   const app = useApp()
   const dismiss = useDismiss()
   const current = pages.find((p) => p.id === page)!
+  useScreenViewed(pageScreens[page])
   return (
     <div className="settings">
       <nav className="settings-sidebar">

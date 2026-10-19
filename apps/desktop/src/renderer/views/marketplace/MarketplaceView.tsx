@@ -6,6 +6,7 @@ import { Dialog, SheetPage, useDismiss } from '../../components/Overlay'
 import { HStack, Spacer, VStack } from '../../components/Stack'
 import { Text } from '../../components/Text'
 import { useStore } from '../../store/context'
+import { useScreenViewed } from '../../store/analytics'
 import { ComputerBadge } from '../ComputerBadge'
 import { AgentSheet, AgentTile, NodeNotice } from './AgentSheet'
 import { ComposioSection } from './ComposioViews'
@@ -32,6 +33,7 @@ export function MarketplaceView({ computers, computer, onComputer, appsFirst = f
   const store = useStore()
   const plugins = usePlugins(store)
   const dismiss = useDismiss()
+  useScreenViewed('marketplace')
   const [search, setSearch] = useState('')
   /** Bumped on each submitted search, so every section searches again. */
   const [searchToken, setSearchToken] = useState(0)
@@ -330,10 +332,10 @@ export function MarketplaceView({ computers, computer, onComputer, appsFirst = f
       <FormSheet open={viewingSkill !== null} onClose={() => setViewingSkill(null)}>
         {viewingSkill ? <SkillSheet key={viewingSkill.name} skill={viewingSkill} /> : null}
       </FormSheet>
-      <FormSheet open={addingNode} onClose={() => setAddingNode(false)} width={560} height={560}>
+      <FormSheet open={addingNode} onClose={() => setAddingNode(false)} width={560} height={560} fixed>
         {addingNode ? <SetupTerminalView backend={null} step="node" back={() => setAddingNode(false)} /> : null}
       </FormSheet>
-      <FormSheet open={agent !== null} onClose={() => setAgent(null)} width={560} height={560}>
+      <FormSheet open={agent !== null} onClose={() => setAgent(null)} width={560} height={560} fixed>
         {agent ? <AgentSheet key={agent.id} initial={agent} /> : null}
       </FormSheet>
     </>

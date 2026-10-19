@@ -21,6 +21,7 @@ struct RoutineEditorView: View {
     @State private var checkedSchedule: RoutineScheduleDraft?
     @State private var confirmDelete = false
     @State private var started = false
+    @State private var pickingZone = false
     /// Any text field is being edited; cleared on save so nothing sits under the keyboard.
     @FocusState private var typing: Bool
 
@@ -68,6 +69,12 @@ struct RoutineEditorView: View {
                 }
             }]
         }
+        .codyncSheet(isPresented: $pickingZone) {
+            TimeZonePicker(selection: schedule.zone) {
+                schedule.zone = $0
+                pickingZone = false
+            }
+        }
         .task {
             if let routine {
                 name = routine.name
@@ -111,7 +118,7 @@ struct RoutineEditorView: View {
                             Image(systemName: "chevron.down").font(.caption2.weight(.semibold))
                                 .rotationEffect(.degrees(advanced ? 180 : 0))
                             Spacer()
-                            if !advanced { Text("Timeout \(timeout)s").foregroundStyle(Palette.tertiary) }
+                            if !advanced { Text("Timeout \(Routine.timeoutText(timeout))").foregroundStyle(Palette.tertiary) }
                         }
                         .font(.subheadline)
                         .foregroundStyle(Palette.secondary)
@@ -153,9 +160,7 @@ struct RoutineEditorView: View {
         guard let client = model.client else { error = "Connect to this computer to load the schedule."; return }
         do {
             let result = try await client.routineSchedule(triggers: routine?.triggers ?? [], timeZone: TimeZone.current.identifier)
-            schedule = result.draft
-            schedule.calendarStyle = "custom"
-            if !["cron", "webhook"].contains(schedule.kind) { schedule.kind = "keep" }
+            schedule = result.draft.forMobileEditor()
             preview = result
             checkedSchedule = result.draft
             loaded = true
@@ -181,15 +186,62 @@ struct RoutineEditorView: View {
         }
     }
 
-    /// Cron is written directly; the host checks it and describes when it runs.
+    /// A frequency with its time, or cron written directly; the host compiles, checks and describes it.
     private var cronFields: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 14) {
             ViewThatFits(in: .horizontal) {
-                HStack(alignment: .top, spacing: 10) { expressionField; zoneField.frame(width: 170) }
-                VStack(alignment: .leading, spacing: 14) { expressionField; zoneField }
+                HStack(alignment: .top, spacing: 10) { frequencyFields }
+                VStack(alignment: .leading, spacing: 14) { frequencyFields }
             }
-            schedulePreview.padding(.leading, 4)
+            VStack(alignment: .leading, spacing: 8) {
+                if schedule.calendarStyle == "custom" {
+                    ViewThatFits(in: .horizontal) {
+                        HStack(alignment: .top, spacing: 10) { expressionField; zoneField }
+                        VStack(alignment: .leading, spacing: 14) { expressionField; zoneField }
+                    }
+                } else {
+                    zoneField
+                }
+                schedulePreview.padding(.leading, 4)
+            }
         }
+    }
+
+    @ViewBuilder private var frequencyFields: some View {
+        Field("Repeat") {
+            ChoicePicker(selection: Binding(get: { schedule.calendarStyle }, set: { selectFrequency($0) }), options: RoutineScheduleDraft.repeatChoices)
+        }
+        switch schedule.calendarStyle {
+        case "hourly":
+            Field("At minute") {
+                ChoicePicker(selection: $schedule.minute, options: (0..<60).map { (id: $0, label: String(format: ":%02d", $0)) })
+            }
+        case "daily", "weekdays":
+            timeField
+        case "weekly":
+            Field("On") {
+                // Monday first; the host counts 0 = Sunday … 6 = Saturday, like cron.
+                ChoicePicker(selection: $schedule.weekday,
+                             options: [1, 2, 3, 4, 5, 6, 0].map { (id: $0, label: Calendar.current.standaloneWeekdaySymbols[$0]) })
+            }
+            timeField
+        default:
+            EmptyView()
+        }
+    }
+
+    private var timeField: some View {
+        Field("At") {
+            DatePicker("At", selection: $schedule.timeOfDay, displayedComponents: .hourAndMinute)
+                .labelsHidden()
+                .environment(\.timeZone, .gmt)
+        }
+    }
+
+    /// Custom starts from the cron the host compiled for the checked choice it replaces.
+    private func selectFrequency(_ style: String) {
+        let compiled = checkedSchedule == schedule ? preview?.cronExpression : nil
+        withAnimation(Motion.reduced(Motion.layout, reduceMotion)) { schedule = schedule.repeating(style, compiled: compiled) }
     }
 
     private var expressionField: some View {
@@ -202,8 +254,16 @@ struct RoutineEditorView: View {
 
     private var zoneField: some View {
         Field("Time zone") {
-            TextField("Time zone", text: $schedule.zone, prompt: Text("Asia/Taipei").foregroundStyle(Palette.secondary))
-                .autocorrectionDisabled().routineInput().focused($typing)
+            Button { pickingZone = true } label: {
+                HStack(spacing: 6) {
+                    Text(schedule.zone).lineLimit(1)
+                    Text(TimeZones.offset(schedule.zone)).foregroundStyle(Palette.secondary)
+                    Image(systemName: "chevron.down").font(.caption2.weight(.semibold)).foregroundStyle(Palette.secondary)
+                }
+                .foregroundStyle(Palette.text)
+                .outlinedPill()
+            }
+            .buttonStyle(.plain)
         }
     }
 
@@ -224,7 +284,7 @@ struct RoutineEditorView: View {
                     Text(warning).font(.caption).foregroundStyle(Palette.secondary)
                 }
             }
-        } else {
+        } else if schedule.calendarStyle == "custom" {
             Text("minute  hour  day  month  weekday").font(.caption.monospaced()).foregroundStyle(Palette.tertiary)
         }
     }

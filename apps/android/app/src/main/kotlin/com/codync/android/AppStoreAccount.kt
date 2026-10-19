@@ -12,13 +12,24 @@ import kotlinx.serialization.json.*
 
 // Accounts, account computers and starting over: what the account sheet and Computers & settings ask for.
 
-fun AppStore.signIn(apple: Boolean = false, hosted: Boolean = false) = sessionAction {
-    if (hosted) NativeAccounts.hostedSignIn() else NativeAccounts.signIn(apple)
+internal fun AppStore.signIn(provider: SignInProvider) = sessionAction {
+    Analytics.capture(AnalyticsEvent.SignInStarted(provider))
+    try {
+        if (provider == SignInProvider.Hosted) NativeAccounts.hostedSignIn() else NativeAccounts.signIn(apple = provider == SignInProvider.Apple)
+    } catch (error: CancellationException) { throw error }
+    catch (error: Exception) {
+        Analytics.capture(AnalyticsEvent.SignInFailed(provider, (error as? SignInError)?.reason ?: SignInFailure.Error))
+        throw error
+    }
+    // Clerk holds the new session already, so this counts toward the account.
+    Analytics.capture(AnalyticsEvent.SignedIn(provider))
 }
 fun AppStore.switchAccount(account: SavedAccount) = sessionAction { NativeAccounts.switch(account) }
 fun AppStore.retryAccounts() { NativeAccounts.retry() }
 fun AppStore.signOut() = sessionAction {
     val old = state.value.account.accounts.firstOrNull { it.userId == state.value.account.userId } ?: return@sessionAction
+    // Sent first so it still counts toward the account.
+    Analytics.capture(AnalyticsEvent.SignedOut)
     NativeAccounts.signOut(old.sessionId)
     transitions.withLock {
         // The SDK updates its session synchronously; its observer may be queued behind us.
@@ -39,6 +50,8 @@ fun AppStore.refreshCloud() = action("cloud") {
         client.registerDevice(Build.MODEL.take(100))
         val computers = client.computers()
         mutableState.update { it.copy(cloudComputers = computers) }
+        // Signed in to an account with computers, before pairing any (iOS: the same moment).
+        if (computers.isNotEmpty() && state.value.computers.isEmpty()) Analytics.completeOnboarding(OnboardingVia.Account)
         // Online computers this phone has no grant on yet; a granted one needs Revoke before asking again.
         val target = computers.firstOrNull { remote -> state.value.computers.isEmpty() && remote.online == true &&
             remote.access != "granted" && remote.computerId !in asked }
@@ -54,6 +67,7 @@ fun AppStore.requestAccess(target: CloudComputer) = action("access") {
     require(state.value.computers.isEmpty() || state.value.computers.first().id == target.computerId) { "Forget the current computer before connecting a different one." }
     asked.add(target.computerId)
     val ticket = client.requestAccess(target.computerId, target.signKey)
+    Analytics.capture(AnalyticsEvent.AccessRequested)
     mutableState.update { it.copy(access = ticket) }
     try {
         while (currentCoroutineContext().isActive) {
@@ -70,12 +84,19 @@ fun AppStore.requestAccess(target: CloudComputer) = action("access") {
                     computer.validate()
                     withContext(Dispatchers.IO) { local.saveComputers(listOf(computer)); local.completeSetup() }
                     mutableState.update { it.copy(computers = listOf(computer), setupComplete = true) }
+                    Analytics.capture(AnalyticsEvent.ComputerPaired(PairedVia.Account, computer.id))
                     openMirror(); connect(); return@action
                 }
-                "denied" -> throw IOException("${target.name} declined the request.")
+                "denied" -> {
+                    Analytics.capture(AnalyticsEvent.AccessRequestFailed(AccessFailure.Denied))
+                    throw IOException("${target.name} declined the request.")
+                }
                 else -> throw CloudError(410, "requestExpired")
             }
         }
+    } catch (error: CloudError) {
+        if (error.code == "requestExpired") Analytics.capture(AnalyticsEvent.AccessRequestFailed(AccessFailure.Expired))
+        throw error
     } finally { mutableState.update { it.copy(access = null) } }
 }
 
@@ -83,6 +104,7 @@ fun AppStore.cancelAccess() {
     val ticket = state.value.access
     val client = cloud
     val request = actions["access"]
+    if (ticket != null) Analytics.capture(AnalyticsEvent.AccessRequestFailed(AccessFailure.Cancelled))
     action("cancelAccess") {
         request?.cancelAndJoin()
         if (ticket != null && client != null) client.cancelAccess(ticket.requestId)
@@ -129,6 +151,7 @@ fun AppStore.forgetComputer() = sessionAction {
 fun AppStore.skipSetup() = action("setup") {
     withContext(Dispatchers.IO) { local.completeSetup() }
     mutableState.update { it.copy(setupComplete = true) }
+    Analytics.completeOnboarding(OnboardingVia.Skipped)
 }
 
 fun AppStore.clearError() { mutableState.update { it.copy(error = null) } }
@@ -146,6 +169,7 @@ fun AppStore.startOver() = sessionAction {
                 File(cache, "shared-attachments").deleteRecursively()
                 cache.listFiles()?.filter { it.name.startsWith("codync-images") }?.forEach { it.deleteRecursively() }
             }
+            Analytics.forgetOnboarding()
             mutableState.update { it.copy(account = AccountState(ready = true), error = null) }
             loadContext(null)
         }

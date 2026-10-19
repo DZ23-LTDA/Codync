@@ -6,6 +6,7 @@ import { Icon } from '../../components/Icon'
 import { HStack, VStack } from '../../components/Stack'
 import { Text } from '../../components/Text'
 import { useStore } from '../../store/context'
+import { useScreenViewed } from '../../store/analytics'
 import { BotSettingsPanel } from '../bots/BotEditorView'
 import { MemoryCard } from '../bots/MemoryView'
 import { RoutinesView } from '../routines/RoutinesView'
@@ -34,6 +35,7 @@ export function DetailsPanel({ botId, routineId, tab, setTab, editGroup, share, 
   const store = useStore()
   const bot = store.bots.get(botId) ?? null
   const group = !!bot && isGroup(bot)
+  useScreenViewed('bot_details')
   return (
     <div className="details-panel">
       <div className="details-drag" />

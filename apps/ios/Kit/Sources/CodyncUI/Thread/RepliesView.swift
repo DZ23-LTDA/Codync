@@ -45,6 +45,7 @@ struct RepliesView: View {
                 }
         }
         .background(Palette.background)
+        .tracked(.screenViewed(.thread))
         .task(id: rootId) { await model.loadThread(botId, root: rootId) }
         // A thread is read on its own: having it open reads its replies.
         .readingConversation(botId, thread: rootId)

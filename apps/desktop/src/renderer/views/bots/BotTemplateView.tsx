@@ -40,10 +40,9 @@ export function BotTemplateView({ draft }: { draft: BotDraft }) {
 
   return (
     <VStack className="bot-template">
-      <ModalHeader title="Create template" />
-      <VStack gap={20} className="bot-template-body">
-        <Text size="subheadline" tone="secondary">{draft.name}</Text>
-        <Text size="callout" tone="secondary">Copy this bot’s settings to reuse as a template. Conversation history and conversation ID are excluded.</Text>
+      <ModalHeader icon="square.on.square" title="Create template" subtitle={draft.name} />
+      <VStack gap={16} className="bot-template-body">
+        <Text size="body" tone="secondary">Copy this bot’s settings to reuse as a template. Conversation history and conversation ID are excluded.</Text>
         <div className="bot-template-code">
           <pre className="selectable">
             {encoded}

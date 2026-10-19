@@ -19,11 +19,11 @@ use std::time::{Duration, Instant};
 #[cfg(unix)]
 mod unix;
 #[cfg(unix)]
-pub use unix::{install, installed, require_executable, start, stop, uninstall};
+pub use unix::{install, installed, require_executable, start, started_by_service, stop, uninstall};
 #[cfg(windows)]
 mod windows;
 #[cfg(windows)]
-pub use windows::{install, installed, require_executable, start, stop, uninstall};
+pub use windows::{install, installed, require_executable, start, started_by_service, stop, uninstall};
 
 static BINARY_IDENTITY: OnceLock<(String, String)> = OnceLock::new();
 

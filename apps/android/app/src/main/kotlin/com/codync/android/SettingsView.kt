@@ -122,7 +122,7 @@ import kotlinx.serialization.json.put
             }
             CardSection {
                 row { ValueRow("App version", BuildConfig.VERSION_NAME) }
-                row { LinkButton("Source code") { uri.openUri("https://github.com/leepokai/Codync") } }
+                row { LinkButton("Source code") { uri.open("https://github.com/leepokai/Codync", OutboundLink.Github) } }
             }
             CardSection {
                 row {
@@ -160,7 +160,9 @@ import kotlinx.serialization.json.put
 @Composable private fun NotificationsSection(state: AppState, store: AppStore) {
     val context = LocalContext.current
     var asked by remember { mutableStateOf(false) }
-    val request = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { asked = true }
+    val request = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        notificationsAnswered(context, granted, PromptSource.Settings); asked = true
+    }
     val allowed = rememberOnResume { notificationsAllowed(context) } || asked && notificationsAllowed(context)
     CardSection("Notifications", "Get a result summary, a request for input, or a failure notice. Notification previews follow your Android settings.") {
         if (BuildConfig.PUSH_CONFIGURED) row { SwitchRow("Push notifications", isOn = state.notifications, onChange = store::notifications) }

@@ -92,7 +92,7 @@ follows the App Store:
 
 On the iPhone, the *Update Codync* button of an *Update this app* notice is greyed out with
 "still in App Store review" while the App Store has an older version; an unanswered lookup
-keeps it enabled (the App Store page shows the truth).
+keeps it enabled (the App Store page shows the truth). Its lookup skips the CDN the same way.
 
 ### Reminders
 

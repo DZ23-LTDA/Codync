@@ -43,6 +43,7 @@ public struct VoiceChatSettingsView: View {
             }
         }
         .background(Palette.background)
+        .tracked(.screenViewed(.voiceSettings))
     }
 
     private var engineFooter: String {

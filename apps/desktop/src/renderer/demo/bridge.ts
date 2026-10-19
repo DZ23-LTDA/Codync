@@ -29,6 +29,7 @@ const bridge: CodyncBridge = {
   hostPort: 19222,
   appVersion: version,
   computerName: HOST_NAME,
+  openedAtLogin: false,
   // Opens the group at launch, like the website's screenshot.
   debugOpen: 'Ship room',
   host: {

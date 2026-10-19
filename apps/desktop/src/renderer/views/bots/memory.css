@@ -17,8 +17,10 @@
 @container details (max-height: 599px) { .memory-clamp { -webkit-line-clamp: 2; } }
 @container details (min-height: 800px) { .memory-clamp { -webkit-line-clamp: 5; } }
 @container details (min-height: 1100px) { .memory-clamp { -webkit-line-clamp: 8; } }
-.memory-editor { display: flex; flex-direction: column; gap: 16px; padding: 20px; max-height: 70vh; overflow: auto; }
-.memory-editor textarea { padding: 10px; background: var(--surface); color: var(--text); border: 0; border-radius: var(--radius-s); font: inherit; resize: vertical; }
+.memory-editor { display: flex; flex-direction: column; gap: 14px; padding: 8px 20px 20px; max-height: 70vh; overflow: auto; }
+.memory-editor textarea { padding: 9px 12px; background: var(--bubble-user); color: var(--text); border: 0; border-radius: var(--radius-s); font: inherit; line-height: 1.4; field-sizing: content; min-height: calc(3lh + 18px); max-height: calc(10lh + 18px); }
+.memory-editor textarea:focus { outline: 2px solid rgba(var(--text-rgb), 0.3); }
+.memory-editor > .styled-button { align-self: flex-end; }
 .memory-history { white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; user-select: text; margin: 0; }
 .memory-error { color: var(--danger); white-space: pre-wrap; }
 .memory-notes-header { display: flex; align-items: center; justify-content: space-between; color: var(--secondary); font-size: var(--text-callout); font-weight: 600; }

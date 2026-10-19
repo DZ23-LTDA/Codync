@@ -282,11 +282,15 @@ export function useWindowHeight() {
   return height
 }
 
-/** A Marketplace form in its own modal card (`.codyncSheet`). */
-export function FormSheet({ open, onClose, width = 520, height = 600, children }: { open: boolean; onClose: () => void; width?: number; height?: number; children: ReactNode }) {
+/**
+ * A Marketplace form in its own modal card (`.codyncSheet`), as tall as its content up to
+ * `height`; `fixed` keeps it at `height` for content that fills the card (a terminal).
+ */
+export function FormSheet({ open, onClose, width = 520, height = 600, fixed = false, children }: { open: boolean; onClose: () => void; width?: number; height?: number; fixed?: boolean; children: ReactNode }) {
   const windowHeight = useWindowHeight()
+  const cap = Math.min(height, windowHeight - 76)
   return (
-    <Sheet open={open} onClose={onClose} width={width} height={Math.min(height, windowHeight - 76)}>
+    <Sheet open={open} onClose={onClose} width={width} height={fixed ? cap : undefined} maxHeight={cap}>
       {children}
     </Sheet>
   )

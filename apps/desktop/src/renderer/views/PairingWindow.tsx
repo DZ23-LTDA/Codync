@@ -5,6 +5,7 @@ import { IconButton, Spinner } from '../components/Controls'
 import { HStack, VStack } from '../components/Stack'
 import { Text } from '../components/Text'
 import { LoopbackTransport } from '../client/host-client'
+import { analytics, useScreenViewed } from '../store/analytics'
 import { useApp } from '../store/context'
 import './pairing-window.css'
 
@@ -17,6 +18,7 @@ export function PairingWindow() {
   const [cloud, setCloud] = useState<CloudStatus | null>(null)
   const [name, setName] = useState('this computer')
   const [error, setError] = useState<string | null>(null)
+  useScreenViewed('pairing')
 
   const load = useCallback(async () => {
     if (!local) return setError("This computer's host isn't connected.")
@@ -37,10 +39,14 @@ export function PairingWindow() {
     }
   }, [local])
 
-  // A new code each time "Pair iPhone…" is chosen (the window stays open between uses)…
+  // A new code each time "Pair iPhone…" is chosen (the window stays open between uses, so it's shown again)…
   useEffect(() => {
     void load()
-    return window.codync.app.onCommand((c) => c.kind === 'reviewApprovals' && void load())
+    return window.codync.app.onCommand((c) => {
+      if (c.kind !== 'reviewApprovals') return
+      analytics.track({ event: 'screen_viewed', screen: 'pairing' })
+      void load()
+    })
   }, [load])
 
   // …and a fresh one when this code expires while it's on screen.

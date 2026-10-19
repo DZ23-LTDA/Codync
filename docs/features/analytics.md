@@ -36,40 +36,26 @@ UI: *About usage analytics…*) shows the same promise in the app, in one text p
 
 ## Where events come from
 
-- **Host** (`host/src/analytics.rs`): `api::dispatch` maps successful API calls to events
-  (`analytics::observe_call`), so every client is covered once: `bot_created`, `bot_updated`,
-  `bots_reordered`, `bot_deleted`, `message_sent`, `turn_stopped`, `session_reset`, `permission_answered`,
-  `routine_saved`, `routine_deleted`, `routine_run`, `voice_call_finished`,
-  `remote_screen_opened`, `connector_installed`, `skill_installed`. A resent message (same
-  `clientNonce`, e.g. a phone replaying after a reconnect) is not counted again. Bot actors
-  report `turn_finished` when an agent's turn ends. `client` is `local` (desktop app, terminal UI)
-  or `remote` (phones). Each event carries its own `timestamp` and `uuid` (a resent batch counts
-  once) and the computer's key (`computer`, a hash of its id); batches go to `/batch/` every 30 s and once more when the
+- **Host** (`host/src/analytics.rs`, `analytics/`): `api::dispatch` maps successful API calls to
+  events (`analytics::observe_call`), so every client is covered once; a resent message (same
+  `clientNonce`) is not counted again. Bot actors report `turn_finished`, the phone channel
+  reports pairing and daily phone connections, and the host reports its own start. Each event
+  carries its own `timestamp` and `uuid` (a resent batch counts once) and the computer's key
+  (`computer`, a hash of its id); batches go to `/batch/` every 30 s and once more when the
   host stops.
-- **Desktop** reports app-level events through the loopback-only `track` method
-  (`app_opened`, `onboarding_completed` when the welcome screen is finished, `signed_in`,
-  `signed_out`) and turns sharing on or off with `setAnalytics`; `hello` carries `analytics: true | false`.
-  The **terminal UI** reports only `app_opened` (it has no welcome screen or sign-in).
-- **iPhone** (`CodyncKit` analytics client, no SDK) sends its own app-level events
-  (`app_opened`, `onboarding_completed`, `computer_paired`, `signed_in`, `signed_out`,
-  `voice_call_started`) straight to PostHog. Widgets and the notification extension never send.
-  **Android** (`apps/android/.../Analytics.kt`, its port, no SDK) sends the same events with
-  `$lib` `codync-android`; widgets never send.
+- **Desktop and terminal UI** report app-level events (opening, onboarding, sign-in, screens,
+  the star ask, links) through the loopback-only `track` method, which accepts only the
+  catalog's events and properties. The desktop app queues them until the host answers; when it
+  can't get a working host at all, its main process reports `host_setup_failed` straight to
+  PostHog, only while the host's last answer said sharing is on (or on a first install, before
+  the host stored any setting). It turns sharing on or off with `setAnalytics`; `hello` carries
+  `analytics: true | false`.
+- **iPhone** (`CodyncKit` analytics client, no SDK) and **Android** (`Analytics.kt`, its port)
+  send their own app-level events straight to PostHog. Widgets and the notification extension
+  never send.
+- **codync.dev** counts page views and clicks on download and outbound links without cookies.
 
-## Event properties
-
-Besides `env`, `app_version`, `$os`, `$lib`:
-
-| Event | Properties |
-|---|---|
-| `bot_created` | `kind` (`bot`/`group`), `agent`, `model` or `members` (count) |
-| `message_sent` | `kind`, `agent`, `in_thread`, `attachments` (count) |
-| `turn_finished` | `agent`, `outcome` (`done`/`stopped`/`failed`/`incomplete`), `stop_reason` (ACP's, else `other`), `source` (`user`/`routine`/`group`/`bot`), `seconds`; when failed, `error` (`not_installed`/`sign_in`/`timeout`/`exited`/`agent_error`/`io`/`other`) and, for `agent_error`, the agent's JSON-RPC `rpc_code` and its own category when it names one (`agent_reason`: Claude's `rate_limit`, `overloaded`, `billing_error`, …) |
-| `voice_call_finished` | `seconds` |
-| `connector_installed` | `connector` (catalog name or `custom`) |
-| `skill_installed` | `custom` |
-| `computer_paired` | `via` (`qr`/`account`), `computer` |
-| every host event | `client` (`local`/`remote`), `computer`, `arch` |
+Every event, its sender and its properties: [analytics events](../reference/analytics-events.md).
 
 ## Error tracking
 
@@ -127,7 +113,10 @@ join an iPhone's `computer_paired` to the computer's events on `computer` in SQL
 | Metric | Definition |
 |---|---|
 | Active user (DAU/WAU/MAU) | Sent ≥1 `message_sent` in the period. Any event at all counts as *present*, not active (`app_opened` on the iPhone fires on every return to the foreground). |
-| New user | First event of any kind in the period. |
+| Present (frequency) | Days in the period with `app_opened`, `window_opened` or `phone_connected` (stickiness). A computer whose only events are `turn_finished`/`routine_run` ran unattended. |
+| New user | First event of any kind in the period. A new computer also sends `host_started` with `first_run`. |
+| Onboarded | Desktop: `onboarding_completed`. Phones: `computer_paired` (or `onboarding_completed` with `via = skipped`, which is not onboarded). Funnels: [analytics events](../reference/analytics-events.md#funnels). |
+| Star rate | `star_prompt_answered` with `starred` ÷ all `star_prompt_answered`, per `ask`. |
 | Activated | Sent ≥1 message from a phone (`message_sent`, `client = remote`) within 7 days of first seen. In the first week of data, 4 of 5 such users came back after 24 h and none of the 6 computer-only ones did. |
 | Successful turn rate | `turn_finished` with `outcome = done` ÷ all `turn_finished` with `source = user`, per agent and per `$os`. |
 | Frustration rate | (`turn_stopped` + `session_reset`) ÷ `message_sent`, per `$os`. |

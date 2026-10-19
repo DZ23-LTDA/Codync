@@ -2,11 +2,14 @@
 
 import { useState } from "react";
 import { Check, Copy } from "@phosphor-icons/react";
+import { track, type Platform } from "../analytics";
 
-export default function CopyCommand({ command }: { command: string }) {
+// An install command: copying it counts as a download for `platform`.
+export default function CopyCommand({ command, platform }: { command: string; platform: Platform }) {
   const [copied, setCopied] = useState(false);
 
   async function copy() {
+    track("download_clicked", { platform });
     try {
       await navigator.clipboard.writeText(command);
       setCopied(true);

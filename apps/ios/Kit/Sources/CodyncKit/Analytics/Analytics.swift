@@ -1,16 +1,6 @@
 import CryptoKit
 import Foundation
 
-/// What the iPhone reports. Bot and message events come from the computer's host instead.
-public enum AnalyticsEvent: String, Sendable {
-    case appOpened = "app_opened"
-    case onboardingCompleted = "onboarding_completed"
-    case computerPaired = "computer_paired"
-    case signedIn = "signed_in"
-    case signedOut = "signed_out"
-    case voiceCallStarted = "voice_call_started"
-}
-
 /// Product analytics: batches events to PostHog, on unless turned off in Settings.
 /// Only the app calls it; widgets and the notification extension never do.
 @MainActor
@@ -59,11 +49,14 @@ public final class Analytics {
 
     /// The signed-in Codync account, read at capture time; nil = anonymous install ID.
     public var userID: @MainActor () -> String? = { nil }
+    /// What `app_opened` says about this iPhone, read on each trip to the foreground; nil = unknown.
+    public var foregroundState: @MainActor () async -> (notifications: AnalyticsEvent.Notifications?, widgets: Int?) = { (nil, nil) }
     private let defaults: UserDefaults
     private let upload: @Sendable (Data) async -> Bool
     private(set) var pending: [Event] = []
     private var timer: Task<Void, Never>?
-    private var sending = false
+    /// The batch on its way.
+    private var sending: Task<Void, Never>?
     private var foreground = false
     private var session = AnalyticsSession()
     /// The session the last launch ended in: where a crash MetricKit reports now happened.
@@ -80,15 +73,17 @@ public final class Analytics {
     /// Turning it off drops everything not yet sent.
     public func setEnabled(_ enabled: Bool) {
         defaults.set(enabled, forKey: Self.enabledKey)
-        guard !enabled else { return flush() }
+        guard !enabled else {
+            flush()
+            return
+        }
         pending = []
         timer?.cancel()
         timer = nil
     }
 
-    /// `properties` are public names, never content.
-    public func capture(_ event: AnalyticsEvent, _ properties: [String: String] = [:]) {
-        record(event.rawValue, properties.mapValues(Value.string))
+    public func capture(_ event: AnalyticsEvent) {
+        record(event.name, event.properties)
     }
 
     func record(_ name: String, _ extra: [String: Value]) {
@@ -119,7 +114,7 @@ public final class Analytics {
 
     /// A computer's analytics key, the same hash its host sends: joins `computer_paired` with that
     /// computer's events without revealing the id the relay knows it by.
-    public static func computerTag(_ id: ComputerID) -> String {
+    nonisolated public static func computerTag(_ id: ComputerID) -> String {
         SHA256.hash(data: Data("codync-analytics:\(id)".utf8)).prefix(8).map { String(format: "%02x", $0) }.joined()
     }
 
@@ -127,27 +122,35 @@ public final class Analytics {
     public func becameActive() {
         guard !foreground else { return }
         foreground = true
-        capture(.appOpened)
+        Task {
+            let state = await foregroundState()
+            capture(.appOpened(notifications: state.notifications, widgets: state.widgets))
+        }
     }
 
-    public func enteredBackground() {
+    /// Sends everything queued and returns once it's sent or failed; the app holds background time for it.
+    public func enteredBackground() async {
         foreground = false
-        flush()
+        await sending?.value
+        await flush()?.value
     }
 
-    func flush() {
+    /// The upload it started; nil when nothing needs to (or can) go now.
+    @discardableResult
+    func flush() -> Task<Void, Never>? {
         timer?.cancel()
         timer = nil
-        guard !sending, !pending.isEmpty, isEnabled,
-              let body = try? JSONEncoder().encode(Batch(api_key: Self.apiKey, batch: pending)) else { return }
+        guard sending == nil, !pending.isEmpty, isEnabled,
+              let body = try? JSONEncoder().encode(Batch(api_key: Self.apiKey, batch: pending)) else { return nil }
         let sent = Set(pending.map(\.uuid))
-        sending = true
-        Task {
+        let task = Task {
             let ok = await upload(body)
-            sending = false
+            sending = nil
             if ok { pending.removeAll { sent.contains($0.uuid) } }
             if !pending.isEmpty { scheduleFlush() }
         }
+        sending = task
+        return task
     }
 
     private var installID: String {

@@ -48,7 +48,8 @@ fun AppStore.setForeground(active: Boolean) {
     }
 }
 
-fun AppStore.pair(text: String) {
+/** Pairs with the computer in a `codync://pair` link: scanned or pasted ([PairedVia.Qr]) or opened from outside ([PairedVia.Link]). */
+internal fun AppStore.pair(text: String, via: PairedVia) {
     if (pairingJob?.isActive == true) return
     pairingJob = contextScope.launch {
         state.first { !it.loading }
@@ -62,10 +63,15 @@ fun AppStore.pair(text: String) {
             val computer = HostConnector.pair(pairing, identity, Build.MODEL.take(100)).copy(color = old?.color)
             withContext(Dispatchers.IO) { local.saveComputers(listOf(computer)); local.completeSetup() }
             mutableState.update { it.copy(computers = listOf(computer), setupComplete = true) }
+            Analytics.capture(AnalyticsEvent.ComputerPaired(via, computer.id))
+            Analytics.completeOnboarding(OnboardingVia.Paired)
             if (database == null) openMirror()
             connect()
         } catch (error: CancellationException) { throw error }
-        catch (error: Exception) { showError(error) }
+        catch (error: Exception) {
+            Analytics.capture(AnalyticsEvent.PairingFailed(PairingFailure.of(error)))
+            showError(error)
+        }
         finally { mutableState.update { it.copy(pairing = false) } }
     }
 }

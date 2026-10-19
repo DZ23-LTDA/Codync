@@ -30,17 +30,22 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         NativeAccounts.initialize(this)
         Analytics.start(applicationContext)
-        Analytics.userId = { store.state.value.account.userId }
+        // Clerk's session, not the UI's copy of it: right as sign-in and sign-out happen.
+        Analytics.userId = NativeAccounts::activeUserId
         NotificationDisplay.channels(this)
         if (savedInstanceState == null) lifecycleScope.launch { CodyncWidgets.publishPreviews(applicationContext) }
         enableEdgeToEdge()
         setContent {
             val state by store.state.collectAsStateWithLifecycle()
-            val notifications = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { store.syncPush() }
+            val notifications = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+                notificationsAnswered(applicationContext, granted, PromptSource.Automatic)
+                store.syncPush()
+            }
             LaunchedEffect(state.computers.isNotEmpty(), state.contextId) {
                 if (BuildConfig.PUSH_CONFIGURED && state.computers.isNotEmpty() && android.os.Build.VERSION.SDK_INT >= 33 && !PushPreferences.asked(applicationContext)) {
                     PushPreferences.markAsked(applicationContext)
-                    notifications.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+                    // Already allowed (in Android settings): no prompt to answer.
+                    if (!notificationsAllowed(applicationContext)) notifications.launch(android.Manifest.permission.POST_NOTIFICATIONS)
                 }
             }
             val images = remember(state.contextId, state.generation) { AccountImages.open(applicationContext, state.contextId) }
@@ -63,7 +68,7 @@ class MainActivity : ComponentActivity() {
         setIntent(intent)
         handle(intent)
     }
-    override fun onStart() { super.onStart(); store.setForeground(true); Analytics.becameActive() }
+    override fun onStart() { super.onStart(); store.setForeground(true); Analytics.becameActive(applicationContext) }
     override fun onStop() {
         store.setForeground(false)
         // A rotation isn't a trip to the background.
@@ -72,9 +77,13 @@ class MainActivity : ComponentActivity() {
     }
     private fun handle(intent: Intent?) {
         val uri = intent?.data ?: return
+        intent.getStringExtra(NotificationDisplay.ALERT_KIND)?.let { category ->
+            intent.removeExtra(NotificationDisplay.ALERT_KIND)
+            NotificationKind.of(category)?.let { Analytics.capture(AnalyticsEvent.NotificationOpened(it)) }
+        }
         if (uri.scheme == BuildConfig.URL_SCHEME && uri.host == "pair") {
             intent.data = null
-            store.pair(uri.toString())
+            store.pair(uri.toString(), PairedVia.Link)
         }
         // Retain the scoped, non-secret destination for Activity/process restoration.
         if (uri.scheme == BuildConfig.URL_SCHEME && uri.host in setOf("bot", "usage")) store.openLink(uri)

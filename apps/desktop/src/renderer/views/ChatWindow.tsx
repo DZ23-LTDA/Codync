@@ -10,6 +10,8 @@ import { Text } from '../components/Text'
 import { useModels } from '../lib/observable'
 import { prefs, stepTextSize, usePref, DEFAULT_TEXT_SIZE } from '../lib/prefs'
 import { useApp, StoreContext } from '../store/context'
+import { account } from '../store/account'
+import { analytics } from '../store/analytics'
 import { refKey, sameRef, parseRef, type BotRef } from '../store/app-model'
 import type { BotStore } from '../store/bot-store'
 import { useComputerRoster } from '../store/computer-roster'
@@ -48,6 +50,10 @@ export function ChatWindow() {
   useSSHAttachments(app)
   const ssh = useSSH()
   const showsChat = shouldShowChat(app.host.state.kind, app.computers.length, ssh.state)
+  const finishAccess = (ready: boolean, onboarding: boolean) => {
+    setAccessSetup(ready ? 'ready' : 'later')
+    analytics.track({ event: 'computer_access_finished', ready, onboarding })
+  }
 
   useEffect(
     () =>
@@ -103,7 +109,7 @@ export function ChatWindow() {
       <Summaries />
       {onboarded ? (
         accessSetup === null ? (
-          <ComputerAccessView onContinue={(ready) => setAccessSetup(ready ? 'ready' : 'later')} />
+          <ComputerAccessView onContinue={(ready) => finishAccess(ready, true)} />
         ) : showsChat ? (
           <ChatSplitView />
         ) : (
@@ -113,15 +119,15 @@ export function ChatWindow() {
         <AccountWelcomeView
           onContinue={() => {
             setOnboarded(true)
-            app.local?.track('onboarding_completed')
+            analytics.track({ event: 'onboarding_completed', signed_in: account.isSignedIn })
           }}
         />
       )}
       {onboarded && accessSetup !== null && showsChat ? null : <div className="window-drag drag" />}
       {onboarded && accessSetup !== null ? <StarPrompt /> : null}
       <Sheet open={showAccess} onClose={() => setShowAccess(false)} width={660} height={Math.min(820, window.innerHeight - 80)}>
-        <ModalHeader title="Computer access" />
-        <ComputerAccessView onContinue={(ready) => { setAccessSetup(ready ? 'ready' : 'later'); setShowAccess(false) }} />
+        <ModalHeader icon="hand.raised" title="Computer access" />
+        <ComputerAccessView onContinue={(ready) => { finishAccess(ready, false); setShowAccess(false) }} />
       </Sheet>
       <Dialog
         open={confirmReset}

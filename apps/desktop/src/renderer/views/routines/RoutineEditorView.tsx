@@ -1,14 +1,18 @@
 import { useEffect, useRef, useState } from 'react'
-import { Button, ChoicePicker, IconButton, Spinner } from '../../components/Controls'
+import { Button, CardSection, IconButton, SegmentedChoice, Spinner } from '../../components/Controls'
 import { Icon } from '../../components/Icon'
 import { Dialog, ModalHeader } from '../../components/Overlay'
 import { HStack, Spacer, VStack } from '../../components/Stack'
 import { Text } from '../../components/Text'
 import { useStore } from '../../store/context'
-import { emptyDraft, errorText, sameDraft, type Routine, type RoutineScheduleDraft, type RoutineSchedulePreview } from './routine'
+import { durationText, emptyDraft, errorText, repeatChoice, sameDraft, type Routine, type RoutineScheduleDraft, type RoutineSchedulePreview } from './routine'
 import { Field } from '../bots/parts'
+import { LabeledRow, RoutineScheduleFields } from './RoutineScheduleFields'
 import { RoutineWebhookPanel } from './RoutineWebhookPanel'
+import { currentZone } from './time-zones'
 import './routines.css'
+
+const saveShortcut = window.codync.platform === 'darwin' ? '⌘S' : 'Ctrl+S'
 
 export function RoutineEditorView({ botId, routine, saved }: {
   botId: string
@@ -36,7 +40,7 @@ export function RoutineEditorView({ botId, routine, saved }: {
   // Anything the bot set up (a one-off time, an interval, events, several triggers) stays as it is until replaced.
   const keepsOriginal = routine ? (routine.triggers.length === 1 ? !['cron', 'webhook'].includes(routine.triggers[0]!.type) : routine.triggers.length > 0) : false
   const options = [
-    ...(routine && keepsOriginal ? [{ id: 'keep', label: routine.triggerDescriptions.join(' · ') }] : []),
+    ...(keepsOriginal ? [{ id: 'keep', label: 'Set by bot' }] : []),
     { id: 'cron', label: 'Schedule' },
     { id: 'webhook', label: 'Webhook' },
   ]
@@ -47,9 +51,9 @@ export function RoutineEditorView({ botId, routine, saved }: {
       const client = await store.ready()
       const result = await client.call<RoutineSchedulePreview>('routineSchedule', {
         triggers: routine?.triggers ?? [],
-        timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        timeZone: currentZone(Intl.DateTimeFormat().resolvedOptions().timeZone),
       })
-      const draft = { ...result.draft, calendarStyle: 'custom' }
+      const draft = { ...result.draft, calendarStyle: repeatChoice(result.draft.calendarStyle) }
       if (!['cron', 'webhook'].includes(draft.kind)) draft.kind = 'keep'
       setSchedule(draft)
       setPreview(result)
@@ -132,60 +136,25 @@ export function RoutineEditorView({ botId, routine, saved }: {
   const triggerFields = () => {
     switch (schedule.kind) {
       case 'cron':
-        return (
-          <VStack gap={8} className="routine-cron">
-            <div className="routine-cron-fields">
-              <Field label="Cron">
-                <input
-                  className="routine-input routine-cron-input"
-                  value={schedule.expression}
-                  placeholder="0 9 * * 1-5"
-                  spellCheck={false}
-                  autoCorrect="off"
-                  onChange={(e) => update({ expression: e.target.value })}
-                />
-              </Field>
-              <Field label="Time zone">
-                <input className="routine-input" value={schedule.zone} placeholder="Asia/Taipei" spellCheck={false} autoCorrect="off" onChange={(e) => update({ zone: e.target.value })} />
-              </Field>
-            </div>
-            <div className="routine-cron-preview">
-              {previewError ? (
-                <Text size="caption" tone="danger" className="routine-cron-error">{previewError}</Text>
-              ) : shownPreview ? (
-                <VStack gap={2}>
-                  <Text size="caption" weight="medium">{shownPreview.summary}</Text>
-                  {shownPreview.nextRunAt ? (
-                    <Text size="caption" tone="secondary">
-                      Next {new Date(shownPreview.nextRunAt).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}
-                    </Text>
-                  ) : null}
-                  {shownPreview.warning ? <Text size="caption" tone="secondary">{shownPreview.warning}</Text> : null}
-                </VStack>
-              ) : (
-                <Text size="caption" mono tone="tertiary" className="routine-cron-hint">minute  hour  day  month  weekday</Text>
-              )}
-            </div>
-          </VStack>
-        )
+        return <RoutineScheduleFields schedule={schedule} update={update} preview={shownPreview} error={previewError} />
       case 'webhook':
         return routine && routine.triggers.some((t) => t.type === 'webhook' || t.type === 'event') ? (
           <RoutineWebhookPanel botId={botId} routineId={routine.id} />
         ) : (
-          <Text size="caption" tone="secondary" className="routine-caption">Runs each time something is posted to its URL. Save to get the URL and key.</Text>
+          <Note icon="link" title="Runs each time something is posted to its URL." detail="Save to get the URL and key." />
         )
       default:
-        return <Text size="caption" tone="secondary" className="routine-caption">Set up by the bot. Pick Schedule or Webhook to replace it.</Text>
+        return <Note icon="sparkles" title={routine?.triggerDescriptions.join(' · ') ?? ''} detail="Set up by the bot. Pick Schedule or Webhook to replace it." />
     }
   }
 
   return (
     <VStack className="routine-editor">
-      <ModalHeader title={routine ? 'Edit routine' : 'Set up a routine'} />
+      <ModalHeader icon={schedule.kind === 'webhook' ? 'link' : 'clock'} title={routine ? 'Edit routine' : 'Set up a routine'} />
       {/* The card fits the form; it scrolls only when taller than the window allows. */}
       <fieldset className="routine-form" disabled={busy || !loaded}>
         <VStack gap={24} className="routine-form-body">
-          <VStack gap={14}>
+          <VStack gap={16}>
             <Field label="Name">
               <input className="routine-input" value={name} placeholder="e.g. Morning summary" onChange={(e) => setName(e.target.value)} />
             </Field>
@@ -193,10 +162,11 @@ export function RoutineEditorView({ botId, routine, saved }: {
               <textarea className="routine-input" value={instruction} placeholder="Describe what this bot should do each time it runs." onChange={(e) => setInstruction(e.target.value)} />
             </Field>
           </VStack>
-          <VStack gap={14}>
-            <Field label="When to run">
-              <ChoicePicker selection={schedule.kind} options={options} onChange={(kind) => update({ kind })} fits />
-            </Field>
+          <VStack gap={10}>
+            <HStack gap={12}>
+              <Text tone="text" grow>When to run</Text>
+              <SegmentedChoice selection={schedule.kind} options={options} onChange={(kind) => update({ kind })} />
+            </HStack>
             {loaded ? (
               triggerFields()
             ) : (
@@ -206,22 +176,24 @@ export function RoutineEditorView({ botId, routine, saved }: {
               </HStack>
             )}
           </VStack>
-          <VStack gap={12}>
+          <VStack gap={10}>
             <button className="press routine-advanced" aria-expanded={advanced} onClick={() => setAdvanced((a) => !a)}>
               Run settings
               <span className={`routine-chevron ${advanced ? 'open' : ''}`}>
                 <Icon name="chevron.down" size={10} weight="semibold" />
               </span>
               <Spacer />
-              {!advanced ? <Text tone="tertiary">Timeout {timeout}s</Text> : null}
+              {!advanced ? <Text tone="tertiary">Timeout {durationText(timeout)}</Text> : null}
             </button>
             {advanced ? (
-              <VStack gap={12} className="routine-fade">
-                <Field label="Timeout (seconds)">
-                  <input className="routine-input" value={timeout} placeholder="3600" onChange={(e) => setTimeoutText(e.target.value)} />
-                </Field>
-                <Text size="caption" tone="secondary" className="routine-caption">A run is stopped after this long. 1 second to 24 hours.</Text>
-              </VStack>
+              <div className="routine-fade">
+                <CardSection footer="A run is stopped after this long. 1 second to 24 hours.">
+                  <LabeledRow label="Timeout">
+                    <input className="schedule-input routine-timeout" aria-label="Timeout in seconds" value={timeout} placeholder="3600" onChange={(e) => setTimeoutText(e.target.value)} />
+                    <Text size="callout" tone="secondary">seconds</Text>
+                  </LabeledRow>
+                </CardSection>
+              </div>
             ) : null}
           </VStack>
         </VStack>
@@ -251,7 +223,7 @@ export function RoutineEditorView({ botId, routine, saved }: {
             Connect to this computer to save your routine.
           </HStack>
         ) : null}
-        <HStack gap={16}>
+        <HStack gap={4}>
           {routine ? (
             <>
               <IconButton title="Delete routine" icon="trash" onClick={() => setConfirmDelete(true)} />
@@ -271,9 +243,10 @@ export function RoutineEditorView({ botId, routine, saved }: {
             </>
           ) : null}
           <Spacer />
-          <Button disabled={!canSave} onClick={() => void save()} title="Save (⌘S)">
+          <Button disabled={!canSave} onClick={() => void save()} title={`Save (${saveShortcut})`}>
             {busy ? <Spinner size={12} /> : null}
             {busy ? 'Saving…' : routine ? 'Save changes' : 'Create routine'}
+            {busy ? null : <span className="button-shortcut">{saveShortcut}</span>}
           </Button>
         </HStack>
       </VStack>
@@ -300,5 +273,20 @@ export function RoutineEditorView({ botId, routine, saved }: {
         onClose={() => setConfirmDelete(false)}
       />
     </VStack>
+  )
+}
+
+/** A trigger that has no fields here: what it does, and what to do about it. */
+function Note({ icon, title, detail }: { icon: string; title: string; detail: string }) {
+  return (
+    <CardSection>
+      <HStack gap={12} align="flex-start" className="routine-note">
+        <Icon name={icon} size={13} color="var(--secondary)" className="routine-note-icon" />
+        <VStack gap={3}>
+          <Text size="callout" weight="medium" tone="text">{title}</Text>
+          <Text size="callout" tone="secondary">{detail}</Text>
+        </VStack>
+      </HStack>
+    </CardSection>
   )
 }

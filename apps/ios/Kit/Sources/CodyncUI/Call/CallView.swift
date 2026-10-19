@@ -20,6 +20,8 @@ struct CallView: View {
     /// One line under the bar, e.g. why the call fell back to on-device voice.
     @State private var notice: String?
     @State private var settings = false
+    /// `voice_call_started` went out for this call.
+    @State private var reported = false
 
     private var bot: Bot? { model.bots[botId] }
     private var color: Color { bot.map { AvatarPalette.color($0.avatarColor) } ?? Palette.accent }
@@ -38,7 +40,6 @@ struct CallView: View {
         .animation(Motion.reduced(Motion.fade, reduceMotion), value: notice)
         .onAppear {
             startedAt = .now
-            Analytics.shared.capture(.voiceCallStarted)
             begin(cloud: VoiceSettings.provider)
         }
         .onDisappear {
@@ -52,6 +53,11 @@ struct CallView: View {
         .onChange(of: session?.phase) { _, phase in
             isSpeaking = phase == .speaking
             interrupt = phase == .speaking ? { session?.interrupt() } : nil
+            // Counted once audio flows, so it names the engine the call ended up on.
+            if phase?.isActive == true, !reported, let session {
+                reported = true
+                Analytics.shared.capture(.voiceCallStarted(session.analyticsName))
+            }
             // A cloud engine that can't start or drops mid-call hands over to on-device voice.
             if case .failed(let message) = phase, let provider = session?.provider {
                 countCloudMinutes()

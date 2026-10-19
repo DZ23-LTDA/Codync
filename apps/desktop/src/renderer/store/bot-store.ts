@@ -1,7 +1,6 @@
 import {
   isWorking,
   needsInput,
-  type AnalyticsEvent,
   type Bot,
   type BotDraft,
   type DirListing,
@@ -155,11 +154,6 @@ export class BotStore extends BotSync {
     const res = await (await this.ready()).call<{ enabled: boolean }>('setAnalytics', { enabled })
     if (this.hello) this.hello = { ...this.hello, analytics: res.enabled }
     this.changed()
-  }
-
-  /** Fire-and-forget; the host holds it until this computer answers and drops it on a no. */
-  track(event: AnalyticsEvent) {
-    void this.withLink((c) => c.call('track', { event })).catch((error: unknown) => console.warn(`track ${event} failed`, error))
   }
 
   /** Toggles the user's reaction; shown at once, then replaced by the host's copy. */

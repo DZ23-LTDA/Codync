@@ -8,6 +8,7 @@ import { Text, type Tone } from '../../components/Text'
 import { ThinkingOrb, type OrbState } from '../../components/ThinkingOrb'
 import type { Weight } from '../../lib/fonts'
 import { useStore } from '../../store/context'
+import { useScreenViewed } from '../../store/analytics'
 import { MarkdownText } from './Markdown'
 import { CodeBox, DiffView } from './PermissionCard'
 import './trace.css'
@@ -18,6 +19,7 @@ import './trace.css'
  */
 export function TraceView({ botId, thread = null }: { botId: string; thread?: string | null }) {
   const store = useStore()
+  useScreenViewed('trace')
   const turns = new Map<number, Entry[]>()
   for (const e of store.allEntries(botId)) {
     if ((e.threadId ?? null) !== thread) continue

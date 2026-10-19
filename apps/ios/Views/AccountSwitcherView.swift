@@ -87,6 +87,7 @@ struct AccountSwitcherView: View {
         }
         .animation(Motion.layout, value: account.userID)
         .animation(Motion.fade, value: account.errorMessage)
+        .tracked(.screenViewed(.account))
         .onChange(of: account.userID) { _, _ in withAnimation(Motion.layout) { addingAccount = false } }
         .hidesSystemNavigationBar()
         .navigationDestination(isPresented: $showSettings) { SettingsView(pushed: true) }

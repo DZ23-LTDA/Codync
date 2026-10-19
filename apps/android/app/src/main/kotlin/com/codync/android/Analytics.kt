@@ -3,9 +3,12 @@ package com.codync.android
 import android.content.Context
 import android.content.SharedPreferences
 import android.os.Build
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.UriHandler
 import java.security.MessageDigest
 import java.time.Instant
 import java.util.UUID
@@ -27,10 +30,13 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 
-/** What the phone reports (iOS `AnalyticsEvent`). Bot and message events come from the computer's host instead. */
-internal enum class AnalyticsEvent(val wire: String) {
-    AppOpened("app_opened"), OnboardingCompleted("onboarding_completed"), ComputerPaired("computer_paired"),
-    SignedIn("signed_in"), SignedOut("signed_out"), VoiceCallStarted("voice_call_started"),
+/** Reports a screen, sheet or onboarding step each time it appears. */
+@Composable internal fun AnalyticsOnAppear(event: AnalyticsEvent) = LaunchedEffect(event) { Analytics.capture(event) }
+
+/** Opens an outbound link, counted by what it leads to (desktop `openLink`). */
+internal fun UriHandler.open(url: String, link: OutboundLink) {
+    openUri(url)
+    Analytics.capture(AnalyticsEvent.LinkOpened(link))
 }
 
 /**
@@ -74,9 +80,7 @@ internal object Analytics {
         pending.clear(); timer?.cancel(); timer = null
     }
 
-    /** `properties` are public names, never content. */
-    fun capture(event: AnalyticsEvent, properties: Map<String, String> = emptyMap()) =
-        record(event.wire, properties.mapValues { JsonPrimitive(it.value) })
+    fun capture(event: AnalyticsEvent) = record(event.name, event.properties)
 
     /** One event for the signed-in account (merging the install ID into it once), else the install ID. */
     fun record(name: String, extra: Map<String, JsonElement>) {
@@ -93,8 +97,19 @@ internal object Analytics {
         } else enqueue(name, installId(stored), extra)
     }
 
+    /** `onboarding_completed`, once per phone until Start over (iOS: its `onboardingCompleted` default), whichever account. */
+    fun completeOnboarding(via: OnboardingVia) {
+        val stored = prefs ?: return
+        if (stored.getBoolean("onboarded", false)) return
+        stored.edit().putBoolean("onboarded", true).apply()
+        capture(AnalyticsEvent.OnboardingCompleted(via))
+    }
+
+    /** Start over: the next setup is onboarding again. */
+    fun forgetOnboarding() { prefs?.edit()?.remove("onboarded")?.apply() }
+
     /** `app_opened` once per trip to the foreground. */
-    fun becameActive() { if (!foreground) { foreground = true; capture(AnalyticsEvent.AppOpened) } }
+    fun becameActive(context: Context) { if (!foreground) { foreground = true; capture(AnalyticsEvent.AppOpened.of(context)) } }
 
     fun enteredBackground() { foreground = false; flush() }
 

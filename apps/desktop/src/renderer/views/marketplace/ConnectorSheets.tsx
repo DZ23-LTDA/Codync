@@ -56,6 +56,7 @@ export function InstallConnectorSheet({ item, requestId, done }: { item: MarketC
   return (
     <SheetPage>
       <ModalHeader
+        icon="point.3.connected.trianglepath.dotted"
         title="Add connector"
         trailing={saving ? <Spinner /> : <IconButton title="Add" icon="plus" disabled={installed === null && missing} onClick={() => void install()} />}
       />
@@ -153,7 +154,7 @@ export function CustomConnectorSheet() {
 
   return (
     <SheetPage>
-      <ModalHeader title="Custom connector" trailing={saving ? <Spinner /> : <IconButton title="Add" icon="plus" disabled={!ready} onClick={() => void save()} />} />
+      <ModalHeader icon="point.3.connected.trianglepath.dotted" title="Custom connector" trailing={saving ? <Spinner /> : <IconButton title="Add" icon="plus" disabled={!ready} onClick={() => void save()} />} />
       <CardForm>
         <CardSection footer={footer}>
           <SegmentedChoice selection={mode} onChange={setMode} options={[{ id: 'command', label: 'Command' }, { id: 'url', label: 'URL' }, { id: 'config', label: 'Config' }]} />
@@ -200,6 +201,7 @@ export function NewSkillSheet() {
   return (
     <SheetPage>
       <ModalHeader
+        icon="square.and.pencil"
         title="New skill"
         trailing={saving ? <Spinner /> : <IconButton title="Save" icon="checkmark" disabled={!name.trim() || !instructions.trim()} onClick={() => void save()} />}
       />

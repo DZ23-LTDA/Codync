@@ -17,7 +17,7 @@ import androidx.compose.ui.unit.dp
 import com.codync.android.design.*
 
 private val DETAILS = listOf(
-    Triple("chart.bar", "Features you use", "Opening the app, creating or deleting a bot, sending a message (how many attachments, never the files), running a routine or a voice call, installing a connector. Each comes with the app version, the platform, and the bot's agent and model."),
+    Triple("chart.bar", "Features you use", "Opening the app and its screens, setting up and pairing (and whether you allow notifications), creating or deleting a bot, sending a message (how many attachments, never the files), running a routine or a voice call, installing a connector. Each comes with the app version, the platform, and the bot's agent and model."),
     Triple("exclamationmark.triangle", "Crashes and errors", "When Codync crashes or an agent fails to answer: the kind of error and where in Codync's own code it happened. Never the error's message; file paths are cut down to Codync's own files."),
     Triple("globe", "Approximate location", "Country and city, looked up from your IP address. The IP address itself is never stored."),
     Triple("person.crop.circle", "Who it belongs to", "Your Codync account when you're signed in, otherwise a random ID made on this device."),
@@ -46,7 +46,7 @@ private val DETAILS = listOf(
             Row(Modifier.padding(horizontal = 2.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text("See the", style = Type.caption, color = Palette.secondary)
                 LinkButton("Privacy Policy", style = Type.caption.copy(textDecoration = androidx.compose.ui.text.style.TextDecoration.Underline),
-                    color = Palette.text) { uri.openUri("https://codync.dev/privacy") }
+                    color = Palette.text) { uri.open("https://codync.dev/privacy", OutboundLink.Privacy) }
                 Text("for details.", style = Type.caption, color = Palette.secondary)
             }
         }

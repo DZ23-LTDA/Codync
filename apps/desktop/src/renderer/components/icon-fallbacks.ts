@@ -41,6 +41,7 @@ const map: Record<string, IconNode> = {
   book: L.BookOpen,
   'book.closed': L.Book,
   'book.pages': L.BookOpenText,
+  brain: L.Brain,
   'bubble.left': L.MessageSquare,
   'bubble.left.fill': L.MessageSquare,
   'bubble.left.and.bubble.right': L.MessagesSquare,

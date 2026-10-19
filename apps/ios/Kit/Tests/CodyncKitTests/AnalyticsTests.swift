@@ -9,18 +9,19 @@ import Testing
 
     // On until turned off; off drops what's queued and records nothing more.
     #expect(analytics.isEnabled)
-    analytics.capture(.appOpened)
+    analytics.capture(.appOpened())
     #expect(analytics.pending.map(\.event) == ["app_opened"])
     analytics.setEnabled(false)
-    analytics.capture(.appOpened)
+    analytics.capture(.appOpened())
     #expect(analytics.pending.isEmpty)
 
     // Signed out: the install ID with its own person profile, the common properties.
     analytics.setEnabled(true)
-    analytics.capture(.computerPaired, ["via": "qr"])
+    analytics.capture(.computerPaired(via: .qr, computer: "AAECAwQFBgcICQoLDA0ODw"))
     let anon = try #require(analytics.pending.first)
     #expect(anon.event == "computer_paired")
     #expect(anon.properties["via"] == .string("qr"))
+    #expect(anon.properties["computer"] == .string("2d6878bee20aba04"))
     #expect(anon.properties["$process_person_profile"] == .bool(true))
     #expect(anon.properties["$lib"] == .string("codync-ios"))
     #expect(anon.properties["$os"] == .string("iOS"))
@@ -29,8 +30,8 @@ import Testing
 
     // Signed in: $identify links the install ID once, then events carry the user ID.
     analytics.userID = { "user_1" }
-    analytics.capture(.signedIn)
-    analytics.capture(.voiceCallStarted)
+    analytics.capture(.signedIn(.apple))
+    analytics.capture(.voiceCallStarted(.onDevice))
     let names = analytics.pending.map(\.event)
     #expect(names == ["computer_paired", "$identify", "signed_in", "voice_call_started"])
     let identify = analytics.pending[1]
@@ -44,6 +45,36 @@ import Testing
     // Turning it off drops what wasn't sent.
     analytics.setEnabled(false)
     #expect(analytics.pending.isEmpty)
+}
+
+@Test func eventPropertiesAreTypedAndUseTheCatalogNames() throws {
+    func json(_ event: AnalyticsEvent) throws -> String {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = .sortedKeys
+        return String(decoding: try encoder.encode(event.properties), as: UTF8.self)
+    }
+    // Booleans and counts go out as JSON booleans and numbers, not strings.
+    #expect(try json(.appOpened(notifications: .notAsked, widgets: 2)) == #"{"notifications":"not_asked","widgets":2}"#)
+    #expect(try json(.appOpened()) == "{}")
+    #expect(try json(.notificationsAnswered(granted: false, source: .widgets)) == #"{"granted":false,"source":"widgets"}"#)
+    #expect(try json(.settingChanged(.liveActivities, on: true)) == #"{"on":true,"setting":"live_activities"}"#)
+    // Multi-word values are snake_case, as in the catalog.
+    #expect(try json(.signInFailed(.google, reason: .cancelled)) == #"{"provider":"google","reason":"cancelled"}"#)
+    #expect(try json(.screenViewed(.botDetails)) == #"{"screen":"bot_details"}"#)
+    #expect(try json(.voiceCallStarted(.onDevice)) == #"{"engine":"on_device"}"#)
+    #expect(try json(.linkOpened(.installCommand)) == #"{"link":"install_command"}"#)
+    #expect(AnalyticsEvent.notificationOpened(.needsInput).name == "notification_opened")
+    #expect(AnalyticsEvent.NotificationKind(category: "needsInput") == .needsInput)
+    #expect(AnalyticsEvent.NotificationKind(category: "other") == nil)
+
+    // Why pairing failed: a category, never the error's text; called off isn't a failure.
+    #expect(AnalyticsEvent.PairingFailure(Pairing.Problem.outdatedHost) == .outdatedHost)
+    #expect(AnalyticsEvent.PairingFailure(HostError.http(401, "secret")) == .unauthorized)
+    #expect(AnalyticsEvent.PairingFailure(HostError.http(403, "This pairing code expired.")) == .expired)
+    #expect(AnalyticsEvent.PairingFailure(HostError.computerOffline(lastSeen: nil)) == .unreachable)
+    #expect(AnalyticsEvent.PairingFailure(URLError(.timedOut)) == .timeout)
+    #expect(AnalyticsEvent.PairingFailure(CocoaError(.fileNoSuchFile)) == .other)
+    #expect(AnalyticsEvent.PairingFailure(CancellationError()) == nil)
 }
 
 @MainActor
@@ -114,15 +145,15 @@ import Testing
     // The first launch ever has no session to put a crash in.
     let first = Analytics(defaults: defaults) { _ in false }
     first.recordCrash([:])
-    first.capture(.appOpened)
-    first.capture(.voiceCallStarted)
+    first.capture(.appOpened())
+    first.capture(.voiceCallStarted(.cloud))
     let sessions = first.pending.map { $0.properties["$session_id"] }
     #expect(sessions[0] == nil && sessions[1] != nil && sessions[1] == sessions[2])
 
     // The next launch starts its own session; a crash MetricKit reports then belongs to the last one.
     let next = Analytics(defaults: defaults) { _ in false }
     next.recordCrash([:])
-    next.capture(.appOpened)
+    next.capture(.appOpened())
     #expect(next.pending[0].properties["$session_id"] == sessions[1])
     #expect(next.pending[1].properties["$session_id"] != sessions[1])
 }

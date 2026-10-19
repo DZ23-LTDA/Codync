@@ -324,6 +324,7 @@ struct IntroCard: View {
 extension ThreadView {
     public var body: some View {
         conversation
+            .tracked(.screenViewed(.chat))
             .codyncSheet(item: $openThread) { target in
                 RepliesView(botId: botId, rootId: target.id) { closeThread() }
             }

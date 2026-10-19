@@ -46,8 +46,8 @@ struct RoutinesView: View {
                 do { try await Task.sleep(for: .seconds(3)) } catch { break }
             } while !Task.isCancelled
         }
-        // Item-based, so the editor always gets the routine it was opened on.
-        .codyncSheet(item: $editing) { target in
+        // Item-based, so the editor always gets the routine it was opened on; it opens once that routine is listed.
+        .codyncSheet(item: Binding(get: { editing.flatMap { $0.isReady(in: routines) ? $0 : nil } }, set: { editing = $0 })) { target in
             RoutineEditorView(botId: botId, routine: routines.first { $0.id == target.routineId }) { saved in
                 if let i = routines.firstIndex(where: { $0.id == saved?.id }), let saved { routines[i] = saved }
                 else if let saved { routines.append(saved) }
@@ -59,6 +59,8 @@ struct RoutinesView: View {
                 }
                 Task { await load() }
             }
+            // The list is part of bot details; a routine's editor is the routines screen, as on the desktop.
+            .tracked(.screenViewed(.routines))
         }
     }
 
@@ -164,8 +166,14 @@ struct RoutinesView: View {
     }
 }
 
-private struct EditorTarget: Identifiable {
+struct EditorTarget: Identifiable {
     /// One per opening; kept when a new routine is saved and the editor stays on it.
     let id: String
     let routineId: String?
+
+    /// A routine's editor waits until the routine is listed: a chat link can name one before the
+    /// first load (or the next poll), and an empty form would save defaults over it.
+    func isReady(in routines: [Routine]) -> Bool {
+        routineId == nil || routines.contains { $0.id == routineId }
+    }
 }

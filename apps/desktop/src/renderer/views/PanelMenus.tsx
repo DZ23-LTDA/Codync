@@ -4,7 +4,9 @@ import { Icon } from '../components/Icon'
 import type { MenuItem } from '../components/Overlay'
 import { HStack, IconSlot, VStack } from '../components/Stack'
 import { Text } from '../components/Text'
+import type { Link } from '@shared/analytics'
 import { account, useAccount } from '../store/account'
+import { openLink, useScreenViewed } from '../store/analytics'
 import googleLogo from '../assets/google.svg'
 
 // The chat window's floating panels: the account menu (with its profile avatar) and the roster's
@@ -50,6 +52,7 @@ export function AccountPanelLayer({ compact, approvals, onDismiss, onUsage, onSe
 }) {
   const [page, setPage] = useState<'main' | 'support'>('main')
   const { user, isBusy, errorMessage } = useAccount()
+  useScreenViewed('account')
   const signedIn = user !== null
   const auth: PanelItem[] = signedIn
     ? [{ title: isBusy ? 'Please wait…' : 'Sign out', icon: 'rectangle.portrait.and.arrow.right', disabled: isBusy, action: () => { onDismiss(); void account.signOut() } }]
@@ -57,20 +60,20 @@ export function AccountPanelLayer({ compact, approvals, onDismiss, onUsage, onSe
         { title: 'Continue with Apple', icon: 'apple.logo', disabled: isBusy, action: () => { onDismiss(); void account.signIn('apple') } },
         { title: 'Continue with Google', icon: 'person.crop.circle.badge.plus', image: googleLogo, disabled: isBusy, action: () => { onDismiss(); void account.signIn('google') } },
       ]
-  const open = (url: string) => {
+  const open = (url: string, link: Link) => {
     onDismiss()
-    window.codync.app.openExternal(url)
+    openLink(url, link)
   }
   const items: PanelItem[] =
     page === 'support'
       ? [
           { title: 'Support', icon: 'chevron.left', action: () => setPage('main') },
-          { title: 'Help & documentation', icon: 'book', chevron: true, action: () => open('https://github.com/leepokai/codync#readme') },
-          { title: 'Report an issue', icon: 'bubble.left', chevron: true, action: () => open('https://github.com/leepokai/codync/issues') },
+          { title: 'Help & documentation', icon: 'book', chevron: true, action: () => open('https://github.com/leepokai/codync#readme', 'docs') },
+          { title: 'Report an issue', icon: 'bubble.left', chevron: true, action: () => open('https://github.com/leepokai/codync/issues', 'issues') },
         ]
       : [
           { title: 'Usage', icon: 'gauge.with.dots.needle.33percent', chevron: true, action: onUsage },
-          { title: 'Get Codync for mobile', icon: 'iphone', action: () => open('https://apps.apple.com/app/id6760984418') },
+          { title: 'Get Codync for mobile', icon: 'iphone', action: () => open('https://apps.apple.com/app/id6760984418', 'app_store') },
           { title: 'Support', icon: 'book.closed', chevron: true, action: () => setPage('support') },
           { title: 'Settings', icon: 'gearshape', detail: approvals > 0 ? String(approvals) : null, action: onSettings },
           ...auth,

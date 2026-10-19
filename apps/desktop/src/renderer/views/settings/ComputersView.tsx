@@ -10,6 +10,7 @@ import { Text } from '../../components/Text'
 import { useModel } from '../../lib/observable'
 import { useAccount } from '../../store/account'
 import type { BotStore } from '../../store/bot-store'
+import { useScreenViewed } from '../../store/analytics'
 import { StoreContext, useApp } from '../../store/context'
 import { ComputerBadge } from '../ComputerBadge'
 import { deviceIcon, errorText, liveClient, relativeDay, Reveal, SectionHeader, statusText, thisMac } from './parts'
@@ -263,7 +264,7 @@ function ManagedComputerCard({ store, ssh: overSSH }: { store: BotStore; ssh: bo
         </StoreContext.Provider>
       </Sheet>
       <Sheet open={showPairing} onClose={() => setShowPairing(false)} width={340}>
-        <ModalHeader title={`Pair iPhone with ${name}`} />
+        <ModalHeader icon="qrcode" title={`Pair iPhone with ${name}`} />
         <PairingPanel store={store} />
       </Sheet>
       <Dialog
@@ -317,6 +318,7 @@ function deviceDetail(device: AuthorizedDevice) {
 /** A one-time pairing QR (v3) from a computer this app manages: its keys, a code, and how to reach it. */
 function PairingPanel({ store }: { store: BotStore }) {
   useModel(store)
+  useScreenViewed('pairing')
   const [info, setInfo] = useState<PairingInfo | null>(null)
   const [qr, setQr] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -423,7 +425,7 @@ function SSHProfileEditor({ profile: initial, isNew }: { profile: SSHProfile; is
   return (
     // Return in a field saves (the default action).
     <VStack className="settings-ssh-editor" onKeyDown={(e) => e.key === 'Enter' && e.target instanceof HTMLInputElement && void save()}>
-      <ModalHeader title={isNew ? 'Add SSH computer' : 'Edit SSH computer'} trailing={<IconButton title={isNew ? 'Add' : 'Save'} icon="checkmark" onClick={() => void save()} />} />
+      <ModalHeader icon="terminal" title={isNew ? 'Add SSH computer' : 'Edit SSH computer'} trailing={<IconButton title={isNew ? 'Add' : 'Save'} icon="checkmark" onClick={() => void save()} />} />
       <VStack gap={16} className="settings-ssh-editor-body">
         <CardSection>
           {field('Name', profile.name, (name) => setProfile({ ...profile, name }), 'Optional')}

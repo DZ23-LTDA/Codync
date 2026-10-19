@@ -294,6 +294,8 @@ fn open_store() -> Result<(store::Store, String, String)> {
     } else {
         let v = uuid::Uuid::new_v4().to_string();
         store.kv_set("host_id", &v)?;
+        // A new install, whichever command made it: its first start is `host_started.first_run`.
+        store.kv_set(analytics::KV_STARTED, "")?;
         v
     };
     let token = match store.kv_get("token") {
@@ -521,6 +523,7 @@ async fn serve(bind: &str, port: u16) -> Result<()> {
     tokio::task::spawn_blocking(backends::hydrate_path).await?;
     let hub = hub::Hub::new(store, host_id, identity, token, port);
     hub.start()?;
+    analytics::host_started(&hub, service::started_by_service());
     background::start(&hub);
     tracing::info!(version = env!("CARGO_PKG_VERSION"), bind, port, "codync-host listening");
     // Peer addresses: some settings may only be changed from this computer.

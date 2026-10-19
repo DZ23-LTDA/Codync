@@ -20,6 +20,8 @@ import { registerSSH } from './ssh'
 import { QuitLifecycle } from './quit-lifecycle'
 import { Island } from './island'
 import { registerErrorReports } from './error-reports'
+import { reportHostSetupFailure } from './analytics'
+import { launchAtLogin, openedAtLogin, setLaunchAtLogin, updateLoginItem } from './login-item'
 
 /** macOS's user-facing computer name, else the host name. */
 function computerName() {
@@ -36,6 +38,7 @@ if (!app.isPackaged && process.env.CODYNC_REMOTE_DEBUG) app.commandLine.appendSw
 
 const host = new HostController()
 registerErrorReports(host)
+host.on('setupFailed', reportHostSetupFailure)
 const account = new AccountService()
 const updates = new Updates(host)
 let chat: BrowserWindow | null = null
@@ -58,6 +61,8 @@ function snapshot(): HostSnapshot {
 /** The chat window: roster on the left, the conversation on the right (Grok Bot's desktop layout). */
 function openChat() {
   if (chat) {
+    // Shown again after being hidden (closed to the background): the launch itself is `app_opened`.
+    if (!chat.isVisible() && !chat.webContents.isLoading()) chat.webContents.send('app:command', { kind: 'windowOpened' } satisfies WindowCommand)
     chat.show()
     chat.focus()
     return chat
@@ -148,6 +153,7 @@ function registerIPC(tray: Tray) {
   registerFileSaves()
   ipcMain.on('app:version', (e) => (e.returnValue = app.getVersion()))
   ipcMain.on('app:computerName', (e) => (e.returnValue = computerName()))
+  ipcMain.on('app:openedAtLogin', (e) => (e.returnValue = openedAtLogin()))
   ipcMain.on('app:debugOpen', (e) => (e.returnValue = app.isPackaged ? null : (process.env.CODYNC_DEBUG_OPEN ?? null)))
   ipcMain.handle('host:snapshot', () => snapshot())
   ipcMain.on('host:install', () => void host.install())
@@ -180,11 +186,8 @@ function registerIPC(tray: Tray) {
     tray.hostChanged()
     return visible
   })
-  ipcMain.handle('app:launchAtLogin', () => app.getLoginItemSettings().openAtLogin)
-  ipcMain.handle('app:setLaunchAtLogin', (_e, on: boolean) => {
-    app.setLoginItemSettings({ openAtLogin: on })
-    return app.getLoginItemSettings().openAtLogin
-  })
+  ipcMain.handle('app:launchAtLogin', () => launchAtLogin())
+  ipcMain.handle('app:setLaunchAtLogin', (_e, on: boolean) => setLaunchAtLogin(on))
   ipcMain.handle('app:resetAllData', async () => {
     // Tell paired devices first: connected ones see "No access" at once, and the account drops
     // this computer instead of keeping an unreachable older copy of it.
@@ -222,6 +225,7 @@ if (!app.requestSingleInstanceLock()) {
     // would otherwise show Electron's.
     if (isMac && !app.isPackaged) app.dock?.setIcon(join(__dirname, '../../resources/icon.png'))
     applyDockVisibility()
+    updateLoginItem()
     const island = new Island({ url: rendererURL('island'), preload: join(__dirname, '../preload/index.js'), send, openApp: openChat, changed: () => tray.hostChanged() })
     const tray = new Tray({ openChat, openPairing, send, host, updates, island })
     updates.on('change', () => tray.hostChanged())

@@ -69,6 +69,7 @@ import com.kyant.shapes.Capsule
 }
 
 @Composable private fun ThreadView(bot: Bot, state: AppState, store: AppStore, edit: (Bot) -> Unit) {
+    AnalyticsOnAppear(AnalyticsEvent.ScreenViewed(AnalyticsScreen.Chat))
     val context = LocalContext.current
     var confirmNewSession by remember { mutableStateOf(false) }
     var confirmDelete by remember { mutableStateOf(false) }
@@ -127,9 +128,18 @@ import com.kyant.shapes.Capsule
         listOf(DialogAction("Open settings") { openAppSettings(context) })
     }
     // A thread over the chat, and "Full conversation" over either.
-    CodyncSheet(state.thread, { store.openBot(bot.id) }) { root -> RepliesView(bot, root, state, store, connect) }
-    CodyncSheet(state.trace, { store.showTrace(false) }) { TraceView(bot, state.thread, state) }
-    CodyncSheet(routines, { routines = false }) { RoutinesScreen(bot, state, store, routineId) }
+    CodyncSheet(state.thread, { store.openBot(bot.id) }) { root ->
+        AnalyticsOnAppear(AnalyticsEvent.ScreenViewed(AnalyticsScreen.Thread))
+        RepliesView(bot, root, state, store, connect)
+    }
+    CodyncSheet(state.trace, { store.showTrace(false) }) {
+        AnalyticsOnAppear(AnalyticsEvent.ScreenViewed(AnalyticsScreen.Trace))
+        TraceView(bot, state.thread, state)
+    }
+    CodyncSheet(routines, { routines = false }) {
+        AnalyticsOnAppear(AnalyticsEvent.ScreenViewed(AnalyticsScreen.Routines))
+        RoutinesScreen(bot, state, store, routineId)
+    }
     CodyncSheet(peer, { peer = null }) { BotConversationView(bot, it, state, store) }
     CodyncSheet(app, { app = null; setupEntry = null }) { ComposioConnectSheet(it, state, store, setupEntry) { store.refreshPlugins() } }
     CodyncSheet(connector, { connector = null; setupEntry = null }) { InstallConnectorSheet(it, state, store, setupEntry) }

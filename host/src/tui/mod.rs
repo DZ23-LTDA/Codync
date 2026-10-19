@@ -102,6 +102,7 @@ pub async fn run(url: String, token: Option<String>) -> Result<()> {
         }
         if dirty && !in_shell {
             app.tick();
+            app.report_screen();
             term.draw(|f| view::draw(f, &mut app))?;
             dirty = false;
         }

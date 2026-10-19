@@ -5,6 +5,7 @@ import { ModalHeader, Sheet, SheetPage } from '../../components/Overlay'
 import { HStack } from '../../components/Stack'
 import { Text } from '../../components/Text'
 import { useStore } from '../../store/context'
+import { useScreenViewed } from '../../store/analytics'
 import { UpdateNeededCard } from '../UpdateNeededCard'
 import { buildChat, rowIn, useArrivals } from './chat-items'
 import { ChatRow, WorkingIndicator } from './ChatRows'
@@ -20,6 +21,7 @@ import { useReading } from './reading'
 export function RepliesView({ botId, rootId, close }: { botId: string; rootId: string; close: () => void }) {
   const store = useStore()
   const chat = store.bots.get(botId) ?? null
+  useScreenViewed('thread')
   const root = store.allEntries(botId).find((e) => e.id === rootId)
   const replies = store.replies(botId, rootId)
   const live = !!chat && isWorkingIn(chat, botId, rootId) && !store.isOffline
