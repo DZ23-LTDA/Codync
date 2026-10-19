@@ -22,15 +22,15 @@ preference asks for it).
 While a release is available, an **Update** badge sits right of **Extensions** in the
 chat window's sidebar (`UpdateBadge`). After a confirmation it restarts into the release
 (`updates.install()`): straight away when it is staged, otherwise once its download
-finishes, without a second click. The badge hides while the release waits for the iPhone
-app and disappears once Codync runs the latest version.
+finishes, without a second click. The badge disappears once Codync runs the latest version.
 
-The app checks daily (hourly while a release waits for the iPhone app, below).
+The app checks daily.
 Automatic installation waits until no Codync window is focused, there has been no
 keyboard/mouse input for ten minutes, and the local host reports that it is idle.
 A staged update also installs when quitting. Manual installation can interrupt work.
-A release whose `latest-mac.yml` (`latest.yml` on Windows) names a `minApp` newer than the App Store's iPhone
-app waits while an iPhone is paired with this host.
+The release it finds is the one the release gate marked latest, so it always works with the
+iPhone app in the App Store
+([holding releases](../reference/compatibility.md#holding-releases-for-the-app-store)).
 
 Before replacement on macOS, Codync unregisters its screen helper and stops the host
 (`codync-host stop`), which runs from inside the app; on Linux the installed host keeps
@@ -115,9 +115,9 @@ Run `cd apps/desktop && npm run typecheck && npm test`. The updater tests load t
 actual main-process modules with fake Electron, service commands, network and
 timers; they never stop a real host or replace an installed app. Coverage includes
 manual and idle installation, renderer state broadcasts, download errors, repeated
-clicks, errors during shutdown, staged Quit, host restart markers and binary health
-checks, development-build exclusion, and iPhone compatibility holds. The native
-quit event ordering has a separate regression test and an updater integration test.
+clicks, errors during shutdown, staged Quit, host restart markers, binary health
+checks and development-build exclusion. The native quit event ordering has a
+separate regression test and an updater integration test.
 
 The macOS and Windows bundled-host branches and Linux's externally managed host
 branch run against simulated OS boundaries. These tests do not replace a signed
@@ -143,11 +143,10 @@ move to the desktop app; 2.7.1 is the first release they accept. Support ends
 need a manual download of the desktop app. Remove together:
 
 - the Sparkle part of **Update feeds** in `.github/workflows/release-desktop.yml`
-  (`generate_appcast`, `annotate-appcast.py`, `verify-appcast.py`) and `build/appcast.xml`
-  in the macOS artifact upload and in **Publish** (keep the step's `minApp` line for
-  `latest-mac.yml`, electron-updater reads it)
+  (`generate_appcast`, `verify-appcast.py`) and `build/appcast.xml` in the macOS artifact
+  upload and in **Publish**
 - `SUPublicEDKey` in `apps/desktop/electron-builder.yml`
-- `packaging/updates/annotate-appcast.py`, `verify-appcast.py`, `macos-public-key.txt`
+- `packaging/updates/verify-appcast.py`, `macos-public-key.txt`
 - the `SPARKLE_PRIVATE_KEY` secret (row below) and the appcast mentions in
   `docs/architecture/desktop-app.md` and `docs/reference/compatibility.md`
 
@@ -211,9 +210,9 @@ already distributed clients. Repository Actions secrets:
 | `HOST_UPDATE_SIGNING_KEY` | Separate base64 32-byte Ed25519 seed for host manifests |
 | `TAP_TOKEN` | Token that pushes `leepokai/homebrew-codync` (release gate) and the version tags (Auto Tag) |
 
-The desktop workflow signs and notarizes the Mac app, builds its DMG and zip, adds
-`minApp` to `latest-mac.yml` and generates `appcast.xml` for the zip; it builds the
-Linux AppImage, deb and tar.gz on x86_64 and arm64. The host
+The desktop workflow signs and notarizes the Mac app, builds its DMG and zip and
+generates `appcast.xml` for the zip; it builds the Linux AppImage, deb and tar.gz
+on x86_64 and arm64. The host
 workflow emits `codync-host-<platform>.update.json` and `.update.json.sig` alongside
 each archive. Signing fails if a private key does not match the committed public
 key. Never commit private keys or put them in command-line arguments.

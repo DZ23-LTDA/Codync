@@ -29,7 +29,7 @@ export function UpdateButton({ updates, kind = 'secondary' }: { updates: UpdateS
 export function UpdateBadge({ size }: { size: number }) {
   const updates = useUpdates()
   const [confirming, setConfirming] = useState(false)
-  if (!updates?.supported || !updates.availableVersion || updates.waitingForApp) return null
+  if (!updates?.supported || !updates.availableVersion) return null
   return (
     <>
       <button

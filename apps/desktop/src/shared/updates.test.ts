@@ -251,46 +251,6 @@ for (const block of ['disabled', 'focused', 'recentInput', 'busyHost'] as const)
   })
 }
 
-test('paired iPhones hold an incompatible release until the App Store catches up', async () => {
-  const f = updaterFixture()
-  f.updates.check()
-  await f.emit('update-available', { ...release, minApp: '2.11.0' })
-  assert.equal(f.updates.state.waitingForApp, '2.11.0')
-  assert.match(f.updates.state.error!, /iPhone app 2.11.0/)
-  assert.equal(f.calls.download, 0)
-  f.behavior.storeVersion = '2.11.0'
-  f.updates.check()
-  await f.emit('update-available', { ...release, minApp: '2.11.0' })
-  assert.equal(f.updates.state.waitingForApp, null)
-  assert.equal(f.calls.download, 1)
-})
-
-for (const condition of ['noPhones', 'compatibleHost', 'manualOffline'] as const) {
-  test(`compatibility permits download with ${condition}`, async () => {
-    const f = updaterFixture()
-    if (condition === 'noPhones') f.behavior.devices = []
-    if (condition === 'compatibleHost') f.behavior.minApp = '2.11.0'
-    if (condition === 'manualOffline') f.behavior.storeVersion = null
-    f.updates.check()
-    await f.emit('update-available', { ...release, minApp: '2.11.0' })
-    assert.equal(f.updates.state.waitingForApp, null)
-    assert.equal(f.calls.download, 1)
-  })
-}
-
-test('unattended updates wait when App Store or paired-device information is unknown', async () => {
-  const f = updaterFixture({ prefs: { updatesAutoDownload: true } })
-  f.behavior.storeVersion = null
-  f.behavior.hostFactsFail = true
-  await f.emit('update-available', { ...release, minApp: '2.11.0' })
-  assert.equal(f.calls.download, 0)
-  assert.equal(f.updates.state.waitingForApp, '2.11.0')
-  assert.equal(f.updates.state.error, null)
-  f.advance(3600_000)
-  await f.tick(3600_000)
-  assert.equal(f.calls.check, 1, 'held releases recheck hourly')
-})
-
 test('repeated clicks during host shutdown must invoke the installer once', async () => {
   const f = updaterFixture()
   const stopped = deferred()

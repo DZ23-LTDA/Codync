@@ -99,8 +99,6 @@ jobs:
           files: |
             codync-host-*.tar.gz
             codync-host-*.tar.gz.sha256
-            codync-host-*.compat.json
-            codync-host-*.compat.json.sig
       # The update manifest last: the release gate takes a release with all its feeds as fully uploaded.
       - uses: softprops/action-gh-release@v2
         with:

@@ -28,8 +28,8 @@ whole flow (`apps/desktop/src/shared/update-action.ts`, the same label in the tr
 Updates page and the update-needed card): **Check for updates** → **Update to <version>**
 → **Downloading… N%** (the Updates page adds a progress bar) → **Restart to update** →
 **Restarting…**. A finished download never quits the app on its own; the person restarts,
-or it installs once idle. While a release is available (and not waiting for the iPhone
-app), a filled arrow badge sits right of **Extensions** in the sidebar footer (under the
+or it installs once idle. While a release is available, a filled arrow badge sits right
+of **Extensions** in the sidebar footer (under the
 Extensions icon in the collapsed rail), tooltip **Update**; it asks **Update to Codync
 <version>?** and then restarts into the release, downloading it first if needed, and it
 is gone once the app runs the latest version. The TUI action list has **Check for updates**. Download and

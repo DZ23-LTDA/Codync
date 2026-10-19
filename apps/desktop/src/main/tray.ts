@@ -161,13 +161,9 @@ export class Tray {
     const u = updates.state
     const items: Electron.MenuItemConstructorOptions[] = [
       { ...updateAction(u), click: () => updates.check() },
-    ]
-    // The release waits until paired iPhones can get the app it needs.
-    if (u.waitingForApp) items.push({ label: `Waiting for iPhone app ${u.waitingForApp} to pass App Store review`, enabled: false })
-    items.push(
       { label: 'Automatically check for updates', type: 'checkbox', checked: u.autoCheck, enabled: u.supported, click: () => updates.emit('setAutoCheck', !u.autoCheck) },
       { label: 'Automatically download and install', type: 'checkbox', checked: u.autoDownload, enabled: u.supported, click: () => updates.emit('setAutoDownload', !u.autoDownload) },
-    )
+    ]
     if (!u.supported) items.push({ label: 'Updates are available in release builds.', enabled: false })
     if (u.lastCheck) items.push({ label: `Last checked: ${new Date(u.lastCheck).toLocaleString()}`, enabled: false })
     if (u.error) {
