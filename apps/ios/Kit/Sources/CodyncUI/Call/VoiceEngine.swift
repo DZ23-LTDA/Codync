@@ -34,6 +34,18 @@ protocol VoiceEngine: AnyObject, Observable {
     func announce(_ notice: String)
 }
 
+extension VoiceEngine {
+    /// The engine's name in analytics.
+    var analyticsName: AnalyticsEvent.VoiceEngine {
+        if self is CloudSpeechEngine { return .cloud }
+        return switch provider {
+        case .openAI: .openai
+        case .gemini: .gemini
+        case nil: .onDevice
+        }
+    }
+}
+
 struct VoiceError: LocalizedError {
     let message: String
     init(_ message: String) { self.message = message }

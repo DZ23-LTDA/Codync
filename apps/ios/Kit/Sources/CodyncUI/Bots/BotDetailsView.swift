@@ -51,6 +51,7 @@ struct BotDetailsView: View {
         .scrollDismissesKeyboard(.interactively)
         .background(Palette.background)
         .overlay(alignment: .topTrailing) { actions }
+        .tracked(.screenViewed(.botDetails))
         .task(id: botId) { draft = bot.map(BotDraft.init) }
         .onChange(of: draft) { _, draft in autosave(draft) }
         .codyncSheet(item: $template) { BotTemplateView(draft: $0.draft) }

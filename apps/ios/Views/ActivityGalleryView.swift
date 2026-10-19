@@ -34,7 +34,11 @@ struct ActivityGalleryView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
                 VStack(alignment: .leading, spacing: 10) {
-                    Toggle(island ? "Show in Dynamic Island" : "Show Live Activities", isOn: $enabled)
+                    // Recorded from the switch itself: both galleries share the setting and stay alive.
+                    Toggle(island ? "Show in Dynamic Island" : "Show Live Activities", isOn: Binding(get: { enabled }, set: { on in
+                        enabled = on
+                        Analytics.shared.capture(.settingChanged(.liveActivities, on: on))
+                    }))
                         .toggleStyle(.codync)
                         .font(.subheadline.weight(.medium))
                     Text(island

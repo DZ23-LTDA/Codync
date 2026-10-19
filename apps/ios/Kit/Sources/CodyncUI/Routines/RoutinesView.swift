@@ -59,6 +59,8 @@ struct RoutinesView: View {
                 }
                 Task { await load() }
             }
+            // The list is part of bot details; a routine's editor is the routines screen, as on the desktop.
+            .tracked(.screenViewed(.routines))
         }
     }
 

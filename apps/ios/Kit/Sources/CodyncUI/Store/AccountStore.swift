@@ -162,6 +162,7 @@ public final class AccountStore {
         }
         let ticket = try await cloud.requestAccess(id, signKey: target.signKey)
         guard !retired else { throw CancellationError() }
+        Analytics.shared.capture(.accessRequested)
         setPending(id, ticket)
         accessPolls[id]?.cancel()
         accessPolls[id] = Task { [weak self] in await self?.awaitApproval(ticket, target: target, cloud: cloud) }
@@ -239,6 +240,7 @@ public final class AccountStore {
         guard let ticket = pendingAccess[id] else { return }
         accessPolls.removeValue(forKey: id)?.cancel()
         setPending(id, nil)
+        Analytics.shared.capture(.accessRequestFailed(.cancelled))
         do {
             try await cloud?.cancelAccess(ticket.requestId)
         } catch {
@@ -262,11 +264,17 @@ public final class AccountStore {
                                         cloud: cloud.baseURL, device: target.device)
                 save(computer)
                 open(computer)
-                Analytics.shared.capture(.computerPaired, ["via": "account", "computer": Analytics.computerTag(computer.id)])
+                Analytics.shared.capture(.computerPaired(via: .account, computer: computer.id))
                 await refreshCloud()
                 return
             case .denied, .expired, .cancelled:
                 setPending(ticket.computerId, nil)
+                let reason: AnalyticsEvent.AccessFailure = switch status.status {
+                case .denied: .denied
+                case .expired: .expired
+                default: .cancelled
+                }
+                Analytics.shared.capture(.accessRequestFailed(reason))
                 lastError = status.status == .denied ? "\(target.name) declined the request." : "The request expired. Ask again."
                 return
             }

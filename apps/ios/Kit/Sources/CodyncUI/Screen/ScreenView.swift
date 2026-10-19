@@ -58,6 +58,7 @@ public struct ScreenView: View {
         .statusBarHidden()
         .persistentSystemOverlays(.hidden)
         .preferredColorScheme(.dark)
+        .tracked(.screenViewed(.remoteScreen))
         .onAppear {
             OrientationLock.viewerAppeared()
             start()

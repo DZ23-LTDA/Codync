@@ -74,7 +74,10 @@ struct SettingsView: View {
             CardSection("Notifications", footer: "Get a result summary, a request for input, or a failure notice. Notification previews follow your iOS settings.") {
                 Toggle("Push notifications", isOn: $notificationsEnabled)
                     .toggleStyle(.codync)
-                    .onChange(of: notificationsEnabled) { PushRegistrar.shared.resync() }
+                    .onChange(of: notificationsEnabled) { _, on in
+                        PushRegistrar.shared.resync()
+                        Analytics.shared.capture(.settingChanged(.push, on: on))
+                    }
                 notificationsRow
             }
 
@@ -109,7 +112,10 @@ struct SettingsView: View {
 
             CardSection {
                 ValueRow("App version", value: Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "")
-                Button("Source code") { openURL(URL(string: "https://github.com/leepokai/Codync")!) }
+                Button("Source code") {
+                    Analytics.shared.capture(.linkOpened(.github))
+                    openURL(URL(string: "https://github.com/leepokai/Codync")!)
+                }
                     .buttonStyle(.plain)
                     .foregroundStyle(Palette.text)
             }
@@ -136,6 +142,8 @@ struct SettingsView: View {
         }
         .refreshable { await accounts.refreshCloud() }
         .page("Computers & settings", pushed: pushed)
+        // One screen, named for the way in (as on Android): Accounts → settings, the Computers sheet → computers.
+        .tracked(.screenViewed(pushed ? .settings : .computers))
         .task { await accounts.refreshCloud() }
         .codyncSheet(isPresented: $addingComputer) {
             PairingView(inModal: true)
@@ -218,7 +226,7 @@ struct SettingsView: View {
             if notificationsAllowed != nil {
                 UIApplication.shared.open(URL(string: UIApplication.openNotificationSettingsURLString)!)
             } else {
-                Task { notificationsAllowed = await PushRegistrar.shared.requestAuthorization() }
+                Task { notificationsAllowed = await PushRegistrar.shared.requestAuthorization(from: .settings) }
             }
         } label: {
             ValueRow("Notifications", value: notificationsAllowed == true ? "On" : notificationsAllowed == false ? "Off in Settings" : "Turn on")

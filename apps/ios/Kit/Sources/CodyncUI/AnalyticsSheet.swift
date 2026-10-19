@@ -5,7 +5,7 @@ import SwiftUI
 /// desktop app's and the terminal UI's, true to the privacy policy.
 public struct AnalyticsSheet: View {
     private static let details: [(icon: String, title: String, detail: String)] = [
-        ("chart.bar", "Features you use", "Opening the app, creating or deleting a bot, sending a message (how many attachments, never the files), running a routine or a voice call, installing a connector. Each comes with the app version, the platform, and the bot's agent and model."),
+        ("chart.bar", "Features you use", "Opening the app and its screens, setting up and pairing (and whether you allow notifications), creating or deleting a bot, sending a message (how many attachments, never the files), running a routine or a voice call, installing a connector. Each comes with the app version, the platform, and the bot's agent and model."),
         ("exclamationmark.triangle", "Crashes and errors", "When Codync crashes or an agent fails to answer: the kind of error and where in Codync's own code it happened. Never the error's message; file paths are cut down to Codync's own files."),
         ("globe", "Approximate location", "Country and city, looked up from your IP address. The IP address itself is never stored."),
         ("person.crop.circle", "Who it belongs to", "Your Codync account when you're signed in, otherwise a random ID made on this device."),
@@ -51,6 +51,7 @@ public struct AnalyticsSheet: View {
                     .foregroundStyle(Palette.secondary)
                     .tint(Palette.text)
                     .padding(.horizontal, 2)
+                    .trackedLinks(.privacy)
             }
         }
         .background(Palette.background)

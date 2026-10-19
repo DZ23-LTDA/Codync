@@ -24,7 +24,7 @@ struct RootView: View {
                     WelcomeView { withAnimation(Motion.reduced(Motion.layout, reduceMotion)) { welcomed = true } }
                         .transition(.move(edge: .leading).combined(with: .opacity))
                 } else {
-                    PairingView(onSkip: { onboardingCompleted = true }) {
+                    PairingView(onSkip: { completeOnboarding(via: .skipped) }) {
                         if account.isSignedIn {
                             AccountSwitcherButton()
                         } else {
@@ -41,7 +41,7 @@ struct RootView: View {
         .onChange(of: accounts.computers.isEmpty && accounts.cloudComputers.isEmpty, initial: true) { _, empty in
             // Pairing, signing in to an account that has computers, or explicitly skipping completes
             // setup. Keep this device-level milestone across account changes and unpairing.
-            if !empty { onboardingCompleted = true }
+            if !empty { completeOnboarding(via: accounts.cloudComputers.isEmpty ? .paired : .account) }
         }
         .codyncDialog("Something went wrong", isPresented: errorShown, message: errorMessage, cancel: "OK", inPlace: true) { [] }
         .codyncOverlay(isPresented: Binding(get: { screenTarget.wrappedValue != nil }, set: { if !$0 { screenTarget.wrappedValue = nil } })) { close in
@@ -88,8 +88,16 @@ struct RootView: View {
             }
         }
         .tint(Palette.text)
+        .tracked(.screenViewed(app.tab == .bots ? .bots : .state))
         // Opening a bot (notification, widget, link) always lands on the Bots tab.
         .onChange(of: accounts.selection) { _, ref in if ref != nil { app.tab = .bots } }
+    }
+
+    /// Once per setup (Start over begins a new one): the first computer reached, or Skip.
+    private func completeOnboarding(via: AnalyticsEvent.OnboardingVia) {
+        guard !onboardingCompleted else { return }
+        onboardingCompleted = true
+        Analytics.shared.capture(.onboardingCompleted(via: via))
     }
 
     // MARK: one place for every computer's errors and screen requests
@@ -237,6 +245,7 @@ private struct UsageSheet: View {
             }
         }
         .background(Palette.background)
+        .tracked(.screenViewed(.usage))
     }
 }
 
