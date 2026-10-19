@@ -99,6 +99,11 @@ or `brew reinstall leepokai/codync/codync-host`, then run `codync-host install`.
 `codync-host uninstall` removes the background service, not the executable or
 saved bots, so it is not a complete application uninstall.
 
+Reinstalling gets the latest release, which can be older than what is installed while a
+newer release waits for App Review
+([holding releases](../reference/compatibility.md#holding-releases-for-the-app-store)); then
+download the installed version from its release page instead.
+
 After reinstalling, confirm the app version and that the computer reconnects.
 Existing bots and pairings should remain when the original data and keys are
 kept. Repair the app on the affected computer: an SSH-connected Mac mini must
@@ -121,11 +126,14 @@ percentage, staged, restarting, errors) and the labels of the shared update acti
 not the rendering itself.
 
 The release workflow publishes `latest-mac.yml`, `latest.yml` and `latest-linux*.yml`
-after the app archives they point at, so an install never offers a release it can't
-download yet. macOS build versions follow the marketing version; the iOS build
-counter is independent. Installs of the SwiftUI Mac app that preceded the desktop
-app still read the Sparkle appcast; the release workflow generates one for the
-desktop zip, so those installs move to the desktop app.
+after the app archives they point at. Installs read the release GitHub marks *latest*,
+which only the release gate sets: once every feed is up and the App Store has an iPhone
+app the release serves
+([holding releases](../reference/compatibility.md#holding-releases-for-the-app-store)).
+macOS build versions follow the marketing version; the iOS build counter is independent.
+Installs of the SwiftUI Mac app that preceded the desktop app still read the Sparkle
+appcast; the release workflow generates one for the desktop zip, so those installs move
+to the desktop app.
 
 ### Deprecated: the Sparkle migration appcast (remove after 2026-11-06)
 
@@ -186,11 +194,12 @@ with the commands above, independently of the app.
 
 ## Release configuration
 
-Both workflows (`host.yml`, `release-desktop.yml`) run for a `vMAJOR.MINOR.PATCH` tag. Keep the host Cargo version,
-`apps/desktop/package.json` and the marketing version aligned before tagging; the
-desktop workflow fails when the app and host versions differ. The host workflow refuses a
-tag/version mismatch. Existing clients without this updater need one manual
-upgrade to adopt it.
+Both workflows (`host.yml`, `release-desktop.yml`) run for a `vMAJOR.MINOR.PATCH` tag and publish
+without the *latest* mark; `release-gate.yml` sets it and updates the Homebrew tap (secret
+`TAP_TOKEN`). Keep the host Cargo version, `apps/desktop/package.json` and the marketing
+version aligned before tagging; the desktop workflow fails when the app and host versions
+differ. The host workflow refuses a tag/version mismatch. Existing clients without this
+updater need one manual upgrade to adopt it.
 
 Public keys are committed in `packaging/updates/`. Keep their corresponding
 private keys backed up securely; replacing a public key breaks updates for
@@ -200,6 +209,7 @@ already distributed clients. Repository Actions secrets:
 | --- | --- |
 | `SPARKLE_PRIVATE_KEY` | Sparkle's base64 Ed25519 private key export (the migration appcast; deprecated, see above) |
 | `HOST_UPDATE_SIGNING_KEY` | Separate base64 32-byte Ed25519 seed for host manifests |
+| `TAP_TOKEN` | Token that pushes `leepokai/homebrew-codync` (release gate) and the version tags (Auto Tag) |
 
 The desktop workflow signs and notarizes the Mac app, builds its DMG and zip, adds
 `minApp` to `latest-mac.yml` and generates `appcast.xml` for the zip; it builds the
