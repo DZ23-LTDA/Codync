@@ -111,7 +111,7 @@ const reviewFix = confirmed.length ? await fix('review findings', confirmed) : n
 
 const walk = (round) => agent(`End-to-end test a code change on the real apps, ${e2e} e2e as CLAUDE.md "End-to-end test every change" defines it (minimal: only this computer's platform; full: also Lima Linux and the UTM Windows VM, skipping and reporting a VM that isn't installed).
 ${scope}
-Walk the flows the change touches, as a person would, and note what you saw. Stop the old build before installing the new one. In this worktree \`npm run dev\` in apps/desktop runs an isolated sandbox (docs/guides/dev-app.md#worktree-sandboxes); never stop or replace the shared Codync Dev, the production Codync app or another session's sandbox, and when done leave this worktree's `npm run dev` running (it is stopped after the merge) but stop anything else you started. A change with nothing to walk (CI, tools, docs) reports one not_run check saying so.${round > 1 ? ' This is the second walk, after fixes for the failures of the first.' : ''}`,
+Walk the flows the change touches, as a person would, and note what you saw. Stop the old build before installing the new one. In this worktree \`npm run dev\` in apps/desktop runs an isolated sandbox (docs/guides/dev-app.md#worktree-sandboxes); never stop or replace the shared Codync Dev, the production Codync app or another session's sandbox, and when done leave this worktree's \`npm run dev\` running (it is stopped after the merge) but stop anything else you started. A change with nothing to walk (CI, tools, docs) reports one not_run check saying so.${round > 1 ? ' This is the second walk, after fixes for the failures of the first.' : ''}`,
   { label: `e2e:${round}`, phase: 'E2E', schema: CHECKS })
 
 phase('E2E')
