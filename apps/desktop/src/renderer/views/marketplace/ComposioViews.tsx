@@ -157,7 +157,7 @@ export function ComposioKeySheet({ status, done }: { status: ComposioStatus | nu
   const keyUrl = status?.keyUrl ?? 'https://platform.composio.dev'
   return (
     <SheetPage>
-      <ModalHeader title="Composio" trailing={saving ? <Spinner /> : <IconButton title="Save" icon="checkmark" disabled={!key.trim()} onClick={() => void save(key)} />} />
+      <ModalHeader icon="square.grid.3x3" title="Composio" trailing={saving ? <Spinner /> : <IconButton title="Save" icon="checkmark" disabled={!key.trim()} onClick={() => void save(key)} />} />
       <CardForm>
         <CardSection
           title="Composio API key"

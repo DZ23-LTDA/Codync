@@ -106,7 +106,7 @@ export function ConnectionRequestCard({ entry }: { entry: Entry }) {
       <FormSheet open={app !== null} onClose={() => setApp(null)}>
         {app ? <ComposioConnectSheet app={app} requestId={entry.id} done={() => setApp(null)} /> : null}
       </FormSheet>
-      <FormSheet open={agent !== null} onClose={() => setAgent(null)} width={560} height={560}>
+      <FormSheet open={agent !== null} onClose={() => setAgent(null)} width={560} height={560} fixed>
         {agent ? <AgentSheet key={agent.id} initial={agent} recheck /> : null}
       </FormSheet>
     </VStack>

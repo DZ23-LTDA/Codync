@@ -330,10 +330,10 @@ export function MarketplaceView({ computers, computer, onComputer, appsFirst = f
       <FormSheet open={viewingSkill !== null} onClose={() => setViewingSkill(null)}>
         {viewingSkill ? <SkillSheet key={viewingSkill.name} skill={viewingSkill} /> : null}
       </FormSheet>
-      <FormSheet open={addingNode} onClose={() => setAddingNode(false)} width={560} height={560}>
+      <FormSheet open={addingNode} onClose={() => setAddingNode(false)} width={560} height={560} fixed>
         {addingNode ? <SetupTerminalView backend={null} step="node" back={() => setAddingNode(false)} /> : null}
       </FormSheet>
-      <FormSheet open={agent !== null} onClose={() => setAgent(null)} width={560} height={560}>
+      <FormSheet open={agent !== null} onClose={() => setAgent(null)} width={560} height={560} fixed>
         {agent ? <AgentSheet key={agent.id} initial={agent} /> : null}
       </FormSheet>
     </>

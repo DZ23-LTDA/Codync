@@ -188,17 +188,12 @@ export function AgentSheet({ initial, recheck = false }: { initial: Backend; rec
 
   const overview = (
     <SheetPage>
-      <ModalHeader title={backend.name} />
+      <ModalHeader
+        icon={<AgentTile registry={backend.registry ?? backend.id} icon={18} tile={32} radius={9} />}
+        title={backend.name}
+        subtitle={backend.description || undefined}
+      />
       <CardForm>
-        <CardSection>
-          <HStack gap={14} className="market-card-header">
-            <AgentTile registry={backend.registry ?? backend.id} icon={30} tile={52} radius={14} />
-            <VStack gap={2} shrink>
-              <Text size="title3" weight="semibold">{backend.name}</Text>
-              {backend.description ? <Text size="subheadline" tone="secondary" lines={3}>{backend.description}</Text> : null}
-            </VStack>
-          </HStack>
-        </CardSection>
         {curated ? (
           <CardSection>
             <SetupStepRow

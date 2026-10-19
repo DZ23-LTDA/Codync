@@ -34,7 +34,7 @@ export function ApprovalSheet({ approval }: { approval: Approval }) {
 
   return (
     <VStack className="settings-approval">
-      <ModalHeader title="Access request" />
+      <ModalHeader icon="lock.shield" title="Access request" />
       <VStack align="center" gap={16} className="settings-approval-body">
         <Icon name={deviceIcon(request.platform)} size={40} weight="light" color="var(--secondary)" />
         <VStack align="center" gap={4}>

@@ -263,7 +263,7 @@ function ManagedComputerCard({ store, ssh: overSSH }: { store: BotStore; ssh: bo
         </StoreContext.Provider>
       </Sheet>
       <Sheet open={showPairing} onClose={() => setShowPairing(false)} width={340}>
-        <ModalHeader title={`Pair iPhone with ${name}`} />
+        <ModalHeader icon="qrcode" title={`Pair iPhone with ${name}`} />
         <PairingPanel store={store} />
       </Sheet>
       <Dialog
@@ -423,7 +423,7 @@ function SSHProfileEditor({ profile: initial, isNew }: { profile: SSHProfile; is
   return (
     // Return in a field saves (the default action).
     <VStack className="settings-ssh-editor" onKeyDown={(e) => e.key === 'Enter' && e.target instanceof HTMLInputElement && void save()}>
-      <ModalHeader title={isNew ? 'Add SSH computer' : 'Edit SSH computer'} trailing={<IconButton title={isNew ? 'Add' : 'Save'} icon="checkmark" onClick={() => void save()} />} />
+      <ModalHeader icon="terminal" title={isNew ? 'Add SSH computer' : 'Edit SSH computer'} trailing={<IconButton title={isNew ? 'Add' : 'Save'} icon="checkmark" onClick={() => void save()} />} />
       <VStack gap={16} className="settings-ssh-editor-body">
         <CardSection>
           {field('Name', profile.name, (name) => setProfile({ ...profile, name }), 'Optional')}

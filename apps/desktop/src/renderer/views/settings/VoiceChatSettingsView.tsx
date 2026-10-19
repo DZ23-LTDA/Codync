@@ -31,7 +31,7 @@ export function VoiceChatSettingsView({ showsHeader = true }: { showsHeader?: bo
       : onDeviceUnavailableReason()
   return (
     <SheetPage className={showsHeader ? 'settings-voice-sheet' : undefined}>
-      {showsHeader ? <ModalHeader title="Voice chat" /> : null}
+      {showsHeader ? <ModalHeader icon="waveform" title="Voice chat" /> : null}
       <div className="settings-voice-body">
         <CardForm>
           <CardSection title="Voice" footer={footer}>

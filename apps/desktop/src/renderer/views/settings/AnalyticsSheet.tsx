@@ -21,7 +21,7 @@ const details = [
 export function AnalyticsSheet() {
   return (
     <SheetPage>
-      <ModalHeader title="Usage analytics" />
+      <ModalHeader icon="chart.bar" title="Usage analytics" />
       <CardForm>
         <CardSection
           footer={

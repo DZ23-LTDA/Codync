@@ -102,7 +102,7 @@ export function MemoryCard({ botId }: { botId: string }) {
       </CardSection>
     </div>
     <Sheet open={draft !== null} onClose={() => setDraft(null)} width={520}>
-      <ModalHeader title={draft?.id ? 'Edit memory' : section === 'yours' ? 'Add to what your bots share' : 'Add memory'} />
+      <ModalHeader icon="brain" title={draft?.id ? 'Edit memory' : section === 'yours' ? 'Add to what your bots share' : 'Add memory'} />
       {draft && <div className="memory-editor">
         <textarea aria-label="Memory" rows={3} autoFocus placeholder="One short fact" value={draft.text}
           onChange={(e) => setDraft({ ...draft, text: e.target.value })}

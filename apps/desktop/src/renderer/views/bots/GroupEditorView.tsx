@@ -62,7 +62,7 @@ export function GroupEditorView({ group, members: initialMembers = [] }: { group
 
   return (
     <SheetPage>
-      <ModalHeader title={isNew ? 'New group chat' : 'Group chat'} trailing={saving ? <Spinner /> : <IconButton title={isNew ? 'Create' : 'Save'} icon="checkmark" disabled={!canSave} onClick={save} />} />
+      <ModalHeader icon="person.2" title={isNew ? 'New group chat' : 'Group chat'} trailing={saving ? <Spinner /> : <IconButton title={isNew ? 'Create' : 'Save'} icon="checkmark" disabled={!canSave} onClick={save} />} />
       <div className="group-scroll">
         <div className="group-form">
           <div className="group-identity">

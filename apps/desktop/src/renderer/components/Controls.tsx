@@ -117,6 +117,24 @@ export function TabChoice<T extends string>({ label, selection, options, onChang
   )
 }
 
+/** Picks one of a few values as wrapping plain labels, the chosen one on a light capsule; `title` names a short label in full. */
+export function ChipChoice<T extends string | number>({ label, selection, options, onChange }: {
+  label: string
+  selection: T
+  options: readonly { id: T; label: string; title?: string }[]
+  onChange: (id: T) => void
+}) {
+  return (
+    <HStack gap={2} wrap role="radiogroup" aria-label={label}>
+      {options.map((o) => (
+        <button key={o.id} role="radio" aria-checked={o.id === selection} aria-label={o.title} title={o.title} className={`chip-choice${o.id === selection ? ' on' : ''}`} onClick={() => onChange(o.id)}>
+          {o.label}
+        </button>
+      ))}
+    </HStack>
+  )
+}
+
 /** A list of choices, one per row with a checkmark: the replacement for `.inline` pickers. */
 export function ChoiceList<T extends string>({ selection, options, onChange }: { selection: T; options: { id: T; label: string; detail?: string | null }[]; onChange: (id: T) => void }) {
   return (

@@ -178,6 +178,7 @@ function ConnectorCredentialEditor({ connector }: { connector: InstalledConnecto
   return (
     <SheetPage>
       <ModalHeader
+        icon="key"
         title={connector.name}
         trailing={saving ? <Spinner /> : <IconButton title="Save credentials" icon="checkmark" disabled={Object.values(fields).every((v) => !v)} onClick={() => void save()} />}
       />
