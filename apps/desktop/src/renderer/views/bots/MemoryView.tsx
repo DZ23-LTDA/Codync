@@ -85,8 +85,8 @@ export function MemoryCard({ botId }: { botId: string }) {
           ...view.dreams.map((dream) => <div className="memory-item fade-in" key={dream.id}>
             <div className="memory-content">
               <strong>{relativeTime.day(dream.at)}{dream.undone ? ' · undone' : ''}</strong>
-              {dream.added.map((c) => <span key={`a${c.id}`}>+ {c.text}</span>)}
-              {dream.archived.map((c) => <span key={`r${c.id}`} className="memory-archived">− {c.text}</span>)}
+              {dream.added.map((c) => <span key={`a${c.id}`} className="line-clamp memory-clamp" title={c.text}>+ {c.text}</span>)}
+              {dream.archived.map((c) => <span key={`r${c.id}`} className="line-clamp memory-clamp memory-archived" title={c.text}>− {c.text}</span>)}
               {(dream.files ?? []).map((f) => <span key={`f${f.version}`} className="memory-muted">Added to {f.name}</span>)}
             </div>
             {!dream.undone && <IconButton title="Undo this dream" icon="arrow.uturn.backward" disabled={memory.busy} onClick={() => void memory.mutate('undoDream', { id: dream.id })} />}
@@ -129,7 +129,7 @@ function EntryRow({ entry, memory, edit }: { entry: MemoryEntry; memory: MemoryS
   const archived = entry.state === 'archived'
   return <div className="memory-item fade-in">
     <button className="press memory-content" onClick={edit}>
-      <strong className={archived ? 'memory-archived' : undefined}>{entry.pinned && <Icon name="pin.fill" size={10} color="var(--secondary)" />}{entry.text}</strong>
+      <strong className={archived ? 'memory-archived' : undefined}>{entry.pinned && <Icon name="pin.fill" size={10} color="var(--secondary)" />}<span className="line-clamp memory-clamp" title={entry.text}>{entry.text}</span></strong>
       <small>{authorLabel(entry, (id) => host.authorName(id))} · {relativeTime.day(entry.updatedAt)}{archived ? ' · archived' : ''}</small>
     </button>
     <DropdownMenu className="icon-button memory-menu" title="Memory actions" items={() => [
