@@ -95,7 +95,8 @@ builds PostHog frames itself (oldest first, the failing one last): generic `cust
   address). PostHog symbolicates them with the release's dSYMs, which the *iOS dSYMs* workflow
   uploads from its Xcode Cloud archive after *Submit iOS* (`tools/upload-dsyms.py`, secret
   `POSTHOG_CLI_API_KEY`: a personal API key with *error tracking write* on this project). A frame
-  it can't resolve, such as the system's, shows `binary + offset`. Process `ios`.
+  it can't resolve, such as the system's, shows `binary + offset`. Process `ios`. Reading one,
+  older versions and fixes: [iPhone crash tracing](../guides/iphone-crash-tracing.md).
 - **Android** (`CrashReports.kt`): an uncaught exception is written down as it happens and sent
   on the next launch: its type and frames (class, method, file name, line), never the message.
   Process `android`.
