@@ -154,28 +154,12 @@ jobs:
           cd apps/desktop/dist
           shasum -a 256 codync-macos.dmg > codync-macos.dmg.sha256
           FILES="codync-macos.dmg codync-macos.dmg.sha256 codync-macos.zip codync-macos.zip.blockmap"
-          # The host workflow may have created this release already (same tag).
-          gh release create "$GITHUB_REF_NAME" $FILES --title "Codync $GITHUB_REF_NAME" --generate-notes ||
+          # Auto Tag or the host workflow has usually created this release already (same tag). Not
+          # latest: release-gate.yml marks it (and updates the Homebrew tap) once it's safe to offer.
+          gh release create "$GITHUB_REF_NAME" $FILES --title "Codync $GITHUB_REF_NAME" --generate-notes --latest=false ||
             gh release upload "$GITHUB_REF_NAME" $FILES --clobber
-          # Update feeds last: installed apps offer the release once they see them, so the files
-          # they point at must already be downloadable.
+          # Update feeds last: the release gate takes a release with all its feeds as fully uploaded.
           gh release upload "$GITHUB_REF_NAME" latest-mac.yml ../../../build/appcast.xml --clobber
-
-      - name: Update Homebrew tap
-        if: startsWith(github.ref, 'refs/tags/')
-        run: |
-          VERSION=${GITHUB_REF_NAME#v}
-          SHA=$(shasum -a 256 apps/desktop/dist/codync-macos.dmg | awk '{print $1}')
-          git clone https://x-access-token:${{ secrets.TAP_TOKEN }}@github.com/leepokai/homebrew-codync.git tap
-          mkdir -p tap/Casks
-          sed -e "s/^  version .*/  version \"$VERSION\"/" -e "s/REPLACE_WITH_SHA256/$SHA/" packaging/homebrew/codync.rb > tap/Casks/codync.rb
-          cp packaging/homebrew/README.md tap/
-          cd tap
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add -A
-          git commit -m "Update Codync to $VERSION" || exit 0
-          git push
 
   windows:
     needs: check
@@ -228,6 +212,7 @@ jobs:
       - uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/tags/')
         with:
+          make_latest: false
           files: |
             apps/desktop/dist/codync-windows-x64.exe
             apps/desktop/dist/codync-windows-x64.exe.sha256
@@ -236,6 +221,7 @@ jobs:
       - uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/tags/')
         with:
+          make_latest: false
           files: apps/desktop/dist/latest.yml
 
   linux:
@@ -277,9 +263,11 @@ jobs:
       - uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/tags/')
         with:
+          make_latest: false
           files: apps/desktop/dist/codync-${{ matrix.name }}.*
       # The update feed last, once the packages it points at are downloadable.
       - uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/tags/')
         with:
+          make_latest: false
           files: apps/desktop/dist/latest-linux*.yml

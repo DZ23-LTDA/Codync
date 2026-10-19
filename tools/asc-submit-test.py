@@ -3,6 +3,7 @@
 import importlib.util
 import pathlib
 import sys
+import tempfile
 import types
 
 sys.modules.setdefault("jwt", types.ModuleType("jwt"))
@@ -28,6 +29,13 @@ prs = [
 assert asc.pr_notes(prs, {"a", "b", "c"}) == {
     "zh-Hant": "- 例行任務改用同一個表單", "en-US": "- Routines use one form"}, asc.pr_notes(prs, {"a", "b", "c"})
 assert asc.pr_notes(prs, {"c"}) == {}
+print("ok")
+
+# WhatsNew.md loses its emoji too: v2.19.2's ❤️ and 🎉 failed the submission after 2.19.1 was pulled back.
+with tempfile.TemporaryDirectory() as tmp:
+    asc.NOTES = pathlib.Path(tmp, "WhatsNew.md")
+    asc.NOTES.write_text("## 2.19.2\n\n### en-US\n\n- Bots react with a ❤️ or a 🎉\n\n## 2.19.1\n\n### en-US\n\n- Old\n")
+    assert asc.release_notes("2.19.2") == {"en-US": "- Bots react with a  or a"}, asc.release_notes("2.19.2")
 print("ok")
 
 # Release history: v2.2.3 changed only the Mac app, host and website; v2.3.1 changed kit/.

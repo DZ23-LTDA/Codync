@@ -53,8 +53,9 @@ couldn't get the matching side yet.
 - **Renaming, removing or changing the meaning** of anything an older client reads or sends:
   change it, set `MIN_APP` to this release (its iPhone part ships with it: the change
   touches `apps/ios/Kit/`, so `Submit iOS` includes it), add a row to the floor history, and re-record
-  the wire shape snapshot. Hosts hold that release back until the App Store has the iPhone
-  app (next section), so nobody is asked for an update that isn't there yet.
+  the wire shape snapshot. That release isn't offered (downloads, updaters, Homebrew) until
+  the App Store has the iPhone app (next section), so nobody is asked for an update that
+  isn't there yet.
 - **Raise `minHost`** when the client's core flows need something older hosts lack. Hosts
   update without review, so this only asks the person to update the computer. An optional
   feature that needs a newer host hides its control instead.
@@ -63,11 +64,29 @@ couldn't get the matching side yet.
   `unsupportedVersion`, close code 4400) is separate: the host must keep accepting every `v`
   a supported client sends.
 
-### Holding host updates for the App Store
+### Holding releases for the App Store
 
-A release that raises `minApp` would lock out paired iPhones until App Review passes. Every
-updater therefore asks the App Store (`itunes.apple.com/lookup?id=6760984418`) before
-installing such a release:
+A release that raises `minApp` would lock out paired iPhones until App Review passes, and a
+computer set up from it would lock out the iPhone it pairs with. So what anyone can get
+follows the App Store:
+
+- **Release gate** (`tools/release-gate.py`, run by `.github/workflows/release-gate.yml` after
+  each release and hourly): releases are published without GitHub's *latest* mark. The gate
+  marks the newest fully uploaded release whose `MIN_APP` the App Store's iPhone version meets
+  (`itunes.apple.com/lookup?id=6760984418`) and points the Homebrew tap (cask and formula) at
+  it. The website's download links (`releases/latest/download/…`), `packaging/install.sh`,
+  electron-updater and `codync-host update` all read the latest release, so none of them sees
+  a release that waits. Every release after a raise waits with it, desktop-only ones too, until
+  App Review passes; the next hourly run then offers the newest. The mark only moves forward
+  on its own (a lookup can briefly answer with an older version); to move it back, run the
+  *Release gate* workflow by hand with `allow_back` on. `DRY_RUN=1 python3
+  tools/release-gate.py` prints the decision; `python3 tools/release-gate-test.py` checks it.
+  Before the gate, 2.18.0 (the first real raise) went straight to the website: in its first
+  day 33 new computers were paired by the App Store's iPhone 2.17.0 and received no message
+  from it.
+- **Each updater** also asks the App Store before installing a release that raises `minApp`.
+  It predates the gate, which now keeps such releases from updaters, so this second check
+  rarely decides anything:
 
 | Situation | Host update |
 |---|---|
@@ -92,8 +111,7 @@ installing such a release:
   anything downloads. A check the person starts shows why. While waiting it checks hourly. The Sparkle appcast kept for the
   SwiftUI Mac app's installs carries `<codync:minApp>` (`packaging/updates/annotate-appcast.py`);
   it is deprecated and removed after 2026-11-06 ([updates guide](../guides/updates.md#deprecated-the-sparkle-migration-appcast-remove-after-2026-11-06)).
-- Hosts released before 2.5.0 don't have this gate and install any release. Before the first
-  real `minApp` raise, most computers should be on 2.5.0 or newer.
+- Hosts released before 2.5.0 don't ask; the release gate keeps such releases from them.
 
 On the iPhone, the *Update Codync* button of an *Update this app* notice is greyed out with
 "still in App Store review" while the App Store has an older version; an unanswered lookup
