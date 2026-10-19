@@ -7,6 +7,7 @@ export const meta = {
     { title: 'Fix', detail: 'confirmed findings, then e2e failures' },
     { title: 'E2E', detail: 'the changed flows on the real apps' },
     { title: 'Cleanup', detail: 'cleanup edits and a read-only refactor review, then the refactors worth doing' },
+    { title: 'Finish', detail: 'stop the worktree\'s npm run dev, sandbox host and Electron' },
   ],
 }
 
@@ -139,9 +140,16 @@ ${scope}
 ${JSON.stringify(refactors, null, 2)}`, { label: 'apply-refactors', phase: 'Cleanup', schema: FIXED })
   : null
 
+phase('Finish')
+const stopped = await agent(`Stop every process this worktree started: \`npm run dev\` (apps/desktop tools/dev.mjs), its Vite, its Electron app and its sandbox host. Find them with \`ps\`/\`lsof\` by this worktree's path in their command line or cwd, stop them, then check that none remain. Never stop processes of the main checkout, another worktree, the shared Codync Dev or the production Codync app.
+${scope}
+Return what you stopped, one line each, or that nothing was running.`, { label: 'stop-dev', phase: 'Finish', effort: 'low' })
+
 return {
   review: { found: found.length, confirmed, refuted, fix: reviewFix },
   e2e: { checks: walked?.checks ?? [], fix: e2eFix },
   cleanup,
   refactor: { suggested: refactors, applied },
+  stopped,
+  next: 'Unless an e2e check failed or a skipped fix matters: commit in this worktree, rebase on origin/dev, fast-forward dev, push origin dev, pull dev in the main checkout. Then leave the worktree and, from the main checkout, delete it: `git worktree remove --force <worktree>`, `git branch -D <branch>`, then `npm run dev -- --prune` in apps/desktop. Check that no `npm run dev` from it is still running.',
 }

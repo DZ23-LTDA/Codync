@@ -17,7 +17,7 @@ Bot-based remote for coding agents: persistent named bots on your computer, mess
 ## Clean code
 
 - Keep code modular and clean on every change: reuse before writing, one responsibility per file/type, no new code appended to files past ~500 lines (split first), views/components hold no I/O or logic, short single-purpose functions, enums over flags, no dead code, no swallowed errors. Full rules: [docs/guides/clean-code.md](docs/guides/clean-code.md).
-- After every code change (tests green, before commit): review → fix → end-to-end test → cleanup and refactor, by running the `after-change` workflow from the change's worktree: [after every change](docs/guides/clean-code.md#after-every-change-review-e2e-cleanup).
+- After every code change (tests green, before commit): review → fix → end-to-end test → cleanup and refactor, by running the `after-change` workflow from the change's worktree; then merge, stop its `npm run dev` and delete the worktree: [after every change](docs/guides/clean-code.md#after-every-change-review-e2e-cleanup).
 
 ## Architecture
 
