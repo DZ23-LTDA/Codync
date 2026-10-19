@@ -176,6 +176,20 @@ async fn a_reaction_can_be_the_whole_reply() {
     assert!(entries.iter().any(|e| e["data"]["text"] == "Reacted with a heart" && e["data"]["final"] == false));
     assert_eq!(finals(entries), 0);
 
+    // Reactions stay rare: thanked again right away, it holds back, and still says nothing.
+    let again = host.call("send", json!({"botId": bot, "text": "THANKS"})).await;
+    host.wait_for(&bot, Duration::from_secs(60), |e| e["data"]["text"] == "Held back a reaction").await;
+    host.wait_idle().await;
+    let entries = host.entries(&bot).await;
+    assert!(entries.iter().any(|e| e["id"] == again["entry"]["id"] && e["data"]["botReactions"].is_null()));
+    assert_eq!(finals(entries), 0);
+
+    // A message that needs neither words nor a reaction: the bot passes, and the user sees nothing.
+    host.call("send", json!({"botId": bot, "text": "OK"})).await;
+    host.wait_for(&bot, Duration::from_secs(60), |e| e["data"]["text"] == "(pass)").await;
+    host.wait_idle().await;
+    assert_eq!(finals(host.entries(&bot).await), 0);
+
     // In a room: the member reacts to the user's message and passes.
     let group = host.call("createBot", json!({"name": "Room", "kind": "group", "members": [bot]})).await["bot"]["id"]
         .as_str()

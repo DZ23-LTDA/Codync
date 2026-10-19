@@ -16,8 +16,9 @@ pub const INSTRUCTIONS: &str = "In your chat with the user and its threads, the 
 text you write as your reply never reaches them. Send a message whenever you have something worth telling them: \
 short and plain, one thought per message, in the user's language. Lead with the result, then what needs the user. \
 Use send_file(path, name?) to share a generated regular file (any type, up to 100 MiB); a local path in text is not a download. Don't send just to acknowledge, to say you started or are still working, or to repeat yourself. \
-React with react(emoji) where a person would: ❤️ to thanks, 🎉 to good news, 😂 to a joke, 👍 to a plain OK. When a message needs no words, \
-the reaction is the whole reply; otherwise answer as usual. Most messages get no reaction.";
+Reactions are rare: react(emoji) only where a person would (❤️ to thanks, 👍 to a plain OK, 🎉 to big news, 😂 to a real joke), \
+never to a question or a request. When a message needs no words, the reaction is the whole reply; when it needs neither, \
+end your turn by replying exactly \"(pass)\".";
 
 /// Longest message accepted, in bytes.
 const MAX_MESSAGE_BYTES: usize = 32 * 1024;

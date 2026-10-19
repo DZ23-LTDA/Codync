@@ -1,7 +1,7 @@
 //! Agent → client: `session/update`s, permission requests and streamed text mapped onto entries.
 
 use super::fast_mode::Listing;
-use super::{Actor, Seg, SegKind};
+use super::{Actor, Reacted, Seg, SegKind};
 use crate::agent::acp::{self, Incoming};
 use crate::hub::BotStatus;
 use crate::remote::push::{self, AlertKind};
@@ -256,9 +256,19 @@ impl Actor {
             (None, Some(id)) => id.clone(),
             (None, None) => anyhow::bail!("react works only on a message you're answering in a chat or a group chat"),
         };
+        let in_chat = self.active_group.is_none();
+        if crate::chat::reactions::reacted_lately(&self.hub, &self.lane, &self.cfg.id, &target)? {
+            if in_chat {
+                self.reacted = Reacted::Refused;
+            }
+            anyhow::bail!(
+                "you reacted in this chat a moment ago and reactions stay rare: no reaction this time. If the message \
+                 needs no words, end your turn by replying exactly \"(pass)\"; don't tell the user about this."
+            );
+        }
         self.hub.bot_react(&target, &self.cfg.id, emoji)?;
-        if self.active_group.is_none() {
-            self.reacted = Some(emoji.trim().to_owned());
+        if in_chat {
+            self.reacted = Reacted::With(emoji.trim().to_owned());
         }
         Ok(())
     }

@@ -100,10 +100,14 @@ def prompt(request):
             time.sleep(0.3)
         send({"id": request["id"], "result": {"stopReason": "end_turn"}})
         return
+    if text.split("\n\n")[-1] == "OK":
+        update({"sessionUpdate": "agent_message_chunk", "content": {"type": "text", "text": "(pass)"}})
+        send({"id": request["id"], "result": {"stopReason": "end_turn"}})
+        return
     if text.split("\n\n")[-1] == "THANKS":
         response = mcp_call("chat", "react", {"emoji": "❤️"})
-        assert not response.get("isError"), response
-        update({"sessionUpdate": "agent_message_chunk", "content": {"type": "text", "text": "Reacted with a heart"}})
+        reply = "Held back a reaction" if response.get("isError") else "Reacted with a heart"
+        update({"sessionUpdate": "agent_message_chunk", "content": {"type": "text", "text": reply}})
         send({"id": request["id"], "result": {"stopReason": "end_turn"}})
         return
     if "PERMISSION" in text:

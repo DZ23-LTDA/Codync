@@ -10,6 +10,8 @@ use serde_json::{Value, json};
 pub const TOOL: &str = "react";
 /// Room messages searched for the one to react to.
 const RECENT: i64 = 24;
+/// A bot reacts at most once among a chat's latest this many messages.
+const SPACING: i64 = 6;
 
 pub fn tool() -> Value {
     json!({
@@ -45,6 +47,13 @@ pub fn in_room(hub: &Hub, lane: &Lane, bot: &str, to: Option<&str>, shown: i64) 
         .find(|e| e.seq <= shown && from(e))
         .map(|e| e.id)
         .ok_or_else(|| anyhow!("no recent message from {} in this chat", to.as_deref().unwrap_or("anyone else")))
+}
+
+/// Whether `bot` reacted to one of the lane's last [`SPACING`] messages other than `target`: reactions stay rare
+/// whatever the agent makes of its instructions.
+pub fn reacted_lately(hub: &Hub, lane: &Lane, bot: &str, target: &str) -> Result<bool> {
+    let mine = |e: &Entry| e.data["botReactions"].as_array().is_some_and(|rs| rs.iter().any(|r| r["bot"] == bot));
+    Ok(hub.store.messages_after(lane, 0, SPACING)?.iter().any(|e| e.id != target && mine(e)))
 }
 
 /// A room line's reactions, as members read them: ` (reactions: User 👍, Owen 🎉)`, or nothing.
@@ -102,6 +111,17 @@ mod tests {
         assert_eq!(unread(), 0);
         assert_eq!(describe(&hub, &reacted), " (reactions: Ben 🎉)");
         assert!(hub.bot_react(&reply.id, "b", "ok").is_err(), "only emoji");
+
+        // Reactions stay rare: one per bot among the chat's latest messages (changing it is fine).
+        assert!(reacted_lately(&hub, &room, "b", &later.id).unwrap());
+        assert!(!reacted_lately(&hub, &room, "b", &reply.id).unwrap(), "changing its own reaction");
+        assert!(!reacted_lately(&hub, &room, "a", &later.id).unwrap(), "another bot");
+        // Ben's reaction is on the 2nd of 4 messages: it leaves the latest SPACING after 4 more.
+        let more = |n: i64| (0..n).for_each(|_| drop(said(EntryKind::User, json!({"text": "more"}))));
+        more(SPACING - 3);
+        assert!(reacted_lately(&hub, &room, "b", &later.id).unwrap(), "still among the latest");
+        more(1);
+        assert!(!reacted_lately(&hub, &room, "b", &later.id).unwrap(), "long enough ago");
         std::fs::remove_dir_all(&dir).unwrap();
     }
 }

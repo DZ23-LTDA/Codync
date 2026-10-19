@@ -169,7 +169,7 @@ pub fn spawn(hub: Arc<Hub>, cfg: BotConfig) -> BotHandle {
         plan_entry: None,
         last_text: None,
         sent: Vec::new(),
-        reacted: None,
+        reacted: Reacted::No,
         files: files::FileShares::default(),
         perms: HashMap::new(),
         stop_requested: false,
@@ -262,6 +262,17 @@ impl Conn {
     }
 }
 
+/// What came of the bot's `react` on the user's message this turn.
+#[derive(Default)]
+enum Reacted {
+    #[default]
+    No,
+    /// The emoji is on the message.
+    With(String),
+    /// Refused to keep reactions rare: the bot meant to answer with one, so it says nothing.
+    Refused,
+}
+
 #[derive(Clone, Copy, PartialEq)]
 enum SegKind {
     Text,
@@ -327,8 +338,8 @@ struct Actor {
     last_text: Option<String>,
     /// Messages the bot sent the user this turn (`send_message`); none: its last text is the reply.
     sent: Vec<String>,
-    /// The emoji the bot put on the user's message this turn (`react`); with no message sent, it is the reply.
-    reacted: Option<String>,
+    /// The bot's `react` this turn; with no message sent, it is the reply.
+    reacted: Reacted,
     files: files::FileShares,
     /// permission entry id -> JSON-RPC request id
     perms: HashMap<String, Value>,

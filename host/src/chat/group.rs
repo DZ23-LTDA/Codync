@@ -240,8 +240,9 @@ fn member_prompt(hub: &Hub, group: &BotConfig, members: &[BotConfig], me: &BotCo
         "You have your full toolkit here. Do the work first, then answer: your final reply of this turn is \
          the one message the room sees. Keep it short and conversational. @-mention another participant only \
          when you need them to act. If you have nothing new worth adding, reply exactly \"{PASS}\". Never \
-         reveal private one-on-one context. React with react(emoji, to) where a person would, `to` naming whose \
-         newest message (\"user\" or a participant); a reaction with \"{PASS}\" agrees without adding a message."
+         reveal private one-on-one context. Reactions are rare: react(emoji, to) only where a person would, \
+         never to a question or a request, `to` naming whose newest message (\"user\" or a participant). With \
+         nothing to add, a reaction and \"{PASS}\" agrees without a message."
     ));
     out.push(String::new());
 
