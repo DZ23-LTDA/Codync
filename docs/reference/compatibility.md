@@ -84,34 +84,10 @@ follows the App Store:
   Before the gate, 2.18.0 (the first real raise) went straight to the website: in its first
   day 33 new computers were paired by the App Store's iPhone 2.17.0 and received no message
   from it.
-- **Each updater** also asks the App Store before installing a release that raises `minApp`.
-  It predates the gate, which now keeps such releases from updaters, so this second check
-  rarely decides anything:
-
-| Situation | Host update |
-|---|---|
-| The release doesn't raise `minApp` (almost always) | Installs; the App Store isn't asked |
-| No iPhone was ever paired with this computer | Installs |
-| The App Store has that iPhone version or newer | Installs |
-| The App Store has an older version (in review) | Waits; retried on the next check |
-| The App Store can't be asked or has no answer | Automatic update waits; a person can install anyway |
-
-- **Standalone hosts** (`host/src/update`): each release publishes a signed
-  `codync-host-<platform>.compat.json` (`{"version", "minApp"}`, ~50 bytes, same key as the
-  manifest, written by `sign-host-release.py` from `MIN_APP`), so the updater decides before
-  downloading anything; for a release without one it runs the verified download
-  (`codync-host compat`) instead. The signed manifest itself is unchanged, as old hosts
-  expect it. Waiting shows as phase `waitingForApp` with `requiredApp` and `appStoreVersion`
-  in the update status; `codync-host update --skip-app-check` (API
-  `installHostUpdate {"skipAppCheck": true}`) installs anyway. With automatic updates on, a waiting host asks the App Store hourly and updates as
-  soon as the app is there.
-- **Desktop app** (electron-updater): the release workflow adds `minApp` to `latest-mac.yml`,
-  and `Updates.available` (`apps/desktop/src/main/updates.ts`) holds the release while the
-  local host's `minApp` is lower, an iPhone is paired and the App Store is behind, before
-  anything downloads. A check the person starts shows why. While waiting it checks hourly. The Sparkle appcast kept for the
-  SwiftUI Mac app's installs carries `<codync:minApp>` (`packaging/updates/annotate-appcast.py`);
-  it is deprecated and removed after 2026-11-06 ([updates guide](../guides/updates.md#deprecated-the-sparkle-migration-appcast-remove-after-2026-11-06)).
-- Hosts released before 2.5.0 don't ask; the release gate keeps such releases from them.
+- **Updaters** only compare versions with the latest release; they don't ask the App Store
+  themselves (they did from 2.5.0 to 2.19.2, before the gate). The hidden `codync-host compat`
+  command stays: the desktop app runs it to read `environment` before installing the host, and
+  those older hosts run it on a downloaded update to read its `minApp`.
 
 On the iPhone, the *Update Codync* button of an *Update this app* notice is greyed out with
 "still in App Store review" while the App Store has an older version; an unanswered lookup

@@ -5,7 +5,6 @@ import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { app, BrowserWindow, ipcMain, powerMonitor, shell } from 'electron'
 import electronUpdater, { type UpdateInfo } from 'electron-updater'
-import { isBelow, parseVersion } from '../shared/compat'
 import type { UpdateState } from '../shared/ipc'
 import { isMainEnvironment } from './account'
 import { identity } from './environment'
@@ -34,7 +33,6 @@ export class Updates extends EventEmitter {
     autoDownload: prefs.get('updatesAutoDownload') !== false,
     lastCheck: (prefs.get('updatesLastCheck') as number | undefined) ?? null,
     error: null,
-    waitingForApp: null,
   }
   private userInitiated = false
   /** The person chose Update: restart into the release as soon as it's downloaded. */
@@ -42,7 +40,6 @@ export class Updates extends EventEmitter {
   private preparing: Promise<boolean> | null = null
   private prepared = false
   private updateGeneration = 0
-  private appStoreVersion: string | null = null
 
   constructor(private host: HostController) {
     super()
@@ -72,7 +69,7 @@ export class Updates extends EventEmitter {
     autoUpdater.autoInstallOnAppQuit = true
     autoUpdater.on('checking-for-update', () => this.set({ checking: true, error: null }))
     autoUpdater.on('update-not-available', () => this.upToDate())
-    autoUpdater.on('update-available', (info) => void this.available(info))
+    autoUpdater.on('update-available', (info) => this.available(info))
     autoUpdater.on('download-progress', ({ percent }) => {
       const rounded = Math.floor(percent)
       if (this.state.downloadPercent !== null && rounded !== this.state.downloadPercent) this.set({ downloadPercent: rounded })
@@ -144,11 +141,10 @@ export class Updates extends EventEmitter {
     this.userInitiated = false
   }
 
-  /** Daily, or hourly while a release waits for the iPhone app to pass review. */
+  /** Checks daily; the minute of slack keeps the hourly timer from skipping a day. */
   private scheduled() {
     if (!this.state.autoCheck || this.state.checking || this.state.staged) return
-    const interval = this.state.waitingForApp ? 3600_000 : 24 * 3600_000
-    if (this.state.lastCheck && Date.now() - this.state.lastCheck < interval - 60_000) return
+    if (this.state.lastCheck && Date.now() - this.state.lastCheck < 24 * 3600_000 - 60_000) return
     this.userInitiated = false
     void autoUpdater.checkForUpdates().catch(() => {})
   }
@@ -165,51 +161,21 @@ export class Updates extends EventEmitter {
 
   /** The sidebar's Update badge: restarts into the available release, downloading it first. */
   installNow() {
-    if (!enabled || !this.state.availableVersion || this.state.waitingForApp) return
+    if (!enabled || !this.state.availableVersion) return
     if (this.state.staged) return void this.install(true)
     this.installWhenDownloaded = true
     this.check()
   }
 
   /**
-   * A release that needs a newer iPhone app than the App Store has (still in review) waits,
-   * so paired iPhones aren't asked for an update they can't get yet. Without an answer from
-   * the App Store, background checks wait and a check the person started goes ahead.
+   * The release GitHub marks latest, which the release gate gives only to one the App Store's
+   * iPhone app works with (docs/reference/compatibility.md).
    */
-  private async available(info: UpdateInfo) {
-    const required = (info as UpdateInfo & { minApp?: string }).minApp
-    let waiting: string | null = null
-    if (required) {
-      const [hostMinApp, iphones] = await this.localHostFacts()
-      this.appStoreVersion = (await appStoreVersion()) ?? this.appStoreVersion
-      const storeHas = this.appStoreVersion && parseVersion(this.appStoreVersion) && !isBelow(this.appStoreVersion, required)
-      if (isBelow(hostMinApp ?? '0', required) && iphones !== false && !storeHas && !(this.appStoreVersion === null && this.userInitiated)) {
-        waiting = required
-      }
-    }
-    this.checked({ availableVersion: info.version, waitingForApp: waiting })
-    if (waiting) {
-      this.installWhenDownloaded = false
-      if (this.userInitiated) this.set({ error: `Codync ${info.version} needs the iPhone app ${waiting}, which isn't in the App Store yet. It installs once that version passes review.` })
-      this.userInitiated = false
-      return
-    }
+  private available(info: UpdateInfo) {
+    this.checked({ availableVersion: info.version })
     if (this.userInitiated || this.state.autoDownload) {
       this.set({ downloadPercent: 0 })
       void autoUpdater.downloadUpdate().catch(() => {})
-    }
-  }
-
-  /** The local host's `minApp` and whether an iPhone is paired with it. */
-  private async localHostFacts(): Promise<[string | null, boolean | null]> {
-    try {
-      const [hello, devices] = await Promise.all([
-        this.host.call<{ minApp?: string }>('hello'),
-        this.host.call<{ devices: { platform?: string }[] }>('devices'),
-      ])
-      return [hello.minApp ?? null, devices.devices.some((d) => d.platform === 'ios')]
-    } catch {
-      return [null, null]
     }
   }
 
@@ -276,15 +242,4 @@ function removeStuckShipIt() {
     if (error || stdout.includes('"PID" =')) return
     execFile('/bin/launchctl', ['remove', label], () => {})
   })
-}
-
-/** The iPhone app's version live in the App Store (iTunes lookup); null when unknown. */
-async function appStoreVersion(): Promise<string | null> {
-  try {
-    const res = await fetch('https://itunes.apple.com/lookup?id=6760984418', { signal: AbortSignal.timeout(10_000), cache: 'no-store' })
-    const json = (await res.json()) as { results?: { version?: string }[] }
-    return json.results?.[0]?.version ?? null
-  } catch {
-    return null
-  }
 }

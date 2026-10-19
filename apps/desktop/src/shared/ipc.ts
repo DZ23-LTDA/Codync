@@ -86,8 +86,6 @@ export interface UpdateState {
   autoDownload: boolean
   lastCheck: number | null
   error: string | null
-  /** The release waits until paired iPhones can get the app it needs. */
-  waitingForApp: string | null
 }
 
 export interface AccountState {

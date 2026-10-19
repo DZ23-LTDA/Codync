@@ -22,11 +22,10 @@ pub(super) async fn call(hub: &Arc<Hub>, caller: &Caller, method: &str, b: Value
         "installHostUpdate" => {
             let port = hub.port;
             let force = b["force"].as_bool().unwrap_or(false);
-            let skip_app_check = b["skipAppCheck"].as_bool().unwrap_or(false);
             if !force && hub.busy() {
                 bail!("host is busy; retry when idle or explicitly allow interruption");
             }
-            tokio::task::spawn_blocking(move || crate::update::spawn_worker(port, force, skip_app_check)).await??;
+            tokio::task::spawn_blocking(move || crate::update::spawn_worker(port, force)).await??;
             json!({"scheduled": true})
         }
         "voiceStatus" => crate::voice::status(&hub.store)?,

@@ -1,6 +1,5 @@
 import { EventEmitter } from 'node:events'
 import path from 'node:path'
-import * as compat from '../compat.ts'
 import type { UpdateState } from '../ipc.ts'
 import { loadMainModule, settle } from './main-module.ts'
 
@@ -15,7 +14,7 @@ interface UpdatesInstance extends EventEmitter {
 type ShipIt = { request: boolean; job: 'none' | 'idle' | 'running' }
 
 export function updaterFixture(options: { packaged?: boolean; main?: boolean; prefs?: Record<string, unknown>; shipIt?: ShipIt } = {}) {
-  const calls = { check: 0, download: 0, install: 0, prepare: 0, resume: 0, quit: 0, fetch: 0 }
+  const calls = { check: 0, download: 0, install: 0, prepare: 0, resume: 0, quit: 0 }
   // macOS's installer job: whether its update request exists, and its launchd state.
   const shipIt = { ...(options.shipIt ?? { request: true, job: 'idle' }), removed: 0 }
   const launchctl = (_bin: string, args: string[], done: (error: Error | null, stdout: string) => void) => {
@@ -36,10 +35,6 @@ export function updaterFixture(options: { packaged?: boolean; main?: boolean; pr
     check: async () => {},
     download: async () => {},
     install: () => {},
-    hostFactsFail: false,
-    minApp: '2.0.0',
-    devices: [{ platform: 'ios' }],
-    storeVersion: '2.0.0' as string | null,
     focused: false,
     idleSeconds: 600,
     hostIdle: true,
@@ -64,10 +59,6 @@ export function updaterFixture(options: { packaged?: boolean; main?: boolean; pr
     prepareForUpdate: async () => { calls.prepare++; await behavior.prepare() },
     resumeAfterCancelledUpdate: () => { calls.resume++ },
     isIdleForUpdate: async () => behavior.hostIdle,
-    call: async (method: string) => {
-      if (behavior.hostFactsFail) throw new Error('Host unreachable')
-      return method === 'hello' ? { minApp: behavior.minApp } : { devices: behavior.devices }
-    },
   }
   const timer = (callback: () => unknown, ms: number) => {
     const id = ++nextTimer
@@ -82,7 +73,6 @@ export function updaterFixture(options: { packaged?: boolean; main?: boolean; pr
     'node:path': path,
     electron: { app, ipcMain: ipc, shell: { openPath: async (target: string) => { opened.push(target); return '' } }, BrowserWindow: { getFocusedWindow: () => behavior.focused }, powerMonitor: { getSystemIdleTime: () => behavior.idleSeconds } },
     'electron-updater': { autoUpdater: updater },
-    '../shared/compat': compat,
     './account': { isMainEnvironment: () => options.main ?? true },
     './environment': { identity: { appId: 'com.pokai.Codync' } },
     './host-controller': { prefs: { get: (key: string) => preferences.get(key), set: (key: string, value: unknown) => preferences.set(key, value) } },
@@ -90,11 +80,6 @@ export function updaterFixture(options: { packaged?: boolean; main?: boolean; pr
     Date: class extends Date { static override now() { return now } },
     process: { platform: 'darwin' },
     setTimeout: timer, setInterval: timer, clearInterval: (id: number) => timers.delete(id),
-    fetch: async () => {
-      calls.fetch++
-      if (behavior.storeVersion === null) throw new Error('Offline')
-      return { json: async () => ({ results: [{ version: behavior.storeVersion }] }) }
-    },
   })
   const updates = new Updates(host)
   const sent: { window: number; channel: string; state: UpdateState }[] = []
