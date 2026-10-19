@@ -209,7 +209,7 @@ struct RoutineEditorView: View {
 
     @ViewBuilder private var frequencyFields: some View {
         Field("Repeat") {
-            ChoicePicker(selection: Binding(get: { schedule.calendarStyle }, set: selectFrequency), options: RoutineScheduleDraft.repeatChoices)
+            ChoicePicker(selection: Binding(get: { schedule.calendarStyle }, set: { selectFrequency($0) }), options: RoutineScheduleDraft.repeatChoices)
         }
         switch schedule.calendarStyle {
         case "hourly":
