@@ -37,11 +37,14 @@ Rules every change follows, in every part of the repository (host, iOS, desktop,
 - Prefer deleting and simplifying over adding. The smallest diff that fixes the problem in the right place wins.
 - Every changed piece of logic gets a test that would fail without the change; test behavior, not private details.
 
-## After every change: cleanup and refactor review
+## After every change: review, e2e, cleanup
 
-Once a code change works (its tests pass) and before e2e and commit, launch two subagents in parallel on the change's diff:
+Once a code change works (its tests pass) and before commit, it goes through three stages, in this order:
 
-- **Cleanup agent** (Claude Code: `code-simplifier:code-simplifier`) edits directly: dead code, duplication, unclear names, comments that restate the code, unused imports, places an existing helper should be reused.
-- **Refactor review agent** (Claude Code: `general-purpose`, read-only) reports and does not edit: responsibility splits, files past ~500 lines, long functions, layer leaks, missed reuse, language best practices (Swift 6, Rust `rust-skills`, strict TypeScript, Compose), and any bug it notices.
+1. **Review**: two read-only reviewers, one for correctness (bugs, regressions, error handling, security, compatibility with older clients and hosts) and one for completeness (every client the change should reach, stale docs, missing tests, version and What's New rules). A verifier then tries to refute each finding against the code; what survives is fixed at its root cause.
+2. **End-to-end test**: the changed flows on the real apps, minimal or full as CLAUDE.md defines it. A failure is fixed and the flows are walked once more.
+3. **Cleanup and refactor**: in parallel, a cleanup agent (Claude Code: `code-simplifier:code-simplifier`) edits directly (dead code, duplication, unclear names, comments that restate the code, unused imports, places an existing helper should be reused), and a read-only refactor reviewer reports responsibility splits, files past ~500 lines, long functions, layer leaks, missed reuse, language best practices (Swift 6, Rust `rust-skills`, strict TypeScript, Compose) and any bug it notices. The refactors worth doing are applied and the affected builds and tests rerun.
 
-Give each agent the exact files and hunks of the change and point it at this guide and CLAUDE.md; agents touch only those hunks, never another agent's uncommitted work. Apply the refactors worth doing, keep them in `refactor` commits apart from the behavior change, and rerun the affected builds/tests before e2e. The final report lists what the cleanup changed and each refactor suggestion applied or skipped, with one line why for each skip. Docs- or config-only changes skip this; a tool without subagents does both passes itself.
+In Claude Code, the `after-change` workflow (`.claude/workflows/after-change.js`) runs all three: start it from the change's worktree with `{"change": "<what changed and which flows to walk>", "e2e": "minimal"}` (`"full"` for platform code, packaging or the desktop main process; `"base"` if the change isn't against `origin/dev`). It returns the confirmed and refuted findings, the e2e checks, what the cleanup changed and each refactor applied or skipped.
+
+Agents touch only the change's own hunks, never another agent's uncommitted work. Keep refactors in `refactor` commits apart from the behavior change. The final report lists the review findings (fixed, or refuted and why), each e2e check that ran or couldn't and why, what the cleanup changed, and each refactor applied or skipped with one line why. Docs- or config-only changes skip this; a tool without subagents does the stages itself.
