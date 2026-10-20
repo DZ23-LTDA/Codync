@@ -12,8 +12,9 @@ Homebrew tap follows it, so this decides what anyone can get: the newest complet
 host serves the iPhone app the App Store has (its `MIN_APP`). A newer one waits for App Review;
 offered earlier, a computer on it would tell every paired iPhone to update to a version still in
 review. The mark only moves forward on its own: an App Store lookup that briefly answers with an
-older version doesn't take downloads back. Runs after each release and hourly
-(.github/workflows/release-gate.yml).
+older version doesn't take downloads back. Runs after each release, and every 5 minutes while
+a newer release waits or the tap trails the latest one (.github/workflows/release-gate.yml, dispatched by
+cloud/src/release-gate.ts).
 """
 
 import json
@@ -141,6 +142,8 @@ def main():
               "only on a run with allow_back (Actions → Release gate → Run workflow)")
         return
     print(f"App Store: {store}; latest release: {current} → {tag}")
+    # The mark first: a tap that fails mustn't hold everyone's downloads back. The Worker runs the gate
+    # again while the tap trails the mark.
     if tag != current and not DRY_RUN:
         run("gh", "release", "edit", tag, "--repo", REPO, "--latest")
     tap(tag)

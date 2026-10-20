@@ -3,13 +3,12 @@ name: Release gate
 # Marks the newest release the App Store's iPhone app works with as GitHub's latest and points the
 # Homebrew tap at it (tools/release-gate.py): website downloads, install.sh and every updater follow
 # that mark, so a release that needs a newer iPhone app waits for App Review. After each release,
-# and hourly for the App Store to catch up.
+# and every 5 minutes while a newer release waits or the Homebrew tap trails the latest one: the cloud
+# Worker's cron (cloud/src/release-gate.ts) dispatches it, since GitHub runs schedules late or not at all.
 on:
   workflow_run:
     workflows: ["Release desktop", "codync-host"]
     types: [completed]
-  schedule:
-    - cron: "17 * * * *"
   workflow_dispatch:
     inputs:
       allow_back:
