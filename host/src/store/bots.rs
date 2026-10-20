@@ -164,6 +164,8 @@ mod tests {
             connectors: vec![],
             skills: vec![],
             computer: false,
+            manage_team: false,
+            created_by: None,
             shared_memory: None,
             harness_memory: false,
             auto_name: false,

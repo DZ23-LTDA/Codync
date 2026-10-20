@@ -36,6 +36,10 @@ import kotlinx.serialization.json.jsonPrimitive
 /** A bot's settings in a sheet, as iOS `BotEditorView`: the settings form plus Close and Save. New bots start in [NewBotView]. */
 @Composable fun BotEditor(state: AppState, initial: BotDraft, store: AppStore) {
     var draft by remember(initial.id) { mutableStateOf(initial) }
+    // A change made elsewhere (a bot that manages the team, another device) replaces each field not edited here.
+    var base by remember(initial.id) { mutableStateOf(initial) }
+    val saved = state.bots.firstOrNull { it.id == initial.id }?.let { BotDraft.from(it) }
+    LaunchedEffect(saved) { if (saved != null && saved != base) { draft = draft.rebased(base, saved); base = saved } }
     var folders by remember { mutableStateOf(false) }
     var viewingSkill by remember { mutableStateOf<SkillRef?>(null) }
     val online = state.actualConnection is LinkState.Ready
@@ -83,6 +87,10 @@ internal val JsonObject.curated get() = this["curated"]?.jsonPrimitive?.booleanO
                 Field("Standing instructions", "Rules that always apply. Put task-specific requests in the chat instead.") {
                     FieldBox(draft.description, { change(draft.copy(description = it)) }, "e.g. Reviews PRs. Never pushes without asking.", 3, 8)
                 }
+            }
+            val bot = state.bots.firstOrNull { it.id == draft.id }
+            bot?.createdBy?.let { creator ->
+                row { ValueRow("Created by", "${state.bots.firstOrNull { it.id == creator }?.name ?: "A bot"} · ${RelativeTime.calendarDay(bot.createdAt)}") }
             }
         }
         CardSection("Agent") {
@@ -149,6 +157,11 @@ internal val JsonObject.curated get() = this["curated"]?.jsonPrimitive?.booleanO
                     else -> "Let this bot see the screen and use the mouse and keyboard. On that computer, open Codync → Settings → Computer access to set up permissions first."
                 },
                     draft.computer, { change(draft.copy(computer = it)) })
+            }
+            // Only from a host that has it (its bots say).
+            if (state.bots.any { it.manageTeam != null }) row {
+                SwitchRow("Manage the team", "Let this bot create bots and change any bot's setup, its own included. The bots it creates can too.",
+                    draft.manageTeam, { change(draft.copy(manageTeam = it)) })
             }
         }
         val plugins = state.plugins

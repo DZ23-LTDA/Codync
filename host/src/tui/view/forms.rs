@@ -13,10 +13,19 @@ use super::chat::composer_lines;
 use super::overlay::input_line;
 use super::set_cursor;
 use super::style::{FACE, avatar, bot_color, face_style, theme};
+use super::time::{MONTHS, local, month_day};
+
+/// "created by Lead · Oct 20" for a bot another bot created (`chat::manage`).
+fn created_by(app: &App, id: &str) -> Option<String> {
+    let bot = app.bots.get(id)?;
+    let creator = app.bots.get(bot.created_by.as_deref()?).map_or("a bot", |b| b.name.as_str());
+    let (month, day) = month_day(local(bot.created_at).0);
+    Some(format!("created by {creator} · {} {day}", MONTHS[month]))
+}
 
 pub(super) fn form_view(buf: &mut Buffer, area: Rect, app: &App, f: &Form) {
     let t = theme();
-    let r = centered(area, 88, 34);
+    let r = centered(area, 88, 38);
     let title = app.bots.get(&f.bot_id).map_or_else(|| f.name.text.clone(), |b| b.name.clone());
     let inner = frame_box(buf, r, t.text, t.panel, Some((&title, t.text)));
     let inner = page_tabs(buf, inner, Page::Settings);
@@ -54,6 +63,7 @@ pub(super) fn form_view(buf: &mut Buffer, area: Rect, app: &App, f: &Form) {
             Field::Approvals => "Approvals",
             Field::Notify => "Notify",
             Field::Computer => "Use computer",
+            Field::Team => "Manage team",
             Field::Color => "Color",
             Field::Shape => "Shape",
             Field::Connectors => "Connectors",
@@ -82,7 +92,14 @@ pub(super) fn form_view(buf: &mut Buffer, area: Rect, app: &App, f: &Form) {
             }
         };
         match field {
-            Field::Name => text_field(buf, &f.name, "Name", y),
+            Field::Name => {
+                text_field(buf, &f.name, "Name", y);
+                if let Some(by) = created_by(app, &f.bot_id)
+                    && w(&f.name.text) + w(&by) + 2 < usize::from(vw)
+                {
+                    rput(buf, inner.right(), y, &by, t.dim.patch(base));
+                }
+            }
             Field::Instructions => {
                 text_field(buf, &f.instructions, "e.g. Reviews PRs. Never pushes without asking.", y);
             }
@@ -161,6 +178,14 @@ pub(super) fn form_view(buf: &mut Buffer, area: Rect, app: &App, f: &Form) {
                 let status = super::computer_access::status(&app.screen, app.online);
                 put(buf, vx, y, vw, &format!("{s}  · {status}"), t.text.patch(base));
             }
+            Field::Team => {
+                let s = match f.manage_team {
+                    Some(true) => "◉ On   ○ Off",
+                    Some(false) => "○ On   ◉ Off",
+                    None => "Needs a newer Codync host",
+                };
+                put(buf, vx, y, vw, s, t.text.patch(base));
+            }
             Field::Notify => {
                 let s = if f.notify { "◉ Done and needs-you   ○ Off" } else { "○ Done and needs-you   ◉ Off" };
                 put(buf, vx, y, vw, s, t.text.patch(base));
@@ -218,6 +243,10 @@ pub(super) fn form_view(buf: &mut Buffer, area: Rect, app: &App, f: &Form) {
             "Set up on the computer: Codync → Settings → Computer access",
             t.dim.patch(t.panel),
         );
+    } else if f.current() == Field::Team {
+        let line =
+            "Let this bot create bots and change any bot's setup, its own included. The bots it creates can too.";
+        put(buf, inner.x, by - 1, inner.width, line, t.dim.patch(t.panel));
     }
     let save = if f.saving { " … Saving " } else { " ↵ Save " };
     let x = put(buf, inner.x, by, 14, save, t.btn_primary) + 1;
@@ -229,9 +258,13 @@ pub(super) fn form_view(buf: &mut Buffer, area: Rect, app: &App, f: &Form) {
         Field::Skills => "←→ move · space toggle · i details · tab next",
         Field::Agent => "←→ change · ↵ install / sign in · tab next",
         Field::Model => "←→ pick a model · or type its id",
-        Field::Fast | Field::Color | Field::Shape | Field::Approvals | Field::Notify | Field::Computer => {
-            "←→ change · tab next field"
-        }
+        Field::Fast
+        | Field::Color
+        | Field::Shape
+        | Field::Approvals
+        | Field::Notify
+        | Field::Computer
+        | Field::Team => "←→ change · tab next field",
         Field::Instructions => "⇧↵ new line · tab next field",
         Field::Name => "tab next field · ^s save",
     };

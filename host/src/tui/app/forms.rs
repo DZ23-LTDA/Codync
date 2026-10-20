@@ -129,6 +129,7 @@ impl App {
             auto: b.auto,
             notify: b.notify,
             computer: b.computer,
+            manage_team: b.manage_team,
             color: COLORS.iter().position(|c| *c == b.color).unwrap_or(7),
             shape: SHAPES.iter().position(|s| *s == b.shape).unwrap_or(0),
             connectors: b.connectors.iter().map(|id| Toggle { id: id.clone(), name: id.clone(), on: true }).collect(),
@@ -216,6 +217,7 @@ impl App {
                         | Field::Approvals
                         | Field::Notify
                         | Field::Computer
+                        | Field::Team
                         | Field::Color
                         | Field::Shape
                         | Field::ModelOptions
@@ -240,6 +242,7 @@ impl App {
                     Field::Approvals => f.auto = !f.auto,
                     Field::Notify => f.notify = !f.notify,
                     Field::Computer => f.computer = !f.computer,
+                    Field::Team => f.manage_team = f.manage_team.map(|on| !on),
                     Field::Color if !space => f.color = cycle(f.color, d, COLORS.len()),
                     Field::Shape if !space => f.shape = cycle(f.shape, d, SHAPES.len()),
                     Field::ModelOptions => {
@@ -299,7 +302,7 @@ impl App {
             f.error = Some("Give the bot a name.".into());
             return;
         }
-        let mut body = f.body();
+        let mut body = f.changes();
         body["id"] = f.bot_id.clone().into();
         f.saving = true;
         f.error = None;
@@ -333,6 +336,7 @@ impl Form {
             "fastMode": self.fast,
             "notify": self.notify,
             "computer": self.computer,
+            "manageTeam": self.manage_team.unwrap_or_default(),
             "avatarColor": COLORS[self.color],
             "avatarShape": SHAPES[self.shape],
             "connectors": self.connectors.iter().filter(|t| t.on).map(|t| t.id.clone()).collect::<Vec<_>>(),
@@ -343,6 +347,16 @@ impl Form {
     /// Whether anything changed since the form opened.
     pub fn dirty(&self) -> bool {
         self.body() != self.opened
+    }
+
+    /// What changed since the form opened, as `updateBot` takes it: a change made elsewhere meanwhile (a bot that
+    /// manages the team, another device) stays.
+    fn changes(&self) -> Value {
+        let mut body = self.body();
+        if let (Some(now), Some(opened)) = (body.as_object_mut(), self.opened.as_object()) {
+            now.retain(|key, value| opened.get(key) != Some(value));
+        }
+        body
     }
 }
 
@@ -370,6 +384,19 @@ mod tests {
         assert!(f.model_options().is_some_and(BTreeMap::is_empty), "back to the agent's default");
         f.model = Editor::with("other");
         assert!(f.model_options().is_none(), "another model starts without settings");
+    }
+
+    #[tokio::test]
+    async fn a_save_sends_only_what_the_form_changed() {
+        let mut app = test_app();
+        let bot = json!({"id": "b", "name": "Lead", "backend": "claude", "model": "sonnet"});
+        app.bots.insert("b".into(), Bot::parse(&bot).expect("a bot"));
+        app.selected = Some("b".into());
+        app.edit_bot();
+        let Some(Overlay::Form(mut f)) = app.overlays.pop() else { panic!("the editor opens") };
+        assert_eq!(f.changes(), json!({}));
+        f.notify = false;
+        assert_eq!(f.changes(), json!({"notify": false}), "a model changed elsewhere meanwhile stays");
     }
 
     #[test]

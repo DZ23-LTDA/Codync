@@ -93,6 +93,12 @@ pub enum Cmd {
         entry_id: String,
         option_id: Option<String>,
     },
+    /// A Codync tool asks the user before it acts (`chat::manage`), on the agent's kind of approval card.
+    Approve {
+        title: String,
+        detail: String,
+        reply: tokio::sync::oneshot::Sender<bool>,
+    },
     NewSession,
     Reconfigure(Box<BotConfig>),
     Shutdown,
@@ -173,6 +179,7 @@ pub fn spawn(hub: Arc<Hub>, cfg: BotConfig) -> BotHandle {
         cancel_deadline: None,
         exit_tail: None,
         tools_changed: false,
+        restart_after_turn: false,
         fast_support,
         idle_checked: Instant::now(),
     };
@@ -334,8 +341,8 @@ struct Actor {
     /// The bot's `react` this turn; with no message sent, it is the reply.
     reacted: Reacted,
     files: files::FileShares,
-    /// permission entry id -> JSON-RPC request id
-    perms: HashMap<String, Value>,
+    /// permission entry id -> who waits for the answer
+    perms: HashMap<String, updates::Answer>,
     stop_requested: bool,
     /// A cancelled turn still running past this stops its agent process.
     cancel_deadline: Option<Instant>,
@@ -344,6 +351,8 @@ struct Actor {
     /// Connectors changed: restart the agent before the next turn so the
     /// session is resumed with the new MCP servers.
     tools_changed: bool,
+    /// A change that restarts the agent (`restart_agent`) came during a turn: it restarts once the turn ends.
+    restart_after_turn: bool,
     /// What the agent says about Fast mode; clients see it in the bot's runtime.
     fast_support: FastModeSupport,
     /// When idle sessions and agents were last looked for.
@@ -396,6 +405,7 @@ impl Actor {
                 }
                 _ = flush_tick.tick() => {
                     self.flush(false);
+                    self.expire_abandoned().await;
                     if self.routine_completion.is_some() && self.retry_routine_completion() {
                         self.set_inflight(false);
                         self.next_in_queue(&done_tx).await;

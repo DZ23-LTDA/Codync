@@ -148,9 +148,7 @@ pub struct FolderPicker {
     pub error: Option<String>,
 }
 
-pub const COLORS: [&str; 11] =
-    ["black", "brown", "red", "orange", "yellow", "green", "cyan", "blue", "violet", "magenta", "gray"];
-pub const SHAPES: [&str; 8] = ["blob", "pebble", "squircle", "tablet", "wedge", "hex", "cloud", "teardrop"];
+pub use crate::store::{AVATAR_COLORS as COLORS, AVATAR_SHAPES as SHAPES};
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Field {
@@ -164,13 +162,14 @@ pub enum Field {
     Approvals,
     Notify,
     Computer,
+    Team,
     Color,
     Shape,
     Connectors,
     Skills,
 }
 
-pub const FIELDS: [Field; 14] = [
+pub const FIELDS: [Field; 15] = [
     Field::Name,
     Field::Instructions,
     Field::Agent,
@@ -181,6 +180,7 @@ pub const FIELDS: [Field; 14] = [
     Field::Approvals,
     Field::Notify,
     Field::Computer,
+    Field::Team,
     Field::Color,
     Field::Shape,
     Field::Connectors,
@@ -207,6 +207,8 @@ pub struct Form {
     pub auto: bool,
     pub notify: bool,
     pub computer: bool,
+    /// `None`: the host has no Manage the team.
+    pub manage_team: Option<bool>,
     pub color: usize,
     pub shape: usize,
     pub connectors: Vec<Toggle>,

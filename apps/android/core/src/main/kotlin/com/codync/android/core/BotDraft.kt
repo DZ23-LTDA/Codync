@@ -3,6 +3,7 @@ package com.codync.android.core
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.decodeFromJsonElement
 import kotlinx.serialization.json.encodeToJsonElement
 import kotlinx.serialization.json.jsonObject
 
@@ -27,6 +28,7 @@ data class BotDraft(
     /** Unset on a new bot, like [connectors]: the host turns on every installed one. */
     val skills: List<String>? = null,
     val computer: Boolean = false,
+    val manageTeam: Boolean = false,
 ) {
     /** A saved bot keeps a name; only a new one goes without (the host names it after its first conversations). */
     val isValid: Boolean get() = name.isNotBlank()
@@ -39,6 +41,16 @@ data class BotDraft(
     }
     fun template(): String = JsonObject(body().filterKeys { it !in setOf("id", "pinned", "hidden") }).toString()
 
+    /**
+     * This draft with each field it hasn't changed from [base] (the bot as the form loaded it) taken from [fresh] (the
+     * bot as the host has it now), so saving the form keeps a change made elsewhere: a bot that manages the team,
+     * another device.
+     */
+    fun rebased(base: BotDraft, fresh: BotDraft): BotDraft {
+        val (mine, old, new) = listOf(this, base, fresh).map { WireJson.encodeToJsonElement(it).jsonObject }
+        return WireJson.decodeFromJsonElement(JsonObject(mine.mapValues { (key, value) -> if (value == old[key]) new.getValue(key) else value }))
+    }
+
     companion object {
         /** A new bot starts with a random face, like iOS. */
         val AVATAR_COLORS = listOf("black", "brown", "red", "orange", "yellow", "green", "cyan", "blue", "violet", "magenta", "gray")
@@ -47,6 +59,6 @@ data class BotDraft(
 
         fun from(bot: Bot): BotDraft = BotDraft(bot.id, bot.name, bot.description, bot.avatarColor, bot.avatarShape,
             bot.backend, bot.command, if (bot.managedWorkspace) "" else bot.cwd, bot.permission, bot.model,
-            bot.modelOptions, bot.fastMode, bot.pinned, bot.hidden, bot.notify, bot.connectors, bot.skills, bot.computer)
+            bot.modelOptions, bot.fastMode, bot.pinned, bot.hidden, bot.notify, bot.connectors, bot.skills, bot.computer, bot.manageTeam ?: false)
     }
 }

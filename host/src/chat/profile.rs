@@ -2,6 +2,7 @@
 //! server's `set_name` and `set_instructions`. The change is the same as one made in the bot's settings,
 //! and a notice in its chat shows it.
 
+use crate::chat::naming::MAX_NAME_CHARS;
 use crate::hub::Hub;
 use crate::store::{EntryKind, Lane};
 use anyhow::{Result, bail};
@@ -9,7 +10,7 @@ use serde_json::{Value, json};
 use std::sync::Arc;
 
 /// Longest instructions a bot may write for itself, in characters.
-const MAX_INSTRUCTIONS_CHARS: usize = 4000;
+pub const MAX_INSTRUCTIONS_CHARS: usize = 4000;
 
 pub const TOOLS: [&str; 2] = ["set_name", "set_instructions"];
 
@@ -22,7 +23,7 @@ pub fn tools() -> [Value; 2] {
             "description": format!("Rename yourself. {only_when_asked}"),
             "inputSchema": {
                 "type": "object",
-                "properties": {"name": {"type": "string", "description": format!("The new name, at most {} characters.", crate::chat::naming::MAX_NAME_CHARS)}},
+                "properties": {"name": {"type": "string", "description": format!("The new name, at most {MAX_NAME_CHARS} characters.")}},
                 "required": ["name"],
             },
             "annotations": {"readOnlyHint": false, "idempotentHint": true},
@@ -43,17 +44,11 @@ pub fn tools() -> [Value; 2] {
 pub async fn call(hub: &Arc<Hub>, bot: &str, name: &str, args: &Value) -> Result<Value> {
     let (field, value, notice) = match name {
         "set_name" => {
-            let name = args["name"].as_str().unwrap_or_default().trim();
-            if name.is_empty() || name.chars().count() > crate::chat::naming::MAX_NAME_CHARS {
-                bail!("name must be nonempty and at most {} characters", crate::chat::naming::MAX_NAME_CHARS);
-            }
+            let name = checked_name(args["name"].as_str().unwrap_or_default())?;
             ("name", name.to_owned(), format!("Renamed to {name}"))
         }
         "set_instructions" => {
-            let text = args["instructions"].as_str().unwrap_or_default().trim();
-            if text.chars().count() > MAX_INSTRUCTIONS_CHARS {
-                bail!("instructions must be at most {MAX_INSTRUCTIONS_CHARS} characters");
-            }
+            let text = checked_instructions(args["instructions"].as_str().unwrap_or_default())?;
             ("description", text.to_owned(), "Instructions updated".to_owned())
         }
         _ => bail!("unknown chat tool: {name}"),
@@ -66,6 +61,24 @@ pub async fn call(hub: &Arc<Hub>, bot: &str, name: &str, args: &Value) -> Result
     })
     .await??;
     Ok(json!({"saved": true}))
+}
+
+/// A name a bot sets, for itself or (`chat::manage`) another bot: trimmed, nonempty and at most `MAX_NAME_CHARS`.
+pub fn checked_name(name: &str) -> Result<&str> {
+    let name = name.trim();
+    if name.is_empty() || name.chars().count() > MAX_NAME_CHARS {
+        bail!("name must be nonempty and at most {MAX_NAME_CHARS} characters");
+    }
+    Ok(name)
+}
+
+/// Instructions a bot writes, for itself or another bot: trimmed, at most `MAX_INSTRUCTIONS_CHARS`.
+pub fn checked_instructions(text: &str) -> Result<&str> {
+    let text = text.trim();
+    if text.chars().count() > MAX_INSTRUCTIONS_CHARS {
+        bail!("instructions must be at most {MAX_INSTRUCTIONS_CHARS} characters");
+    }
+    Ok(text)
 }
 
 #[cfg(test)]

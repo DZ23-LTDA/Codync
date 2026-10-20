@@ -75,7 +75,7 @@ impl Actor {
         params
     }
 
-    /// ACP connectors, team collaboration, and optional computer control.
+    /// ACP connectors, team collaboration, and optional team management and computer control.
     pub(super) fn mcp_servers(&self) -> Result<Value> {
         let Ok(exe) = std::env::current_exe() else {
             tracing::warn!("can't locate codync-host for MCP servers");
@@ -93,6 +93,7 @@ impl Actor {
             Some("connectors"),
             Some("chat"),
             Some("team"),
+            self.cfg.manage_team.then_some("manage"),
             Some("memory"),
             Some("routines"),
             self.cfg.computer.then_some("computer"),

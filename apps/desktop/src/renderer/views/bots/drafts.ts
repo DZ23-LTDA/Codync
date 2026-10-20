@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react'
-import type { BotDraft } from '@shared/models'
+import { useEffect, useRef, useState } from 'react'
+import { rebase } from '@shared/draft-rebase'
+import { draftOf, type Bot, type BotDraft } from '@shared/models'
 import { AVATAR_COLORS, AVATAR_SHAPES } from '../../lib/theme'
 import type { BotStore } from '../../store/bot-store'
 
@@ -73,6 +74,22 @@ export function usePlugins(store: BotStore): Plugins | null {
     }
   }, [store, online])
   return plugins
+}
+
+/**
+ * Keeps an open settings form on the host's copy of its bot: a change made elsewhere (a bot that manages the team,
+ * another device) replaces each field the user hasn't edited here, so saving the form never puts back the old value.
+ */
+export function useFollowSaved(bot: Bot | undefined, change: (update: (d: BotDraft) => BotDraft) => void) {
+  const saved = bot ? JSON.stringify(draftOf(bot)) : null
+  const last = useRef(saved)
+  useEffect(() => {
+    const old = last.current
+    last.current = saved
+    if (!old || !saved || old === saved) return
+    const [base, fresh] = [JSON.parse(old) as BotDraft, JSON.parse(saved) as BotDraft]
+    if (base.id === fresh.id) change((d) => rebase(d, base, fresh))
+  }, [saved])
 }
 
 export const lastPathComponent = (path: string) => path.split('/').filter(Boolean).pop() ?? path

@@ -39,6 +39,10 @@ public struct Bot: Codable, Identifiable, Hashable, Sendable {
     public var skills: [String]
     /// The bot can see and operate the computer's desktop (the built-in `computer` tools).
     public var computer: Bool
+    /// The bot can create bots (which can too) and change any bot's setup (the built-in `manage` tools). Nil from an older host.
+    public var manageTeam: Bool?
+    /// The bot that created this one; nil when the user did.
+    public var createdBy: String?
     /// Uses the memory all the user's bots share ("About you"). Nil from an older host.
     public var sharedMemory: Bool?
     /// Keeps the harness's own memory (Claude Code's…) on beside Codync's. Nil where it has no switch.
@@ -363,6 +367,7 @@ public struct BotDraft: Codable, Hashable, Sendable {
     public var connectors: [String]?
     public var skills: [String]?
     public var computer: Bool?
+    public var manageTeam: Bool?
     /// Only sent when the user changes it: unset, the host picks by the bot's folder.
     public var sharedMemory: Bool?
     /// Only sent when the user changes it.
@@ -399,6 +404,22 @@ public struct BotDraft: Codable, Hashable, Sendable {
         connectors = bot.connectors
         skills = bot.skills
         computer = bot.computer
+        manageTeam = bot.manageTeam
+    }
+
+    /// This draft with each field it hasn't changed from `base` (the bot as the form loaded it) taken from `fresh`
+    /// (the bot as the host has it now), so saving the form keeps a change made elsewhere: a bot that manages the
+    /// team, another device.
+    public func rebased(from base: BotDraft, onto fresh: BotDraft) -> BotDraft {
+        var draft = self
+        func follow<Value: Equatable>(_ field: WritableKeyPath<BotDraft, Value>) {
+            if self[keyPath: field] == base[keyPath: field] { draft[keyPath: field] = fresh[keyPath: field] }
+        }
+        follow(\.name); follow(\.description); follow(\.avatarColor); follow(\.avatarShape); follow(\.backend)
+        follow(\.command); follow(\.cwd); follow(\.permission); follow(\.model); follow(\.modelOptions)
+        follow(\.fastMode); follow(\.pinned); follow(\.hidden); follow(\.notify); follow(\.connectors)
+        follow(\.skills); follow(\.computer); follow(\.manageTeam); follow(\.sharedMemory); follow(\.harnessMemory)
+        return draft
     }
 }
 
@@ -434,6 +455,8 @@ extension Bot {
         connectors = try c.decodeIfPresent([String].self, forKey: .connectors) ?? []
         skills = try c.decodeIfPresent([String].self, forKey: .skills) ?? []
         computer = try c.decodeIfPresent(Bool.self, forKey: .computer) ?? false
+        manageTeam = try c.decodeIfPresent(Bool.self, forKey: .manageTeam)
+        createdBy = try c.decodeIfPresent(String.self, forKey: .createdBy)
         sharedMemory = try c.decodeIfPresent(Bool.self, forKey: .sharedMemory)
         harnessMemory = try c.decodeIfPresent(Bool.self, forKey: .harnessMemory)
         memoryRev = try c.decodeIfPresent(Int64.self, forKey: .memoryRev)

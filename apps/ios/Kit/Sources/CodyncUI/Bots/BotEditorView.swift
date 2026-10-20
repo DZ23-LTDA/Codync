@@ -33,6 +33,10 @@ public struct BotEditorView: View {
             BotSettingsForm(draft: $draft, error: error)
         }
         .background(Palette.background)
+        // A change made elsewhere (a bot that manages the team, another device) replaces each field not edited here.
+        .onChange(of: draft.id.flatMap { model.bots[$0] }.map(BotDraft.init)) { base, fresh in
+            if let base, let fresh { draft = draft.rebased(from: base, onto: fresh) }
+        }
     }
 
     private func save() {
@@ -169,6 +173,9 @@ struct BotSettingsForm: View {
                     TextField("Name", text: $draft.name).fieldBox()
                 }
                 if part == .all { instructions }
+                if let bot = draft.id.flatMap({ model.bots[$0] }), let creator = bot.createdBy {
+                    ValueRow("Created by", value: "\(model.bots[creator]?.name ?? "A bot") · \(Date(milliseconds: bot.createdAt).formatted(date: .abbreviated, time: .omitted))")
+                }
             }
 
             // On the details sheet the agent and its model are on the Details page; what's left is where it works.
@@ -221,6 +228,11 @@ struct BotSettingsForm: View {
                         ? "Let this bot see the screen and use the mouse and keyboard."
                         : "Let this bot see the screen and use the mouse and keyboard. On that computer, open Codync → Settings → Computer access to set up permissions first.",
                               isOn: Binding(get: { draft.computer ?? false }, set: { draft.computer = $0 }))
+                }
+                // Only from a host that has it (its bots say).
+                if model.bots.values.contains(where: { $0.manageTeam != nil }) {
+                    SwitchRow("Manage the team", detail: "Let this bot create bots and change any bot's setup, its own included. The bots it creates can too.",
+                              isOn: Binding(get: { draft.manageTeam ?? false }, set: { draft.manageTeam = $0 }))
                 }
             }
 

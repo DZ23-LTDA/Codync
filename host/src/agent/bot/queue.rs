@@ -69,6 +69,7 @@ impl Actor {
             Cmd::SendFile { path, name, cancelled, reply } => self.begin_file(path, name, cancelled, reply),
             Cmd::Stop => self.stop().await,
             Cmd::Permission { entry_id, option_id } => self.answer_permission(&entry_id, option_id).await,
+            Cmd::Approve { title, detail, reply } => self.ask_approval(&title, &detail, reply),
             Cmd::NewSession => {
                 if self.turn.is_some() {
                     self.stop().await;
@@ -90,8 +91,10 @@ impl Actor {
                     || cfg.model != self.cfg.model
                     || cfg.model_options != self.cfg.model_options
                     || (memory_changed && !resumes);
-                self.tools_changed |=
-                    cfg.connectors != self.cfg.connectors || cfg.computer != self.cfg.computer || memory_changed;
+                self.tools_changed |= cfg.connectors != self.cfg.connectors
+                    || cfg.computer != self.cfg.computer
+                    || cfg.manage_team != self.cfg.manage_team
+                    || memory_changed;
                 // Live sessions switch before their next turn (see `fast_mode`).
                 let fast_changed = cfg.fast_mode != self.cfg.fast_mode;
                 // Name, description and skill changes reach the agent as a profile update
@@ -104,22 +107,11 @@ impl Actor {
                     // Claude Code's notes come or go on the memory screen.
                     memory::screen_changed(&self.hub, &self.cfg.id);
                 }
-                if restart {
-                    self.files.cancel();
-                    if let Some(c) = self.conn.take() {
-                        c.acp.kill().await;
-                    }
-                    for slot in self.run_slots() {
-                        self.set_session(Some(&slot), None);
-                    }
-                    if self.session_id.is_some() {
-                        self.forget_session();
-                        self.notice(
-                            "The agent, model, command, folder or memory changed — the agent starts with a fresh context.",
-                            NoticeStyle::Divider,
-                        );
-                    }
-                    // A running prompt now fails; finish_turn reports it.
+                // The running turn finishes first: it may be the bot changing its own model (`update_bot`).
+                if restart && self.turn.is_some() {
+                    self.restart_after_turn = true;
+                } else if restart {
+                    self.restart_agent().await;
                 }
             }
             Cmd::Shutdown => return false,
@@ -163,7 +155,28 @@ impl Actor {
         }
     }
 
+    /// A new agent, model, command, folder or memory: the agent starts again with a fresh context.
+    async fn restart_agent(&mut self) {
+        self.files.cancel();
+        if let Some(c) = self.conn.take() {
+            c.acp.kill().await;
+        }
+        for slot in self.run_slots() {
+            self.set_session(Some(&slot), None);
+        }
+        if self.session_id.is_some() {
+            self.forget_session();
+            self.notice(
+                "The agent, model, command, folder or memory changed — the agent starts with a fresh context.",
+                NoticeStyle::Divider,
+            );
+        }
+    }
+
     pub(super) async fn next_in_queue(&mut self, done_tx: &mpsc::UnboundedSender<Done>) {
+        if self.turn.is_none() && std::mem::take(&mut self.restart_after_turn) {
+            self.restart_agent().await;
+        }
         let main = Lane::main(&self.cfg.id);
         while self.turn.is_none() && self.routine_completion.is_none() && !self.queue.is_empty() {
             match self.queue.front() {

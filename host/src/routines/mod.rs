@@ -1,4 +1,6 @@
 //! Durable bot routines, shared by API clients and the built-in MCP server.
+mod check;
+pub use check::Checked;
 mod editor;
 pub use editor::{ScheduleDraft, preview as schedule_preview};
 pub mod hooks;
@@ -206,52 +208,20 @@ impl Routines {
             .bot(bot)?
             .filter(|b| !b.deleted && !b.config.is_group())
             .context("routine requires an existing agent bot")?;
-        let name = required(body, "name")?.trim();
-        let instruction = required(body, "instruction")?.trim();
-        if name.is_empty() || name.len() > 200 || instruction.is_empty() || instruction.len() > 32_000 {
-            bail!("routine name or instruction is empty or too long");
-        }
-        let triggers: Vec<Trigger> = if let Some(draft) = body.get("schedule") {
-            serde_json::from_value::<ScheduleDraft>(draft.clone()).context("invalid schedule")?.triggers()?
-        } else {
-            serde_json::from_value(body["triggers"].clone()).context("invalid triggers")?
-        };
-        if triggers.is_empty() || triggers.len() > 20 {
-            bail!("a routine requires 1 to 20 triggers");
-        }
-        let timeout = body
-            .get("timeoutSeconds")
-            .map(|value| {
-                value
-                    .as_u64()
-                    .or_else(|| value.as_str()?.parse::<u64>().ok())
-                    .filter(|seconds| (1..=86_400).contains(seconds))
-                    .context("timeoutSeconds must be an integer between 1 and 86400")
-            })
-            .transpose()?;
+        let Checked { name, instruction, triggers, timeout } = Checked::parse(body)?;
         let now = now_ms();
         let id = body["id"].as_str().map_or_else(|| uuid::Uuid::new_v4().to_string(), str::to_owned);
         let updated = body["id"].is_string();
         let routine = self.change(&hub.store, |s| {
-            let old = s.routines.iter().find(|r| r.id == id && r.bot_id == bot && !r.deleted).cloned();
-            if updated && old.is_none() {
-                bail!("routine not found");
-            }
-            for trigger in &triggers {
-                if matches!(trigger, Trigger::Once { .. }) && old.as_ref().is_some_and(|r| r.triggers.contains(trigger))
-                {
-                    continue;
-                }
-                trigger.validate(now)?;
-            }
+            let old = check::replaced(s, bot, body, &triggers, now)?;
             if !updated && s.routines.iter().filter(|r| !r.deleted).count() >= 1000 {
                 bail!("routine limit reached");
             }
             let r = Routine {
                 id: id.clone(),
                 bot_id: row.config.id.clone(),
-                name: name.into(),
-                instruction: instruction.into(),
+                name: name.clone(),
+                instruction,
                 enabled: body["enabled"].as_bool().unwrap_or_else(|| old.as_ref().is_none_or(|r| r.enabled)),
                 created_at: old.as_ref().map_or(now, |r| r.created_at),
                 updated_at: now,

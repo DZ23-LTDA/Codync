@@ -1,6 +1,7 @@
 import {
   isWorking,
   needsInput,
+  normalizeBot,
   type Bot,
   type BotDraft,
   type DirListing,
@@ -297,16 +298,17 @@ export class BotStore extends BotSync {
   async createGroup(name: string, description: string, members: string[]) {
     const draft: GroupDraft = { kind: 'group', name, description, members }
     const res = await (await this.ready()).call<{ bot: Bot }>('createBot', draft)
-    this.bots.set(res.bot.id, res.bot)
-    this.selection = res.bot.id
+    const bot = normalizeBot(res.bot)
+    this.bots.set(bot.id, bot)
+    this.selection = bot.id
     this.onRosterChanged?.()
     this.changed()
-    return res.bot
+    return bot
   }
 
   async updateGroup(draft: GroupDraft) {
     const res = await (await this.ready()).call<{ bot: Bot }>('updateBot', draft)
-    this.bots.set(res.bot.id, res.bot)
+    this.bots.set(res.bot.id, normalizeBot(res.bot))
     this.changed()
   }
 
@@ -331,10 +333,11 @@ export class BotStore extends BotSync {
     const res = draft.id
       ? await client.call<{ bot: Bot }>('updateBot', { ...draft, model: draft.model ?? null })
       : await client.call<{ bot: Bot }>('createBot', draft)
-    this.bots.set(res.bot.id, res.bot)
+    const bot = normalizeBot(res.bot)
+    this.bots.set(bot.id, bot)
     this.onRosterChanged?.()
     this.changed()
-    return res.bot
+    return bot
   }
 
   async refreshBackends() {

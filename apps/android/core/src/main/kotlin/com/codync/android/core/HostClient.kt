@@ -33,6 +33,10 @@ data class Bot(
     val connectors: List<String> = emptyList(),
     val skills: List<String> = emptyList(),
     val computer: Boolean = false,
+    /** The bot can create bots (which can too) and change any bot's setup (the built-in `manage` tools); null from an older host. */
+    val manageTeam: Boolean? = null,
+    /** The bot that created this one; null when the user did. */
+    val createdBy: String? = null,
     val autoName: Boolean = false,
     val createdAt: Long = 0,
     val startedAt: Long? = null,

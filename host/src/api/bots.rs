@@ -1,11 +1,9 @@
 //! Bot and chat methods: roster, messages, uploads, memory, routines and the bots' own MCP calls.
 
-use super::marketplace::connector_ids;
 use super::str_arg;
 use crate::agent::bot::Cmd;
 use crate::hub::Hub;
-use crate::market;
-use crate::store::{BotConfig, EntryKind, Lane};
+use crate::store::{EntryKind, Lane};
 use anyhow::{Context, Result, anyhow, bail};
 use serde_json::{Value, json};
 use std::ops::ControlFlow;
@@ -52,6 +50,9 @@ pub(super) async fn call(hub: &Arc<Hub>, method: &str, b: Value) -> Result<Contr
         "teamCall" => {
             crate::chat::team::call(hub, str_arg(&b, "botId")?, str_arg(&b, "name")?, &b["arguments"]).await?
         }
+        "manageCall" => {
+            crate::chat::manage::call(hub, str_arg(&b, "botId")?, str_arg(&b, "name")?, &b["arguments"]).await?
+        }
         "history" => {
             let bot = str_arg(&b, "botId")?;
             let before = b["beforeSeq"].as_i64().unwrap_or(i64::MAX);
@@ -64,31 +65,9 @@ pub(super) async fn call(hub: &Arc<Hub>, method: &str, b: Value) -> Result<Contr
         }
         "createBot" => {
             let mut b = b;
-            b["id"] = "".into();
-            // Connectors are on for a new bot unless the client picked them.
-            // Without a credential store (headless Linux) no connector can run, so the bot starts with none.
-            if b["connectors"].is_null() && b["kind"] != "group" {
-                b["connectors"] = match market::vault::unlock(hub.clone()).await {
-                    Ok(()) => json!(connector_ids(&hub.store)?),
-                    Err(e) => {
-                        tracing::warn!(
-                            error = format!("{e:#}"),
-                            "credential store unavailable; new bot starts without connectors"
-                        );
-                        json!([])
-                    }
-                };
-            }
-            // Skills too: every installed one is on unless the client picked them.
-            if b["skills"].is_null() && b["kind"] != "group" {
-                b["skills"] = json!(market::skills(&hub.store).into_iter().map(|s| s.id).collect::<Vec<_>>());
-            }
-            // And the agent, when the client names none.
-            if b["backend"].as_str().is_none_or(str::is_empty) && b["kind"] != "group" {
-                let agents = tokio::task::spawn_blocking(crate::agent::backends::list).await?;
-                b["backend"] = default_backend(&agents).into();
-            }
-            let cfg: BotConfig = serde_json::from_value(b).context("invalid bot")?;
+            // Only a bot's `create_bot` records who made one.
+            b["createdBy"] = Value::Null;
+            let cfg = crate::agent::new_bot::with_defaults(hub, b).await?;
             let hub = hub.clone();
             json!({"bot": tokio::task::spawn_blocking(move || hub.create_bot(cfg)).await??})
         }
@@ -242,32 +221,4 @@ pub(super) async fn call(hub: &Arc<Hub>, method: &str, b: Value) -> Result<Contr
         }
         _ => return Ok(ControlFlow::Continue(b)),
     }))
-}
-
-/// A new bot's agent (`agents` as `backends::list` gives them): Claude when it runs here, else the
-/// first one Codync knows that does. A registry agent nobody chose is never the default.
-fn default_backend(agents: &[Value]) -> &str {
-    let runnable = || agents.iter().filter(|a| a["available"] == true);
-    if runnable().any(|a| a["id"] == "claude") {
-        return "claude";
-    }
-    runnable().find(|a| a["curated"] == true).and_then(|a| a["id"].as_str()).unwrap_or("claude")
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn the_default_agent_is_claude_then_the_first_known_one() {
-        assert_eq!(default_backend(&[]), "claude", "nothing installed");
-        let mut agents = vec![
-            json!({"id": "goose", "available": true, "curated": false}),
-            json!({"id": "codex", "available": true, "curated": true}),
-            json!({"id": "claude", "available": false, "curated": true}),
-        ];
-        assert_eq!(default_backend(&agents), "codex");
-        agents[2]["available"] = true.into();
-        assert_eq!(default_backend(&agents), "claude");
-    }
 }

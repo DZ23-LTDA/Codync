@@ -81,6 +81,13 @@ class ConversationTest {
         assertEquals(JsonNull, BotDraft.from(bot).copy(model = null).body()["model"])
     }
 
+    @Test fun `a settings draft takes changes made elsewhere and keeps its own edits`() {
+        val base = BotDraft.from(Bot("b", "Lead", model = "sonnet"))
+        val fresh = base.copy(model = "opus", name = "Boss", manageTeam = true)
+        assertEquals(fresh.copy(notify = false), base.copy(notify = false).rebased(base, fresh))
+        assertEquals("haiku", base.copy(model = "haiku").rebased(base, fresh).model)
+    }
+
     @Test fun `malformed rendered fields cannot enter the mirror`() {
         for (data in listOf("{\"text\":{}}", "{\"final\":[]}", "{\"options\":[{}]}",
             "{\"reactions\":[{}]}", "{\"attachments\":[{\"id\":\"id\",\"name\":\"file\",\"size\":-1}]}")) {

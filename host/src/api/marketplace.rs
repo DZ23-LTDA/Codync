@@ -5,20 +5,11 @@ use super::str_arg;
 use crate::agent::bot::Cmd;
 use crate::hub::Hub;
 use crate::market;
+use crate::market::connector_ids;
 use anyhow::{Result, anyhow, bail};
 use serde_json::{Value, json};
 use std::ops::ControlFlow;
 use std::sync::Arc;
-
-/// Everything a bot can turn on: installed connectors and connected apps.
-pub(super) fn connector_ids(store: &crate::store::Store) -> Result<Vec<String>> {
-    Ok(market::list_connectors(store)?["items"]
-        .as_array()
-        .into_iter()
-        .flatten()
-        .filter_map(|c| c["id"].as_str().map(str::to_owned))
-        .collect())
-}
 
 /// What the computer installs for its bots.
 #[derive(Clone, Copy)]

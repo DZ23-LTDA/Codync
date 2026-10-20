@@ -37,6 +37,10 @@ export interface Bot {
   skills: string[]
   /** The bot can see and operate the computer's desktop. */
   computer: boolean
+  /** The bot can create bots (which can too) and change any bot's setup (the built-in `manage` tools); null from an older host. */
+  manageTeam: boolean | null
+  /** The bot that created this one; null when the user did. */
+  createdBy: string | null
   /** Uses the memory all the user's bots share ("About you"). */
   sharedMemory: boolean
   /** Keeps the harness's own memory (Claude Code's…) on beside Codync's; null where it has no switch. */
@@ -83,6 +87,8 @@ export function normalizeBot(raw: Partial<Bot> & { id: string }): Bot {
     connectors: raw.connectors ?? [],
     skills: raw.skills ?? [],
     computer: raw.computer ?? false,
+    manageTeam: raw.manageTeam ?? null,
+    createdBy: raw.createdBy ?? null,
     sharedMemory: raw.sharedMemory ?? raw.managedWorkspace ?? false,
     harnessMemory: raw.harnessMemory ?? null,
     memoryRev: raw.memoryRev ?? 0,
@@ -485,6 +491,7 @@ export interface BotDraft {
   connectors?: string[]
   skills?: string[]
   computer?: boolean
+  manageTeam?: boolean
   sharedMemory?: boolean
   harnessMemory?: boolean
 }
@@ -509,6 +516,7 @@ export function draftOf(bot: Bot): BotDraft {
     connectors: bot.connectors,
     skills: bot.skills,
     computer: bot.computer,
+    manageTeam: bot.manageTeam ?? undefined,
   }
 }
 

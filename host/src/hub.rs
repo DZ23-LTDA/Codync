@@ -222,7 +222,7 @@ impl Hub {
         let row = self.store.bot(&id)?.filter(|b| !b.deleted).ok_or_else(|| anyhow!("unknown bot"))?;
         let mut merged = serde_json::to_value(&row.config)?;
         for (k, v) in patch.as_object().into_iter().flatten() {
-            if k != "id" && k != "createdAt" {
+            if !matches!(k.as_str(), "id" | "createdAt" | "createdBy") {
                 merged[k] = v.clone();
             }
         }
@@ -459,7 +459,7 @@ impl Hub {
     }
 }
 
-fn validate(cfg: &BotConfig) -> Result<()> {
+pub(crate) fn validate(cfg: &BotConfig) -> Result<()> {
     if cfg.name.trim().is_empty() {
         bail!("name is required");
     }

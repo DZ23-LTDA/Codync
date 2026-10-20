@@ -106,6 +106,13 @@ pub struct BotConfig {
     /// The bot gets the built-in `computer` MCP server (see `screen`).
     #[serde(default)]
     pub computer: bool,
+    /// The bot gets the built-in `manage` MCP server: it creates bots and changes any bot's setup
+    /// (see `chat::manage`). The user turns it on; the bots such a bot creates have it too.
+    #[serde(default)]
+    pub manage_team: bool,
+    /// The bot that created this one with `create_bot`; none when the user did.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub created_by: Option<String>,
     /// Uses the memory shared by all bots ("yours"). Unset: on for a bot in its own workspace, off for one in a
     /// project folder (see `chat::memory::shared`).
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -132,6 +139,11 @@ impl BotConfig {
 fn null_as_false<'de, D: serde::Deserializer<'de>>(value: D) -> Result<bool, D::Error> {
     Ok(Option::<bool>::deserialize(value)?.unwrap_or(false))
 }
+
+/// The avatar colors and shapes every client offers.
+pub const AVATAR_COLORS: [&str; 11] =
+    ["black", "brown", "red", "orange", "yellow", "green", "cyan", "blue", "violet", "magenta", "gray"];
+pub const AVATAR_SHAPES: [&str; 8] = ["blob", "pebble", "squircle", "tablet", "wedge", "hex", "cloud", "teardrop"];
 
 fn default_color() -> String {
     "blue".into()

@@ -74,6 +74,11 @@ impl Host {
         self.call("createBot", bot).await["bot"]["id"].as_str().unwrap().to_owned()
     }
 
+    /// What a client holds after catching up (see `common::snapshot`).
+    pub async fn snapshot(&self) -> Value {
+        super::snapshot(&self.base, &self.token).await
+    }
+
     pub async fn memory(&self, bot: &str) -> Value {
         self.call("memory", json!({"botId": bot})).await
     }

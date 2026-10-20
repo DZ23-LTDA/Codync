@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { fastModeRefusal, fastModeShown } from '@shared/fast-mode'
-import { draftOf, type BotDraft, type DirListing } from '@shared/models'
+import { draftOf, type Bot, type BotDraft, type DirListing } from '@shared/models'
 import { AgentIcon } from '../../components/AgentIcon'
 import { CharacterAvatar } from '../../components/Avatar'
 import { CardSection, ChoicePicker, DropdownMenu, IconButton, Pill, SearchField, Spinner, ValueRow } from '../../components/Controls'
@@ -11,7 +11,7 @@ import { Text } from '../../components/Text'
 import { useStore } from '../../store/context'
 import { useAgentModels } from './agent-models'
 import { AgentModelPicker } from './AgentModelPicker'
-import { errorText, isValid, lastPathComponent, normalized, usePlugins, type Plugins } from './drafts'
+import { errorText, isValid, lastPathComponent, normalized, useFollowSaved, usePlugins, type Plugins } from './drafts'
 import { FormSheet } from '../marketplace/pieces'
 import { SkillSheet, type SkillRef } from '../marketplace/SkillSheet'
 import { AnchoredPanel, AutoTextArea, AvatarPicker, Field, SwitchRow } from './parts'
@@ -26,6 +26,7 @@ export function BotEditorView({ draft: initial }: { draft: BotDraft }) {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const online = store.connection.kind === 'online'
+  useFollowSaved(initial.id ? store.bots.get(initial.id) : undefined, setDraft)
 
   const save = () => {
     if (!isValid(draft) || saving || !online) return
@@ -70,6 +71,7 @@ export function BotSettingsPanel({ botId, part }: { botId: string; part: FormPar
     setDraft(bot ? draftOf(bot) : null)
     // Only a different bot reloads the form; the host's echo of a save must not undo typing.
   }, [botId])
+  useFollowSaved(store.bots.get(botId), change)
 
   // Autosave a moment after the last change.
   useEffect(() => {
@@ -85,6 +87,17 @@ export function BotSettingsPanel({ botId, part }: { botId: string; part: FormPar
   }, [draft])
 
   return draft ? <BotSettingsForm draft={draft} onChange={change} error={error} plugins={plugins} part={part} /> : null
+}
+
+/** The bot that created this one with its team tools, and when. */
+function CreatedBy({ bot, creator }: { bot: Bot; creator: string }) {
+  const store = useStore()
+  const date = new Date(bot.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
+  return (
+    <ValueRow label="Created by">
+      <Text truncate>{`${store.bots.get(creator)?.name ?? 'A bot'} · ${date}`}</Text>
+    </ValueRow>
+  )
 }
 
 /** Bot settings, in sections in the Settings style (`CardSection`). */
@@ -190,6 +203,8 @@ function BotSettingsForm({ draft, onChange, error, plugins, part = 'all' }: {
             <input className="field-box" value={draft.name} placeholder="Name" onChange={(e) => set('name', e.target.value)} />
           </Field>
           {part === 'all' ? instructions : null}
+          {/* Only a row when a bot made it: CardSection gives every child a row. */}
+          {saved?.createdBy ? <CreatedBy bot={saved} creator={saved.createdBy} /> : null}
         </CardSection>
 
         {/* In the inspector the agent and its model are on the Details tab; what's left is where it works. */}
@@ -255,6 +270,15 @@ function BotSettingsForm({ draft, onChange, error, plugins, part = 'all' }: {
               }
               on={draft.computer ?? false}
               onChange={(on) => set('computer', on)}
+            />
+          ) : null}
+          {/* Only from a host that has it (its bots say). */}
+          {[...store.bots.values()].some((b) => b.manageTeam !== null) ? (
+            <SwitchRow
+              title="Manage the team"
+              detail="Let this bot create bots and change any bot's setup, its own included. The bots it creates can too."
+              on={draft.manageTeam ?? false}
+              onChange={(on) => set('manageTeam', on)}
             />
           ) : null}
         </CardSection>

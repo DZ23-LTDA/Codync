@@ -37,6 +37,10 @@ internal object RelativeTime {
         }
     }
 
+    /** A calendar date, as iOS's abbreviated one: Oct 20, 2026. */
+    fun calendarDay(milliseconds: Long): String =
+        date(milliseconds).format(DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM).withLocale(Locale.getDefault()))
+
     /** Chat separator: Today 3:27 AM · Yesterday 5:20 PM · Sep 16 9:02 AM. */
     fun separator(milliseconds: Long): String {
         val day = date(milliseconds)
