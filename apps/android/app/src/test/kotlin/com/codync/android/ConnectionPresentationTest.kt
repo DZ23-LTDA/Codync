@@ -74,5 +74,9 @@ class ConnectionPresentationTest {
         // Not paired here, but the new identity is online in the account.
         val accountOnly = state(LinkState.Connecting, listOf(old, cloud("new", online = true)), computers = emptyList())
         assertTrue(accountOnly.isOlderCopy(old))
+        // Seen after the current one joined the account: two machines that share a name.
+        val seen = old.copy(lastSeenAt = 200)
+        assertFalse(state(LinkState.Connecting, listOf(seen, cloud("fixture", online = true).copy(claimedAt = 100))).isOlderCopy(seen))
+        assertTrue(state(LinkState.Connecting, listOf(seen, cloud("fixture", online = true).copy(claimedAt = 300))).isOlderCopy(seen))
     }
 }

@@ -1,5 +1,6 @@
 import type { CloudStatus, ClaimSignature } from '@shared/models'
 import { Observable } from '../lib/observable'
+import { isOlderCopy } from '../lib/older-copy'
 import { pref } from '../lib/prefs'
 import { account } from './account'
 import type { AppModel } from './app-model'
@@ -256,11 +257,8 @@ export class CloudModel extends Observable {
     }
   }
 
-  /** An offline account computer named like one this app uses or sees online: an earlier identity of it. */
   isOlderCopy(c: CloudComputer) {
-    if (c.online) return false
-    return this.app.computers.some((x) => x.id !== c.computerId && x.name === c.name) ||
-      this.computers.some((o) => o.computerId !== c.computerId && o.name === c.name && (this.app.store(o.computerId) !== null || !!o.online))
+    return isOlderCopy(c, this.computers, this.app.computers)
   }
 
   devices() {

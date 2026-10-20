@@ -72,11 +72,17 @@ private fun AppState.renamedCopyOnline(id: String, name: String) =
 /**
  * An offline account computer named like one this phone uses or sees online: most likely the same
  * machine under an earlier identity (its host keys were reset), left behind in the account.
+ * Seen after that one joined the account, it ran beside it: another machine with the same name.
  */
 internal fun AppState.isOlderCopy(computer: CloudComputer): Boolean {
     if (computer.online == true) return false
+    fun replacedBy(id: String): Boolean {
+        val seen = computer.lastSeenAt ?: return true
+        val claimed = cloudComputers.firstOrNull { it.computerId == id }?.claimedAt ?: return true
+        return seen <= claimed
+    }
     // The current copy may be paired with its code without being listed in the account.
-    return computers.any { it.id != computer.computerId && it.name == computer.name }
+    return computers.any { it.id != computer.computerId && it.name == computer.name && replacedBy(it.id) }
         || cloudComputers.any { other -> other.computerId != computer.computerId && other.name == computer.name
-            && (computers.any { it.id == other.computerId } || other.online == true) }
+            && (computers.any { it.id == other.computerId } || other.online == true) && replacedBy(other.computerId) }
 }

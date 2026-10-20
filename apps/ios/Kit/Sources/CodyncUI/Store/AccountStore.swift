@@ -193,13 +193,19 @@ public final class AccountStore {
 
     /// An offline account computer named like one this device uses or sees online: most likely the same
     /// machine under an earlier identity (its host keys were reset), left behind in the account.
+    /// Seen after that one joined the account, it ran beside it: another machine with the same name.
     public func isOlderCopy(_ computer: CloudComputer) -> Bool {
         guard !computer.isOnline else { return false }
+        func replaced(by id: ComputerID) -> Bool {
+            guard let seen = computer.lastSeenAt,
+                  let claimed = cloudComputers.first(where: { $0.computerId == id })?.claimedAt else { return true }
+            return seen <= claimed
+        }
         // The current copy may be QR-paired without being listed in the account.
-        return computers.contains { $0.id != computer.computerId && $0.name == computer.name }
+        return computers.contains { $0.id != computer.computerId && $0.name == computer.name && replaced(by: $0.id) }
             || cloudComputers.contains { other in
                 other.computerId != computer.computerId && other.name == computer.name
-                    && (stores[other.computerId] != nil || other.isOnline)
+                    && (stores[other.computerId] != nil || other.isOnline) && replaced(by: other.computerId)
             }
     }
 

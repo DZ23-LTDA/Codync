@@ -9,6 +9,7 @@ import { HStack, IconSlot, Spacer, VStack } from '../../components/Stack'
 import { Text } from '../../components/Text'
 import { useModel } from '../../lib/observable'
 import { useAccount } from '../../store/account'
+import type { CloudComputer } from '../../store/cloud'
 import type { BotStore } from '../../store/bot-store'
 import { useScreenViewed } from '../../store/analytics'
 import { StoreContext, useApp } from '../../store/context'
@@ -29,6 +30,7 @@ export function ComputersView() {
   const sshState = useSSH()
   const cloud = useModel(app.cloud)
   const [editing, setEditing] = useState<{ profile: SSHProfile; isNew: boolean } | null>(null)
+  const [removingCopy, setRemovingCopy] = useState<CloudComputer | null>(null)
   const managed = app.managedStores
   const managedIds = new Set(managed.map((s) => s.computer.id))
   const reached = app.computers.filter((c) => !managedIds.has(c.id))
@@ -76,7 +78,7 @@ export function ComputersView() {
                   <div className="settings-stack">
                     <Text size="callout" weight="medium">{store.hostName}</Text>
                     <Text size="caption" tone={stale ? 'attention' : 'secondary'}>
-                      {stale ? `Older copy of this computer · ${statusText(store)}` : statusText(store)}
+                      {stale ? `Older copy · ${statusText(store)}` : statusText(store)}
                     </Text>
                   </div>
                   <RouteIcon store={store} />
@@ -87,16 +89,7 @@ export function ComputersView() {
             )
           })}
           {others.map((computer) => (
-            // An account computer this app isn't authorized on. Asking for access lives in the cloud model.
-            <div key={computer.computerId} className="settings-card settings-appear">
-              <div className="settings-row">
-                <ComputerBadge computer={{ id: computer.computerId, name: computer.name, signKey: computer.signKey, urls: [], device: computer.device ?? null }} size={22} />
-                <div className="settings-stack">
-                  <Text size="callout" weight="medium">{computer.name}</Text>
-                  <Text size="caption" tone="secondary">{computer.online ? 'Online' : 'Offline'}</Text>
-                </div>
-              </div>
-            </div>
+            <AccountComputerRow key={computer.computerId} computer={computer} olderCopy={cloud.isOlderCopy(computer)} onRemove={() => setRemovingCopy(computer)} />
           ))}
         </div>
       </VStack>
@@ -104,6 +97,13 @@ export function ComputersView() {
       <Sheet open={editing !== null} onClose={() => setEditing(null)} width={460}>
         {editing ? <SSHProfileEditor key={editing.profile.id} profile={editing.profile} isNew={editing.isNew} /> : null}
       </Sheet>
+      <Dialog
+        open={removingCopy !== null}
+        title={`Remove the older ${removingCopy?.name ?? 'computer'}?`}
+        message={`It's an earlier identity of ${removingCopy?.name ?? 'a computer'} and can't be reached anymore. Removing it only cleans up your account.`}
+        actions={removingCopy ? [{ title: 'Remove', destructive: true, action: () => void cloud.removeFromAccount(removingCopy.computerId) }] : []}
+        onClose={() => setRemovingCopy(null)}
+      />
     </div>
   )
 }
@@ -306,6 +306,31 @@ function ManagedComputerCard({ store, ssh: overSSH }: { store: BotStore; ssh: bo
       />
     </VStack>
   )
+}
+
+/** An account computer this app isn't authorized on, or one it uses under an earlier identity (`olderCopy`). */
+function AccountComputerRow({ computer, olderCopy, onRemove }: { computer: CloudComputer; olderCopy: boolean; onRemove: () => void }) {
+  return (
+    <div className="settings-card settings-appear">
+      <div className="settings-row">
+        <span className={olderCopy ? 'settings-off' : undefined}>
+          <ComputerBadge computer={{ id: computer.computerId, name: computer.name, signKey: computer.signKey, urls: [], device: computer.device ?? null }} size={22} />
+        </span>
+        <div className="settings-stack">
+          <Text size="callout" weight="medium" tone={olderCopy ? 'secondary' : undefined}>{computer.name}</Text>
+          <Text size="caption" tone={olderCopy ? 'tertiary' : 'secondary'}>{accountComputerStatus(computer, olderCopy)}</Text>
+        </div>
+        <Spacer />
+        {olderCopy ? <IconButton title="Remove from account" icon="trash" onClick={onRemove} /> : null}
+      </div>
+    </div>
+  )
+}
+
+/** "Older copy", not the phones' "Older copy of this computer": on the desktop "this computer" reads as this Mac. */
+function accountComputerStatus(computer: CloudComputer, olderCopy: boolean) {
+  if (!olderCopy) return computer.online ? 'Online' : 'Offline'
+  return computer.lastSeenAt ? `Older copy · last seen ${relativeDay(new Date(computer.lastSeenAt))}` : 'Older copy'
 }
 
 function deviceDetail(device: AuthorizedDevice) {
