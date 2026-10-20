@@ -233,7 +233,7 @@ export interface EntryData {
   detail?: string
   cwd?: string
   entries?: PlanItem[]
-  /** notice: info | error | divider */
+  /** notice: info | error */
   style?: string
   author?: string
   /** user: the message this one replies to. */

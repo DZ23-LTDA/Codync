@@ -329,7 +329,9 @@ async fn an_agent_started_for_a_run_stops_when_the_run_ends() {
     let bot = host.stable_bot("only-runs").await;
     let id = host.save(&bot, "one-off", "ONE_OFF", json!([{"type":"webhook"}]), 30).await;
     host.call("runRoutine", json!({"botId":bot,"id":id})).await;
-    host.wait_event("only-runs", "finished", "ONE_OFF").await;
+    // The run's outcome, not the agent's own "finished": a message sent before the host took the reply would wait in
+    // the queue and keep the agent running.
+    host.wait_status(&bot, &id, "succeeded").await;
     host.send(&bot, "LATER").await;
     host.wait_event("only-runs", "finished", "LATER").await;
     let events = host.agent_events("only-runs");

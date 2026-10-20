@@ -197,13 +197,6 @@
 .chat-notice {
   text-align: center;
 }
-.chat-notice-divider {
-  padding: 6px 0;
-}
-.chat-notice-divider-text {
-  text-align: center;
-  max-width: 260px;
-}
 .chat-notice-error {
   padding: 12px;
   border-radius: var(--radius-m);

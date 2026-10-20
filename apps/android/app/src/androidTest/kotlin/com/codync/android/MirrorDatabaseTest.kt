@@ -68,12 +68,20 @@ class MirrorDatabaseTest {
     }
 
     @Test fun incompatibleCacheAndDatabaseReplacementRewindSafely() {
-        mirror.setStamp("old", "2.4/2.4")
+        assertFalse(mirror.setStamp("old", "2.4/2.4"))
         mirror.apply(MirrorEvent.EntryChanged(entry(9)))
-        mirror.setStamp("old", "2.5/2.4")
-        assertEquals(0, mirror.snapshot().rev)
+        mirror.save(PendingSend("unsent", "bot", text = "message", createdAt = 1))
+        mirror.finishHistory("bot")
+        assertFalse(mirror.setStamp("old", "2.4/2.4"))
         assertEquals(1, mirror.snapshot().entries.size)
-        mirror.setStamp("new", "2.5/2.4")
+        // The new host removed "message": the catch-up from 0 brings only what it still has.
+        assertTrue(mirror.setStamp("old", "2.5/2.4"))
+        assertEquals(0, mirror.snapshot().rev)
+        assertFalse(mirror.historyComplete("bot"))
+        assertEquals("unsent", mirror.snapshot().pending.single().nonce)
+        mirror.apply(MirrorEvent.EntryChanged(Entry("kept", 2, "bot", rev = 10, kind = "user", data = buildJsonObject { put("text", "kept") })))
+        assertEquals(listOf("kept"), mirror.snapshot().entries.map { it.id })
+        assertTrue(mirror.setStamp("new", "2.5/2.4"))
         assertEquals(0, mirror.snapshot().rev)
         assertTrue(mirror.snapshot().entries.isEmpty())
     }

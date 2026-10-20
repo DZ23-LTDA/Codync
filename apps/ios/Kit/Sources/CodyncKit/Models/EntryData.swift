@@ -27,7 +27,7 @@ public struct EntryData: Codable, Hashable, Sendable {
     public var detail: String?
     public var cwd: String?
     public var entries: [PlanItem]?
-    /// notice: info | error | divider
+    /// notice: info | error
     public var style: String?
     /// Structured conversation data added to the existing team-tool notice.
     public var botMessage: BotMessage?

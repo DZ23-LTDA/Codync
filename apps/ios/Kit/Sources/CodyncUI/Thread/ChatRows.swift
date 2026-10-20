@@ -226,19 +226,6 @@ struct NoticeRow: View {
 
     @ViewBuilder private func styled(_ text: String) -> some View {
         switch entry.data.style {
-        case "divider":
-            HStack(spacing: 10) {
-                Rectangle().fill(Palette.border).frame(height: 1)
-                Text(text)
-                    .font(.caption2)
-                    .foregroundStyle(Palette.tertiary)
-                    .multilineTextAlignment(.center)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .frame(maxWidth: 260)
-                    .layoutPriority(1)
-                Rectangle().fill(Palette.border).frame(height: 1)
-            }
-            .padding(.vertical, 6)
         case "error":
             Label {
                 Text(text).font(.footnote).foregroundStyle(Palette.text).textSelection(.enabled)

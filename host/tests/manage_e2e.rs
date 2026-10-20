@@ -78,7 +78,11 @@ async fn a_lead_creates_a_bot_the_user_allowed_and_not_one_change_they_denied() 
     })
     .await;
     assert!(reply.starts_with("Done: "), "{reply}");
-    wait(&host, &lead, |e| e["data"]["text"].as_str().is_some_and(|t| t.contains("starts with a fresh context"))).await;
+    // Its next message opens a new session, and the chat says nothing about it.
+    let new_sessions = || host.log(&lead, "sessions.jsonl").iter().filter(|r| r["method"] == "session/new").count();
+    let before = new_sessions();
+    host.reply(&lead, "hi").await;
+    assert_eq!(new_sessions(), before + 1);
     let sync = host.snapshot().await;
     let lead_bot = sync["bots"].as_array().unwrap().iter().find(|b| b["id"] == lead).unwrap();
     assert_eq!(lead_bot["model"], "fixture-2");

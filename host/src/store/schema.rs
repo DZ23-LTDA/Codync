@@ -7,13 +7,14 @@ use std::path::Path;
 use std::sync::Mutex;
 
 /// Current schema version (kv `schema`).
-const SCHEMA: i64 = 5;
+const SCHEMA: i64 = 6;
 
 /// 3: authorized devices (keys, not push tickets) with their push and Live Activity
 /// tickets. The old ticket-only `devices` table is dropped; phones re-register on connect.
 /// 4: threads (`entries.thread_id`); instruction snapshots are kept per session, so the
 /// per-bot ones go.
 /// 5: threads merge into their chats (quote replies took their place, see [`migrate_5`]).
+/// 6: the dividers that announced a fresh agent session go; the chat no longer shows session resets.
 fn migrate(c: &Connection) -> Result<()> {
     let version: i64 =
         c.query_row("SELECT CAST(v AS INTEGER) FROM kv WHERE k = 'schema'", [], |r| r.get(0)).optional()?.unwrap_or(0);
@@ -26,7 +27,10 @@ fn migrate(c: &Connection) -> Result<()> {
     if version < 4 {
         migrate_4(c)?;
     }
-    migrate_5(c)
+    if version < 5 {
+        migrate_5(c)?;
+    }
+    migrate_6(c)
 }
 
 fn migrate_3(c: &Connection) -> Result<()> {
@@ -117,6 +121,16 @@ fn migrate_5(c: &Connection) -> Result<()> {
     Ok(())
 }
 
+fn migrate_6(c: &Connection) -> Result<()> {
+    c.execute_batch(
+        "BEGIN;
+         DELETE FROM entries WHERE kind = 'notice' AND json_extract(data, '$.style') = 'divider';
+         INSERT INTO kv(k, v) VALUES('schema', '6') ON CONFLICT(k) DO UPDATE SET v = '6';
+         COMMIT;",
+    )?;
+    Ok(())
+}
+
 impl Store {
     pub fn open(path: &Path) -> Result<Self> {
         let c = Connection::open(path)?;
@@ -172,10 +186,30 @@ mod tests {
         }
         let s = Store::open(&db).unwrap();
         assert!(s.devices().unwrap().is_empty());
-        assert_eq!(s.kv_get("schema").as_deref(), Some("5"));
+        assert_eq!(s.kv_get("schema").as_deref(), Some("6"));
         drop(s);
         let s = Store::open(&db).unwrap();
         assert!(s.devices().unwrap().is_empty(), "reopening keeps the new table");
+    }
+
+    #[test]
+    fn session_reset_dividers_leave_the_chat() {
+        let db = temp_db();
+        {
+            let c = Connection::open(&db).unwrap();
+            Store::open(&db).unwrap();
+            c.execute_batch(
+                "UPDATE kv SET v = '5' WHERE k = 'schema';
+                 INSERT INTO entries(id, bot_id, rev, kind, turn, data, created_at, updated_at) VALUES
+                   ('reset', 'b', 1, 'notice', 0, '{\"text\":\"New session\",\"style\":\"divider\"}', 0, 0),
+                   ('info', 'b', 2, 'notice', 0, '{\"text\":\"Routine · News\"}', 0, 0);",
+            )
+            .unwrap();
+        }
+        let s = Store::open(&db).unwrap();
+        let chat: Vec<String> = s.history("b", i64::MAX, 10).unwrap().into_iter().map(|e| e.id).collect();
+        assert_eq!(chat, ["info"]);
+        assert_eq!(s.kv_get("schema").as_deref(), Some("6"));
     }
 
     #[test]
