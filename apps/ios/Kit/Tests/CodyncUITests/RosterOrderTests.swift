@@ -17,6 +17,8 @@ import Testing
     }
     let order = { store.roster.map(\.id) }
     #expect(order() == ["p", "a", "b", "c"]) // Never arranged: recent activity.
+    store.reorder(order()) // A drop in place: nothing to save or send.
+    #expect(store.bots.values.allSatisfy { $0.position == 0 })
     store.reorder(["p", "c", "a", "b"])
     #expect(order() == ["p", "c", "a", "b"])
     store.move("a", by: -1)
