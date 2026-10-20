@@ -217,6 +217,8 @@ export interface EntryData {
   memoryFile?: unknown
   routineId?: string
   runId?: string
+  /** notice: a failed routine run the user can run again (`retryRoutineRun`). */
+  retry?: boolean
   text?: string
   final?: boolean
   /** user: queued | sent | cancelled | failed · tool: pending | in_progress | completed | failed · permission: pending | answered | cancelled | expired */

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { compiledCron, durationText, repeatChoice, type RoutineSchedulePreview } from './routine.ts'
+import { compiledCron, durationText, repeatChoice, runLabel, type RoutineRun, type RoutineSchedulePreview } from './routine.ts'
 import { matchZones, timeZoneOptions, zoneOffset } from './time-zones.ts'
 
 test('time zones match like the phones: name start, word starts, inside, letters in order', () => {
@@ -53,4 +53,12 @@ test('Custom starts from the cron the host compiled', () => {
   assert.equal(compiledCron(preview([{ type: 'cron', expression: '0 9 * * 1-5', timeZone: 'Asia/Taipei' }])), '0 9 * * 1-5')
   assert.equal(compiledCron(preview([{ type: 'webhook' }])), null)
   assert.equal(compiledCron(null), null)
+})
+
+test('a queued run says when a waiting retry goes', () => {
+  const run = (notBefore: number | null): RoutineRun => ({ id: 'r', routineId: 'x', botId: 'b', status: 'pending', createdAt: 0, notBefore })
+  assert.equal(runLabel(run(null)), 'Queued')
+  assert.match(runLabel(run(120_000), 60_000), /^Retrying at \S/)
+  assert.equal(runLabel(run(60_000), 120_000), 'Retrying')
+  assert.equal(runLabel({ ...run(null), status: 'failed' }), 'Failed')
 })

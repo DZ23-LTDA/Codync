@@ -13,6 +13,7 @@ import { UpdateNeededCard } from '../UpdateNeededCard'
 import { buildChat, rowIn, useArrivals, type ChatItem } from './chat-items'
 import { BotConversationView, BotMessageRow } from './BotConversation'
 import { ChatRow, TimeSeparator, WorkingIndicator } from './ChatRows'
+import { RoutineNotice } from './RoutineNotice'
 import { Composer } from './Composer'
 import { ChatSidePanel } from './ChatSidePanel'
 import { DetailsPanel, type DetailsTab } from './DetailsPanel'
@@ -382,14 +383,8 @@ function Row({ item, chat, openTrace, onReply, openRoutine, openBotChat }: { ite
   }
   if (item.kind === 'exchanges') return <BotMessageRow exchanges={item.exchanges} open={openBotChat} />
   const e = item.entry
-  if (e.kind === 'notice' && e.data.routineId) {
-    return (
-      <button className="chat-routine-notice" onClick={() => openRoutine(e.data.routineId!)}>
-        <Icon name="clock.arrow.circlepath" size={10} />
-        {e.data.text ?? 'Routine'}
-      </button>
-    )
-  }
+  if (e.kind === 'notice' && e.data.routineId) return <RoutineNotice entry={e} open={() => openRoutine(e.data.routineId!)} />
+
   return <ChatRow entry={e} groupStart={item.groupStart} chat={chat} openTrace={openTrace} onReply={onReply} />
 }
 

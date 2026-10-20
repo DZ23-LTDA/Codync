@@ -99,12 +99,7 @@ public struct ThreadView: View {
             BotMessageRow(group: group) { botChat = BotChatTarget(id: group.peerId) }
         case .entry(let e, let groupStart):
             if e.kind == "notice", let id = e.data.routineId {
-                Button {
-                    openRoutine(id)
-                } label: {
-                    Label(e.data.text ?? "Routine", systemImage: "clock.arrow.circlepath")
-                        .font(.footnote).foregroundStyle(Palette.secondary).padding(.vertical, 10)
-                }.buttonStyle(.plain)
+                RoutineNoticeRow(entry: e) { openRoutine(id) }
             } else {
                 ChatRow(entry: e, groupStart: groupStart, chat: bot, openTrace: { showTrace = true },
                         // An update card takes the composer's place, so there's nothing to reply with.

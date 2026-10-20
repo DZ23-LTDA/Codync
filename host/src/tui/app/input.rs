@@ -193,6 +193,7 @@ impl App {
             KeyCode::Char('u') if ctrl => self.scroll_focused(half),
             KeyCode::Char('q') => self.quit = true,
             KeyCode::Char('C') => self.open_connection(),
+            KeyCode::Char('F') => self.retry_failed_run(),
             KeyCode::Char('I') if self.error.is_some() && self.bots.is_empty() => self.install_host(),
             KeyCode::Char('?') => self.overlays.push(Overlay::Help(Editor::default())),
             KeyCode::Char('!') => self.jump(Mark::Need),

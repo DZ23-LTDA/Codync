@@ -154,7 +154,7 @@ impl Actor {
             self.raw_prompt = false;
             self.finish_routine(
                 crate::routines::Status::Interrupted,
-                Some("The agent could not reload this run's saved session; inspect before retrying".into()),
+                Some("The agent could not reload this run's saved session".into()),
                 None,
             );
             self.turn = None;

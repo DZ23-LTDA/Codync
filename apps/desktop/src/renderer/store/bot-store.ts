@@ -12,6 +12,7 @@ import {
   type ScreenState,
   type Usage,
 } from '@shared/models'
+import type { HostClient } from '../client/host-client'
 import { FileDownloads } from './file-downloads'
 import { BotSync, sleep } from './bot-sync'
 
@@ -187,21 +188,28 @@ export class BotStore extends BotSync {
     })
   }
 
-  respond(entry: Entry, option: string | null) {
+  /** A card's button: `entry` shows `choice` as answering (its spinner) while `op` runs. */
+  private answer(entry: Entry, choice: string, op: (c: HostClient) => Promise<unknown>) {
     if (this.answering.has(entry.id)) return
-    this.answering.set(entry.id, option ?? '')
+    this.answering.set(entry.id, choice)
     this.changed()
     void (async () => {
       try {
-        await this.withLink((c) => c.call('respondPermission', { entryId: entry.id, optionId: option }), true)
-        // The card's own update follows on the events stream; hold the spinner until then.
-        await sleep(2000)
+        await this.withLink(op, true)
       } catch (error) {
         this.lastError = error instanceof Error ? error.message : String(error)
       }
       this.answering.delete(entry.id)
       this.changed()
     })()
+  }
+
+  respond(entry: Entry, option: string | null) {
+    this.answer(entry, option ?? '', async (c) => {
+      await c.call('respondPermission', { entryId: entry.id, optionId: option })
+      // The card's own update follows on the events stream; hold the spinner until then.
+      await sleep(2000)
+    })
   }
 
   /** Saves the user's version of a handoff that hasn't been sent; whether it did. */
@@ -218,18 +226,13 @@ export class BotStore extends BotSync {
 
   /** Carries on with the bot's current conversation instead of the handoff. */
   keepConversation(entry: Entry) {
-    if (this.answering.has(entry.id)) return
-    this.answering.set(entry.id, 'handoff')
-    this.changed()
-    void (async () => {
-      try {
-        await this.withLink((c) => c.call('keepConversation', { entryId: entry.id }), true)
-      } catch (error) {
-        this.lastError = error instanceof Error ? error.message : String(error)
-      }
-      this.answering.delete(entry.id)
-      this.changed()
-    })()
+    this.answer(entry, 'handoff', (c) => c.call('keepConversation', { entryId: entry.id }))
+  }
+
+  /** Runs a failed routine run's work again, from its notice; the notice's update drops the button. */
+  retryRoutineRun(entry: Entry) {
+    const runId = entry.data.runId
+    if (runId) this.answer(entry, 'retry', (c) => c.call('retryRoutineRun', { botId: entry.botId, runId }))
   }
 
   /** The roster's "Mark as read". */

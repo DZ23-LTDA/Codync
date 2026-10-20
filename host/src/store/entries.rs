@@ -114,6 +114,18 @@ impl Store {
         logged("max turn", n).unwrap_or(0)
     }
 
+    /// Whether the agent used a tool in `turn` of `bot_id`'s chat that may have changed something:
+    /// reading, searching, fetching and thinking don't count (ACP tool kinds).
+    pub fn acted_in_turn(&self, bot_id: &str, turn: i64) -> Result<bool> {
+        let c = self.db.locked();
+        Ok(c.query_row(
+            "SELECT EXISTS(SELECT 1 FROM entries WHERE bot_id = ?1 AND turn = ?2 AND kind = 'tool'
+             AND COALESCE(json_extract(data, '$.toolKind'), 'other') NOT IN ('read', 'search', 'fetch', 'think'))",
+            params![bot_id, turn],
+            |r| r.get(0),
+        )?)
+    }
+
     /// Entries changed after `since`. A fresh client (`since == 0`) only gets the
     /// newest `cap` entries per bot and pages older ones in with `history`.
     pub fn entries_since(&self, since: i64, cap: i64) -> Result<Vec<Entry>> {

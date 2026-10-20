@@ -292,12 +292,19 @@ internal val Entry.botReactions: Map<String, List<String>> get() =
     (data["botReactions"] as? JsonArray).orEmpty().mapNotNull { it as? JsonObject }
         .groupBy({ it["emoji"]?.jsonPrimitive?.contentOrNull.orEmpty() }, { it["bot"]?.jsonPrimitive?.contentOrNull.orEmpty() })
 
-/** A routine's run in the main chat: tapping it opens Routines on that routine. */
-@Composable internal fun RoutineNotice(entry: Entry, open: () -> Unit) {
-    Row(Modifier.plainButton(action = open).padding(vertical = 10.dp), verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-        Symbol("clock.arrow.circlepath", size = 15.dp, tint = Palette.secondary)
-        Text(entry.text.ifEmpty { "Routine" }, style = Type.footnote, color = Palette.secondary)
+/** A routine's line in the main chat: tapping it opens Routines on that routine; a failed run the user can run again
+ *  has a retry button. */
+@Composable internal fun RoutineNotice(entry: Entry, retrying: Boolean, retry: () -> Unit, open: () -> Unit) {
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(Modifier.plainButton(action = open).padding(vertical = 10.dp), verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            Symbol("clock.arrow.circlepath", size = 15.dp, tint = Palette.secondary)
+            Text(entry.text.ifEmpty { "Routine" }, style = Type.footnote, color = Palette.secondary)
+        }
+        if (entry.data["retry"]?.jsonPrimitive?.booleanOrNull == true) {
+            if (retrying) Spinner(14.dp)
+            else IconButton("Try again", "arrow.clockwise", action = retry)
+        }
     }
 }
 

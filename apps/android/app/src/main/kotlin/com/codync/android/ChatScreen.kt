@@ -239,7 +239,8 @@ import com.kyant.shapes.Capsule
                 is ChatItem.Separator -> TimeSeparator(item.at)
                 is ChatItem.Message -> {
                     val routine = item.entry.data.text("routineId").takeIf { item.entry.kind == "notice" }
-                    if (routine != null) RoutineNotice(item.entry) { openRoutine(routine) }
+                    if (routine != null) RoutineNotice(item.entry, retrying = "retry:" + item.entry.id in state.busy,
+                        retry = { store.retryRoutineRun(item.entry) }) { openRoutine(routine) }
                     else ChatRow(item.entry, item.groupStart, bot, state, store, openTrace = { store.showTrace(true) },
                         // An update card takes the composer's place, so there's nothing to reply with.
                         reply = if (item.entry.isReplyable && state.mismatch == null) { { reply(item.entry) } } else null, connect = connect)

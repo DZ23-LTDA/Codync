@@ -20,7 +20,7 @@ pub(super) async fn call(hub: &Arc<Hub>, method: &str, b: Value) -> Result<Contr
             str_arg(&b, "id")?,
             b["enabled"].as_bool().context("enabled is required")?,
         )?,
-        "deleteRoutine" => hub.routines.remove(&hub.store, str_arg(&b, "botId")?, str_arg(&b, "id")?)?,
+        "deleteRoutine" => hub.routines.remove(hub, str_arg(&b, "botId")?, str_arg(&b, "id")?)?,
         "runRoutine" => hub.routines.enqueue(
             &hub.store,
             str_arg(&b, "botId")?,
@@ -29,6 +29,7 @@ pub(super) async fn call(hub: &Arc<Hub>, method: &str, b: Value) -> Result<Contr
             None,
             true,
         )?,
+        "retryRoutineRun" => hub.routines.retry(hub, str_arg(&b, "botId")?, str_arg(&b, "runId")?)?,
         "routineWebhook" => hub.routines.credentials(
             hub,
             str_arg(&b, "botId")?,

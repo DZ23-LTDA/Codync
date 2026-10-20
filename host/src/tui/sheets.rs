@@ -119,7 +119,15 @@ pub fn routines(buf: &mut Buffer, area: Rect, app: &App, l: &RoutineList) {
                 let on = it["enabled"] == true;
                 put(buf, inner.x, y, 2, if on { "●" } else { "○" }, if on { t.bold } else { t.dim }.patch(base));
                 put(buf, inner.x + 2, y, inner.width / 2, s(it, "name"), t.bold.patch(base));
-                let next = it["nextRunAt"].as_i64().map(|ms| format!("next {}", when_future(ms)));
+                // A retry still waiting comes before the schedule's next run.
+                let retry = l
+                    .runs
+                    .iter()
+                    .find(|r| r["routineId"] == it["id"] && r["status"] == "pending")
+                    .and_then(|r| r["notBefore"].as_i64());
+                let next = retry
+                    .map(|ms| format!("retry {}", when_future(ms)))
+                    .or_else(|| it["nextRunAt"].as_i64().map(|ms| format!("next {}", when_future(ms))));
                 rput(
                     buf,
                     inner.right(),

@@ -5,7 +5,7 @@ import { HStack, Spacer, VStack } from '../../components/Stack'
 import { Text } from '../../components/Text'
 import { useScreenViewed } from '../../store/analytics'
 import { useStore } from '../../store/context'
-import { errorText, isActiveRun, type Routine, type RoutineListing, type RoutineRun } from './routine'
+import { errorText, isActiveRun, runLabel, type Routine, type RoutineListing, type RoutineRun } from './routine'
 import { RoutineEditorView } from './RoutineEditorView'
 import './routines.css'
 
@@ -13,25 +13,6 @@ import './routines.css'
 interface EditorTarget {
   id: string
   routineId: string | null
-}
-
-function runLabel(run: RoutineRun) {
-  switch (run.status) {
-    case 'pending':
-      return 'Queued'
-    case 'starting':
-      return 'Starting'
-    case 'running':
-      return 'Running'
-    case 'recovering':
-      return 'Resuming after restart'
-    case 'failed':
-      return 'Failed'
-    case 'interrupted':
-      return 'Interrupted'
-    default:
-      return run.status.charAt(0).toUpperCase() + run.status.slice(1)
-  }
 }
 
 /** The routine list in the details panel (and the routines sheet); a row opens its editor. */

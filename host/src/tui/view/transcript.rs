@@ -270,6 +270,8 @@ fn entry_lines(out: &mut Built, app: &App, b: &Bot, e: &Entry, info: &HashMap<i6
                 let hint =
                     if status == "draft" { " · o shows it · e edits · K keeps this chat" } else { " · o shows it" };
                 format!("{}{hint}", e.notice_text())
+            } else if e.retries() {
+                format!("{} · F tries again", e.notice_text())
             } else {
                 e.notice_text()
             };
@@ -299,7 +301,7 @@ fn entry_lines(out: &mut Built, app: &App, b: &Bot, e: &Entry, info: &HashMap<i6
                     &[Span::raw("   │ ")],
                 ));
             }
-            if e.data["connectionRequest"].is_object() || folded.is_some() {
+            if e.data["connectionRequest"].is_object() || folded.is_some() || e.retries() {
                 out.messages.push((e.id.clone(), from, out.lines.len()));
             }
         }

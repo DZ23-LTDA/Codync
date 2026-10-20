@@ -11,6 +11,8 @@ public struct EntryData: Codable, Hashable, Sendable {
     public var handoff: HandoffCard?
     public var routineId: String?
     public var runId: String?
+    /// notice: a failed routine run the user can run again (`retryRoutineRun`).
+    public var retry: Bool?
     public var text: String?
     public var final: Bool?
     /// user: queued | sent | cancelled | failed · tool: pending | in_progress | completed | failed · permission: pending | answered | cancelled | expired

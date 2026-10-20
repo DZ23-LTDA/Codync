@@ -82,6 +82,7 @@ impl App {
                             let items = v["routines"].as_array().cloned().unwrap_or_default();
                             l.cursor = l.cursor.min(items.len().saturating_sub(1));
                             l.items = Some(items);
+                            l.runs = v["runs"].as_array().cloned().unwrap_or_default();
                         }
                     }
                 } else {

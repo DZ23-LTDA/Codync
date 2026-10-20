@@ -95,14 +95,42 @@ Pending runs survive a restart. The actor claims a run only when it reaches the
 front of its queue, using the latest saved instruction. Runs interrupted during
 execution become `recovering` and load their existing agent session. If the
 provider cannot load it, they become `interrupted` instead of replaying the task
-in a new session. Session recovery cannot guarantee exactly-once external side
-effects; inspect the transcript before retrying an interrupted action.
+in a new session (the retry rules below still apply). Session recovery cannot
+guarantee exactly-once external side effects; inspect the transcript before retrying
+an interrupted action.
+
+### Failed runs (`routines/retry.rs`)
+
+A failed or interrupted run is tried again only when that can't repeat work. The
+host checks the run's turn for a tool call whose ACP kind isn't `read`, `search`,
+`fetch` or `think` (an unknown kind counts as acting; `store::acted_in_turn`).
+
+- **Nothing acted** (a rate limit, an agent that didn't start, a session it couldn't
+  reload): a new run with the same event waits 1, 5, then
+  15 minutes (`attempt`, `notBefore`). The failure's notice is an info line ending in
+  "Trying again in N minutes." with no alert; the routines list shows "Retrying at …"
+  (TUI: `retry <when>`). A scheduled fire or a test run while it waits runs it at once,
+  and a scheduled run that fails while the next fire is already queued has that fire
+  as its retry ("Trying again now."). A waiting retry doesn't make the routine busy
+  (deliveries queue as usual) and the bot's Stop leaves it; pausing or deleting the
+  routine cancels it. A paused routine (unless it was a test run) isn't retried
+  automatically.
+- **It acted, hit its time limit (it could hold the bot that long again; this includes an
+  agent whose session setup ran past it), or the three
+  retries failed**: the failure notice (error style, alert)
+  carries `retry: true` and the run keeps its event (`retryable`). The notice's retry
+  button (TUI: `F`, or `F` on a picked notice) calls `retryRoutineRun`, which runs the
+  work again with that event, also for a paused test run, and takes the button off.
+  Only a routine's latest such failure keeps its event (an older one's button goes),
+  so failed webhook payloads can't pile up; deleting the routine (or its bot) drops the
+  event and the button. Retrying while the routine has an active run is refused
+  (busy); a paused routine is refused until it's resumed.
 
 Each run has a timeout (default one hour, configurable from 1 to 86400 seconds).
 A hung agent is terminated so subsequent work can proceed. A run's outcome is
 saved before it is reported, and a failure notice has a stable transcript ID, so a
 restart never reports it twice. Failed reporting retries without rerunning the agent.
-The latest 1000 terminal runs are retained globally, plus active/unpublished runs;
+The latest 1000 terminal runs are retained globally, plus active, unpublished and retryable runs;
 the panel returns the latest 200 runs per bot. Deduplication lasts while the
 corresponding run record is retained.
 
@@ -138,7 +166,8 @@ the same checks (`host/src/routines/hooks.rs`); the protocol is
 - **Delivery**: `X-Delivery-Id`, `X-GitHub-Delivery` or `Idempotency-Key`
   deduplicates retries against retained run records. Bodies are limited to 64 KB.
   A paused routine refuses (`409`); a non-matching event is accepted and ignored.
-  While the routine is running, the local endpoint answers `409` and the cloud
+  While the routine has a run under way or queued (a retry waiting for its time
+  doesn't count), the local endpoint answers `409` and the cloud
   queue retries later (30 s doubling to 15 min).
 - **Offline**: the cloud keeps public deliveries for up to 72 hours and hands them
   over one at a time once the host is back; the host acknowledges each.
@@ -161,7 +190,8 @@ All normal methods use the existing authenticated host API / authorized E2E chan
 | `saveRoutine` | `botId`, optional `id`, `name`, `instruction`, `schedule` form or `triggers`, optional `enabled`, `timeoutSeconds` |
 | `setRoutineEnabled` | `botId`, `id`, `enabled` |
 | `deleteRoutine` | `botId`, `id` |
-| `runRoutine` | `botId`, `id` |
+| `runRoutine` | `botId`, `id` (a waiting retry runs now instead) |
+| `retryRoutineRun` | `botId`, `runId` of a failed run whose notice offers a retry; returns the new `run` |
 | `routineWebhook` | `botId`, `id`, optional `rotate`; returns `url` (public or null), `localUrl`, `key`, `connected` |
 
 The local-only `routineCall` backs the MCP tools. Each MCP instance is scoped to
@@ -195,7 +225,13 @@ checks real scheduled execution, webhook credentials, delivery deduplication,
 pause/delete/edit while queued, crash recovery in the same session, unsupported
 session recovery, hung-agent timeout, recurring work after failure, single-host
 ownership, silent completion, and the advertised routine MCP server (including key
-rotation). Unit tests cover timezone calculation, invalid schedules, event filters,
+rotation). `host/tests/routine_retry_e2e.rs` checks a webhook run that failed before
+acting waiting 1 minute with its event (and running at once on a test run), and one
+that acted waiting for `retryRoutineRun`, which reuses the event once. Unit tests cover
+the retry ladder, a queued scheduled fire standing in for the retry, paused routines,
+keeping only the latest failure's event, the user retry's busy/paused refusals and
+deleting the routine (`routines/retry.rs`), waiting retries vs. Stop, the tick and a
+scheduled fire (`routines/runner.rs`), timezone calculation, invalid schedules, event filters,
 persistence, pause/resume, bot ownership, bearer/HMAC checks, GitHub event mapping and
 the relay's hook registration, acks and retries. `cloud/test/hooks.test.ts` covers the
 edge checks, queue limits, deduplication, ordering, retry and expiry; the cloud e2e

@@ -124,7 +124,7 @@ struct RoutinesView: View {
 
     private func runLabel(_ run: RoutineRun) -> String {
         switch run.status {
-        case "pending": "Queued"
+        case "pending": run.notBefore.map(retrying) ?? "Queued"
         case "starting": "Starting"
         case "running": "Running"
         case "recovering": "Resuming after restart"
@@ -132,6 +132,12 @@ struct RoutinesView: View {
         case "interrupted": "Interrupted"
         default: run.status.capitalized
         }
+    }
+
+    /// A retry of a run that failed before acting, waiting until `at` (Unix ms).
+    private func retrying(_ at: Int64) -> String {
+        let date = Date(milliseconds: at)
+        return date > .now ? "Retrying at \(date.formatted(date: .omitted, time: .shortened))" : "Retrying"
     }
 
     private func animate(_ change: () -> Void) { withAnimation(Motion.reduced(Motion.layout, reduceMotion), change) }

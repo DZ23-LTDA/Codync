@@ -328,7 +328,9 @@ impl Actor {
         text: Option<String>,
     ) {
         if let Some(id) = self.active_routine.take() {
-            self.routine_completion = Some(RoutineCompletion { id, status, detail, text });
+            // The deadline also covers a session setup that ran out the clock before any turn began.
+            let timed_out = self.routine_timed_out || self.routine_deadline.is_some_and(|d| Instant::now() >= d);
+            self.routine_completion = Some(RoutineCompletion { id, status, detail, text, timed_out });
             self.routine_deadline = None;
             self.retry_routine_completion();
         }
@@ -346,6 +348,7 @@ impl Actor {
             completion.status,
             completion.detail.clone(),
             completion.text.clone(),
+            completion.timed_out,
         ) {
             Ok(()) => {
                 // A finished run's session is never resumed.
@@ -373,7 +376,7 @@ impl Actor {
         if self.session_for(slot.as_deref()).is_none() {
             self.finish_routine(
                 crate::routines::Status::Interrupted,
-                Some("No saved agent session is available; inspect this run before retrying".into()),
+                Some("No saved agent session is available".into()),
                 None,
             );
             return;

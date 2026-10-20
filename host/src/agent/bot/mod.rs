@@ -363,6 +363,8 @@ struct RoutineCompletion {
     status: crate::routines::Status,
     detail: Option<String>,
     text: Option<String>,
+    /// It hit its time limit, so it isn't tried again on its own.
+    timed_out: bool,
 }
 
 type Done = Result<Value>;

@@ -357,6 +357,11 @@ impl Entry {
         crate::tui::view::unfoldable(self).is_some()
     }
 
+    /// A failed routine run's notice that offers running it again (`F`).
+    pub fn retries(&self) -> bool {
+        self.kind == Kind::Notice && self.data["retry"] == true && self.data["runId"].is_string()
+    }
+
     /// A notice for a bot-to-bot message or request (`chat::team`).
     pub fn is_bot_message(&self) -> bool {
         self.kind == Kind::Notice

@@ -2,6 +2,10 @@ package com.codync.android.core
 
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.*
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.time.format.FormatStyle
 
 /** Schedules execute on the host. Raw triggers retain fields the mobile editor does not edit. */
 @Serializable data class Routine(
@@ -18,12 +22,21 @@ import kotlinx.serialization.json.*
 @Serializable data class RoutineRun(
     val id: String, val routineId: String, val botId: String, val status: String,
     val createdAt: Long = 0, val finishedAt: Long? = null, val detail: String? = null,
+    /** A retry of a run that failed before acting waits until then. */
+    val notBefore: Long? = null,
 ) {
     val isActive: Boolean get() = status in listOf("pending", "starting", "running", "recovering")
     val label: String get() = when (status) {
-        "pending" -> "Queued"; "starting" -> "Starting"; "running" -> "Running"
+        "pending" -> notBefore?.let { retrying(it) } ?: "Queued"; "starting" -> "Starting"; "running" -> "Running"
         "recovering" -> "Resuming after restart"; "failed" -> "Failed"; "interrupted" -> "Interrupted"
         else -> status.replaceFirstChar { it.uppercase() }
+    }
+
+    /** A retry waiting until `at` (Unix ms). */
+    private fun retrying(at: Long): String {
+        if (at <= System.currentTimeMillis()) return "Retrying"
+        val time = Instant.ofEpochMilli(at).atZone(ZoneId.systemDefault()).toLocalTime()
+        return "Retrying at " + time.format(DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT))
     }
 }
 

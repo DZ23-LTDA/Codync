@@ -15,7 +15,7 @@ impl App {
         };
         let bot = b.id.clone();
         self.sheet("routines", json!({"botId": bot}), Reply::Routines(bot.clone()));
-        self.overlays.push(Overlay::Routines(RoutineList { bot, items: None, cursor: 0 }));
+        self.overlays.push(Overlay::Routines(RoutineList { bot, items: None, runs: Vec::new(), cursor: 0 }));
     }
 
     pub(in crate::tui) fn routines_key(&mut self, mut l: RoutineList, k: KeyEvent) -> Option<Overlay> {
@@ -211,6 +211,24 @@ impl App {
         f.saving = true;
         f.error = None;
         self.sheet("saveRoutine", body, Reply::RoutineSaved);
+    }
+
+    /// `F`: runs a failed routine run's work again: the picked notice's, else the newest in this chat.
+    pub(in crate::tui) fn retry_failed_run(&mut self) {
+        let Some(bot) = self.selected.clone() else { return };
+        let run = self
+            .lane(&bot)
+            .into_iter()
+            .filter(|e| e.retries() && self.pick.as_ref().is_none_or(|id| *id == e.id))
+            .max_by_key(|e| e.seq)
+            .map(|e| e.data["runId"].clone());
+        match run {
+            Some(run) => {
+                self.call("retryRoutineRun", json!({"botId": bot, "runId": run}), After::Nothing);
+                self.flash("Trying it again");
+            }
+            None => self.flash("No failed routine run to try again here"),
+        }
     }
 }
 

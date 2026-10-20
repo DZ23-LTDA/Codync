@@ -5,6 +5,13 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class RoutineTest {
+    @Test fun `a waiting retry reads as retrying, not queued`() {
+        val run = RoutineRun("run", "routine", "bot", "pending")
+        assertEquals("Queued", run.label)
+        assertTrue(run.copy(notBefore = System.currentTimeMillis() + 60_000).label.startsWith("Retrying at "))
+        assertEquals("Retrying", run.copy(notBefore = 1).label)
+    }
+
     @Test fun `editing unsupported schedules preserves every trigger field`() {
         val original = WireJson.parseToJsonElement("""[{"type":"event","source":"github","event":"*","filters":{"repo":"org/project"},"future":true},{"type":"interval","seconds":5400}]""").jsonArray.map { it.jsonObject }
         val schedule = RoutineScheduleDraft(kind = "interval", original = original).forMobileEditor()

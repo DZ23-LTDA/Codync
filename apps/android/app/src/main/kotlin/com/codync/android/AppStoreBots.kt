@@ -85,6 +85,11 @@ fun AppStore.routineAction(botId: String, id: String, method: String, enabled: B
     receiveRoutines(botId)
     done()
 }
+/** Runs a failed routine run's work again, from its notice; the notice's update drops the button. */
+fun AppStore.retryRoutineRun(entry: Entry) = action("retry:" + entry.id) {
+    val runId = requireNotNull(entry.data.text("runId")) { "This run can't be retried." }
+    ready().call("retryRoutineRun", body("botId" to entry.botId, "runId" to runId))
+}
 /** Queries belong to the account runtime as well as their screen; retiring either cancels them. */
 internal suspend fun AppStore.hostQuery(method: String, payload: JsonObject, timeoutMillis: Long = 20_000,
     expectedGeneration: Int = state.value.generation): JsonElement {

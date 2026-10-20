@@ -82,6 +82,8 @@ pub struct BotChatSheet {
 pub struct RoutineList {
     pub bot: String,
     pub items: Option<Vec<Value>>,
+    /// The bot's runs, newest first.
+    pub runs: Vec<Value>,
     pub cursor: usize,
 }
 
