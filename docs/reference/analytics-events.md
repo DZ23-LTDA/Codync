@@ -67,7 +67,7 @@ host answers and sends it once the host is up.
 | `bot_updated` | host | `updateBot` | `fields`: the settings that changed, as the bot config's own camelCase keys (`model`, `permission`, `pinned`, `modelOptions`, `fastMode`, …), never their values |
 | `bots_reordered` | host | `reorderBots` | — |
 | `bot_deleted` | host | `deleteBot` | — |
-| `message_sent` | host | `send` (a resend counts once) | `kind`, `agent`, `in_thread`, `attachments` (count) |
+| `message_sent` | host | `send` (a resend counts once) | `kind`, `agent`, `reply` (whether it quotes a message), `attachments` (count) |
 | `turn_stopped` | host | `stop` | — |
 | `turn_finished` | host | An agent's turn ends | `agent`, `outcome` (`done`/`stopped`/`failed`/`incomplete`), `stop_reason`, `source` (`user`/`routine`/`group`/`bot`), `seconds`; when failed, `error` and, for `agent_error`, `rpc_code` and `agent_reason` |
 | `session_reset` | host | `newSession` | — |
@@ -104,7 +104,6 @@ host answers and sends it once the host is up.
 | `bots` | Bots tab | — (always shown) | — |
 | `state` | State tab | — | — |
 | `chat` | a conversation opened | a conversation opened | a conversation opened |
-| `thread` | a reply thread | a reply thread | a reply thread |
 | `trace` | full conversation | full conversation | full trace |
 | `bot_details` | bot details | details panel | settings page |
 | `memory` | bot memory (Android: the card in bot details, once it scrolls into sight) | memory tab | memory overlay |

@@ -123,7 +123,7 @@ the host's `minApp`.
 So a breaking change can't land by accident: it either keeps the old field or raises the
 floor. `null` fields match any type. Not covered: subtrees that depend on the machine rather
 than the code (`backends`, `screen`, `urls`, `usage`), fields the sample turn doesn't produce
-(thread replies, group chats, routines and other method responses), and what the host
+(replies, group chats, routines and other method responses), and what the host
 accepts in requests. Changes there still follow the rule by review.
 
 ## Floor history
@@ -132,6 +132,7 @@ Update this table in the release that changes a floor, with the reason.
 
 | Release | Host `minApp` | Client `minHost` | Why |
 |---|---|---|---|
+| 2.20.1 | 2.20.1 | 2.20.1 | Reply threads gave way to quote replies: the `thread` method, `send.threadId`, `markRead.threadId`, entry `threadId`, `data.thread` and bot `workingThread` are gone, and old thread replies sit in the main chat. Older apps would open empty threads. The clients no longer leave thread replies out of the chat or read threads, so an older host would show them inline, routine results twice and thread unread counts that never clear. |
 | 2.18.0 | 2.18.0 | 2.12.0 | Memory moved from Engram into the host: the memory methods take and return the new two layers, and the Engram ones (`memoryDetail`, `reviewMemory`, `exportMemory`, `importMemory`) are gone. Clients still talk to older hosts; only their memory screen shows an error there. |
 | 2.12.0 | 2.3.0 | 2.12.0 | The clients require Engram memory management fields and methods. Older clients can still list and forget memories on the new host. |
 | 2.4.0 | 2.3.0 | 2.3.0 | First release with the check. Since 2.3.0 the wire only gained `minApp` and lost the unused `protocol`; 2.3.0 is the oldest pairing verified to work, and a higher floor would lock out hosts that never auto-update. |

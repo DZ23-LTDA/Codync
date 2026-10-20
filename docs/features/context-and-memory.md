@@ -8,7 +8,7 @@ conversation and compaction. The design, including what is still to come, is in
 
 | | Where | Owner | Lifetime |
 |---|---|---|---|
-| Transcript | SQLite `entries` | Codync | Persistent main chat and flat reply threads per bot |
+| Transcript | SQLite `entries` | Codync | One persistent chat per bot; replies quote the message they answer |
 | Model context | ACP session (`bots.session_id`) | The harness | Until *New session*, a failed resume, or an agent/command/folder change |
 | Long-term memory | SQLite `memory_*` tables | Codync: the user, the bots' memory tools, dreaming | Forever, across sessions |
 
@@ -86,8 +86,7 @@ the `codync-mem` crate; `chat/memory` runs them in the host.
     file deleted one at a time stays restorable from its versions.
 - **Dreaming** replaces the keeper (`chat/memory/dream.rs`). After five idle minutes or eight user messages
   (sooner on a new session or compaction, and once a day for the time review, which rewrites an entry whose
-  date has passed once, never its own rewrite again), it reads the bot's chat and
-  threads since its bookmark on the bot's own harness (Claude: Haiku, no tools). Each change must quote what the
+  date has passed once, never its own rewrite again), it reads the bot's chat since its bookmark on the bot's own harness (Claude: Haiku, no tools). Each change must quote what the
   user typed: pasted text (the apps send `pasted`), fenced code, quoted lines and forwarded messages don't count,
   nor do bare acknowledgements. It only adds and archives, at most 10 changes and never more than a quarter of
   the entries, and drops a run when the user edited memory meanwhile. It waits while the plan's usage is above
@@ -126,7 +125,7 @@ the `codync-mem` crate; `chat/memory` runs them in the host.
   from `usage_update`, compactions, and when turns end. How long the provider keeps prompts cached is learned
   from turns that came after a pause (`cache.life.<bot>`); until then it is an hour for Claude on a subscription
   and five minutes otherwise. Each turn's cached read and write tokens are logged (`turn usage`).
-- **Compacting ahead of time**, in the bot's own chat only (never threads, rooms, routines or bot requests):
+- **Compacting ahead of time**, in the bot's own chat only (never rooms, routines or bot requests):
   - at the end of a turn past three quarters of the window or 200k tokens, whichever is less;
   - while idle, with a one-hour cache and over 100k in use, five minutes before the cache expires.
 
@@ -160,7 +159,7 @@ the `codync-mem` crate; `chat/memory` runs them in the host.
   the next turn). `session/new`, `session/load` and `session/fork` get three minutes before the agent is
   stopped. Connector or computer changes restart an agent that can resume sessions before its next turn; one
   that can't keeps its session, and its next new session gets them.
-- `turn.inflight.<bot>` records the running turn start and its thread lane. If the host stops mid-turn (update, crash, restart), the next
+- `turn.inflight.<bot>` records when the running turn in the bot's chat started. If the host stops mid-turn (update, crash, restart), the next
   start resumes that session with a hidden "you were interrupted, don't repeat finished steps" prompt. If the
   session can't be resumed, or the turn started over an hour ago, it does nothing.
 
@@ -178,4 +177,4 @@ the `codync-mem` crate; `chat/memory` runs them in the host.
   reads back from a message id (`from`, then each page's `next`); `search_memory` gives each entry's source
   messages, so a bot can check where a memory came from.
 
-Reply threads have separate session/context lanes; see [groups and threads](groups-and-threads.md). Group and delegated requests don't feed dreaming.
+A reply stays in its chat's session, and its quote stays out of what memory takes as the user's words; see [groups and replies](groups-and-replies.md). Group and delegated requests don't feed dreaming.

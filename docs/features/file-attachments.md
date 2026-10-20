@@ -32,7 +32,7 @@ Files travel in both directions: users attach inputs, and bots explicitly share 
 
 ## Files from a bot
 
-In its own chat or a reply thread, a bot calls the built-in chat MCP tool
+In its own chat, a bot calls the built-in chat MCP tool
 `send_file {path, name?}`. Paths may be absolute or relative to its working directory.
 The optional name is a display filename without folders. Any regular file type is
 accepted, including binary, hidden, extensionless and empty files, up to 100 MiB.
@@ -54,7 +54,7 @@ the entry's filename/size text fallback. No version or compatibility floor chang
 
 The authenticated `readFile {entryId, fileId, offset}` API requires a nonnegative
 integer offset within the saved size and a file belonging to that final agent entry
-in an undeleted bot's own chat or thread. Existing caller permissions apply: paired
+in an undeleted bot's own chat. Existing caller permissions apply: paired
 clients need Control access. It returns `{data: <base64>, size}` in chunks of at most
 384 KiB over loopback, SSH, direct encrypted and relay transports.
 

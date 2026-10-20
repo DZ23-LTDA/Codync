@@ -6,13 +6,12 @@ use serde_json::{Value, json};
 use super::{After, App, Overlay, TraceMode};
 use crate::analytics::reported::{App as Reporter, Reported, Screen, Track};
 
-/// What this run has reported: the launch, the screen on top, the conversation and thread in view.
+/// What this run has reported: the launch, the screen on top, the conversation in view.
 #[derive(Default)]
 pub(super) struct Seen {
     opened: bool,
     screen: Option<Screen>,
     chat: Option<String>,
-    thread: Option<String>,
 }
 
 impl App {
@@ -26,8 +25,8 @@ impl App {
         self.track(Reported::AppOpened { at_login: None });
     }
 
-    /// Before each draw: `screen_viewed` for a screen just opened, and for each conversation and
-    /// reply thread opened (hiding one lets its next opening count).
+    /// Before each draw: `screen_viewed` for a screen just opened, and for each conversation
+    /// opened (hiding one lets its next opening count).
     pub(in crate::tui) fn report_screen(&mut self) {
         if !self.seen.opened {
             return;
@@ -47,11 +46,7 @@ impl App {
         if chat.is_some() && chat != self.seen.chat {
             self.track(Reported::ScreenViewed { screen: Screen::Chat });
         }
-        let thread = self.thread.clone().filter(|_| chat.is_some());
-        if thread.is_some() && thread != self.seen.thread {
-            self.track(Reported::ScreenViewed { screen: Screen::Thread });
-        }
-        (self.seen.chat, self.seen.thread) = (chat, thread);
+        self.seen.chat = chat;
     }
 
     /// The screen the user is on, other than the conversation: the topmost overlay that is
@@ -122,13 +117,6 @@ mod tests {
         app.selected = Some("b".into());
         app.report_screen();
         assert_eq!(app.seen.chat.as_deref(), Some("b"));
-
-        app.thread = Some("r".into());
-        app.report_screen();
-        assert_eq!((app.seen.chat.as_deref(), app.seen.thread.as_deref()), (Some("b"), Some("r")));
-        app.thread = None;
-        app.report_screen();
-        assert_eq!(app.seen.thread, None, "closing it lets the next opening count");
 
         app.trace = TraceMode::Full;
         app.report_screen();

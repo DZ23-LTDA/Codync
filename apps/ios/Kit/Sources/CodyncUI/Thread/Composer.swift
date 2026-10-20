@@ -3,13 +3,13 @@ import PhotosUI
 import SwiftUI
 import UniformTypeIdentifiers
 
-/// The message box under a chat or a thread: send, or stop while the bot (or the
-/// group) is working there. A leading `/` lists commands (a group's act on its bots);
-/// in a group, typing `@` suggests its bots.
+/// The message box under a chat: send, or stop while the bot (or the group) is working
+/// there. A leading `/` lists commands (a group's act on its bots); in a group, typing `@`
+/// suggests its bots.
 struct Composer: View {
     let botId: String
-    /// Replies go to the thread on this message.
-    var thread: String?
+    /// The message the next send quotes, shown above the field until sent or cancelled.
+    @Binding var replyingTo: Entry?
     /// Starts a voice call; while the box is empty it takes the send button's place.
     var onCall: (() -> Void)?
     /// Interrupts the bot while it is speaking in a voice call.
@@ -32,7 +32,7 @@ struct Composer: View {
     @ScaledMetric(relativeTo: .body) private var lineHeight: CGFloat = 22
 
     private var bot: Bot? { model.bots[botId] }
-    private var working: Bool { bot?.isWorking(in: botId, thread: thread) == true }
+    private var working: Bool { bot?.isWorking(in: botId) == true }
 
     private var isEmpty: Bool { draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && files.isEmpty }
 
@@ -45,7 +45,7 @@ struct Composer: View {
 
     private var placeholder: String {
         let name = bot?.name ?? ""
-        if thread != nil { return "Reply…" }
+        if replyingTo != nil { return "Reply…" }
         if bot?.isGroup == true { return "Ask everyone · @ to ask one bot" }
         return working ? "Queue a message for \(name)" : "Ask \(name)"
     }
@@ -68,12 +68,10 @@ struct Composer: View {
     /// A group's bots, which its commands act on.
     private var members: [Bot] { bot.map(model.members(of:)) ?? [] }
 
-    /// The bot's `/` commands while the draft is `/partial`; skills only from hosts that run them.
+    /// The bot's `/` commands while the draft is `/partial`.
     private var commands: [SlashCommand] {
         guard let query = SlashCommands.query(draft) else { return [] }
-        let floor = bot?.isGroup == true ? SlashCommands.minGroupSkillsHost : SlashCommands.minSkillsHost
-        let skillsShown = !AppVersion.isBelow(model.hello?.version ?? "", floor)
-        return SlashCommands.list(for: bot, members: members, query: query, skills: skillsShown ? model.installedSkills : [])
+        return SlashCommands.list(for: bot, members: members, query: query, skills: model.installedSkills)
     }
 
     var body: some View {
@@ -117,6 +115,9 @@ struct Composer: View {
         HStack(alignment: .bottom, spacing: 8) {
             if canAttach { addButton }
             VStack(alignment: .leading, spacing: 0) {
+                if let replyingTo {
+                    quoteBar(replyingTo).transition(.move(edge: .bottom).combined(with: .opacity))
+                }
                 if !files.isEmpty {
                     fileChips.transition(.move(edge: .bottom).combined(with: .opacity))
                 }
@@ -127,6 +128,7 @@ struct Composer: View {
             .animation(Motion.layout, value: draft.count(where: \.isNewline))
         }
         .animation(Motion.layout, value: files.map(\.id))
+        .animation(Motion.reduced(Motion.layout, reduceMotion), value: replyingTo?.id)
         .dropDestination(for: PickedFile.self) { picked, _ in
             guard canAttach else { return false }
             append(picked.map(\.file))
@@ -247,22 +249,37 @@ struct Composer: View {
         .padding(.leading, 18)
         .padding(.trailing, 6)
         .padding(.vertical, boxPadding)
-        .onChange(of: [botId, thread], initial: true) {
+        .onChange(of: botId, initial: true) {
             dictation.stop()
-            draft = model.composerDraft(for: botId, thread: thread)
+            draft = model.composerDraft(for: botId)
         }
+        // Another chat in the same view never inherits the reply.
+        .onChange(of: botId) { replyingTo = nil }
+        .onChange(of: replyingTo?.id) { if replyingTo != nil { focused = true } }
         .onDisappear { dictation.stop() }
         .onChange(of: draft) { _, value in
-            model.setComposerDraft(value, for: botId, thread: thread)
+            model.setComposerDraft(value, for: botId)
             // Starting a command: list the computer's skills again.
             if value == "/" { Task { await model.refreshPlugins() } }
         }
         .onChange(of: model.routineDrafts[botId]) { _, value in
-            guard thread == nil, let value else { return }
+            guard let value else { return }
             draft = draft.isEmpty ? value : draft + "\n" + value
             model.routineDrafts.removeValue(forKey: botId)
             focused = true
         }
+    }
+
+    /// The quoted message, one line, with a way to drop the reply.
+    private func quoteBar(_ target: Entry) -> some View {
+        HStack(spacing: 4) {
+            QuoteLine(text: target.replyQuote.text)
+            Spacer(minLength: 0)
+            IconButton("Cancel reply", systemImage: "xmark") { replyingTo = nil }
+        }
+        .padding(.leading, 18)
+        .padding(.trailing, 6)
+        .padding(.top, 6)
     }
 
     /// Photos, files or the clipboard, from a system menu; dropping files on the box works too.
@@ -362,9 +379,10 @@ struct Composer: View {
         if files.isEmpty, let command = SlashCommands.builtIn(for: bot, members: members, draft: draft) { return run(command) }
         guard canSend else { return }
         withAnimation(Motion.reduced(Motion.conversation, reduceMotion)) {
-            guard model.sendComposerDraft(to: botId, thread: thread, files: files) else { return }
+            guard model.sendComposerDraft(to: botId, replyTo: replyingTo, files: files) else { return }
             draft = ""
             files = []
+            replyingTo = nil
         }
     }
 }

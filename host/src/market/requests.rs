@@ -93,13 +93,10 @@ pub fn agent_signed_in(hub: &Hub, backend: &str) -> Result<()> {
         }
         let ids = data["connectionRequest"]["entryIds"].as_array().cloned().unwrap_or_default();
         for mut entry in ids.iter().filter_map(Value::as_str).filter_map(|id| hub.store.entry(id)) {
-            let attachments = entry.data["attachments"].as_array().cloned().unwrap_or_default();
-            let text = entry.data["text"].as_str().unwrap_or_default();
-            let root = crate::chat::uploads::root(&bot.config);
-            let prompt = crate::chat::prompt::of_message(&hub.store, &bot.config.skills, &root, text, &attachments);
+            let prompt = crate::chat::prompt::of_entry(hub, &bot.config, &entry.data);
             entry.data["status"] = "queued".into();
             hub.set_entry(&entry.id, &entry.data);
-            let lane = Lane { chat: entry.bot_id.clone(), thread: entry.thread_id.clone() };
+            let lane = Lane::main(&entry.bot_id);
             hub.send_cmd(&card.bot_id, Cmd::Send { lane, entry_id: entry.id, text: prompt })?;
         }
     }
@@ -313,11 +310,12 @@ fn complete(hub: &Arc<Hub>, e: &Entry, id: &str, note: String) -> Result<Value> 
     let mut data = e.data.clone();
     data["connectionRequest"]["status"] = serde_json::to_value(RequestStatus::Ready)?;
     let entry = hub.set_entry(id, &data).ok_or_else(|| anyhow!("Could not complete request"))?;
-    let lane = Lane { chat: e.bot_id.clone(), thread: e.thread_id.clone() };
+    let lane = Lane::main(&e.bot_id);
     let (ack, added) = hub.add_entry_once(
         &format!("connection-ack-{id}"),
         &lane,
         EntryKind::User,
+        0,
         // Written for the user, not by them: memory doesn't take it as their words.
         &json!({"text":note,"status":"queued","from":"host"}),
     )?;

@@ -1,6 +1,6 @@
 import { FileDownloadCard } from './FileDownloadCard'
 import { memo, useEffect, useRef, useState } from 'react'
-import { groupBotReactions, isGroup, isWorking, needsInput, type Bot, type Entry, type ThreadSummary } from '@shared/models'
+import { groupBotReactions, isGroup, isReplyable, isWorking, needsInput, type Bot, type Entry, type ReplyQuote } from '@shared/models'
 import { BotAvatar } from '../../components/Avatar'
 import { Hairline, IconButton } from '../../components/Controls'
 import { Icon } from '../../components/Icon'
@@ -8,6 +8,7 @@ import { AnchoredMenu, useContextMenu, type MenuItem, type ReactionPick } from '
 import { HStack, VStack } from '../../components/Stack'
 import { Text } from '../../components/Text'
 import { ThinkingOrb } from '../../components/ThinkingOrb'
+import { messagePreview } from '../../lib/message-preview'
 import { avatarColor } from '../../lib/theme'
 import { useStore as useLiveStore, useStoreRef as useStore } from '../../store/context'
 import { QUICK_REACTIONS, type BotStore } from '../../store/bot-store'
@@ -22,24 +23,22 @@ export function reactionPick(store: BotStore, entry: Entry): ReactionPick {
   return { emoji: QUICK_REACTIONS, chosen: entry.data.reactions ?? [], toggle: (e) => store.react(entry, e) }
 }
 
-/** One chat-visible entry in a chat or a thread, with what can be done to it. */
-export const ChatRow = memo(function ChatRow({ entry, groupStart, chat, openTrace, openThread }: {
+/** One chat-visible entry, with what can be done to it. */
+export const ChatRow = memo(function ChatRow({ entry, groupStart, chat, openTrace, onReply }: {
   entry: Entry
   groupStart: boolean
   chat: Bot | null
   openTrace: () => void
-  /** Main chat only: start (or open) the thread on this message. */
-  openThread?: (e: Entry) => void
+  /** Quotes this message in the composer; absent where the computer can't take replies. */
+  onReply?: (e: Entry) => void
 }) {
-  const reply = openThread ? () => openThread(entry) : undefined
-  const chip = entry.data.thread && entry.data.thread.count > 0 && openThread ? <ThreadChip summary={entry.data.thread} open={() => openThread(entry)} /> : null
+  const reply = onReply && isReplyable(entry) ? () => onReply(entry) : undefined
   switch (entry.kind) {
     case 'user':
       return (
         <VStack align="flex-end" gap={4} className={groupStart ? 'chat-row group-start' : 'chat-row'}>
           <UserBubble entry={entry} botWorking={!!chat && isWorking(chat)} reply={reply} />
           <ReactionsRow entry={entry} />
-          {chip}
         </VStack>
       )
     case 'agent':
@@ -49,7 +48,6 @@ export const ChatRow = memo(function ChatRow({ entry, groupStart, chat, openTrac
           <AgentBubble entry={entry} openTrace={openTrace} reply={reply} />
           <VStack gap={4} className={chat && isGroup(chat) ? 'chat-row-indent' : undefined}>
             <ReactionsRow entry={entry} />
-            {chip}
           </VStack>
         </VStack>
       )
@@ -85,35 +83,13 @@ export function AuthorLabel({ botId }: { botId?: string | null }) {
   )
 }
 
-/** Under a message with a thread (Slack's): who replied, how many, how recently. */
-export function ThreadChip({ summary, open }: { summary: ThreadSummary; open: () => void }) {
-  const store = useStore()
-  const authors = summary.authors.map((id) => store.bots.get(id)).filter((b): b is Bot => !!b).slice(0, 3)
-  const unread = summary.unread ?? 0
+/** The message a reply quotes, as its first line without Markdown markers: at the top of its bubble, and in the composer while replying. */
+export function QuoteRow({ quote, className }: { quote: ReplyQuote; className?: string }) {
   return (
-    <button
-      className="press thread-chip"
-      onClick={open}
-      title="View thread"
-      aria-label={`View thread, ${summary.count} ${summary.count === 1 ? 'reply' : 'replies'}${unread > 0 ? `, ${unread} new` : ''}`}
-    >
-      {authors.length ? (
-        <HStack as="span" align="stretch" className="thread-chip-authors">
-          {authors.map((b) => (
-            <span key={b.id}>
-              <BotAvatar bot={b} size={18} animated={false} />
-            </span>
-          ))}
-        </HStack>
-      ) : null}
-      <Text size="footnote" weight="semibold" tone="accent">{summary.count === 1 ? '1 reply' : `${summary.count} replies`}</Text>
-      {unread > 0 ? (
-        <Text size="footnote" weight="semibold" tone="text">{unread} new</Text>
-      ) : (
-        <Text size="footnote" tone="tertiary">{relativeTime.day(summary.lastAt)}</Text>
-      )}
-      <Icon name="chevron.right" size={10} color="var(--tertiary)" />
-    </button>
+    <HStack gap={6} className={className ?? 'bubble-quote'}>
+      <Icon name="text.bubble" size={12} color="var(--secondary)" />
+      <Text size="footnote" tone="secondary" truncate grow>{`“${messagePreview(quote.text)}”`}</Text>
+    </HStack>
   )
 }
 
@@ -146,15 +122,16 @@ export function UserBubble({ entry, botWorking, reply }: { entry: Entry; botWork
     <div className="message user" title={fullDate.format(entry.createdAt)} onMouseEnter={() => setHovering(true)} onMouseLeave={() => setHovering(false)}>
       <div className="message-body">
         {entry.data.attachments?.length ? <AttachmentList attachments={entry.data.attachments} botId={entry.botId} /> : null}
-        {entry.data.text ? (
+        {entry.data.text || entry.data.replyTo ? (
           <Bubble
             className="bubble user selectable"
             reactions={reactionPick(store, entry)}
             items={() => [
               { title: 'Copy', icon: 'square.on.square', action: copy },
-              ...(reply ? [{ title: 'Reply in thread', icon: 'arrowshape.turn.up.left', action: reply }] : []),
+              ...(reply ? [{ title: 'Reply', icon: 'arrowshape.turn.up.left', action: reply }] : []),
             ]}
           >
+            {entry.data.replyTo ? <QuoteRow quote={entry.data.replyTo} /> : null}
             {entry.data.text}
           </Bubble>
         ) : null}
@@ -200,7 +177,7 @@ export function AgentBubble({ entry, openTrace, reply }: { entry: Entry; openTra
           reactions={reactionPick(store, entry)}
           items={() => [
             { title: 'Copy', icon: 'square.on.square', action: copy },
-            ...(reply ? [{ title: 'Reply in thread', icon: 'arrowshape.turn.up.left', action: reply }] : []),
+            ...(reply ? [{ title: 'Reply', icon: 'arrowshape.turn.up.left', action: reply }] : []),
             { title: 'Show what it did', icon: 'list.bullet', action: openTrace },
           ]}
         >
@@ -325,7 +302,7 @@ export function ReactionsRow({ entry }: { entry: Entry }) {
   )
 }
 
-/** Compact actions beside the bubble: a reaction strip, reply in thread, and more (copy, what it did). */
+/** Compact actions beside the bubble: a reaction strip, reply, and more (copy, what it did). */
 function MessageActions({ visible, className, reactions, reply, trace, copy }: {
   visible: boolean
   className: string
@@ -343,7 +320,7 @@ function MessageActions({ visible, className, reactions, reply, trace, copy }: {
       <button ref={smile} className="message-action" title="Add reaction" aria-label="Add reaction" onClick={() => setMenu('reactions')}>
         <Icon name="face.smiling" size={14} />
       </button>
-      {reply ? <IconButton title="Reply in thread" icon="arrowshape.turn.up.left" size={26} onClick={reply} /> : null}
+      {reply ? <IconButton title="Reply" icon="arrowshape.turn.up.left" size={26} onClick={reply} /> : null}
       <button ref={more} className="message-action" title="More message actions" aria-label="More message actions" onClick={() => setMenu('more')}>
         <Icon name="ellipsis" size={14} />
       </button>

@@ -134,7 +134,7 @@ impl App {
             }
             SlashAction::Skill => format!("/{} ", command.name),
         };
-        if let Some(key) = self.draft_key() {
+        if let Some(key) = self.selected.clone() {
             self.drafts.insert(key, Editor::with(&fill));
         }
     }

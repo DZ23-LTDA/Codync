@@ -37,8 +37,8 @@ public struct EntryData: Codable, Hashable, Sendable {
     public var targetBotId: String?
     /// The bot that wrote it (a group shows who spoke).
     public var author: String?
-    /// On a main-chat message that has a thread: its replies.
-    public var thread: ThreadSummary?
+    /// user: the message it replies to, as the computer quoted it.
+    public var replyTo: ReplyQuote?
     /// The user's emoji reactions, oldest first.
     public var reactions: [String]?
     /// The bots' reactions, one per bot, oldest first.
@@ -54,6 +54,27 @@ public struct EntryData: Codable, Hashable, Sendable {
         self.text = text
         self.status = status
         self.clientNonce = clientNonce
+    }
+}
+
+/// The message a reply quotes: its entry, who wrote it (`user` or a bot id) and its text (at most 500
+/// characters, or its file names). A partial quote still decodes, so the message itself always shows.
+public struct ReplyQuote: Codable, Hashable, Sendable {
+    public var id: String
+    public var author: String
+    public var text: String
+
+    public init(id: String, author: String, text: String) {
+        self.id = id
+        self.author = author
+        self.text = text
+    }
+
+    public init(from decoder: any Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decodeIfPresent(String.self, forKey: .id) ?? ""
+        author = try c.decodeIfPresent(String.self, forKey: .author) ?? ""
+        text = try c.decodeIfPresent(String.self, forKey: .text) ?? ""
     }
 }
 

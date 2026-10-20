@@ -109,8 +109,8 @@ impl Actor {
                     if let Some(c) = self.conn.take() {
                         c.acp.kill().await;
                     }
-                    for root in self.thread_roots() {
-                        self.set_session(Some(&root), None);
+                    for slot in self.run_slots() {
+                        self.set_session(Some(&slot), None);
                     }
                     if self.session_id.is_some() {
                         self.forget_session();
@@ -341,7 +341,10 @@ impl Actor {
             completion.text.clone(),
         ) {
             Ok(()) => {
+                // A finished run's session is never resumed.
+                let slot = crate::routines::session_slot(&completion.id);
                 self.routine_completion = None;
+                self.set_session(Some(&slot), None);
                 true
             }
             Err(error) => {
@@ -359,7 +362,8 @@ impl Actor {
     /// the agent is told, in the same session, to finish without redoing steps.
     pub(super) async fn resume_interrupted(&mut self, lane: Lane, done_tx: &mpsc::UnboundedSender<Done>) {
         self.set_inflight(false);
-        if self.session_for(lane.thread.as_deref()).is_none() {
+        let slot = self.slot();
+        if self.session_for(slot.as_deref()).is_none() {
             self.finish_routine(
                 crate::routines::Status::Interrupted,
                 Some("No saved agent session is available; inspect this run before retrying".into()),
@@ -379,14 +383,9 @@ impl Actor {
         }
     }
 
-    /// Marks a turn in the bot's own chat or a thread as running across host restarts
-    /// (see [`Self::resume_interrupted`]); the thread root rides along.
+    /// Marks a turn in the bot's own chat as running across host restarts (see [`Self::resume_interrupted`]).
     pub(super) fn set_inflight(&self, on: bool) {
-        let value = match (&self.lane.thread, on) {
-            (_, false) => String::new(),
-            (Some(root), true) => format!("{}\t{root}", now_ms()),
-            (None, true) => now_ms().to_string(),
-        };
+        let value = if on { now_ms().to_string() } else { String::new() };
         if let Err(error) = self.hub.store.kv_set(&inflight_key(&self.cfg.id), &value) {
             tracing::warn!(bot = %self.cfg.id, error = format!("{error:#}"), "couldn't record the running turn");
         }

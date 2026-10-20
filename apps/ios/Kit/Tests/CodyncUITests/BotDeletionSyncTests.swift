@@ -18,7 +18,6 @@ import Testing
     store.upsert(entry)
     store.selection = bot.id
     store.setComposerDraft("draft", for: bot.id)
-    store.setComposerDraft("thread draft", for: bot.id, thread: "root")
     store.rev = 9
     store.hostVersion = HostVersion(version: "2.11.1", minApp: nil)
     let task = Task { await store.runEvents(HostClient(transport: fake)) }
@@ -41,7 +40,6 @@ import Testing
     #expect(store.chat(bot.id).isEmpty)
     #expect(store.selection == nil)
     #expect(store.composerDraft(for: bot.id).isEmpty)
-    #expect(store.composerDraft(for: bot.id, thread: "root").isEmpty)
     store.saveCache()
     let restored = BotStore(computer: computer, storage: storage) { fake }
     defer { restored.retire() }

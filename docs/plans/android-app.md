@@ -17,7 +17,7 @@ emulator against a real host; device acceptance is listed separately.
 | Welcome/pairing | Ported: welcome crew and chat glimpse, Install (Mac/Linux) and Scan pages with the camera on the page, paste link, Tailscale note, sign-in | Physical optical scan, camera permission denial |
 | Accounts/access | Ported: account sheet and switcher, Computers & settings (connection status, badge color, Revoke this phone's access, older copies removed from the account), account computer access with its code, access banner, `codync-dev://computers` and `codync-dev://plugins` | Provider browser round trip on a device; Revoke and older copies against a signed-in account (covered by cloud request tests only); one computer per phone ([multiple computers are future work](../architecture/overview.md)) |
 | Roster | Ported: rows, menus, pin/hide/delete, groups, drag to reorder (host-synced order) and TalkBack Move up/down, computer header, pull to refresh (also in Computers & settings) | Multiple computers |
-| Conversation/threads | Ported: bubbles, Markdown/code, permissions, reactions, threads, Full conversation, bot-to-bot exchange lines and their conversation, routine notices that open their routine, files a bot shares (verified download, then the share sheet), sent images full size, pull down to reconnect, jump to latest, read receipts for every conversation on screen | Physical keyboard and TalkBack |
+| Conversation | Ported: bubbles, Markdown/code, permissions, reactions, quote replies, Full conversation, bot-to-bot exchange lines and their conversation, routine notices that open their routine, files a bot shares (verified download, then the share sheet), sent images full size, pull down to reconnect, jump to latest, read receipts for every conversation on screen | Physical keyboard and TalkBack |
 | Composer | Ported: files/photos/paste (groups too, image thumbnails, Paste only when the clipboard holds files), `/` commands (Fast mode, skills listed fresh on `/`), @mentions in groups, call/send/stop/interrupt button | — |
 | Bot and group editors | Ported: avatar, profile, agent and model options, Fast mode, workspace folder picker, permissions, activity, connectors, skills (with their details) | — |
 | Memory | Ported: search, filters, add/edit, pin, review, history and timeline, export/import, forget all | — |
@@ -102,7 +102,5 @@ the `0004_android_devices.sql` migration. The push Worker needs the matching Fir
 service account as an external secret; the client configuration contains no private key.
 
 ![Android roster](../screenshots/android-roster.png)
-
-![Android reply thread](../screenshots/android-thread.png)
 
 ![Android account](../screenshots/android-account.png)

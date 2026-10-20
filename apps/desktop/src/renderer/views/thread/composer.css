@@ -24,6 +24,14 @@
   margin: 0 auto;
   width: 100%;
 }
+/* The message being replied to, above the field. */
+.composer-reply {
+  padding: 8px 8px 0 14px;
+}
+.composer-reply-quote {
+  flex: 1;
+  min-width: 0;
+}
 .file-chips {
   display: flex;
   gap: 6px;

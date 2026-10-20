@@ -3,8 +3,8 @@ import SwiftUI
 import UIKit
 
 /// One endless conversation with a bot or a group chat. Only deliberate messages show
-/// here; tool calls and thinking live in the "Full conversation" sheet. Any message can
-/// start a thread, which opens over it.
+/// here; tool calls and thinking live in the "Full conversation" sheet. Any message can be
+/// quoted in a reply.
 public struct ThreadView: View {
     let botId: String
 
@@ -12,7 +12,8 @@ public struct ThreadView: View {
     @Environment(BotStore.self) var model
     @Environment(\.dismiss) var dismiss
     @State var showTrace = false
-    @State var openThread: ThreadTarget?
+    /// The message the composer's next send quotes.
+    @State var replyingTo: Entry?
     @State var botChat: BotChatTarget?
     @State var editingGroup = false
     @State var details: DetailsRequest?
@@ -28,11 +29,6 @@ public struct ThreadView: View {
 
     var bot: Bot? { model.bots[botId] }
 
-
-    func closeThread() {
-        withAnimation(Motion.reduced(Motion.layout, reduceMotion)) { openThread = nil }
-    }
-
     /// The messages (each platform's own `transcript`, in its `ThreadView+` file) and the
     /// composer, without the platform's top chrome.
     private var chat: some View {
@@ -47,7 +43,7 @@ public struct ThreadView: View {
                         .padding(.bottom, 8)
                         .transition(.opacity)
                 } else {
-                    Composer(botId: botId,
+                    Composer(botId: botId, replyingTo: $replyingTo,
                              onCall: !calling && bot != nil ? { calling = true } : nil,
                              onInterrupt: callSpeaking ? interruptCall : nil)
                 }
@@ -71,7 +67,7 @@ public struct ThreadView: View {
         chrome(chat)
             .readingConversation(botId)
             .codyncSheet(item: Binding<FileDownloads.Export?>(get: {
-                guard let item = model.fileDownloads.export, item.botId == botId, item.threadId == nil else { return nil }
+                guard let item = model.fileDownloads.export, item.botId == botId else { return nil }
                 return item
             }, set: { if $0 == nil { model.fileDownloads.dismissExport() } })) { item in
                 FileExportSheet(url: item.url) { model.fileDownloads.dismissExport() }
@@ -110,14 +106,16 @@ public struct ThreadView: View {
                         .font(.footnote).foregroundStyle(Palette.secondary).padding(.vertical, 10)
                 }.buttonStyle(.plain)
             } else {
-                ChatRow(entry: e, groupStart: groupStart, chat: bot) {
-                    showTrace = true
-                } openThread: { root in
-                    withAnimation(Motion.reduced(Motion.layout, reduceMotion)) { openThread = ThreadTarget(id: root.id) }
-                }
+                ChatRow(entry: e, groupStart: groupStart, chat: bot, openTrace: { showTrace = true },
+                        // An update card takes the composer's place, so there's nothing to reply with.
+                        reply: e.isReplyable && model.mismatch == nil ? { reply(to: e) } : nil)
                     .equatable()
             }
         }
+    }
+
+    private func reply(to entry: Entry) {
+        withAnimation(Motion.reduced(Motion.layout, reduceMotion)) { replyingTo = entry }
     }
 
     // MARK: chrome
@@ -223,13 +221,13 @@ struct ChatItem: Identifiable {
     let kind: Kind
 
     /// Chat-visible entries plus time separators (gaps > 1 h) and author grouping. A bot's
-    /// messages arrive whole (Grok Bot's `send_message`); what it writes along the way is trace.
-    static func build(_ entries: [Entry], groupingExchanges: Bool = false) -> [ChatItem] {
+    /// messages arrive whole (Grok Bot's `send_message`); what it writes along the way is trace. Runs of
+    /// bot exchanges with one peer fold into one item.
+    static func build(_ entries: [Entry]) -> [ChatItem] {
         var out: [ChatItem] = []
         var lastDate: Date?
         var lastAuthor: String?
-        let slots = groupingExchanges ? BotExchangeGroup.collapse(entries) : entries.filter(\.isChat).map(BotExchangeGroup.Item.entry)
-        for slot in slots {
+        for slot in BotExchangeGroup.collapse(entries) {
             let date = slot.date
             // Bot-originated messages carry an empty nonce. Their entry IDs
             // distinguish them; only real nonces identify optimistic echoes.
@@ -325,19 +323,15 @@ extension ThreadView {
     public var body: some View {
         conversation
             .tracked(.screenViewed(.chat))
-            .codyncSheet(item: $openThread) { target in
-                RepliesView(botId: botId, rootId: target.id) { closeThread() }
-            }
     }
 
-    private var working: Bool { bot?.isWorking(in: botId, thread: nil) == true && !model.isOffline }
+    private var working: Bool { bot?.isWorking(in: botId) == true && !model.isOffline }
 
     /// iPhone's messages: all this device has, earlier ones from the computer as the reader
     /// scrolls up; the chat follows the newest message until they scroll away, and a reply is
     /// revealed steadily as it's written.
     var transcript: some View {
-        let thread = model.chat(botId)
-        let items = ChatItem.build(thread, groupingExchanges: true)
+        let items = ChatItem.build(model.chat(botId))
         var rows: [ConversationRow] = []
         if moreOnComputer {
             rows.append(ConversationRow("earlier") {
@@ -358,7 +352,7 @@ extension ThreadView {
         // Offline, "working" is only what the computer last said; don't show it as live.
         if let bot, working {
             rows.append(ConversationRow("working") {
-                WorkingIndicator(bot: bot, thinking: model.currentThinking(botId, thread: nil))
+                WorkingIndicator(bot: bot, thinking: model.currentThinking(botId))
                     .padding(.top, 6)
             })
         }

@@ -133,7 +133,6 @@ pub enum Screen {
     Bots,
     State,
     Chat,
-    Thread,
     Trace,
     BotDetails,
     Memory,

@@ -310,8 +310,6 @@ pub enum Click {
     },
     Filter(usize),
     Composer,
-    /// The replies line under a message: opens its thread.
-    Thread(String),
     /// A bot-message row (entry id): opens the conversation.
     BotChat(String),
 }

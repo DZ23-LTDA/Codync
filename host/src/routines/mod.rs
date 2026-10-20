@@ -76,7 +76,6 @@ pub struct Run {
     pub created_at: i64,
     pub finished_at: Option<i64>,
     pub detail: Option<String>,
-    pub root_id: Option<String>,
     pub event: Value,
     pub delivery_id: Option<String>,
     #[serde(default)]
@@ -435,7 +434,6 @@ fn new_run(r: &Routine, event: Value, delivery_id: Option<String>) -> Run {
         created_at: now_ms(),
         finished_at: None,
         detail: None,
-        root_id: None,
         event,
         delivery_id,
         started_at: None,
@@ -455,6 +453,16 @@ fn cancel_pending(state: &mut State, id: &str) {
             cancel_run(run);
         }
     }
+}
+
+/// The name of a run's own agent session, which it resumes after a restart.
+pub fn session_slot(run_id: &str) -> String {
+    format!("routine-{run_id}")
+}
+
+/// The notice a run posts in the chat when it begins; the run's turn is the notice's.
+pub fn notice_id(run_id: &str) -> String {
+    format!("routine-{run_id}")
 }
 
 pub fn call(hub: &Arc<Hub>, bot: &str, name: &str, args: &Value) -> Result<Value> {
@@ -478,7 +486,7 @@ pub fn call(hub: &Arc<Hub>, bot: &str, name: &str, args: &Value) -> Result<Value
     }
 }
 
-pub const INSTRUCTIONS: &str = "Create and manage persistent Codync routines when the user asks for scheduled or event-driven work. Use the built-in routines tools (save_routine, list_routines, set_routine_enabled, delete_routine, run_routine, routine_webhook), not operating-system cron or an improvised background process. For recurring clock schedules, always use a five-field cron trigger with an explicit IANA timezone, including minute/hour frequencies; do not create interval triggers for those requests. Preserve existing intervals when editing unrelated fields. Cron steps reset within their field: */7 minutes is not an exact seven-minute duration across hours. Use once for a single dated execution; never approximate a one-time task with an annually repeating cron expression. Before saving, resolve the task, trigger and intended timezone for calendar/one-time schedules from the conversation; ask only for missing or ambiguous details. If the request is already clear, create it without another confirmation. Check that tools, connector sign-ins and files needed by the task are available; describe any missing setup rather than promising the task will work. Use list_routines before creating or editing to avoid duplicates; preserve unrelated triggers, enabled state and instructions. Save returns the actual routine ID, trigger descriptions and nextRunAt: use these to report what was really saved, including timezone, next occurrence and enabled/paused state. Do not claim success if the tool failed. run_routine executes the real task immediately, including its side effects; use it when the user requested a test or immediate execution, not merely to validate a schedule. A routine runs locally in its own conversation; the host must be running and awake, results appear in the main chat, and (pass) stays silent. Webhook triggers: routine_webhook explains how senders deliver; never claim a third-party integration is connected until a real delivery has been verified. Keep secrets out of routine instructions and ordinary status summaries.";
+pub const INSTRUCTIONS: &str = "Create and manage persistent Codync routines when the user asks for scheduled or event-driven work. Use the built-in routines tools (save_routine, list_routines, set_routine_enabled, delete_routine, run_routine, routine_webhook), not operating-system cron or an improvised background process. For recurring clock schedules, always use a five-field cron trigger with an explicit IANA timezone, including minute/hour frequencies; do not create interval triggers for those requests. Preserve existing intervals when editing unrelated fields. Cron steps reset within their field: */7 minutes is not an exact seven-minute duration across hours. Use once for a single dated execution; never approximate a one-time task with an annually repeating cron expression. Before saving, resolve the task, trigger and intended timezone for calendar/one-time schedules from the conversation; ask only for missing or ambiguous details. If the request is already clear, create it without another confirmation. Check that tools, connector sign-ins and files needed by the task are available; describe any missing setup rather than promising the task will work. Use list_routines before creating or editing to avoid duplicates; preserve unrelated triggers, enabled state and instructions. Save returns the actual routine ID, trigger descriptions and nextRunAt: use these to report what was really saved, including timezone, next occurrence and enabled/paused state. Do not claim success if the tool failed. run_routine executes the real task immediately, including its side effects; use it when the user requested a test or immediate execution, not merely to validate a schedule. A routine runs locally in a session of its own; the host must be running and awake, its result appears in your chat with the user, and (pass) stays silent. Webhook triggers: routine_webhook explains how senders deliver; never claim a third-party integration is connected until a real delivery has been verified. Keep secrets out of routine instructions and ordinary status summaries.";
 
 pub fn tools() -> Value {
     let id = json!({"type":"string"});

@@ -189,7 +189,6 @@ async fn search_history(hub: &Arc<Hub>, cfg: &BotConfig, args: &Value) -> Result
                 "id": e.id,
                 "date": ymd(e.created_at),
                 "from": if e.kind == crate::store::EntryKind::User.as_str() { "user" } else { "you" },
-                "inThread": e.thread_id.is_some(),
                 "text": acp::truncate(e.data["text"].as_str().unwrap_or_default(), SEARCH_TEXT_CHARS),
             })
         })

@@ -53,7 +53,6 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.decodeFromJsonElement
-import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -111,7 +110,7 @@ internal fun chatItems(entries: List<Entry>, pending: List<PendingSend>): List<C
         color = Palette.tertiary, textAlign = TextAlign.Center)
 }
 
-/** One chat-visible entry, with what can be done to it. `reply` opens its thread (main chat only). */
+/** One chat-visible entry, with what can be done to it. `reply` quotes it in the composer. */
 @Composable internal fun ChatRow(entry: Entry, groupStart: Boolean, chat: Bot?, state: AppState, store: AppStore,
     openTrace: () -> Unit, reply: (() -> Unit)?, connect: ConnectionRequestActions) {
     val group = chat?.kind == "group"
@@ -120,16 +119,12 @@ internal fun chatItems(entries: List<Entry>, pending: List<PendingSend>): List<C
             horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(4.dp)) {
             UserBubble(entry, state, store, reply)
             ReactionsRow(entry, state, store)
-            ThreadChip(entry, state, reply)
         }
         "agent" -> Column(Modifier.fillMaxWidth().padding(top = if (groupStart) 12.dp else 4.dp).animateContentSize(Motion.layoutSize),
             verticalArrangement = Arrangement.spacedBy(4.dp)) {
             if (group && groupStart) AuthorLabel(entry.data.text("author"), state)
             AgentBubble(entry, state, store, openTrace, reply)
-            Column(Modifier.padding(start = if (group) 34.dp else 0.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                ReactionsRow(entry, state, store)
-                ThreadChip(entry, state, reply)
-            }
+            Box(Modifier.padding(start = if (group) 34.dp else 0.dp)) { ReactionsRow(entry, state, store) }
         }
         "permission" -> Column(Modifier.padding(top = 12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             if (group) AuthorLabel(entry.data.text("author"), state)
@@ -155,12 +150,12 @@ internal class ConnectionRequestActions(val openApp: (String, ComposioApp) -> Un
     }
 }
 
-/** The menu a message opens on long press: copy, reply in its thread, what the agent did. */
+/** The menu a message opens on long press: copy, reply quoting it, what the agent did. */
 private fun messageMenu(context: android.content.Context, entry: Entry, reply: (() -> Unit)?, trace: (() -> Unit)?) = buildList {
     add(MenuItem("Copy", icon = "square.on.square") {
         context.getSystemService(ClipboardManager::class.java).setPrimaryClip(ClipData.newPlainText("Message", entry.text))
     })
-    if (reply != null) add(MenuItem("Reply in thread", icon = "arrowshape.turn.up.left", action = reply))
+    if (reply != null) add(MenuItem("Reply", icon = "arrowshape.turn.up.left", action = reply))
     if (trace != null) add(MenuItem("Show what it did", icon = "list.bullet", action = trace))
 }
 
@@ -177,16 +172,28 @@ internal val Entry.reactions: List<String> get() = (data["reactions"] as? JsonAr
     val attachments = entry.data["attachments"]?.jsonArray?.map { WireJson.decodeFromJsonElement<Attachment>(it) }.orEmpty()
     Column(Modifier.fillMaxWidth().padding(start = 56.dp), horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(4.dp)) {
         if (attachments.isNotEmpty()) AttachmentList(attachments, entry.botId, state, store)
-        if (entry.text.isNotEmpty()) Box(Modifier.clip(RoundedRectangle(18.dp)).background(Palette.bubbleUser)
-            .contextActions(reactions = reactionPick(entry, store), preview = { SelectionContainer { UserText(entry.text) } }) {
+        val quote = entry.replyTo
+        if (entry.text.isNotEmpty() || quote != null) Box(Modifier.clip(RoundedRectangle(18.dp)).background(Palette.bubbleUser)
+            .contextActions(reactions = reactionPick(entry, store), preview = { SelectionContainer { UserText(entry.text, quote) } }) {
                 messageMenu(context, entry, reply, null)
-            }) { UserText(entry.text) }
+            }) { UserText(entry.text, quote) }
         SendStatusLine(entry.status, state.bots.firstOrNull { it.id == entry.botId }?.status == "working")
     }
 }
 
-@Composable private fun UserText(text: String) {
-    Text(text, Modifier.background(Palette.bubbleUser).padding(horizontal = 16.dp, vertical = 10.dp), style = Type.body, color = Palette.text)
+@Composable private fun UserText(text: String, quote: ReplyQuote? = null) {
+    Column(Modifier.background(Palette.bubbleUser).padding(horizontal = 16.dp, vertical = 10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        if (quote != null) QuoteLine(quote.text)
+        if (text.isNotEmpty()) Text(text, style = Type.body, color = Palette.text)
+    }
+}
+
+/** The message a reply quotes, as its first line without Markdown markers: in its bubble, and in the composer while replying. */
+@Composable internal fun QuoteLine(text: String, modifier: Modifier = Modifier) {
+    Row(modifier.semantics(mergeDescendants = true) {}, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        Symbol("text.bubble", size = 14.dp, tint = Palette.secondary)
+        Text("“${messagePreview(text)}”", style = Type.subheadline, color = Palette.secondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+    }
 }
 
 @Composable private fun SendStatusLine(status: String?, botWorking: Boolean) {
@@ -206,7 +213,7 @@ internal val Entry.reactions: List<String> get() = (data["reactions"] as? JsonAr
         horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(4.dp)) {
         for (file in send.files) Text(file.name + " · " + formatBytes(file.size), Modifier.clip(RoundedRectangle(14.dp))
             .background(Palette.surface).padding(horizontal = 12.dp, vertical = 8.dp), style = Type.footnote, color = Palette.text)
-        if (send.text.isNotEmpty()) Box(Modifier.clip(RoundedRectangle(18.dp))) { UserText(send.text) }
+        if (send.text.isNotEmpty() || send.replyTo != null) Box(Modifier.clip(RoundedRectangle(18.dp))) { UserText(send.text, send.replyTo) }
         when (send.status) {
             SendStatus.Sending -> Text(state.uploadProgress[send.nonce]?.let { "Uploading files · $it%" } ?: "Sending…",
                 style = Type.caption2, color = Palette.tertiary)
@@ -251,29 +258,6 @@ internal val Entry.reactions: List<String> get() = (data["reactions"] as? JsonAr
  */
 @Composable private fun AgentText(text: String, selectable: Boolean) {
     Box(Modifier.background(Palette.bubbleAgent).padding(horizontal = 16.dp, vertical = 10.dp)) { MarkdownText(text, selectable) }
-}
-
-/** Under a message with a thread (Slack's): how many replied, how recently. */
-@Composable private fun ThreadChip(entry: Entry, state: AppState, open: (() -> Unit)?) {
-    val summary = entry.data["thread"] as? JsonObject ?: return
-    val count = summary["count"]?.jsonPrimitive?.intOrNull ?: 0
-    if (count == 0 || open == null) return
-    val unread = summary["unread"]?.jsonPrimitive?.intOrNull ?: 0
-    val lastAt = summary["lastAt"]?.jsonPrimitive?.longOrNull ?: 0
-    val authors = (summary["authors"] as? JsonArray)?.mapNotNull { id -> state.bots.firstOrNull { it.id == id.jsonPrimitive.content } }.orEmpty()
-    val (source, pressed) = rememberPress()
-    Row(Modifier.pressScale(pressed).clip(Capsule()).background(Palette.surface)
-        .clickable(source, null, role = Role.Button, onClick = open)
-        .semantics { contentDescription = "View thread, $count ${if (count == 1) "reply" else "replies"}" + if (unread > 0) ", $unread new" else "" }
-        .padding(horizontal = 10.dp, vertical = 5.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-        Row(horizontalArrangement = Arrangement.spacedBy((-6).dp)) {
-            for (bot in authors.take(3)) CharacterAvatar(bot.avatarShape, bot.avatarColor, 18.dp)
-        }
-        Text(if (count == 1) "1 reply" else "$count replies", style = Type.footnote.semibold, color = Palette.accent)
-        if (unread > 0) Text("$unread new", style = Type.footnote.semibold, color = Palette.text)
-        else if (lastAt > 0) Text(RelativeTime.day(lastAt), style = Type.footnote, color = Palette.tertiary)
-        Symbol("chevron.right", size = 12.dp, tint = Palette.tertiary)
-    }
 }
 
 /** A message's reactions: the user's (tapping one takes it back), then the bots', each emoji with the avatars of the
@@ -384,10 +368,10 @@ internal val Entry.botReactions: Map<String, List<String>> get() =
         style = Type.footnote.monospacedDigit, color = Palette.tertiary)
 }
 
-/** The latest thinking of the turn running in a chat (`thread` null) or thread. */
-internal fun currentThinking(entries: List<Entry>, botId: String, thread: String?): String? {
+/** The latest thinking of the turn running in a chat. */
+internal fun currentThinking(entries: List<Entry>, botId: String): String? {
     for (e in entries.asReversed()) {
-        if (e.botId != botId || e.threadId != thread) continue
+        if (e.botId != botId) continue
         if (e.kind == "user" || (e.kind == "agent" && e.data["final"]?.jsonPrimitive?.booleanOrNull == true)) return null
         if (e.kind == "thought" && e.text.isNotEmpty()) return e.text
     }

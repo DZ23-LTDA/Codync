@@ -1,4 +1,4 @@
-//! Conversation features on top of bots: messages to the user and reactions, group room turns,
+//! Conversation features on top of bots: messages to the user, reactions and quote replies, group room turns,
 //! bot-to-bot requests, prompt snapshots, long-term memory and automatic bot names.
 
 pub mod context;
@@ -12,5 +12,6 @@ pub mod outbox;
 pub mod profile;
 pub mod prompt;
 pub mod reactions;
+pub mod replies;
 pub mod team;
 pub mod uploads;

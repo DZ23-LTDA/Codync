@@ -8,7 +8,7 @@ The host persists the resolved absolute directory in `cwd` and exposes `managedW
 
 The configured directory is the agent process and ACP session's starting directory. The bot's instructions explain that it can use explicit paths or change directory for an individual command when a task concerns another folder. This does not modify bot configuration or reset the conversation. Access remains subject to the harness's permissions; a personal folder is not a sandbox and does not grant additional access.
 
-Routines, threads, and group contributions use their owner's configured starting directory. Task-specific paths should be explicit in routine instructions. The host does not infer a task directory from the last chat message. Harness-specific restrictions can still require user approval for other paths.
+Routines and group contributions use their owner's configured starting directory. Task-specific paths should be explicit in routine instructions. The host does not infer a task directory from the last chat message. Harness-specific restrictions can still require user approval for other paths.
 
 Changing the default project in settings deliberately reconfigures the agent session, as before. This is separate from executing a task in another directory.
 

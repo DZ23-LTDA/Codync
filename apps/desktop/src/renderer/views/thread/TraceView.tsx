@@ -15,14 +15,13 @@ import './trace.css'
 
 /**
  * "Full conversation": everything the agent did (narration, thinking, tool calls with output
- * and diffs, plans) grouped by turn. A chat's trace, or one thread's (`thread`: its root).
+ * and diffs, plans) grouped by turn.
  */
-export function TraceView({ botId, thread = null }: { botId: string; thread?: string | null }) {
+export function TraceView({ botId }: { botId: string }) {
   const store = useStore()
   useScreenViewed('trace')
   const turns = new Map<number, Entry[]>()
   for (const e of store.allEntries(botId)) {
-    if ((e.threadId ?? null) !== thread) continue
     turns.set(e.turn, [...(turns.get(e.turn) ?? []), e])
   }
   const sorted = [...turns.entries()].sort((a, b) => a[0] - b[0])

@@ -8,16 +8,15 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class SlashCommandsTest {
-    @Test fun `only a leading slash word lists commands, and skills need a host that runs them`() {
+    @Test fun `only a leading slash word lists commands and the bot's skills`() {
         assertEquals("ne", SlashCommands.query("/ne"))
         assertNull(SlashCommands.query("/new session"))
         assertNull(SlashCommands.query("hi /new"))
         val bot = Bot("b", "Bot", skills = listOf("review"))
         val skills = listOf(InstalledSkill("review", "Review", "Reads diffs", "src", "/p"), InstalledSkill("other", "Other", "", "src", "/q"))
-        assertEquals(listOf("review"), SlashCommands.list(bot, "", skills, "2.14.1").map { it.name }.filter { it != "fast" })
-        assertEquals(emptyList<String>(), SlashCommands.list(bot, "", skills, "2.9.3").map { it.name }.filter { it != "fast" })
+        assertEquals(listOf("review"), SlashCommands.list(bot, "", skills).map { it.name }.filter { it != "fast" })
         assertNull("a new session is in the bot's menu", SlashCommands.builtIn(bot, " /new "))
-        assertTrue(SlashCommands.list(Bot("g", "Team", kind = "group"), "", skills, null).isEmpty())
+        assertTrue(SlashCommands.list(Bot("g", "Team", kind = "group"), "", skills).isEmpty())
     }
 
     @Test fun `a group lists its members' Fast mode and the union of their skills`() {
@@ -27,9 +26,9 @@ class SlashCommandsTest {
         val scout = Bot("a", "Scout", skills = listOf("review"))
         val writer = Bot("b", "Writer", skills = listOf("review", "notes"))
         val plain = Bot("c", "Plain", fastModeSupport = "unsupported")
-        fun fast(vararg members: Bot) = SlashCommands.list(group, "fast", skills, null, members.toList()).single()
+        fun fast(vararg members: Bot) = SlashCommands.list(group, "fast", skills, members.toList()).single()
 
-        assertEquals(listOf("fast", "review", "notes"), SlashCommands.list(group, "", skills, null, listOf(scout, writer, plain)).map { it.name })
+        assertEquals(listOf("fast", "review", "notes"), SlashCommands.list(group, "", skills, listOf(scout, writer, plain)).map { it.name })
         assertEquals("Turn on for every bot here: faster replies and more usage", fast(scout.copy(fastMode = true), writer).detail)
         // Members without Fast mode don't count toward "on".
         assertEquals("Turn off for every bot here and return to standard speed", fast(scout.copy(fastMode = true), writer.copy(fastMode = true), plain).detail)
@@ -37,12 +36,9 @@ class SlashCommandsTest {
         assertEquals("Writer: The agent turned it off: busy. Switch it off and on to try again.", refused.detail)
         assertTrue(refused.warning)
         assertEquals("fast", SlashCommands.builtIn(group, " /fast ", listOf(scout))?.name)
-        assertEquals(listOf("review"), SlashCommands.list(group, "", skills, null, listOf(plain, Bot("d", "Old", fastModeSupport = "unsupported",
+        assertEquals(listOf("review"), SlashCommands.list(group, "", skills, listOf(plain, Bot("d", "Old", fastModeSupport = "unsupported",
             skills = listOf("review")))).map { it.name })
         assertNull(SlashCommands.builtIn(group, "/fast", listOf(plain)))
-        // Only a host that runs `/skill` in group prompts gets the skills.
-        assertEquals(listOf("fast"), SlashCommands.list(group, "", skills, "2.20.0", listOf(scout, writer)).map { it.name })
-        assertEquals(listOf("fast", "review", "notes"), SlashCommands.list(group, "", skills, "2.20.1", listOf(scout, writer)).map { it.name })
     }
 
     @Test fun `a group's Fast mode turns every member that shows it the opposite way`() {

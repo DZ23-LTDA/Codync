@@ -77,7 +77,7 @@ import kotlinx.coroutines.launch
         verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text("Routines", Modifier.weight(1f).padding(start = 2.dp), style = Type.system(13f).semibold, color = Palette.text)
-            IconButton("Ask the bot for a routine", "text.bubble", enabled = online) { store.editDraft(bot.id, null, "I want a routine that "); dismiss() }
+            IconButton("Ask the bot for a routine", "text.bubble", enabled = online) { store.editDraft(bot.id, "I want a routine that "); dismiss() }
             IconButton("Set up a routine", "plus", enabled = online) { editing = "" }
             IconButton("Close routines", "xmark", action = dismiss)
         }

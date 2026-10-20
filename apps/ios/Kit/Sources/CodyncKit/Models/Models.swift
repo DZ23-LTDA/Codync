@@ -55,18 +55,17 @@ public struct Bot: Codable, Identifiable, Hashable, Sendable {
     public var status: String
     public var activity: String
     public var startedAt: Int64?
-    /// Where the running turn talks: the chat (a bot's own, or a group) and thread root.
+    /// Where the running turn talks: the bot's own chat, or a group.
     public var workingChat: String?
-    public var workingThread: String?
     public var unread: Int
     public var lastMessage: String?
     public var lastAt: Int64
 
     public var isGroup: Bool { kind == "group" }
     public var isWorking: Bool { status == "working" || status == "needsInput" }
-    /// Working right now in this chat's main conversation (`thread == nil`) or in that thread.
-    public func isWorking(in chat: String, thread: String?) -> Bool {
-        isWorking && (workingChat ?? id) == chat && workingThread == thread
+    /// Working right now in this chat (not in a group it's in, or the reverse).
+    public func isWorking(in chat: String) -> Bool {
+        isWorking && (workingChat ?? id) == chat
     }
     public var needsInput: Bool { status == "needsInput" }
     public var folderName: String { managedWorkspace ? "Personal workspace" : (cwd as NSString).lastPathComponent }
@@ -84,8 +83,6 @@ public struct Entry: Codable, Identifiable, Hashable, Sendable {
     public var seq: Int64
     /// The chat it's in: a bot's, or a group's.
     public var botId: String
-    /// The root message of the thread it's in; nil in the main chat.
-    public var threadId: String?
     public var rev: Int64
     /// user | agent | thought | tool | plan | permission | notice
     public var kind: String
@@ -94,11 +91,10 @@ public struct Entry: Codable, Identifiable, Hashable, Sendable {
     public var createdAt: Int64
     public var updatedAt: Int64
 
-    public init(id: String, seq: Int64, botId: String, threadId: String? = nil, rev: Int64, kind: String, turn: Int64, data: EntryData, createdAt: Int64, updatedAt: Int64) {
+    public init(id: String, seq: Int64, botId: String, rev: Int64, kind: String, turn: Int64, data: EntryData, createdAt: Int64, updatedAt: Int64) {
         self.id = id
         self.seq = seq
         self.botId = botId
-        self.threadId = threadId
         self.rev = rev
         self.kind = kind
         self.turn = turn
@@ -119,16 +115,20 @@ public struct Entry: Codable, Identifiable, Hashable, Sendable {
         }
     }
 
-    public var date: Date { Date(milliseconds: createdAt) }
-}
+    /// A message a reply can quote: the user's or a final bot reply, once the computer has it.
+    public var isReplyable: Bool {
+        (kind == "user" || (kind == "agent" && data.final == true)) && !id.hasPrefix("local-")
+    }
 
-public struct ThreadSummary: Codable, Hashable, Sendable {
-    public var count: Int
-    public var lastAt: Int64
-    /// Who replied, first reply first: bot ids, and `user`.
-    public var authors: [String]
-    /// Replies the user hasn't read (threads are read on their own).
-    public var unread: Int?
+    /// How a reply quotes this message until the computer's own quote arrives: who wrote it and its
+    /// text, or its file names.
+    public var replyQuote: ReplyQuote {
+        let names = (data.attachments?.map(\.name) ?? []) + (data.files?.map(\.name) ?? [])
+        let text = data.text.flatMap { $0.isEmpty ? nil : $0 } ?? names.joined(separator: ", ")
+        return ReplyQuote(id: id, author: kind == "user" ? "user" : data.author ?? botId, text: String(text.prefix(500)))
+    }
+
+    public var date: Date { Date(milliseconds: createdAt) }
 }
 
 public struct FileDiff: Codable, Hashable, Sendable {
@@ -444,7 +444,6 @@ extension Bot {
         activity = try c.decodeIfPresent(String.self, forKey: .activity) ?? ""
         startedAt = try c.decodeIfPresent(Int64.self, forKey: .startedAt)
         workingChat = try c.decodeIfPresent(String.self, forKey: .workingChat)
-        workingThread = try c.decodeIfPresent(String.self, forKey: .workingThread)
         unread = try c.decodeIfPresent(Int.self, forKey: .unread) ?? 0
         lastMessage = try c.decodeIfPresent(String.self, forKey: .lastMessage)
         lastAt = try c.decodeIfPresent(Int64.self, forKey: .lastAt) ?? createdAt

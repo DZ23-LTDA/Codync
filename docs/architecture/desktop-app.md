@@ -4,10 +4,8 @@ Codync's computer-side app is one Electron app in `apps/desktop/` for macOS, Lin
 replaced the SwiftUI Mac app (`apps/macos/`) and the GTK 4 Linux app (`apps/linux/`) in 2.7.0.
 The iPhone app stays native SwiftUI; its package moved from `kit/` into `apps/ios/Kit/`.
 
-Conversation history stays available even when the recent snapshot contains mostly thread
-replies. The desktop, iPhone and terminal clients page the main conversation independently
-of the number of main-chat entries in that snapshot; reaching the end of a history response
-determines when there are no earlier messages.
+The desktop, iPhone and terminal clients page a conversation's history on their own;
+reaching the end of a history response determines when there are no earlier messages.
 
 ## Why
 
@@ -35,9 +33,8 @@ determines when there are no earlier messages.
 The renderer owns all state; closing the window hides it, so the menu bar keeps its data.
 HTTP to the host leaves from the main process (the loopback API has no CORS).
 
-Unsent composer text is kept per computer, separately for every bot and reply thread, and
-saved to `localStorage`, so switching conversations, closing a reply panel or restarting the
-app restores the exact text. Submitting clears only that conversation's draft. Drafts are
+Unsent composer text is kept per computer, separately for every bot, and saved to
+`localStorage`, so switching conversations or restarting the app restores the exact text. Submitting clears only that conversation's draft. Drafts are
 cleared when the host identity changes or the bot is deleted. iOS and the TUI keep drafts the
 same way; the shared desktop behavior covers macOS and Linux.
 

@@ -8,7 +8,6 @@ import Testing
     #expect(listing.routines[0].triggers[0].timeZone == "Asia/Taipei")
     #expect(listing.routines[0].triggers[1].type == "webhook")
     #expect(listing.runs[0].isActive)
-    #expect(listing.runs[0].rootId == nil)
 }
 
 @Test func routineTranscriptLinkSurvivesRoundTrip() throws {

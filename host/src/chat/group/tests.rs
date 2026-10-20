@@ -10,7 +10,6 @@ fn said(text: &str) -> Entry {
         id: "e".into(),
         seq: 1,
         bot_id: "g".into(),
-        thread_id: None,
         rev: 1,
         kind: "user".into(),
         turn: 1,
@@ -32,6 +31,10 @@ fn mentions_pick_responders_and_no_mention_means_everyone() {
     assert_eq!(ids(&members, "@尼采課幫我整理"), ["c"], "CJK names can run into the message");
     assert_eq!(ids(&members, "@bobby?"), ["a", "b", "c"], "a longer word isn't a mention");
     assert_eq!(ids(&members, "@all go"), ["a", "b", "c"]);
+    let mut reply = said("why?");
+    reply.data["replyTo"] = json!({"id": "x", "author": "b", "text": "done"});
+    let replied: Vec<String> = responders(&members, &[reply]).into_iter().map(|b| b.id.clone()).collect();
+    assert_eq!(replied, ["b"], "a reply asks the bot it quotes");
 }
 
 use crate::api::devices::Caller;
@@ -82,12 +85,12 @@ impl Room {
         Self { hub, dir, group }
     }
 
-    async fn send(&self, text: &str, thread: Option<&str>) -> Entry {
+    async fn send(&self, text: &str, reply_to: Option<&str>) -> Entry {
         let sent = crate::api::dispatch(
             &self.hub,
             &Caller::Local,
             "send",
-            json!({"botId": self.group, "text": text, "threadId": thread}),
+            json!({"botId": self.group, "text": text, "replyTo": reply_to}),
         )
         .await
         .unwrap();
@@ -182,36 +185,34 @@ async fn a_skill_command_reaches_the_members_that_have_the_skill_on() {
 }
 
 #[tokio::test]
-async fn threads_stay_out_of_the_main_chat_and_summarize_on_their_root() {
+async fn replies_quote_the_message_they_answer() {
     let room = Room::new();
-    let first = room.send("@a start here", None).await;
+    let main = Lane::main(&room.group);
+    room.send("@a start here", None).await;
     room.settle().await;
-    room.send("@a in the thread", Some(&first.id)).await;
+    let answer = room.hub.store.messages_after(&main, 0, 100).unwrap();
+    let answer = answer.iter().find(|e| e.kind == "agent" && e.data["final"] == true).unwrap();
+    let reply = room.send("@a about that", Some(&answer.id)).await;
+    assert_eq!(reply.data["replyTo"], json!({"id": answer.id, "author": "a", "text": "reply: group"}));
     room.settle().await;
-    let thread = Lane::in_thread(&room.group, &first.id);
-    assert_eq!(room.replies(&thread).len(), 1);
-    assert_eq!(room.replies(&Lane::main(&room.group)).len(), 1, "the thread's reply isn't in the main chat");
-    let summary = room.hub.store.entry(&first.id).unwrap().data["thread"].clone();
-    assert_eq!(summary["count"], 2);
-    assert_eq!(summary["authors"], json!(["user", "a"]));
+    let prompts = |id: &str| std::fs::read_to_string(room.dir.join(id).join("prompts.jsonl")).unwrap();
+    assert!(
+        prompts("a").contains(r#"User: [Codync: this replies to your message: \"reply: group\"] @a about that"#),
+        "the room line carries the quote: {}",
+        prompts("a")
+    );
+    let send = |b: serde_json::Value| crate::api::dispatch(&room.hub, &Caller::Local, "send", b);
+    assert!(send(json!({"botId": "a", "text": "x", "replyTo": answer.id})).await.is_err(), "another chat's message");
 
-    // Threads are read on their own (Slack's): reading the main chat leaves the thread's reply unread.
+    // Sending read the chat; only the answer to the reply is new.
     let unread = || room.hub.bot_value_for_test(&room.group)["unread"].as_i64().unwrap();
-    assert_eq!(summary["unread"], 1);
-    assert_eq!(unread(), 2, "the main chat's reply and the thread's");
-    let mark = |b: serde_json::Value| crate::api::dispatch(&room.hub, &Caller::Local, "markRead", b);
-    mark(json!({"botId": room.group})).await.unwrap();
     assert_eq!(unread(), 1);
-    mark(json!({"botId": room.group, "threadId": first.id})).await.unwrap();
+    crate::api::dispatch(&room.hub, &Caller::Local, "markRead", json!({"botId": room.group})).await.unwrap();
     assert_eq!(unread(), 0);
-    assert_eq!(room.hub.store.entry(&first.id).unwrap().data["thread"]["unread"], 0);
-    assert!(mark(json!({"botId": "a", "threadId": first.id})).await.is_err(), "a thread of another chat");
 
     // Reactions toggle, and reacting to a read message doesn't make it unread.
-    let reply = room.hub.store.messages_after(&Lane::main(&room.group), 0, 100).unwrap();
-    let reply = reply.iter().find(|e| e.kind == "agent" && e.data["final"] == true).unwrap();
     let react = |emoji: &str| {
-        crate::api::dispatch(&room.hub, &Caller::Local, "react", json!({"entryId": reply.id, "emoji": emoji}))
+        crate::api::dispatch(&room.hub, &Caller::Local, "react", json!({"entryId": answer.id, "emoji": emoji}))
     };
     react("👍").await.unwrap();
     let reacted = react("✅").await.unwrap();
@@ -221,34 +222,19 @@ async fn threads_stay_out_of_the_main_chat_and_summarize_on_their_root() {
     assert_eq!(undone["entry"]["data"]["reactions"], json!(["✅"]));
     assert!(react("hi").await.is_err(), "only emoji");
 
-    // A thread in a bot's own chat gets a session of its own, told where it branched off.
-    let dm =
-        crate::api::dispatch(&room.hub, &Caller::Local, "send", json!({"botId": "b", "text": "main"})).await.unwrap();
+    // In a bot's own chat the agent reads the quote before the text.
+    let dm = send(json!({"botId": "b", "text": "main"})).await.unwrap();
     room.settle().await;
-    let dm_root = dm["entry"]["id"].as_str().unwrap().to_owned();
-    crate::api::dispatch(
-        &room.hub,
-        &Caller::Local,
-        "send",
-        json!({"botId": "b", "text": "aside", "threadId": dm_root}),
-    )
-    .await
-    .unwrap();
+    send(json!({"botId": "b", "text": "aside", "replyTo": dm["entry"]["id"]})).await.unwrap();
     room.settle().await;
-    let prompts = std::fs::read_to_string(room.dir.join("b/prompts.jsonl")).unwrap();
-    assert!(prompts.lines().last().unwrap().contains("[Thread]"), "{prompts}");
-    let replies = room.hub.store.thread("b", &dm_root, 10).unwrap();
-    assert_eq!(replies.iter().filter(|e| e.data["final"] == true).count(), 1);
     assert!(
-        crate::api::dispatch(
-            &room.hub,
-            &Caller::Local,
-            "send",
-            json!({"botId": "b", "text": "x", "threadId": replies[0].id})
-        )
-        .await
-        .is_err(),
-        "threads are flat"
+        prompts("b")
+            .lines()
+            .last()
+            .unwrap()
+            .contains(r#"[Codync: this replies to the user's earlier message: \"main\"]\naside"#),
+        "{}",
+        prompts("b")
     );
     room.shutdown().await;
 }

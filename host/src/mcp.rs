@@ -119,7 +119,6 @@ async fn computer_tools(port: u16, token: &str) -> Value {
 async fn call(port: u16, token: &str, bot: &str, params: &Value, server: Server) -> Value {
     let body = json!({
         "botId": bot,
-        "memoryLane": std::env::var("CODYNC_MEMORY_LANE").ok(),
         "name": params["name"],
         "arguments": params.get("arguments").filter(|a| a.is_object()).cloned().unwrap_or_else(|| json!({})),
     });

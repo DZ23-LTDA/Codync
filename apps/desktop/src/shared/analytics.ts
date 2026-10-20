@@ -5,7 +5,6 @@
 /** Screens, sheets and tabs, named the same on every client. */
 export type Screen =
   | 'chat'
-  | 'thread'
   | 'trace'
   | 'bot_details'
   | 'memory'

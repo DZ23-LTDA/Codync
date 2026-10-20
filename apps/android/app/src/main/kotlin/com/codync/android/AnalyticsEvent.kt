@@ -157,7 +157,7 @@ internal enum class VoiceEngineKind(override val wire: String) : CatalogValue {
 
 /** `screen_viewed` values (the catalog's *Screens* table, iOS/Android column). */
 internal enum class AnalyticsScreen(override val wire: String) : CatalogValue {
-    Bots("bots"), State("state"), Chat("chat"), Thread("thread"), Trace("trace"), BotDetails("bot_details"), Memory("memory"),
+    Bots("bots"), State("state"), Chat("chat"), Trace("trace"), BotDetails("bot_details"), Memory("memory"),
     Routines("routines"), Marketplace("marketplace"), Settings("settings"), Computers("computers"), Usage("usage"),
     Account("account"), Pairing("pairing"), VoiceSettings("voice_settings"), RemoteScreen("remote_screen"),
 }

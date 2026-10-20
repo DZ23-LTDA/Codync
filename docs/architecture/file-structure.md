@@ -119,7 +119,7 @@ Codync/
 - `CodyncKit` owns serializable models, clients and rendering primitives shared with widgets. It must not import `CodyncUI` or ClerkKit.
 - `CodyncUI` owns the iPhone app's observable stores and screens. App-specific lifecycle, OAuth configuration and device hooks belong in `apps/`.
 - Each `BotStore` (Swift, and its TypeScript port in the desktop app) talks to one computer. `AccountStore` aggregates stores and routes by `BotReference`; bare bot IDs are not globally unique.
-- The host owns routing, reply counts, permissions and group turn scheduling. Clients render these results; they do not reimplement host policy.
+- The host owns routing, reply quotes, permissions and group turn scheduling. Clients render these results; they do not reimplement host policy.
 - Android: `core` is plain JVM (no Android or Compose imports) and `design` holds no I/O; `app` uses both. Like the other clients it renders host state and sends intents, never product logic.
 - `cloud/` transports encrypted chat traffic and manages account metadata. `relay/` delivers APNs pushes. The two Workers have separate configuration and tests.
 
@@ -130,9 +130,9 @@ Codync/
 | bot | Named agent persona; a group is also a roster entry with `kind: group` |
 | agent / backend | Coding harness and its ACP adapter |
 | chat | Main, persistent conversation with a bot or group |
-| thread | Replies under a main-chat root message |
+| reply | A user message answering an earlier message of its chat, with that message's quote |
 | group | Chat with several bots and the user; no agent process of its own |
-| lane | `(chat, thread)` destination of a turn |
+| lane | Destination of a turn: a bot's own chat or a group's |
 | session | Harness-owned ACP model context; distinct from stored chat history |
 | trace | Full conversation, including intermediate/tool events |
 | computer / host | User-facing paired environment / the daemon that serves it |

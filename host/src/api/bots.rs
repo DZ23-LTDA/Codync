@@ -5,7 +5,7 @@ use super::str_arg;
 use crate::agent::bot::Cmd;
 use crate::hub::Hub;
 use crate::market;
-use crate::store::{BotConfig, EntryKind, Lane, ReadScope};
+use crate::store::{BotConfig, EntryKind, Lane};
 use anyhow::{Context, Result, anyhow, bail};
 use serde_json::{Value, json};
 use std::ops::ControlFlow;
@@ -58,8 +58,6 @@ pub(super) async fn call(hub: &Arc<Hub>, method: &str, b: Value) -> Result<Contr
             let limit = b["limit"].as_i64().unwrap_or(100).clamp(1, 500);
             json!({"entries": hub.store.history(bot, before, limit)?})
         }
-        // A thread's replies (its newest 500); the root is in the main chat.
-        "thread" => json!({"entries": hub.store.thread(str_arg(&b, "botId")?, str_arg(&b, "rootId")?, 500)?}),
         // Notices between a bot and one peer (the newest 200), for the read-only bot conversation sheet.
         "botConversation" => {
             json!({"entries": hub.store.bot_conversation(str_arg(&b, "botId")?, str_arg(&b, "peerId")?, 200)?})
@@ -109,14 +107,8 @@ pub(super) async fn call(hub: &Arc<Hub>, method: &str, b: Value) -> Result<Contr
             hub.delete_bot(str_arg(&b, "botId")?)?;
             json!({})
         }
-        // The main chat, one thread (`threadId`), or everything (`all`, the roster's "Mark as read").
         "markRead" => {
-            let scope = match b["threadId"].as_str().filter(|t| !t.is_empty()) {
-                Some(root) => ReadScope::Thread(root),
-                None if b["all"] == true => ReadScope::All,
-                None => ReadScope::Chat,
-            };
-            hub.mark_read(str_arg(&b, "botId")?, scope)?;
+            hub.mark_read(str_arg(&b, "botId")?)?;
             json!({})
         }
         // One chunk of a file for a later `send` (`attachments`); base64 `data` at `offset`.
@@ -161,18 +153,12 @@ pub(super) async fn call(hub: &Arc<Hub>, method: &str, b: Value) -> Result<Contr
                 return Ok(ControlFlow::Break(json!({"entry": e})));
             }
             let row = hub.store.bot(bot)?.filter(|r| !r.deleted).ok_or_else(|| anyhow!("unknown bot"))?;
-            // `threadId`: reply in the thread on that message of the main chat (threads are flat).
-            let thread = match b["threadId"].as_str().filter(|t| !t.is_empty()) {
-                Some(root) => {
-                    let r = hub.store.entry(root).ok_or_else(|| anyhow!("unknown message"))?;
-                    if r.bot_id != bot || r.thread_id.is_some() {
-                        bail!("threads start from a message in the main chat");
-                    }
-                    Some(root.to_owned())
-                }
+            // `replyTo`: the message of this chat it answers (`chat::replies`).
+            let reply = match b["replyTo"].as_str().filter(|id| !id.is_empty()) {
+                Some(id) => Some(crate::chat::replies::quote(&hub.store, bot, id)?),
                 None => None,
             };
-            let lane = Lane { chat: bot.to_owned(), thread };
+            let lane = Lane::main(bot);
             let mut attachments = Vec::new();
             if !uploads.is_empty() {
                 let root = crate::chat::uploads::root(&row.config);
@@ -196,12 +182,14 @@ pub(super) async fn call(hub: &Arc<Hub>, method: &str, b: Value) -> Result<Contr
             if !pasted.is_empty() {
                 data["pasted"] = json!(pasted);
             }
+            if let Some(reply) = reply {
+                data["replyTo"] = reply;
+            }
             let e = hub
                 .add_entry(&lane, EntryKind::User, turn, &data)
                 .ok_or_else(|| anyhow!("couldn't save the message"))?;
             // Before the turn starts, so its reply lands unread.
-            let scope = lane.thread.as_deref().map_or(ReadScope::Chat, ReadScope::Thread);
-            if let Err(error) = hub.mark_read(bot, scope) {
+            if let Err(error) = hub.mark_read(bot) {
                 tracing::warn!(%error, bot, "couldn't mark bot read after send");
             }
             if row.config.is_group() {
@@ -209,8 +197,7 @@ pub(super) async fn call(hub: &Arc<Hub>, method: &str, b: Value) -> Result<Contr
                 crate::chat::group::start(hub, &row.config, lane);
             } else {
                 // `/skill …` reaches the agent as "read this skill first"; the chat keeps what was typed.
-                let root = crate::chat::uploads::root(&row.config);
-                let prompt = crate::chat::prompt::of_message(&hub.store, &row.config.skills, &root, text, &attachments);
+                let prompt = crate::chat::prompt::of_entry(hub, &row.config, &e.data);
                 hub.send_cmd(bot, Cmd::Send { lane, entry_id: e.id.clone(), text: prompt })?;
             }
             json!({"entry": e})

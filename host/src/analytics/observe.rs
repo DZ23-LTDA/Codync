@@ -81,8 +81,8 @@ fn call_event(method: &str, b: &Value, p: &mut Map<String, Value>) -> Option<Eve
         "reorderBots" => Event::BotsReordered,
         "deleteBot" => Event::BotDeleted,
         "send" => {
-            let in_thread = b["threadId"].as_str().is_some_and(|t| !t.is_empty());
-            p.insert("in_thread".into(), in_thread.into());
+            let reply = b["replyTo"].as_str().is_some_and(|t| !t.is_empty());
+            p.insert("reply".into(), reply.into());
             p.insert("attachments".into(), b["attachments"].as_array().map_or(0, Vec::len).into());
             Event::MessageSent
         }
@@ -253,10 +253,10 @@ mod tests {
 
     #[test]
     fn observed_events_carry_no_content() {
-        let b = json!({"botId": "b1", "text": "secret plan", "threadId": "e1", "attachments": ["u1", "u2"]});
+        let b = json!({"botId": "b1", "text": "secret plan", "replyTo": "e1", "attachments": ["u1", "u2"]});
         let (event, p) = props("send", &b).expect("send is tracked");
         assert_eq!(event, Event::MessageSent);
-        assert_eq!(p, json!({"in_thread": true, "attachments": 2, "client": "local"}));
+        assert_eq!(p, json!({"reply": true, "attachments": 2, "client": "local"}));
         assert!(!p.to_string().contains("secret"));
 
         let custom = json!({"name": "mine", "command": "/Users/me/bin/server"});

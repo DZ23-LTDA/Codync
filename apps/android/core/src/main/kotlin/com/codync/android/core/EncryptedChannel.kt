@@ -252,8 +252,7 @@ class EncryptedChannel internal constructor(
         require(route == HostRoute.Relay && !pairing && send.files.isEmpty()) { "Only text can wait in the relay mailbox." }
         val inner = buildJsonObject {
             put("m", "send"); put("ts", System.currentTimeMillis())
-            put("b", buildJsonObject { put("botId", send.botId); put("text", send.text); put("clientNonce", send.nonce)
-                send.threadId?.let { put("threadId", it) } })
+            put("b", send.body())
         }
         val blob = RelayCrypto.sealMailbox(inner.toString().toByteArray(), computer, identity, send.nonce)
         val result = mailboxRequest(send.nonce, buildJsonObject { put("t", "mbox.put"); put("nonce", send.nonce); put("d", blob) })

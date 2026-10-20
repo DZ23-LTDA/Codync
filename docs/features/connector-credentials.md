@@ -59,7 +59,7 @@ bot, service, destination field, purpose and status; they contain no credentials
 Clients submit values through connectorRequestFinish. The host validates the
 request, destination, requesting bot and 24-hour expiry, stores credentials,
 verifies availability, enables the connector for that bot, and queues a non-secret
-acknowledgement in the original conversation/thread. Repeated completed submissions
+acknowledgement in the original conversation. Repeated completed submissions
 return the completed entry. Verification failures remain pending so the user can
 correct credentials and retry. Current clients offer no way to cancel a request
 (it stays until it's done); `cancel: true` remains for older clients, and a

@@ -162,7 +162,7 @@ internal fun moved(roster: List<Bot>, id: String, offset: Int): List<String>? {
             if (bot.kind == "group") MenuItem("Edit group", icon = "person.2", action = edit)
             else MenuItem("Edit profile", icon = "pencil", action = edit),
             MenuItem("Mark as read", icon = "checkmark.message") {
-                store.command("markRead", buildJsonObject { put("botId", bot.id); put("all", true) }, "roster:" + bot.id)
+                store.command("markRead", buildJsonObject { put("botId", bot.id) }, "roster:" + bot.id)
             },
             MenuItem("Hide from list", icon = "eye.slash") {
                 store.command("updateBot", buildJsonObject { put("id", bot.id); put("hidden", true) }, "roster:" + bot.id)

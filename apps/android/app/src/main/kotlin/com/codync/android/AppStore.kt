@@ -161,8 +161,8 @@ class AppStore(application: Application) : AndroidViewModel(application) {
             database?.recoverInterrupted()
             val snapshot = requireNotNull(database).snapshot()
             val restored = book.recover(snapshot)
-            savedDrafts = restored.associateBy { it.lane }
-            mutableState.update { it.copy(drafts = restored.associateBy { draft -> draft.lane }) }
+            savedDrafts = restored.associateBy { it.botId }
+            mutableState.update { it.copy(drafts = restored.associateBy { draft -> draft.botId }) }
             attachments.retainPending(snapshot.pending.flatMap { it.files } + restored.flatMap { it.files })
         }
         draftBook = book

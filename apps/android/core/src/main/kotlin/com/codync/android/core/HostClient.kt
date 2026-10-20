@@ -37,7 +37,6 @@ data class Bot(
     val createdAt: Long = 0,
     val startedAt: Long? = null,
     val workingChat: String? = null,
-    val workingThread: String? = null,
     val lastMessage: String? = null,
     val lastAt: Long = 0,
     val status: String = "idle",
@@ -61,9 +60,8 @@ data class Bot(
     /** A group's bots, in member order, from [bots]. */
     fun memberBots(bots: List<Bot>): List<Bot> = members.mapNotNull { id -> bots.firstOrNull { it.id == id } }
 
-    /** Working right now in this chat's main conversation (`thread == null`) or in that thread. */
-    fun isWorking(chat: String, thread: String?): Boolean =
-        status in listOf("working", "needsInput") && (workingChat ?: id) == chat && workingThread == thread
+    /** Working right now in this chat (its own, or a group it's in). */
+    fun isWorking(chat: String): Boolean = status in listOf("working", "needsInput") && (workingChat ?: id) == chat
 }
 
 object HostClient {

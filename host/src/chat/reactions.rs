@@ -73,7 +73,7 @@ pub fn describe(hub: &Hub, e: &Entry) -> String {
 mod tests {
     use super::*;
     use crate::remote::identity::Identity;
-    use crate::store::{BotConfig, ReadScope, Store};
+    use crate::store::{BotConfig, Store};
 
     #[test]
     fn room_reactions_pick_the_message_and_keep_it_read() {
@@ -94,7 +94,7 @@ mod tests {
         let reply = said(EntryKind::Agent, json!({"text": "Shipped.", "final": true, "author": "a"}));
         let mine = said(EntryKind::Agent, json!({"text": "Nice.", "final": true, "author": "b"}));
         let later = said(EntryKind::User, json!({"text": "one more thing"}));
-        hub.mark_read("g", ReadScope::All).unwrap();
+        hub.mark_read("g").unwrap();
         let unread = || hub.bot_value_for_test("g")["unread"].as_i64().unwrap();
 
         // Ben's turn was shown up to his own reply: the newest message from someone else before it is Ann's.

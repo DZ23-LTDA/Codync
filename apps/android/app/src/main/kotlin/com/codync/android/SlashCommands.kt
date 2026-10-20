@@ -21,7 +21,6 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.codync.android.core.AppVersion
 import com.codync.android.core.Bot
 import com.codync.android.core.FastModeState
 import com.codync.android.core.GroupFastMode
@@ -42,20 +41,13 @@ internal data class SlashCommand(val name: String, val icon: String, val title: 
  * "read this skill first".
  */
 internal object SlashCommands {
-    /** The first host that understands `/skill` messages; older ones get the text as typed. */
-    private const val MIN_SKILLS_HOST = "2.14.1"
-    /** The first host that runs `/skill` in a group's prompts (host/src/chat/group.rs `line`). */
-    private const val MIN_GROUP_SKILLS_HOST = "2.20.1"
-
     /** The command name being typed after a leading `/`, before any space. */
     fun query(draft: String): String? = if (draft.startsWith("/") && draft.none(Char::isWhitespace)) draft.drop(1) else null
 
     /** Built-in commands, then the skills the bot has on (a group's: any member's), whose name or title holds `query`. `members` are a group's bots. */
-    fun list(bot: Bot, query: String, skills: List<InstalledSkill>, hostVersion: String?, members: List<Bot> = emptyList()): List<SlashCommand> {
-        val group = bot.kind == "group"
-        val owners = if (group) members else listOf(bot)
-        val own = if (hostVersion != null && AppVersion.isBelow(hostVersion, if (group) MIN_GROUP_SKILLS_HOST else MIN_SKILLS_HOST)) emptyList()
-            else skills.filter { skill -> owners.any { skill.id in it.skills } }.map { SlashCommand(it.id, "book.pages", it.name, it.description, false, it.id) }
+    fun list(bot: Bot, query: String, skills: List<InstalledSkill>, members: List<Bot> = emptyList()): List<SlashCommand> {
+        val owners = if (bot.kind == "group") members else listOf(bot)
+        val own = skills.filter { skill -> owners.any { skill.id in it.skills } }.map { SlashCommand(it.id, "book.pages", it.name, it.description, false, it.id) }
         return (builtIn(bot, members) + own).filter { query.isEmpty() || it.name.contains(query, true) || it.title.contains(query, true) }
     }
 

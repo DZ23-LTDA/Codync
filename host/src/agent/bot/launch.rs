@@ -16,7 +16,7 @@ pub(crate) fn system_prompt(system: &str) -> Value {
 
 /// Claude's `_meta`: the bot's instructions appended to Claude Code's own system prompt, and its options. The
 /// per-session parts of Claude Code's prompt (working directory, git status) move to the first message, so a
-/// bot's chat, threads and routines share one cached system prompt.
+/// bot's chat, groups and routines share one cached system prompt.
 pub(super) fn claude_meta(cfg: &BotConfig, system: &str) -> Value {
     json!({"systemPrompt": {"append": system, "excludeDynamicSections": true}, "claudeCode": claude_options(cfg)})
 }
@@ -128,7 +128,6 @@ pub(crate) async fn start_agent(command: &str, cwd: &str, env: &[(String, String
     };
     let sessions = SessionCaps {
         load: init["agentCapabilities"]["loadSession"].as_bool().unwrap_or(false),
-        fork: init["agentCapabilities"]["sessionCapabilities"]["fork"].is_object(),
         close: init["agentCapabilities"]["sessionCapabilities"]["close"].is_object(),
         system_prompt: init["agentCapabilities"]["sessionCapabilities"]["systemPrompt"].is_object(),
         additional_directories: init["agentCapabilities"]["sessionCapabilities"]["additionalDirectories"].is_object(),

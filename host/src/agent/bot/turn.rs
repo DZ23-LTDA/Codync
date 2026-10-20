@@ -23,8 +23,8 @@ impl Actor {
         tokio::task::spawn_blocking(move || context::resolve(&hub.store, &cfg, &session)).await?
     }
 
-    /// The prompt for `text` in session `sid`: what the agent should hear first (its profile, a handoff, a thread's
-    /// start, a memory change) and after (a profile update, how to share files).
+    /// The prompt for `text` in session `sid`: what the agent should hear first (its profile, a handoff, a memory
+    /// change) and after (a profile update, how to share files).
     async fn compose(&mut self, sid: &str, text: &str) -> Result<String> {
         let instructions = self.conn.as_ref().map_or(Instructions::FirstMessage, Conn::instructions);
         let mut snapshot = self.snapshot(sid).await?;
@@ -42,9 +42,6 @@ impl Actor {
         if let Some((notice, revision)) = memory::change_notice(&self.hub.store, &self.cfg, sid) {
             prompt = format!("{notice}\n\n{prompt}");
             self.turn_memory_revision = revision;
-        }
-        if let Some(intro) = self.thread_intro.take() {
-            prompt = format!("{intro}\n\n{prompt}");
         }
         if std::mem::take(&mut self.session_fresh) && instructions == Instructions::FirstMessage {
             prompt = format!("<bot-profile>\n{}\n</bot-profile>\n\n{prompt}", snapshot.system);
@@ -73,10 +70,19 @@ impl Actor {
         hidden: bool,
         done_tx: &mpsc::UnboundedSender<Done>,
     ) -> Result<()> {
+        // A routine run keeps the turn its notice took when it began (`Routines::begin`).
+        let run_turn = self
+            .active_routine
+            .as_ref()
+            .and_then(|id| self.hub.store.entry(&crate::routines::notice_id(id)))
+            .map(|e| e.turn)
+            .filter(|t| *t > 0);
         let turn = entry_ids.last().and_then(|id| self.hub.store.entry(id)).map_or_else(
             || {
-                self.hub.store.max_turn(&lane.chat)
-                    + i64::from(self.active_group.is_some() || self.active_routine.is_some())
+                run_turn.unwrap_or_else(|| {
+                    self.hub.store.max_turn(&lane.chat)
+                        + i64::from(self.active_group.is_some() || self.active_routine.is_some())
+                })
             },
             |e| e.turn,
         );
@@ -129,7 +135,7 @@ impl Actor {
         // Memory files changed since (in an editor, say) reach the opening or the next notice.
         let (hub, cfg) = (self.hub.clone(), self.cfg.clone());
         let _ = tokio::task::spawn_blocking(move || memory::files::scan(&hub, &cfg)).await;
-        let slot = self.slot(&lane);
+        let slot = self.slot();
         if let Some(deadline) = self.routine_deadline {
             tokio::time::timeout_at(tokio::time::Instant::from_std(deadline), self.ensure_session(slot.as_deref()))
                 .await

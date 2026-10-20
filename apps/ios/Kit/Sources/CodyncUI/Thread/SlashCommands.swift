@@ -19,11 +19,6 @@ struct SlashCommand: Identifiable, Equatable {
 /// through the host's `updateBot` (a group's on each member; a new session is in the bot's menu); a skill fills in `/<id> `, and the host turns that message into "read this skill first"
 /// (`host/src/market/skills.rs` `expand_command`). docs/features/marketplace.md, "Commands".
 enum SlashCommands {
-    /// The first host that understands `/skill` messages; older ones get the text as typed.
-    static let minSkillsHost = "2.14.1"
-    /// The first host that runs `/skill` in a group's prompts (`host/src/chat/group.rs` `line`).
-    static let minGroupSkillsHost = "2.20.1"
-
     /// The command name being typed after a leading `/`, before any space.
     static func query(_ draft: String) -> String? {
         guard draft.hasPrefix("/"), !draft.contains(where: \.isWhitespace) else { return nil }

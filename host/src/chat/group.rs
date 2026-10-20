@@ -8,9 +8,6 @@
 //! @-mention someone; a member with nothing to add says `(pass)`, and a round
 //! where nobody speaks ends the turn. A newer message in the same lane (or Stop)
 //! moves the lane's epoch, which ends a running room turn before its next speaker.
-//!
-//! Threads work the same way inside a group: the room turn runs in the thread's
-//! lane and only sees the thread.
 
 use crate::LockExt;
 use crate::agent::bot::Cmd;
@@ -43,34 +40,27 @@ pub struct GroupTurn {
     pub reply: oneshot::Sender<Result<Option<String>>>,
 }
 
-/// Room turn epochs per lane (`Lane::key`).
+/// Room turn epochs per group.
 #[derive(Default)]
 pub struct Rooms(Mutex<HashMap<String, u64>>);
 
 impl Rooms {
     fn next(&self, lane: &Lane) -> u64 {
         let mut map = self.0.locked();
-        let epoch = map.entry(lane.key()).or_default();
+        let epoch = map.entry(lane.chat.clone()).or_default();
         *epoch += 1;
         *epoch
     }
 
     pub fn current(&self, lane: &Lane, epoch: u64) -> bool {
-        self.0.locked().get(&lane.key()).copied() == Some(epoch)
+        self.0.locked().get(&lane.chat).copied() == Some(epoch)
     }
 
-    /// Stop: ends every room turn in `group` (main chat and threads) and the member turns in it.
+    /// Stop: ends the room turn in `group` and the member turns in it.
     pub fn stop(&self, hub: &Hub, group: &str) {
-        let thread_prefix = format!("{group}/");
-        let mut stopped = false;
-        for (key, epoch) in self.0.locked().iter_mut() {
-            if key == group || key.starts_with(&thread_prefix) {
-                *epoch += 1;
-                stopped = true;
-            }
-        }
-        if !stopped {
-            return;
+        match self.0.locked().get_mut(group) {
+            Some(epoch) => *epoch += 1,
+            None => return,
         }
         let Ok(Some(row)) = hub.store.bot(group) else { return };
         for member in &row.config.members {
@@ -185,13 +175,16 @@ fn since_last_user_message(hub: &Hub, lane: &Lane) -> Result<Vec<Entry>> {
     Ok(recent[start..].to_vec())
 }
 
-/// Who answers: the members @-mentioned since the user's last message, or everyone
-/// when nobody (or `@all` / `@everyone`) is.
+/// Who answers: the members @-mentioned or replied to since the user's last message, or
+/// everyone when nobody (or `@all` / `@everyone`) is.
 fn responders<'a>(members: &'a [BotConfig], messages: &[Entry]) -> Vec<&'a BotConfig> {
     let texts: Vec<&str> = messages.iter().filter_map(|e| e.data["text"].as_str()).collect();
     let everyone = texts.iter().any(|t| mentions(t, "all") || mentions(t, "everyone"));
-    let named: Vec<&BotConfig> =
-        members.iter().filter(|m| texts.iter().any(|t| handles(&m.name).iter().any(|h| mentions(t, h)))).collect();
+    let replied = |m: &BotConfig| messages.iter().any(|e| e.data["replyTo"]["author"] == m.id.as_str());
+    let named: Vec<&BotConfig> = members
+        .iter()
+        .filter(|m| replied(m) || texts.iter().any(|t| handles(&m.name).iter().any(|h| mentions(t, h))))
+        .collect();
     if everyone || named.is_empty() { members.iter().collect() } else { named }
 }
 
@@ -248,13 +241,7 @@ fn member_prompt(hub: &Hub, group: &BotConfig, members: &[BotConfig], me: &BotCo
 
     let seen = hub.store.last_spoke(lane, &me.id);
     let mut lines: Vec<String> = vec![];
-    let mut header = format!("[Group chat: \"{}\" - with {peer_names}]", group.name);
-    if let Some(root) = lane.thread.as_deref().and_then(|r| hub.store.entry(r)) {
-        header = format!("[Group chat: \"{}\", in a thread - with {peer_names}]", group.name);
-        if seen == 0 {
-            lines.push(format!("(thread started on) {}", line(hub, group, &root, me)));
-        }
-    }
+    let header = format!("[Group chat: \"{}\" - with {peer_names}]", group.name);
     for e in hub.store.messages_after(lane, seen, HISTORY_LINES)? {
         lines.push(line(hub, group, &e, me));
     }
@@ -280,8 +267,10 @@ fn line(hub: &Hub, group: &BotConfig, e: &Entry, me: &BotConfig) -> String {
         // As in the member's own chat (its skills), with the files the group keeps.
         let root = crate::chat::uploads::root(group);
         let attachments = e.data["attachments"].as_array().map_or(&[][..], Vec::as_slice);
+        let reply = crate::chat::replies::note(hub, &me.id, &e.data["replyTo"]).map(|n| format!("{n} "));
         return format!(
-            "User: {}{reacted}",
+            "User: {}{}{reacted}",
+            reply.unwrap_or_default(),
             crate::chat::prompt::of_message(&hub.store, &me.skills, &root, text, attachments)
         );
     }

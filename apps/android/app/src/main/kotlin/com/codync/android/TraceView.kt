@@ -33,8 +33,8 @@ import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.jsonPrimitive
 
 /** "Full conversation": everything the agent did, grouped by turn (iOS `TraceView`). */
-@Composable internal fun TraceView(bot: Bot, thread: String?, state: AppState) {
-    val turns = state.entries.filter { it.botId == bot.id && it.threadId == thread }.groupBy { it.turn }.toSortedMap().toList()
+@Composable internal fun TraceView(bot: Bot, state: AppState) {
+    val turns = state.entries.filter { it.botId == bot.id }.groupBy { it.turn }.toSortedMap().toList()
     val list = rememberLazyListState()
     LaunchedEffect(Unit) { if (turns.isNotEmpty()) list.scrollToItem(turns.lastIndex, Int.MAX_VALUE) }
     Column(Modifier.fillMaxSize()) {
