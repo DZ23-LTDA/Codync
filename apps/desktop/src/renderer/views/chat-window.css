@@ -25,6 +25,38 @@
 .empty-state-action {
   margin-top: 4px;
 }
+/* The bot while the host starts pops in, then bobs (as the phones' launch splash). */
+.starting-bot {
+  margin-bottom: 6px;
+  animation: starting-bot-in 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+.starting-bot > canvas {
+  animation: starting-bot-bob 2.6s ease-in-out infinite;
+}
+.local-recovery .starting-bot {
+  margin-bottom: 0;
+}
+@keyframes starting-bot-in {
+  from {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+}
+@keyframes starting-bot-bob {
+  0%,
+  100% {
+    transform: translateY(-4px);
+  }
+  50% {
+    transform: translateY(4px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .starting-bot,
+  .starting-bot > canvas {
+    animation: none;
+  }
+}
 
 /* The version mismatch notice above a computer's bots (UpdateNeededCard). */
 .update-needed {

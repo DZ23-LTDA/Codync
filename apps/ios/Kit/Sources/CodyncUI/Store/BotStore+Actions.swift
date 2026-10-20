@@ -233,8 +233,9 @@ extension BotStore {
     // MARK: roster order
 
     /// Puts the roster in `ids` order (pinned bots still sort first) and sends it; the host
-    /// syncs it to every device.
+    /// syncs it to every device. The order it already has sends nothing.
     public func reorder(_ ids: [String]) {
+        guard ids != roster.map(\.id) else { return }
         for (position, id) in ids.enumerated() { bots[id]?.position = position }
         perform(replay: true) { try await $0.reorderBots(ids) }
     }

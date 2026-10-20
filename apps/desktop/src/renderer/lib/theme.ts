@@ -104,6 +104,9 @@ export function avatarColor(id: string) {
   return (AVATAR_COLORS.find((c) => c.id === id) ?? AVATAR_COLORS[7]!).hex
 }
 
+/** `[r, g, b]` → `#RRGGBB`. */
+export const rgbHex = (rgb: number[]) => `#${rgb.map((c) => c.toString(16).padStart(2, '0')).join('')}`
+
 /** `#RRGGBB` → `rgba(r, g, b, a)`. */
 export function withAlpha(hex: string, alpha: number) {
   const n = parseInt(hex.slice(1), 16)

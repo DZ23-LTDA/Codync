@@ -1,6 +1,9 @@
+import type { ReactElement } from 'react'
+import { CharacterAvatar } from '../components/Avatar'
 import { Button } from '../components/Controls'
 import { Icon } from '../components/Icon'
 import { Text } from '../components/Text'
+import { palette, rgbHex, useDark } from '../lib/theme'
 import { useApp } from '../store/context'
 
 const isMac = window.codync.platform === 'darwin'
@@ -17,15 +20,24 @@ export function HostStateView({ compact = false }: { compact?: boolean }) {
     case 'failed':
       return <EmptyState compact={compact} icon="desktopcomputer.trianglebadge.exclamationmark" title="The host isn't running" message={state.message} action={['Try again', () => window.codync.host.restart()]} />
     default:
-      return <EmptyState compact={compact} icon="desktopcomputer" title="Starting the host…" message="This takes a few seconds." />
+      return <EmptyState compact={compact} icon={<StartingBot size={compact ? 32 : 112} />} title="Starting the host…" message="This takes a few seconds." />
   }
 }
 
-/** A quiet placeholder for an empty screen: icon, title, a line of help and an optional action. */
-export function EmptyState({ icon, title, message, action, compact = false }: { icon: string; title: string; message: string; action?: [string, () => void]; compact?: boolean }) {
+/** The app-icon bot looking around while the host starts, like the phones' launch splash. */
+function StartingBot({ size }: { size: number }) {
+  return (
+    <div className="starting-bot">
+      <CharacterAvatar shape="squircle" color="" tint={rgbHex(palette(useDark()).text)} size={size} mood="working" />
+    </div>
+  )
+}
+
+/** A quiet placeholder for an empty screen: icon (an SF Symbol name or artwork), title, a line of help and an optional action. */
+export function EmptyState({ icon, title, message, action, compact = false }: { icon: string | ReactElement; title: string; message: string; action?: [string, () => void]; compact?: boolean }) {
   return (
     <div className={`empty-state ${compact ? 'local-recovery' : ''}`}>
-      <Icon name={icon} size={compact ? 22 : 36} weight="light" color="var(--tertiary)" />
+      {typeof icon === 'string' ? <Icon name={icon} size={compact ? 22 : 36} weight="light" color="var(--tertiary)" /> : icon}
       <Text as="div" size={compact ? 'callout' : 'title3'} weight="semibold" tone="text">{title}</Text>
       <Text as="div" size="callout" tone="secondary" className="empty-state-message">{message}</Text>
       {action ? (

@@ -4,7 +4,8 @@ import SwiftUI
 
 /// The roster: every bot on every computer is a person you can message (Grok Bot sidebar, phone-sized).
 /// A `List` with its styling taken away, for the system's reordering: touch and hold opens a bot's
-/// menu, and dragging it (before or after the menu shows) moves it.
+/// menu, and dragging it (before or after the menu shows) moves it among its computer's bots.
+/// Dragging a computer's heading moves the computer with its bots.
 struct BotListView: View {
     @Environment(AppStore.self) private var app
     @Environment(AccountStore.self) private var accounts
@@ -12,7 +13,7 @@ struct BotListView: View {
     @State private var editing: EditTarget?
     @State private var editingGroup: GroupTarget?
     @State private var confirmDelete: RosterItem?
-    /// The bot whose row is lifted, to drag or for its menu.
+    /// The row that's lifted (a `RosterLine` id): a bot to drag or for its menu, or a computer's heading.
     @State private var lifted: String?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     /// Computers left out of the list on this device, comma-separated IDs.
@@ -70,6 +71,8 @@ struct BotListView: View {
 
     var body: some View {
         let roster = accounts.roster.filter { shownIDs.contains($0.ref.computerId) }
+        let lines = self.lines
+        let movingComputer = lines.contains { $0.id == lifted && $0.computerId != nil }
         List {
             Group {
                 // A newer app release (dismissible; everything still works). Computers update
@@ -87,8 +90,12 @@ struct BotListView: View {
                 }
                 ForEach(lines) { line in
                     switch line {
-                    case let .computer(_, store): computerHeading(store, roster: roster)
-                    case let .bot(item, store): row(item, store: store)
+                    case let .computer(_, store): computerHeading(store, roster: roster, folded: movingComputer)
+                    case let .bot(item, store):
+                        // A dragged heading folds every computer's bots into their headings. Each
+                        // row stays, empty: taking it out would move the lifted heading's place in
+                        // the list, and the system then drops the drag.
+                        if movingComputer { Color.clear.frame(height: 0) } else { row(item, store: store) }
                     }
                 }
                 .onMove(perform: moveLines)
@@ -175,9 +182,9 @@ struct BotListView: View {
         }
     }
 
-    /// A row the system's reordering dropped. A heading moves its computer (an order kept on this
-    /// device); a bot moves among its computer's bots, an order the host syncs to every device.
-    /// A bot dropped among another computer's bots goes back.
+    /// A row the system's reordering dropped. A heading moves its computer and its bots (an order
+    /// kept on this device); a bot moves only among its computer's bots, an order the host syncs to
+    /// every device: dropped above or below them (on another computer), it goes first or last.
     private func moveLines(from source: IndexSet, to destination: Int) {
         let before = lines
         guard let from = source.first, before.indices.contains(from) else { return }
@@ -189,10 +196,7 @@ struct BotListView: View {
             guard let to = new.firstIndex(of: id), old[to] != id else { return }
             withAnimation(Motion.reduced(Motion.layout, reduceMotion)) { accounts.move(id, to: old[to]) }
         case let .bot(item, store):
-            let computerId = item.ref.computerId
-            let at = after.firstIndex { $0.id == before[from].id } ?? 0
-            if grouped, after[..<at].last(where: { $0.computerId != nil })?.computerId != computerId { return }
-            store.reorder(after.compactMap { $0.botId(on: computerId) })
+            store.reorder(after.compactMap { $0.botId(on: item.ref.computerId) })
         }
     }
 
@@ -204,22 +208,24 @@ struct BotListView: View {
         }
     }
 
-    /// A light heading per computer, with its update notice. Dragging it moves the computer; its
-    /// bots follow when it's dropped.
-    private func computerHeading(_ store: BotStore, roster: [RosterItem]) -> some View {
+    /// A light heading per computer, with its update notice. Dragging it moves the computer with its
+    /// bots: while it's lifted (`folded`), every computer's bots fold into their headings.
+    private func computerHeading(_ store: BotStore, roster: [RosterItem], folded: Bool) -> some View {
         let id = store.computer.id
         return VStack(spacing: 0) {
             // Not synced while it needs an update: "No bots yet" wouldn't be true.
             ComputerSection(store: store, empty: store.mismatch == nil && !roster.contains { $0.ref.computerId == id },
-                            collapsed: collapsedIDs.contains(id), toggle: { toggleCollapsed(id) }, move: move)
+                            collapsed: folded || collapsedIDs.contains(id), toggle: { toggleCollapsed(id) }, move: move)
                 .contentShape(Rectangle())
                 .onTapGesture { toggleCollapsed(id) }
             updateCard(store)
         }
+        .itemProvider { lift(.computer(id, store)) }
     }
 
     private func row(_ item: RosterItem, store: BotStore) -> some View {
         let bot = item.bot
+        let line = RosterLine.bot(item, store)
         let card = RoundedRectangle(cornerRadius: 16, style: .continuous)
         // A plain button instead of a NavigationLink: same push, no chevron.
         return Button { accounts.selection = item.ref } label: {
@@ -229,10 +235,10 @@ struct BotListView: View {
         .buttonStyle(.plain)
         // Lifted, it's a rounded card with room around the avatar.
         .padding(.horizontal, 8)
-        .background(lifted == bot.id ? Palette.surface : .clear, in: card)
+        .background(lifted == line.id ? Palette.surface : .clear, in: card)
         .contentShape([.dragPreview, .contextMenuPreview], card)
         .padding(.horizontal, -8)
-        .itemProvider { lift(bot.id) }
+        .itemProvider { lift(line) }
         .accessibilityLabel(accounts.computers.count > 1 ? "\(bot.name), on \(store.hostName)" : bot.name)
         .accessibilityActions {
             Button("Move up") { withAnimation(Motion.reduced(Motion.layout, reduceMotion)) { store.move(bot.id, by: -1) } }
@@ -252,9 +258,12 @@ struct BotListView: View {
     }
 
     /// The system asks for a row's item as it lifts; the row shows as lifted until it lets go.
-    private func lift(_ id: String) -> NSItemProvider {
-        lifted = id
-        return LiftItem { Task { @MainActor in if lifted == id { lifted = nil } } }
+    /// A heading folds the bots away and back with an animation.
+    private func lift(_ line: RosterLine) -> NSItemProvider {
+        let id = line.id
+        let animation = line.computerId != nil ? Motion.reduced(Motion.layout, reduceMotion) : nil
+        withAnimation(animation) { lifted = id }
+        return LiftItem { Task { @MainActor in if lifted == id { withAnimation(animation) { lifted = nil } } } }
     }
 
     /// A group chat gathers bots of one computer (the first one online; more computers are future work).
@@ -274,8 +283,7 @@ struct BotListView: View {
     }
 }
 
-/// One row the user can drag in the roster: a computer's heading or a bot.
-/// The item a lifted bot row carries (nothing): the system lets go of it when the drag or the
+/// The item a lifted row carries (nothing): the system lets go of it when the drag or the
 /// menu ends.
 private final class LiftItem: NSItemProvider {
     private let ended: @Sendable () -> Void
@@ -288,6 +296,7 @@ private final class LiftItem: NSItemProvider {
     deinit { ended() }
 }
 
+/// One row the user can drag in the roster: a computer's heading or a bot.
 private enum RosterLine: Identifiable {
     case computer(ComputerID, BotStore)
     case bot(RosterItem, BotStore)
