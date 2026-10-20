@@ -5,14 +5,14 @@ use serde_json::{Value, json};
 use std::collections::BTreeMap;
 
 use super::{
-    After, App, Bot, COLORS, Editor, FIELDS, Field, Form, GroupField, GroupForm, Overlay, SHAPES, Toggle, cycle,
-    merge_toggles,
+    After, App, Bot, COLORS, Editor, FIELDS, Field, Form, GroupField, GroupForm, Overlay, PairCode, SHAPES, Toggle,
+    cycle, merge_toggles,
 };
 use crate::tui::manage::Page;
 
 impl App {
     pub(super) fn open_pair(&mut self) {
-        self.overlays.push(Overlay::Pair(None));
+        self.overlays.push(Overlay::Pair(PairCode::Loading));
         self.call("pairing", json!({}), After::Pairing);
     }
 

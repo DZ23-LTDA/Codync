@@ -156,8 +156,15 @@ class EncryptedChannel internal constructor(
                 mutableState.value = LinkState.Ready(route)
                 firstState.complete(Unit)
             }
-            "reject" -> throw HostError(if (wire.text("code") == "unsupportedVersion") 426 else 403,
-                wire.text("message") ?: "This device isn't allowed on the computer. Pair it again.")
+            "reject" -> {
+                val message = wire.text("message")
+                throw when (wire.text("code")) {
+                    // The computer couldn't confirm the account's approval lately; it may again, so the owner retries.
+                    "leaseExpired" -> IOException(message ?: "The computer can't confirm this device's access right now. Try again shortly.")
+                    "unsupportedVersion" -> HostError(426, message ?: "Update Codync to connect to this computer.")
+                    else -> HostError(403, message ?: "This device isn't allowed on the computer. Pair it again.")
+                }
+            }
             "f" -> {
                 val current = requireNotNull(opener) { "Encrypted frame arrived before the handshake" }
                 val counter = requireNotNull(wire["c"]?.jsonPrimitive?.longOrNull)

@@ -4,7 +4,7 @@ use std::collections::HashMap;
 
 use serde_json::{Value, json};
 
-use super::{After, App, Bot, Dir, Entry, Focus, Msg, Overlay, Status, merge_toggles};
+use super::{After, App, Bot, Dir, Entry, Focus, Msg, Overlay, PairCode, Status, merge_toggles};
 
 /// An entry the mirror doesn't hold, below the floor its bot's loaded chat had when this
 /// connection began: `seq` grows with insertion, so it predates the window and only arrived because
@@ -184,6 +184,12 @@ impl App {
                             p.error = Some(e);
                         }
                     }
+                    // In place of the code, which may have expired.
+                    After::Pairing => {
+                        if let Some(Overlay::Pair(code)) = self.overlays.last_mut() {
+                            *code = PairCode::Failed(e);
+                        }
+                    }
                     _ => self.flash(&e),
                 }
                 return;
@@ -250,8 +256,11 @@ impl App {
                 }
             }
             After::Pairing => {
-                if let Some(Overlay::Pair(url)) = self.overlays.last_mut() {
-                    *url = v["pairingUrl"].as_str().map(str::to_owned);
+                if let Some(Overlay::Pair(code)) = self.overlays.last_mut() {
+                    *code = match v["pairingUrl"].as_str() {
+                        Some(url) => PairCode::Ready(url.to_owned()),
+                        None => PairCode::Failed("The host sent no pairing code.".into()),
+                    };
                 }
             }
             After::Saved => {

@@ -6,7 +6,7 @@ use serde_json::json;
 use super::super::manage::{AnalyticsSheet, Reply};
 use super::{
     ACTIONS, Action, After, App, Bot, ConfirmAct, Dir, Editor, FILTERS, FolderPicker, Goto, GotoItem, Overlay,
-    contains, fuzzy,
+    PairCode, contains, fuzzy,
 };
 
 impl App {
@@ -108,6 +108,11 @@ impl App {
             Overlay::Fields(f) => self.fields_key(f, k),
             Overlay::Skill(s) => self.skill_key(s, k),
             Overlay::Analytics(s) => s.key(k),
+            // A new code: after a failure, or in place of the one shown.
+            Overlay::Pair(_) if k.code == KeyCode::Char('r') => {
+                self.call("pairing", json!({}), After::Pairing);
+                Some(Overlay::Pair(PairCode::Loading))
+            }
             o @ (Overlay::Usage | Overlay::Pair(_)) => {
                 if matches!(k.code, KeyCode::Esc | KeyCode::Enter | KeyCode::Char('q' | 'U' | 'P')) {
                     None

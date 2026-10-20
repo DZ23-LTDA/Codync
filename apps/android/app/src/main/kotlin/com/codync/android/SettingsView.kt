@@ -79,11 +79,12 @@ import kotlinx.serialization.json.put
                 if (paired != null) row {
                     val inAccount = state.cloudComputers.firstOrNull { it.computerId == paired.id }
                     ComputerRow(state, store, inAccount != null, ComputerActions(extensions, store::openScreen, voice = { voice = true }, color = { coloring = true },
-                        revoke = inAccount?.takeIf { it.access == "granted" }?.let { c -> { confirmRevoke = c } }) { confirmForget = true })
+                        revoke = inAccount?.takeIf { it.isGranted }?.let { c -> { confirmRevoke = c } }) { confirmForget = true })
                 }
                 for (computer in state.cloudComputers.filter { it.computerId != paired?.id }) row {
                     if (state.isOlderCopy(computer)) OlderCopyRow(computer) { confirmRemoveCopy = computer }
                     else AccountComputerRow(computer, state.access?.takeIf { it.computerId == computer.computerId }?.code, canAsk = paired == null,
+                        askingAnother = state.askingAccess.let { it != null && it != computer.computerId },
                         ask = { ask(computer) }, revoke = { confirmRevoke = computer })
                 }
                 row {
@@ -148,7 +149,7 @@ import kotlinx.serialization.json.put
     }
     CodyncDialog("Remove ${paired?.name ?: "computer"}?", confirmForget, { confirmForget = false },
         "Its bots and conversations stay on that computer. You can pair again any time.") {
-        listOf(DialogAction("Remove", destructive = true, action = store::forgetComputer))
+        listOf(DialogAction("Remove", destructive = true, action = store::removeComputer))
     }
     CodyncDialog("Revoke this phone's access to ${confirmRevoke?.name ?: "the computer"}?", confirmRevoke != null, { confirmRevoke = null },
         "You can ask for access again; the computer will show a new code to confirm.") {
@@ -224,12 +225,13 @@ private class ComputerActions(val extensions: () -> Unit, val screen: () -> Unit
     }
 }
 
-/** A computer in the account that this phone can't use yet. */
-@Composable private fun AccountComputerRow(computer: CloudComputer, code: String?, canAsk: Boolean, ask: () -> Unit, revoke: () -> Unit) {
+/** A computer in the account that this phone can't use yet; `askingAnother` while this phone asks a different one. */
+@Composable private fun AccountComputerRow(computer: CloudComputer, code: String?, canAsk: Boolean, askingAnother: Boolean, ask: () -> Unit,
+    revoke: () -> Unit) {
     val online = if (computer.online == true) "Online" else "Offline"
     val detail = when {
         code != null -> "Waiting for your OK on the computer · $code"
-        computer.access == "granted" -> "Approved for an earlier install of Codync. Revoke it, then ask again."
+        computer.isGranted -> "Approved for an earlier install of Codync. Revoke it, then ask again."
         computer.access == "pending" -> "$online · A request is waiting"
         canAsk -> "$online · In your account"
         // One computer per phone for now: the paired one goes first.
@@ -243,8 +245,8 @@ private class ComputerActions(val extensions: () -> Unit, val screen: () -> Unit
         }
         when {
             code != null -> SecondaryButton("Code", action = ask)
-            computer.access == "granted" -> SecondaryButton("Revoke", action = revoke)
-            else -> SecondaryButton("Ask for access", enabled = canAsk, action = ask)
+            computer.isGranted -> SecondaryButton("Revoke", action = revoke)
+            else -> SecondaryButton("Ask for access", enabled = canAsk && !askingAnother, action = ask)
         }
     }
 }

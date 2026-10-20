@@ -15,6 +15,8 @@ data class AppState(
     val account: AccountState = AccountState(),
     val cloudComputers: List<CloudComputer> = emptyList(),
     val access: AccessTicket? = null,
+    /** The account computer an access request is running for: one at a time. */
+    val askingAccess: String? = null,
     val notifications: Boolean = true,
     val tasks: Boolean = true,
     val setupComplete: Boolean = false,

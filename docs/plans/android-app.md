@@ -58,7 +58,7 @@ was walked through on an emulator against a real host.
 
 | What | Code | What it needs |
 | --- | --- | --- |
-| Revoke this phone's access; removing older copies of the computer from the account | `core/.../CloudClient.kt` (`revokeAccess`, `removeComputer`), `SettingsView.kt` | A signed-in account on the emulator or a phone; only request tests cover it |
+| Revoke this phone's access (also on Remove of a computer approved through the account); removing older copies of the computer from the account | `core/.../CloudClient.kt` (`revokeAccess`, `removeComputer`), `AppStoreAccount.kt`, `SettingsView.kt` | A signed-in account on the emulator or a phone; only request tests cover it |
 | Push delivery (alerts, background Live update refresh) | `PushService.kt`, `AppStoreNotifications.kt` | A Firebase project and the push Worker's FCM secret (owner's go-ahead). The notification look is covered by `AlertNotificationTest` |
 | OpenAI Realtime, Gemini Live and Speech mode with a real key | `WebRtcPeer.kt`, `core/.../OpenAIRealtimeEngine.kt`, `GeminiLiveEngine.kt`, `CloudSpeechEngine.kt` | A provider key on the paired computer; the fallback to on-device voice is verified |
 | Remote screen: Chinese IME composition, a hardware keyboard, the TURN relay path and its credential renewal | `ScreenKeys.kt`, `ScreenSession.kt`, `ScreenView.kt` | A computer it's safe to type into, and a signed-in host for the relay; viewing, trackpad and pinch zoom are verified |

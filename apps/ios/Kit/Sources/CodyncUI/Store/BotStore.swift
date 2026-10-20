@@ -27,9 +27,10 @@ public final class BotStore {
         case online
         /// The relay says the computer isn't connected; messages can wait in its mailbox.
         case computerOffline(lastSeen: Date?)
-        /// Can't reach the computer at all (no direct route, no relay).
+        /// Can't reach the computer at all (no direct route, no relay), or it can't confirm this
+        /// device's access for now.
         case offline(String)
-        /// Revoked, lease expired, or the computer's identity changed.
+        /// Revoked, or the computer's identity changed.
         case unauthorized(String)
     }
 
@@ -91,7 +92,8 @@ public final class BotStore {
     var onComputerChanged: (@MainActor (Computer) -> Void)?
 
     public let storage: SharedStore.Context
-    let makeTransport: @MainActor () async throws -> any HostTransport
+    /// Opens a channel to the computer as it is now: its route, and the addresses and keys merged since.
+    let makeTransport: @MainActor (Computer) async throws -> any HostTransport
     var transport: (any HostTransport)?
     var retired = false
     /// Files of messages not delivered yet (by client nonce), kept for a retry.
@@ -131,14 +133,14 @@ public final class BotStore {
 
     /// Loads this context's `DeviceIdentity` itself.
     public convenience init(computer: Computer, storage: SharedStore.Context) {
-        self.init(computer: computer, storage: storage) {
-            try await HostConnector.connect(computer, identity: try DeviceIdentity.load(context: storage))
+        self.init(computer: computer, storage: storage) { current in
+            try await HostConnector.connect(current, identity: try DeviceIdentity.load(context: storage))
         }
     }
 
     init(computer: Computer, storage: SharedStore.Context,
          appVersion: String = AppVersion.current,
-         transport: @escaping @MainActor () async throws -> any HostTransport) {
+         transport: @escaping @MainActor (Computer) async throws -> any HostTransport) {
         self.appVersion = appVersion
         self.computer = computer
         self.storage = storage

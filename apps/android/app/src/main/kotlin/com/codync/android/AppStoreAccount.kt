@@ -48,17 +48,33 @@ fun AppStore.refreshCloud() = action("cloud") {
     val client = cloud ?: return@action
     try {
         client.registerDevice(Build.MODEL.take(100))
-        val computers = client.computers()
+        // The list changed here while one was on its way (a removal): it's out of date, so it's asked
+        // for again. A removal's own refresh, asked for while this one ran, is this one.
+        var computers: List<CloudComputer>
+        do {
+            val version = cloudListVersion
+            computers = client.computers()
+        } while (version != cloudListVersion)
         mutableState.update { it.copy(cloudComputers = computers) }
         // Signed in to an account with computers, before pairing any (iOS: the same moment).
         if (computers.isNotEmpty() && state.value.computers.isEmpty()) Analytics.completeOnboarding(OnboardingVia.Account)
-    } catch (error: CloudError) { if (!error.isTransient) throw error }
+    } catch (error: IOException) {
+        if (error is CloudError && !error.isTransient) throw error
+        // Runs on every launch and foreground: a dropped connection, a busy cloud or a token not ready
+        // yet fixes itself on the next refresh, so only answers that stay reach the dialog (as on iOS).
+        android.util.Log.i("Codync", "Cloud refresh failed: ${error.message}")
+    }
 }
 
 /** A pull to refresh: the account's computers, joining a refresh already under way. */
 suspend fun AppStore.refreshComputers() { refreshCloud(); actions["cloud"]?.join() }
 
 fun AppStore.requestAccess(target: CloudComputer) = action("access") {
+    mutableState.update { it.copy(askingAccess = target.computerId) }
+    try { askForAccess(target) } finally { mutableState.update { it.copy(askingAccess = null) } }
+}
+
+private suspend fun AppStore.askForAccess(target: CloudComputer) {
     val client = requireNotNull(cloud) { "Sign in to reach your account." }
     require(state.value.computers.isEmpty() || state.value.computers.first().id == target.computerId) { "Forget the current computer before connecting a different one." }
     val ticket = client.requestAccess(target.computerId, target.signKey)
@@ -80,11 +96,20 @@ fun AppStore.requestAccess(target: CloudComputer) = action("access") {
                     withContext(Dispatchers.IO) { local.saveComputers(listOf(computer)); local.completeSetup() }
                     mutableState.update { it.copy(computers = listOf(computer), setupComplete = true) }
                     Analytics.capture(AnalyticsEvent.ComputerPaired(PairedVia.Account, computer.id))
-                    openMirror(); connect(); return@action
+                    openMirror(); connect()
+                    // Its account entry now says granted, which offers Revoke.
+                    refreshCloud()
+                    return
                 }
                 "denied" -> {
                     Analytics.capture(AnalyticsEvent.AccessRequestFailed(AccessFailure.Denied))
                     throw IOException("${target.name} declined the request.")
+                }
+                "cancelled" -> {
+                    Analytics.capture(AnalyticsEvent.AccessRequestFailed(AccessFailure.Cancelled))
+                    // Withdrawn by the account: the list shows what's left of it.
+                    refreshCloud()
+                    throw IOException("The request was withdrawn: ${target.name} or this phone was removed from your account.")
                 }
                 else -> throw CloudError(410, "requestExpired")
             }
@@ -115,9 +140,27 @@ fun AppStore.revokeAccess(computerId: String) = action("revoke") {
     if (state.value.computers.firstOrNull()?.id == computerId) forgetComputer() else refreshCloud()
 }
 
-/** Takes an older copy of a computer out of the account (its grants and pending requests go with it). */
+/**
+ * Takes an older copy of a computer out of the account (its grants and pending requests go with it).
+ * Its row goes at once, and a list asked for before the removal finished can't bring it back (iOS
+ * `AccountStore.removeFromAccount`); a failed removal puts it back.
+ */
 fun AppStore.removeFromAccount(computerId: String) = action("removeFromAccount") {
-    requireNotNull(cloud) { "Sign in to reach your account." }.removeComputer(computerId)
+    val client = requireNotNull(cloud) { "Sign in to reach your account." }
+    val index = state.value.cloudComputers.indexOfFirst { it.computerId == computerId }
+    if (index < 0) return@action
+    val removed = state.value.cloudComputers[index]
+    cloudListVersion++
+    mutableState.update { s -> s.copy(cloudComputers = s.cloudComputers.filter { it.computerId != computerId }) }
+    try { client.removeComputer(computerId) }
+    catch (error: CancellationException) { throw error }
+    catch (error: Exception) {
+        mutableState.update { s ->
+            if (s.cloudComputers.any { it.computerId == computerId }) s
+            else s.copy(cloudComputers = s.cloudComputers.toMutableList().apply { add(minOf(index, size), removed) })
+        }
+        throw error
+    } finally { cloudListVersion++ }
     refreshCloud()
 }
 
@@ -129,7 +172,24 @@ fun AppStore.setColor(color: String) = action("color") {
     mutableState.update { it.copy(computers = listOf(changed)) }
 }
 
-fun AppStore.forgetComputer() = sessionAction {
+/**
+ * Remove: forgets the computer here. Approved through the account, its grant goes too (as on iOS), or it
+ * would come straight back as an account row; a failed revoke still forgets it, and its error shows.
+ */
+fun AppStore.removeComputer() = sessionAction {
+    val id = state.value.computers.firstOrNull()?.id ?: return@sessionAction
+    val granted = state.value.cloudComputers.any { it.computerId == id && it.isGranted }
+    val failure = if (!granted) null else try { requireNotNull(cloud) { "Sign in to reach your account." }.revokeAccess(id); null }
+        catch (error: CancellationException) { throw error }
+        catch (error: Exception) { error }
+    forget()
+    // Thrown after the context reloads, which clears the error shown.
+    failure?.let { throw it }
+}
+
+fun AppStore.forgetComputer() = sessionAction { forget() }
+
+private suspend fun AppStore.forget() {
     transitions.withLock {
         val userId = state.value.account.userId
         retireContext()

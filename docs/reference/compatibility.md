@@ -71,20 +71,28 @@ computer set up from it would lock out the iPhone it pairs with. So what anyone 
 follows the App Store:
 
 - **Release gate** (`tools/release-gate.py`, run by `.github/workflows/release-gate.yml` after
-  each release and hourly): releases are published without GitHub's *latest* mark. The gate
-  marks the newest fully uploaded release whose `MIN_APP` the App Store's iPhone version meets
+  each release, and every 5 minutes while a newer release waits or the Homebrew tap trails the
+  latest one, dispatched by the cloud Worker's cron: `cloud/src/release-gate.ts`, token
+  `RELEASE_GATE_TOKEN`): releases are published without GitHub's *latest* mark. The gate marks
+  the newest fully uploaded release whose `MIN_APP` the App Store's iPhone version meets
   (`itunes.apple.com/lookup?id=6760984418`, with a query string of its own each time: Apple's CDN
   keeps the bare URL for up to a day after a release) and points the Homebrew tap (cask and formula) at
   it. The website's download links (`releases/latest/download/…`), `packaging/install.sh`,
   electron-updater and `codync-host update` all read the latest release, so none of them sees
   a release that waits. Every release after a raise waits with it, desktop-only ones too, until
-  App Review passes; the next hourly run then offers the newest. The mark only moves forward
-  on its own (a lookup can briefly answer with an older version); to move it back, run the
-  *Release gate* workflow by hand with `allow_back` on. `DRY_RUN=1 python3
-  tools/release-gate.py` prints the decision; `python3 tools/release-gate-test.py` checks it.
-  Before the gate, 2.18.0 (the first real raise) went straight to the website: in its first
-  day 33 new computers were paired by the App Store's iPhone 2.17.0 and received no message
-  from it.
+  App Review passes; within 5 minutes the gate then offers the newest. The new iPhone app asks for
+  its own host at once, so the wait has to be short. The gate itself reads the App Store from
+  GitHub's runners (Apple answers Workers with 403). The cron replaced the workflow's hourly GitHub
+  schedule, which GitHub ran late or not at all: on 2026-10-20 iPhone 2.20.1 reached the App Store
+  at 09:49 UTC while the next scheduled run came at 11:43, so for two hours every phone that
+  updated said to update the computer to a host no updater could see. If the Worker can't dispatch
+  (its cron logs show `GitHub graphql: 401` or `release gate dispatch: 403`), releases wait for the
+  next release's own run or a run by hand. The mark only moves forward on its own (a lookup can
+  briefly answer with an older version); to move it back, run the *Release gate* workflow by hand
+  with `allow_back` on. `DRY_RUN=1 python3 tools/release-gate.py` prints the decision;
+  `python3 tools/release-gate-test.py` checks it. Before the gate, 2.18.0 (the first real raise)
+  went straight to the website: in its first day 33 new computers were paired by the App Store's
+  iPhone 2.17.0 and received no message from it.
 - **Updaters** only compare versions with the latest release; they don't ask the App Store
   themselves (they did from 2.5.0 to 2.19.2, before the gate). The hidden `codync-host compat`
   command stays: the desktop app runs it to read `environment` before installing the host, and

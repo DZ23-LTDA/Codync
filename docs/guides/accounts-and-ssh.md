@@ -95,9 +95,10 @@ The desktop app's menu bar **Settings → Reset all data…** (confirmed in the 
 the computer's start over: it removes this computer from the account, revokes every
 paired device, signs out, uninstalls the host, deletes its data folder and the app's
 settings, and relaunches into the welcome screen. The host comes back with a new
-identity, so phones see the old computer as **No access** (if they were connected)
-or as an older copy once the new one is reachable, and offer to remove it; pair
-again or ask for access to reach the new one.
+identity, so phones see the old computer as **No access** (if they were connected),
+and phones and the desktop app see it as an older copy once the new one is reachable
+(offline, named like a computer they use or see online, and last seen before that one
+joined the account) and offer to remove it; pair again or ask for access to reach the new one.
 
 On the computer, open Codync in the menu bar and choose **Pair iPhone…**, then scan the
 code on the phone (or paste its `codync://pair` link). The host approves the phone's
@@ -184,14 +185,20 @@ A simulator build verifies compilation, not the Dashboard settings or OAuth flow
 The desktop app attaches this computer's host and its SSH computers over loopback; they
 follow into whichever account is active. The account's other computers are not reached
 directly (the encrypted channel wasn't ported to the desktop app), so their
-"Ask for access" rows show status only. See [desktop app](../architecture/desktop-app.md).
+"Ask for access" rows show status only. An older copy of a computer the app uses shows
+*Older copy · last seen …* with *Remove from account* (`DELETE /v1/computers/{id}`, confirmed
+first). See [desktop app](../architecture/desktop-app.md).
 
 **Computers & devices** (Settings) shows, for this computer and each SSH computer:
 *Reach from anywhere* (`setCloud`, on/off; the host's build decides which cloud),
 *Add to account* (claim: `POST /v1/claims` → loopback `claimSign` → complete) and
 *Remove from account* (`unclaim`), a pairing QR, and the authorized devices with revoke.
-A device asking for access raises the menu bar dot and opens the approval sheet with the
-6-digit code; Approve stays disabled until the device revealed its code.
+Signed in, this computer joins the account on its own once per host identity; an identity
+that was already in the account and was removed (here or from a phone) is never re-added
+silently, only through *Add to account*. The section below, *Other computers in your account*,
+lists only the account's other computers. A device asking for access raises the menu bar dot
+and opens the approval sheet with the 6-digit code; Approve stays disabled until the device
+revealed its code.
 
 SSH computers use the system OpenSSH (`apps/desktop/src/main/ssh.ts`): `ssh -G` to
 resolve the target, `ssh-keygen -F` against `~/.ssh/known_hosts` and

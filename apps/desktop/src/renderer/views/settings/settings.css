@@ -163,12 +163,6 @@
 .settings-computers-content {
   padding: 14px 14px 20px;
 }
-.settings-route {
-  color: var(--tertiary);
-}
-.settings-pairing {
-  padding: 16px;
-}
 .settings-ssh-editor {
   width: 460px;
 }

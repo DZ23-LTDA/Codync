@@ -32,7 +32,7 @@ private func message(_ id: String, kind: String, final: Bool? = nil, text: Strin
     let storage = SharedStore.Context(accountID: UUID().uuidString, suite: suite)
     defer { UserDefaults(suiteName: suite)?.removePersistentDomain(forName: suite) }
     let fake = FakeRemote(.ready(.direct))
-    let store = BotStore(computer: Computer(id: "reply", name: "Mac", signKey: ""), storage: storage) { fake }
+    let store = BotStore(computer: Computer(id: "reply", name: "Mac", signKey: ""), storage: storage) { _ in fake }
     defer { store.retire() }
     store.setActive(true)
     #expect(await eventually { await fake.subscribed })

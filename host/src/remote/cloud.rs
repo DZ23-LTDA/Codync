@@ -328,7 +328,11 @@ pub async fn pull(hub: &Hub, base: &str) -> Result<()> {
     let state: State = serde_json::from_value(call(hub, base, Method::GET, "/v1/host/state", None).await?)
         .context("reading the cloud state")?;
     apply_grants(hub, &state.grants)?;
-    update_status(hub, |s| s.owner = state.owner);
+    // A pull that works also settles an earlier failed one.
+    update_status(hub, |s| {
+        s.owner = state.owner;
+        s.last_error = None;
+    });
     sync_requests(hub, base, state.requests).await;
     if approval(&hub.store) == Approval::Auto {
         // The SAS exchange still runs (the device's commit must match); only the user's comparison is skipped.
@@ -784,6 +788,17 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn a_pull_that_works_clears_an_earlier_error() {
+        let hub = temp_hub();
+        let fake = Arc::new(FakeCloud::default());
+        let base = fake_cloud(fake.clone()).await;
+        *fake.state.lock().unwrap() = json!({"owner": null, "grants": [], "requests": []});
+        update_status(&hub, |s| s.last_error = Some("couldn't get the cloud state".into()));
+        pull(&hub, &base).await.unwrap();
+        assert_eq!(hub.cloud.status().last_error, None, "Settings stops showing a relay error that's gone");
+    }
+
+    #[tokio::test]
     async fn host_nonces_are_rationed() {
         let hub = temp_hub();
         let fake = Arc::new(FakeCloud::default());
@@ -805,6 +820,6 @@ mod tests {
         hub.cloud.requests.locked().clear();
         pull(&hub, &base).await.unwrap();
         assert_eq!(fake.posts.lock().unwrap().len(), SAS_NONCES_PER_HOUR);
-        assert!(hub.cloud.status().last_error.is_some(), "the Mac hears about it");
+        assert!(hub.cloud.status().last_error.is_some(), "the Mac hears about it, though the pull worked");
     }
 }

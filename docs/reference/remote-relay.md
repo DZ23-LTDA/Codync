@@ -189,6 +189,7 @@ host 的授權裝置表（`host/src/api/devices.rs`）每一列：`key, name, pl
 - 狀態拉取成功時才延長 lease；連不到雲端就讓 lease 自然到期。
 - `lease_until` 過期的列視同不存在（不必立即刪；下次拉取時清）。
 - 每次連上 relay（含重連）：先完成一次 state 拉取（最多等 10 秒）才送 `acl`／`ready`；拉取成功之前，`source=account` 的列在直連與中繼上都不接受握手。
+- 連線期間每 5 分鐘再拉一次，有沒有 owner 都拉：漏接的 `cloud.changed`（例如剛被 claim）由此補上；成功的拉取也清掉 `lastError`。
 - 表有任何變動 → `acl_ver` 前進（§7.3 規則）→ 發佈 ACL。
 
 ACL（host 簽章，DO 驗證；逐位元組簽章，不做 JSON 正規化；向量 `acl`）：

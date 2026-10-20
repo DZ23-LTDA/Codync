@@ -48,6 +48,11 @@ public final class AccountStore {
     /// Persisted in the context (channel route).
     private var saved: [Computer]
     private var accessPolls: [ComputerID: Task<Void, Never>] = [:]
+    /// Bumped by each account list request and each local change to the list: a list that comes back
+    /// after a newer one was asked for (or the list changed here) is out of date.
+    private var cloudListVersion = 0
+    /// Computers being taken out of the account: a list that comes back meanwhile leaves them out.
+    private var removing: Set<ComputerID> = []
     /// Access requests still waiting for their code, joined by a second ask.
     private var asks: [ComputerID: Task<AccessTicket, any Error>] = [:]
     private var isActive = true
@@ -92,7 +97,11 @@ public final class AccountStore {
         let identity = try DeviceIdentity.load(context: storage)
         var computer = try await HostConnector.pair(pairing, identity: identity, deviceName: deviceName, platform: platform)
         guard !retired else { throw CancellationError() }
-        computer.color = saved.first { $0.id == computer.id }?.color
+        // Picked on this device: re-pairing keeps them.
+        if let previous = saved.first(where: { $0.id == computer.id }) {
+            computer.color = previous.color
+            computer.route = previous.route
+        }
         save(computer)
         open(computer)
         return computer
@@ -138,9 +147,11 @@ public final class AccountStore {
 
     public func refreshCloud() async {
         guard let cloud, !retired else { return }
+        cloudListVersion += 1
+        let version = cloudListVersion
         do {
-            let list = try await cloud.computers()
-            guard !retired else { return }
+            let list = try await cloud.computers().filter { !removing.contains($0.computerId) }
+            guard !retired, version == cloudListVersion else { return }
             if list != cloudComputers { Motion.animate { cloudComputers = list } }
         } catch let error as CloudError where !error.isTransient {
             lastError = error.localizedDescription
@@ -193,19 +204,22 @@ public final class AccountStore {
 
     /// An offline account computer named like one this device uses or sees online: most likely the same
     /// machine under an earlier identity (its host keys were reset), left behind in the account.
+    /// Seen after that one joined the account, it ran beside it: another machine with the same name.
     public func isOlderCopy(_ computer: CloudComputer) -> Bool {
         guard !computer.isOnline else { return false }
+        let seen = computer.lastSeenAt
         // The current copy may be QR-paired without being listed in the account.
-        return computers.contains { $0.id != computer.computerId && $0.name == computer.name }
+        return computers.contains { $0.id != computer.computerId && $0.name == computer.name && replaced(lastSeen: seen, by: $0.id) }
             || cloudComputers.contains { other in
                 other.computerId != computer.computerId && other.name == computer.name
-                    && (stores[other.computerId] != nil || other.isOnline)
+                    && (stores[other.computerId] != nil || other.isOnline) && replaced(lastSeen: seen, by: other.computerId)
             }
     }
 
     /// A computer this device uses that won't come back as it is: it turned this device away (access
     /// revoked, or its identity changed after a reset or reinstall), or it's offline while a computer
-    /// with its name is reachable, the same machine under a new identity. Removing it is the fix.
+    /// with its name is reachable that joined the account after it was last seen, the same machine
+    /// under a new identity. Removing it is the fix.
     public func isStale(_ id: ComputerID) -> Bool {
         guard let store = stores[id] else { return false }
         switch store.connection {
@@ -213,11 +227,29 @@ public final class AccountStore {
             return true
         case .computerOffline, .offline:
             let name = store.computer.name
-            return stores.values.contains { $0.computer.id != id && $0.computer.name == name && $0.connection == .online }
-                || cloudComputers.contains { $0.computerId != id && $0.name == name && $0.isOnline }
+            let seen = lastSeen(store)
+            return stores.values.contains {
+                $0.computer.id != id && $0.computer.name == name && $0.connection == .online && replaced(lastSeen: seen, by: $0.computer.id)
+            } || cloudComputers.contains {
+                $0.computerId != id && $0.name == name && $0.isOnline && replaced(lastSeen: seen, by: $0.computerId)
+            }
         default:
             return false
         }
+    }
+
+    /// A same-named computer last seen (epoch ms) before `id` joined the account was replaced by it;
+    /// seen after, it ran beside it: another machine. Without either time, the name alone decides.
+    private func replaced(lastSeen seen: Int64?, by id: ComputerID) -> Bool {
+        guard let seen, let claimed = cloudComputers.first(where: { $0.computerId == id })?.claimedAt else { return true }
+        return seen <= claimed
+    }
+
+    /// When the account or, for a computer only paired here, the relay last saw it.
+    private func lastSeen(_ store: BotStore) -> Int64? {
+        if let seen = cloudComputers.first(where: { $0.computerId == store.computer.id })?.lastSeenAt { return seen }
+        guard case let .computerOffline(date?) = store.connection else { return nil }
+        return Int64(date.timeIntervalSince1970 * 1000)
     }
 
     /// Access requests appear and settle with an animation, like connection changes.
@@ -227,15 +259,25 @@ public final class AccountStore {
     }
 
     /// Takes a computer out of the account (its grants and pending requests go with it).
+    /// Its row goes at once, so a second tap finds nothing to remove; no list brings it back while the
+    /// removal runs, nor one asked for before it finished. A failed removal puts it back.
     public func removeFromAccount(_ id: ComputerID) async {
-        guard let cloud else { return }
+        guard let cloud, let index = cloudComputers.firstIndex(where: { $0.computerId == id }) else { return }
+        let removed = cloudComputers[index]
+        removing.insert(id)
+        Motion.animate { _ = cloudComputers.remove(at: index) }
         do {
             try await cloud.removeComputer(id)
             setPending(id, nil)
-            await refreshCloud()
         } catch {
             lastError = error.localizedDescription
+            if !cloudComputers.contains(where: { $0.computerId == id }) {
+                Motion.animate { cloudComputers.insert(removed, at: min(index, cloudComputers.count)) }
+            }
         }
+        removing.remove(id)
+        cloudListVersion += 1
+        await refreshCloud()
     }
 
     /// Withdraws a pending access request; the computer drops it from its approval list.
@@ -278,7 +320,13 @@ public final class AccountStore {
                 default: .cancelled
                 }
                 Analytics.shared.capture(.accessRequestFailed(reason))
-                lastError = status.status == .denied ? "\(target.name) declined the request." : "The request expired. Ask again."
+                lastError = switch reason {
+                case .denied: "\(target.name) declined the request."
+                case .expired: "The request expired. Ask again."
+                case .cancelled: "The request was withdrawn: \(target.name) or this iPhone was removed from your account."
+                }
+                // Withdrawn by the account: the list shows what's left of it.
+                if reason == .cancelled { await refreshCloud() }
                 return
             }
         }
