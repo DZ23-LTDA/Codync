@@ -2,7 +2,7 @@ import { FileDownloadCard } from './FileDownloadCard'
 import { memo, useEffect, useRef, useState } from 'react'
 import { groupBotReactions, isGroup, isReplyable, isWorking, needsInput, type Bot, type Entry, type ReplyQuote } from '@shared/models'
 import { BotAvatar } from '../../components/Avatar'
-import { Hairline, IconButton } from '../../components/Controls'
+import { IconButton } from '../../components/Controls'
 import { Icon } from '../../components/Icon'
 import { AnchoredMenu, useContextMenu, type MenuItem, type ReactionPick } from '../../components/Overlay'
 import { HStack, VStack } from '../../components/Stack'
@@ -201,14 +201,6 @@ export function NoticeRow({ entry }: { entry: Entry }) {
     )
   }
   switch (entry.data.style) {
-    case 'divider':
-      return (
-        <HStack gap={10} className="chat-notice-divider">
-          <Hairline grow />
-          <Text size="caption2" tone="tertiary" className="chat-notice-divider-text">{text}</Text>
-          <Hairline grow />
-        </HStack>
-      )
     case 'error':
       return (
         <HStack align="flex-start" gap={8} className="chat-notice-error">

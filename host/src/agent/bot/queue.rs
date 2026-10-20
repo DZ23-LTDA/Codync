@@ -164,13 +164,7 @@ impl Actor {
         for slot in self.run_slots() {
             self.set_session(Some(&slot), None);
         }
-        if self.session_id.is_some() {
-            self.forget_session();
-            self.notice(
-                "The agent, model, command, folder or memory changed — the agent starts with a fresh context.",
-                NoticeStyle::Divider,
-            );
-        }
+        self.forget_session();
     }
 
     pub(super) async fn next_in_queue(&mut self, done_tx: &mpsc::UnboundedSender<Done>) {

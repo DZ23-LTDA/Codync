@@ -12,13 +12,11 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
@@ -311,12 +309,6 @@ internal val Entry.botReactions: Map<String, List<String>> get() =
             Symbol("waveform", size = 15.dp, tint = Palette.secondary)
             Spacer(Modifier.width(6.dp))
             Text("$text · %02d:%02d".format(seconds / 60, seconds % 60), style = Type.footnote.monospacedDigit, color = Palette.secondary)
-        }
-        entry.data.text("style") == "divider" -> Row(Modifier.fillMaxWidth().padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            Box(Modifier.weight(1f).height(1.dp).background(Palette.border))
-            Text(text, Modifier.widthIn(max = 260.dp), style = Type.caption2, color = Palette.tertiary, textAlign = TextAlign.Center)
-            Box(Modifier.weight(1f).height(1.dp).background(Palette.border))
         }
         entry.data.text("style") == "error" -> Row(Modifier.fillMaxWidth().clip(RoundedRectangle(12.dp))
             .background(Palette.danger.copy(alpha = 0.12f)).padding(12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {

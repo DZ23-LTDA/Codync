@@ -42,13 +42,12 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::sync::mpsc;
 
-/// How a notice renders in the chat (wire values: `info` / `error` / `divider`).
+/// How a notice renders in the chat (wire values: `info` / `error`).
 #[derive(Clone, Copy, Debug, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum NoticeStyle {
     Info,
     Error,
-    Divider,
 }
 
 pub enum Cmd {

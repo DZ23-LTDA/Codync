@@ -2,7 +2,7 @@
 
 use super::fast_mode::Listing;
 use super::launch::{claude_meta, launch_commands, select_model, start_agent, system_prompt};
-use super::{Actor, Conn, Instructions, NoticeStyle};
+use super::{Actor, Conn, Instructions};
 use crate::agent::acp::{self, Incoming};
 use crate::agent::own_memory;
 use crate::chat::{context, memory};
@@ -179,10 +179,7 @@ impl Actor {
                 return Ok(());
             }
             if !conn.sessions.load {
-                self.notice(
-                    "This agent can't resume sessions after a restart — starting a fresh one.",
-                    NoticeStyle::Divider,
-                );
+                tracing::info!(bot = %self.cfg.id, "the agent can't resume sessions; starting a fresh one");
                 self.set_session(slot, None);
                 return Box::pin(self.ensure_session(slot)).await;
             }
@@ -223,8 +220,7 @@ impl Actor {
                     return Ok(());
                 }
                 Err(e) => {
-                    tracing::warn!(error = format!("{e:#}"), "session/load failed; starting fresh");
-                    self.notice("Couldn't resume the previous session — starting a fresh one.", NoticeStyle::Divider);
+                    tracing::warn!(bot = %self.cfg.id, error = format!("{e:#}"), "session/load failed; starting fresh");
                 }
             }
         }

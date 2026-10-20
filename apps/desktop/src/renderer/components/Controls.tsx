@@ -216,9 +216,9 @@ export function CardSection({ title, footer, accessory, children }: { title?: st
   )
 }
 
-/** A 1-pixel separator line in the border color; `grow` makes it fill a row. */
-export function Hairline({ grow = false, className, style }: { grow?: boolean; className?: string; style?: CSSProperties }) {
-  return <div className={`hairline${grow ? ' grow' : ''}${className ? ` ${className}` : ''}`} style={style} />
+/** A 1-pixel separator line in the border color. */
+export function Hairline({ className, style }: { className?: string; style?: CSSProperties }) {
+  return <div className={`hairline${className ? ` ${className}` : ''}`} style={style} />
 }
 
 /** A row's title with an optional note under it (rows, fields and switches share it). */

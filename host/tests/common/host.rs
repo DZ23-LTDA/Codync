@@ -123,10 +123,15 @@ impl Host {
         }
     }
 
+    /// The JSON lines a fixture agent logged to `file` in a bot's workspace.
+    pub fn log(&self, bot: &str, file: &str) -> Vec<Value> {
+        let log = std::fs::read_to_string(self.home.join("bots").join(bot).join("workspace").join(file)).unwrap();
+        log.lines().map(|l| serde_json::from_str::<Value>(l).unwrap()).collect()
+    }
+
     /// The requests `instructions_agent.py` logged in a bot's workspace.
     pub fn requests(&self, bot: &str, method: &str) -> Vec<Value> {
-        let log = std::fs::read_to_string(self.home.join("bots").join(bot).join("workspace/requests.jsonl")).unwrap();
-        log.lines().map(|l| serde_json::from_str::<Value>(l).unwrap()).filter(|r| r["method"] == method).collect()
+        self.log(bot, "requests.jsonl").into_iter().filter(|r| r["method"] == method).collect()
     }
 
     /// The text of every prompt a bot's agent got, oldest first.

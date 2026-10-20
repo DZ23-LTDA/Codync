@@ -111,12 +111,14 @@ fun AppStore.connect() {
                                 // The latest saved copy: its color may have changed since this link opened.
                                 val updated = HostClient.hello(active, state.value.computers.firstOrNull { it.id == target.id } ?: target)
                                 val hello = active.call("hello").jsonObject
-                                withContext(Dispatchers.IO) {
+                                val dropped = withContext(Dispatchers.IO) {
                                     local.saveComputers(listOf(updated))
                                     requireNotNull(database).setStamp(requireNotNull(hello["hostId"]?.jsonPrimitive?.content),
                                         BuildConfig.VERSION_NAME + "/" + hello["version"]?.jsonPrimitive?.content)
                                 }
-                                mutableState.update { it.copy(computers = listOf(updated)) }
+                                // Dropped chats page their earlier messages again.
+                                mutableState.update { it.copy(computers = listOf(updated),
+                                    historyComplete = if (dropped) emptySet() else it.historyComplete) }
                                 noteHello(hello)
                                 // The event catch-up is ordered by revision; bot revisions can
                                 // follow hundreds of historical entries. Load the current roster

@@ -275,11 +275,6 @@ fn entry_lines(out: &mut Built, app: &App, b: &Bot, e: &Entry, info: &HashMap<i6
             };
             gap(out);
             match e.data["style"].as_str() {
-                Some("divider") => {
-                    let label = format!(" {text} · {} ", clock(e.created_at));
-                    let side = width.saturating_sub(w(&label) + 4);
-                    out.lines.push(Line::from(Span::styled(format!(" ───{label}{}", "─".repeat(side)), t.dim)));
-                }
                 Some("error") => out.lines.extend(md::wrap(
                     &[Span::styled(text, t.red)],
                     width,
