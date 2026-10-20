@@ -73,7 +73,7 @@ function serviceDefinition(): string | null {
 
 const serviceInstalled = () => serviceDefinition() !== null
 
-/** A failed check of the host binary, and the `host_setup_failed` stage it counts as. */
+/** A failed check of the host or its binary, and the `host_setup_failed` stage it counts as. */
 class SetupError extends Error {
   constructor(readonly stage: HostSetupStage, message: string) {
     super(message)
@@ -279,14 +279,17 @@ export class HostController extends EventEmitter {
     this.failures = 0
     const tick = async () => {
       if (generation !== this.generation) return
-      if (await this.attachLocal()) {
+      const problem = await this.attachLocal()
+      // It may have started a reinstall (a stale build), which connects on its own.
+      if (generation !== this.generation) return
+      if (!problem) {
         this.failures = 0
-        if (generation !== this.generation) return
         this.setState({ kind: 'running' })
         if (devPort === null && prefs.get('hostRestartAfterAppUpdate') === true) prefs.set('hostRestartAfterAppUpdate', false)
       } else {
         this.failures++
-        if (this.failures > 5) this.setupFailed('not_responding', { kind: 'failed', message: "The host isn't responding. See the log for details." })
+        // The other environment's host doesn't become this one's by waiting: shown right away.
+        if (problem.stage === 'environment' || this.failures > 5) this.setupFailed(problem.stage, { kind: 'failed', message: problem.message })
         else if (this.state.kind !== 'running') this.setState({ kind: 'starting' })
       }
       if (generation === this.generation) this.loop = setTimeout(tick, 5000)
@@ -298,33 +301,30 @@ export class HostController extends EventEmitter {
     })()
   }
 
-  /** Attaches the local host once it answers, and again when its token or identity changed. */
-  private async attachLocal(): Promise<boolean> {
+  /** Attaches the local host once it answers, and again when its token or identity changed; else says why not. */
+  private async attachLocal(): Promise<SetupError | null> {
     const health = await fetchHealth()
-    if (!health?.computerId) return false
+    if (!health?.computerId) return new SetupError('not_responding', "The host isn't responding. See the log for details.")
     const mismatch = hostEnvironmentError(identity.environment, health.environment)
-    if (mismatch) {
-      this.setupFailed('environment', { kind: 'failed', message: mismatch })
-      return false
-    }
+    if (mismatch) return new SetupError('environment', mismatch)
     const token = await readToken()
-    if (!token) return false
+    if (!token) return new SetupError('not_responding', `The host is running, but its token (${join(dataDir, 'token')}) can't be read.`)
     if (devPort === null) {
       // A rebuild can change the host without changing the release version.
       const bin = this.binary
-      if (!this.expectedHash || !bin) return false
+      if (!this.expectedHash || !bin) return new SetupError('not_responding', "Couldn't read this app's host to check the one that's running.")
       const matches = health.binaryHash === this.expectedHash && samePath(health.binaryPath, resolved(bin))
       if (!matches) {
         if (!this.replacedStale) {
           this.replacedStale = true
           void this.install()
         }
-        return false
+        return new SetupError('not_responding', "Another build of the host is running, not this app's. Try again to replace it.")
       }
     }
-    if (this.local?.computerId === health.computerId && this.local.token === token) return true
+    if (this.local?.computerId === health.computerId && this.local.token === token) return null
     this.setLocal({ computerId: health.computerId, baseURL, token })
-    return true
+    return null
   }
 }
 

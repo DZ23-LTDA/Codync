@@ -309,6 +309,16 @@ final class AppStore {
             accounts.lastError = error.localizedDescription
         }
     }
+
+    /// Forgets a computer here. Approved through the account, its grant goes too, or it would come
+    /// straight back as an account row; a failed revoke (offline) still forgets it, and its error says
+    /// why the grant stayed.
+    func removeComputer(_ id: ComputerID) async {
+        let accounts = accounts
+        if accounts.cloudComputers.first(where: { $0.computerId == id })?.isGranted == true { await revokeAccess(id) }
+        // A revoke that went through forgot it already.
+        if accounts.computers.contains(where: { $0.id == id }) { accounts.forget(id) }
+    }
 }
 
 final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate {

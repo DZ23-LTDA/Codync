@@ -193,8 +193,12 @@ first). See [desktop app](../architecture/desktop-app.md).
 *Reach from anywhere* (`setCloud`, on/off; the host's build decides which cloud),
 *Add to account* (claim: `POST /v1/claims` → loopback `claimSign` → complete) and
 *Remove from account* (`unclaim`), a pairing QR, and the authorized devices with revoke.
-A device asking for access raises the menu bar dot and opens the approval sheet with the
-6-digit code; Approve stays disabled until the device revealed its code.
+Signed in, this computer joins the account on its own once per host identity; an identity
+that was already in the account and was removed (here or from a phone) is never re-added
+silently, only through *Add to account*. The section below, *Other computers in your account*,
+lists only the account's other computers. A device asking for access raises the menu bar dot
+and opens the approval sheet with the 6-digit code; Approve stays disabled until the device
+revealed its code.
 
 SSH computers use the system OpenSSH (`apps/desktop/src/main/ssh.ts`): `ssh -G` to
 resolve the target, `ssh-keygen -F` against `~/.ssh/known_hosts` and

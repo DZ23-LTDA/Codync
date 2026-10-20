@@ -79,7 +79,7 @@ extension BotStore {
         var transport: any HostTransport
         while true {
             do {
-                transport = try await makeTransport()
+                transport = try await makeTransport(computer)
                 break
             } catch HostError.unauthorized(let message) {
                 if !Task.isCancelled, !retired { setConnection(.unauthorized(message)) }
@@ -185,11 +185,12 @@ extension BotStore {
         Task { [weak self] in
             for await computer in updates {
                 guard let self, !self.retired else { return }
-                // The color is picked on this device; the transport's copy may be older.
+                // The color and route are picked on this device; the transport's copy may be older.
                 self.updateComputer { current in
-                    let color = current.color
+                    let (color, route) = (current.color, current.route)
                     current = computer
                     current.color = color
+                    current.route = route
                 }
             }
         }

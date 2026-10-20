@@ -62,6 +62,8 @@ import kotlinx.serialization.json.putJsonArray
     val reorder = remember { RosterReorder() }
     reorder.roster = roster.map(Bot::id)
     val online = state.actualConnection is LinkState.Ready
+    // A computer that turned this phone away, or this computer's older identity, counts as none (iOS `availableStores`).
+    val usable = state.computers.isNotEmpty() && !state.isStale
     val top = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
     GlassStage(Modifier.fillMaxSize().background(Palette.background), chrome = {
         ScrollEdge(Edge.Top, top + 64.dp)
@@ -69,7 +71,7 @@ import kotlinx.serialization.json.putJsonArray
             verticalAlignment = Alignment.CenterVertically) {
             AccountSwitcherButton(state, account)
             Box(Modifier.weight(1f), contentAlignment = Alignment.Center) { ComputerFilterHeader(state, store, manage) }
-            NewMenuButton(enabled = state.computers.isNotEmpty(), groupEnabled = online, newBot, newGroup)
+            NewMenuButton(enabled = usable, groupEnabled = online, newBot, newGroup)
         }
     }) {
         // Pull to refresh reconnects and asks the account for its computers again (iOS `refreshable`).
@@ -78,7 +80,7 @@ import kotlinx.serialization.json.putJsonArray
             // A computer waiting for an update has its card instead; its bots may not be readable yet.
             state.mismatch?.let { mismatch -> item("update") { UpdateNeededCard(state, mismatch, Modifier.padding(vertical = 8.dp)) } }
             if (roster.isEmpty() && state.mismatch == null) item {
-                EmptyRoster(canCreate = state.computers.isNotEmpty(), hasComputer = state.computers.isNotEmpty(), create = newBot, showComputers = manage)
+                EmptyRoster(canCreate = usable, hasComputer = usable, create = newBot, showComputers = manage)
             }
             items(reorder.shown(roster), key = Bot::id) { bot ->
                 val lifted = reorder.dragged == bot.id

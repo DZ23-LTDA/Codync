@@ -33,7 +33,7 @@ struct SettingsView: View {
                         ComputerRow(store: store, inAccount: cloudComputer(computer.id),
                                     openScreen: { openScreen(store) },
                                     openMarketplace: { closeSheets { app.marketplace = store.computer.id } },
-                                    revoke: cloudComputer(computer.id).flatMap { c in c.access == "granted" ? { confirmRevoke = c } : nil },
+                                    revoke: cloudComputer(computer.id).flatMap { c in c.isGranted ? { confirmRevoke = c } : nil },
                                     remove: { confirmForget = computer })
                     }
                 }
@@ -157,7 +157,7 @@ struct SettingsView: View {
                       isPresented: Binding(get: { confirmForget != nil }, set: { if !$0 { confirmForget = nil } }),
                       message: "Its bots and conversations stay on that computer. You can pair again any time.") {
             [DialogAction("Remove", destructive: true) {
-                if let c = confirmForget { accounts.forget(c.id) }
+                if let c = confirmForget { Task { await app.removeComputer(c.id) } }
             }]
         }
         .codyncDialog("Revoke this iPhone's access to \(confirmRevoke?.name ?? "the computer")?",
@@ -168,6 +168,12 @@ struct SettingsView: View {
             }]
         }
         .task { notificationsAllowed = await PushRegistrar.shared.isAllowed() }
+        // What failed here (removing, revoking, refreshing) shows over this sheet, not under it at the root,
+        // where the same error clears with this one. In place: a failure right after a confirmation comes
+        // while that dialog's cover is still fading out, and a second cover can't present over it.
+        .codyncDialog("Something went wrong", isPresented: Binding(
+            get: { accounts.lastError != nil }, set: { if !$0 { accounts.lastError = nil } }
+        ), message: accounts.lastError, cancel: "OK", inPlace: true) { [] }
     }
 
 
@@ -363,7 +369,7 @@ private struct AccountComputerRow: View {
             Spacer()
             if ticket != nil {
                 Button("Code", action: ask).buttonStyle(.secondary)
-            } else if computer.access == "granted" {
+            } else if computer.isGranted {
                 Button("Revoke", role: .destructive, action: revoke).buttonStyle(.secondary)
             } else {
                 Button("Ask for access", action: ask).buttonStyle(.secondary)

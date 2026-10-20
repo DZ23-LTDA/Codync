@@ -51,6 +51,8 @@ class AppStore(application: Application) : AndroidViewModel(application) {
     internal val sends = mutableSetOf<String>()
     internal val actions = mutableMapOf<String, Job>()
     internal var pluginsRefreshAgain = false
+    /** Bumped by each local change to the account's computers: a list asked for before one is out of date. */
+    internal var cloudListVersion = 0
     internal var widgetOwner: WidgetOwner? = null
     /** The host version an undecodable event already made the mirror fetch everything again for. */
     internal var rewoundFor: String? = null

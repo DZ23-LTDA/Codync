@@ -1,24 +1,23 @@
-import { useCallback, useEffect, useState } from 'react'
-import QRCode from 'qrcode'
-import type { AccountApproval, AuthorizedDevice, PairingInfo } from '@shared/models'
+import { useCallback, useState } from 'react'
+import type { AccountApproval, PairingInfo } from '@shared/models'
 import { newSSHProfile, type SSHProfile } from '@shared/ssh'
-import { Button, CardSection, IconButton, Spinner, Switch } from '../../components/Controls'
+import { Button, CardSection, IconButton, Switch } from '../../components/Controls'
 import { Icon } from '../../components/Icon'
 import { Dialog, ModalHeader, Sheet, useDismiss } from '../../components/Overlay'
-import { HStack, IconSlot, Spacer, VStack } from '../../components/Stack'
+import { HStack, Spacer, VStack } from '../../components/Stack'
 import { Text } from '../../components/Text'
 import { useModel } from '../../lib/observable'
 import { useAccount } from '../../store/account'
 import type { CloudComputer } from '../../store/cloud'
 import type { BotStore } from '../../store/bot-store'
-import { useScreenViewed } from '../../store/analytics'
 import { StoreContext, useApp } from '../../store/context'
 import { ComputerBadge } from '../ComputerBadge'
-import { deviceIcon, errorText, liveClient, relativeDay, Reveal, SectionHeader, statusText, thisMac } from './parts'
+import { PairingCode } from '../PairingCode'
+import { AuthorizedDevicesSection } from './AuthorizedDevicesSection'
+import { errorText, liveClient, relativeDay, Reveal, SectionHeader, statusText, thisMac } from './parts'
 import { useSSH } from './ssh-model'
 import { SSHRow } from './SSHRow'
 import { VoiceChatSettingsView } from './VoiceChatSettingsView'
-import '../pairing-window.css'
 
 /**
  * Computers this app manages (itself and SSH), with their account, relay and authorized devices;
@@ -33,8 +32,7 @@ export function ComputersView() {
   const [removingCopy, setRemovingCopy] = useState<CloudComputer | null>(null)
   const managed = app.managedStores
   const managedIds = new Set(managed.map((s) => s.computer.id))
-  const reached = app.computers.filter((c) => !managedIds.has(c.id))
-  const others = cloud.computers.filter((c) => !managedIds.has(c.computerId) && !reached.some((r) => r.id === c.computerId))
+  const others = cloud.computers.filter((c) => !managedIds.has(c.computerId))
 
   return (
     <div className="settings-computers">
@@ -58,36 +56,14 @@ export function ComputersView() {
         </div>
 
         <div>
-          <SectionHeader title="In your account">
+          <SectionHeader title="Other computers in your account">
             {account.isSignedIn ? <IconButton title="Refresh" icon="arrow.clockwise" onClick={() => void cloud.refresh()} /> : null}
           </SectionHeader>
           {!account.isSignedIn ? (
-            <Text as="div" size="callout" tone="secondary">Sign in to reach the other computers in your account from {thisMac}.</Text>
-          ) : reached.length === 0 && others.length === 0 ? (
+            <Text as="div" size="callout" tone="secondary">Sign in to see the other computers in your account.</Text>
+          ) : others.length === 0 ? (
             <Text as="div" size="callout" tone="secondary">No other computers in your account yet.</Text>
           ) : null}
-          {reached.map((computer) => {
-            const store = app.store(computer.id)
-            if (!store) return null
-            const cloudEntry = cloud.computers.find((c) => c.computerId === computer.id)
-            const stale = !!cloudEntry && cloud.isOlderCopy(cloudEntry) && store.connection.kind !== 'unauthorized'
-            return (
-              <div key={computer.id} className="settings-card settings-appear">
-                <div className="settings-row">
-                  <ComputerBadge computer={store.computer} size={22} />
-                  <div className="settings-stack">
-                    <Text size="callout" weight="medium">{store.hostName}</Text>
-                    <Text size="caption" tone={stale ? 'attention' : 'secondary'}>
-                      {stale ? `Older copy · ${statusText(store)}` : statusText(store)}
-                    </Text>
-                  </div>
-                  <RouteIcon store={store} />
-                  <Spacer />
-                  <IconButton title={`Remove from ${thisMac}`} icon="minus.circle" onClick={() => app.detach(computer.id)} />
-                </div>
-              </div>
-            )
-          })}
           {others.map((computer) => (
             <AccountComputerRow key={computer.computerId} computer={computer} olderCopy={cloud.isOlderCopy(computer)} onRemove={() => setRemovingCopy(computer)} />
           ))}
@@ -108,17 +84,6 @@ export function ComputersView() {
   )
 }
 
-/** How this app reaches a computer: direct LAN or the encrypted relay. */
-function RouteIcon({ store }: { store: BotStore }) {
-  if (store.connection.kind !== 'online' || !store.hostRoute || store.hostRoute === 'loopback') return null
-  const relay = store.hostRoute === 'relay'
-  return (
-    <HStack as="span" align="stretch" title={relay ? 'Through Cloudflare (encrypted)' : 'Direct: Wi-Fi or Tailscale'} aria-label={relay ? 'Through Cloudflare' : 'Wi-Fi or Tailscale'} className="settings-route">
-      <Icon name={relay ? 'cloud' : 'wifi'} size={12} />
-    </HStack>
-  )
-}
-
 const isMacLabel = thisMac === 'this Mac' ? 'This Mac' : 'This computer'
 
 /** This computer or an SSH computer: relay, account membership, pairing and authorized devices. */
@@ -126,32 +91,23 @@ function ManagedComputerCard({ store, ssh: overSSH }: { store: BotStore; ssh: bo
   const app = useApp()
   const account = useAccount()
   useModel(store)
-  const [devices, setDevices] = useState<AuthorizedDevice[] | null>(null)
   const [busy, setBusy] = useState(false)
   const [showPairing, setShowPairing] = useState(false)
   const [showVoice, setShowVoice] = useState(false)
-  const [confirmRevoke, setConfirmRevoke] = useState<AuthorizedDevice | null>(null)
   const [confirmUnclaim, setConfirmUnclaim] = useState(false)
   const [confirmAutoApproval, setConfirmAutoApproval] = useState(false)
   const cloud = store.cloud
+  const owner = cloud?.owner ?? null
   const autoApproval = cloud?.approval === 'auto'
   const online = store.connection.kind === 'online'
+  // A host that needs an update doesn't give its cloud status: nothing there to show or change.
+  const manageable = online && !store.mismatch
   const name = store.hostName
 
   const run = (work: () => Promise<void>) => {
     setBusy(true)
     void work().finally(() => setBusy(false))
   }
-
-  const loadDevices = useCallback(async () => {
-    const client = liveClient(store)
-    if (!client) return
-    try {
-      setDevices((await client.call<{ devices: AuthorizedDevice[] }>('devices')).devices)
-    } catch {}
-  }, [store])
-
-  useEffect(() => void loadDevices(), [loadDevices, online, store.accessRequests.length])
 
   const setApproval = (approval: AccountApproval) =>
     run(async () => {
@@ -166,9 +122,8 @@ function ManagedComputerCard({ store, ssh: overSSH }: { store: BotStore; ssh: bo
     ? 'Off: only Wi-Fi and Tailscale reach it, nothing goes through Cloudflare.'
     : (cloud.lastError ?? (cloud.connected ? 'Reachable from anywhere through Cloudflare (encrypted).' : 'Connecting to Cloudflare…'))
 
-  const owner = cloud?.owner ?? null
   const accountLine = (
-    <HStack gap={8} className="settings-row">
+    <HStack key="account" gap={8} className="settings-row settings-appear">
       <Icon name={owner ? 'person.crop.circle.badge.checkmark' : 'person.crop.circle.badge.plus'} size={13} color="var(--secondary)" />
       <Text size="callout" grow>
         {owner
@@ -180,11 +135,11 @@ function ManagedComputerCard({ store, ssh: overSSH }: { store: BotStore; ssh: bo
             : 'Sign in to add it to your account'}
       </Text>
       {owner ? (
-        <Button kind="secondary" onClick={() => setConfirmUnclaim(true)} disabled={busy || !online}>
+        <Button kind="secondary" onClick={() => setConfirmUnclaim(true)} disabled={busy || !manageable}>
           Remove from account
         </Button>
       ) : account.isSignedIn ? (
-        <Button kind="secondary" onClick={() => run(async () => void (await app.cloud.claim(store)))} disabled={busy || !online}>
+        <Button kind="secondary" onClick={() => run(async () => void (await app.cloud.claim(store)))} disabled={busy || !manageable}>
           {busy ? 'Adding…' : 'Add to account'}
         </Button>
       ) : null}
@@ -209,19 +164,24 @@ function ManagedComputerCard({ store, ssh: overSSH }: { store: BotStore; ssh: bo
             ) : null}
             <IconButton title="Pair iPhone" icon="qrcode" selected={showPairing} disabled={!online} onClick={() => setShowPairing((s) => !s)} />
           </div>,
-          <Switch key="cloud" on={cloud?.enabled ?? false} disabled={busy || !online} onChange={(on) => run(() => app.cloud.setCloud(store, on))}>
-            <span className="settings-stack">
-              <span>Reach from anywhere</span>
-              <Text size="caption" tone={cloud?.lastError ? 'attention' : 'secondary'}>{cloudLine}</Text>
-            </span>
-          </Switch>,
-          accountLine,
+          // Until the host gives its cloud status, there's no way to tell its relay or account.
+          ...(cloud
+            ? [
+                <Switch key="cloud" className="settings-appear" on={cloud.enabled} disabled={busy || !manageable} onChange={(on) => run(() => app.cloud.setCloud(store, on))}>
+                  <span className="settings-stack">
+                    <span>Reach from anywhere</span>
+                    <Text size="caption" tone={cloud.lastError ? 'attention' : 'secondary'}>{cloudLine}</Text>
+                  </span>
+                </Switch>,
+                accountLine,
+              ]
+            : []),
           ...(owner
             ? [
                 <Switch
                   key="approval"
                   on={autoApproval}
-                  disabled={busy || !online}
+                  disabled={busy || !manageable}
                   onChange={(on) => (on ? setConfirmAutoApproval(true) : setApproval('code'))}
                 >
                   <span className="settings-stack settings-appear">
@@ -236,27 +196,7 @@ function ManagedComputerCard({ store, ssh: overSSH }: { store: BotStore; ssh: bo
         ]}
       </CardSection>
 
-      <CardSection title={`Devices that can use ${name}`}>
-        {devices === null
-          ? [<Spinner key="loading" />]
-          : [
-              ...(devices.length === 0
-                ? [<Text key="none" tone="secondary">None yet. Pair an iPhone, or approve one from your account.</Text>]
-                : []),
-              ...devices.map((device) => (
-                <HStack key={device.key} gap={8} className="settings-row settings-appear">
-                  <IconSlot width={18} tone="secondary">
-                    <Icon name={deviceIcon(device.platform)} size={13} />
-                  </IconSlot>
-                  <VStack grow className="settings-stack">
-                    <span>{device.name}</span>
-                    <Text size="caption" tone="tertiary">{deviceDetail(device)}</Text>
-                  </VStack>
-                  <IconButton title="Revoke access" icon="xmark.circle" onClick={() => setConfirmRevoke(device)} />
-                </HStack>
-              )),
-            ]}
-      </CardSection>
+      <AuthorizedDevicesSection store={store} />
 
       <Sheet open={showVoice} onClose={() => setShowVoice(false)}>
         <StoreContext.Provider value={store}>
@@ -267,29 +207,6 @@ function ManagedComputerCard({ store, ssh: overSSH }: { store: BotStore; ssh: bo
         <ModalHeader icon="qrcode" title={`Pair iPhone with ${name}`} />
         <PairingPanel store={store} />
       </Sheet>
-      <Dialog
-        open={confirmRevoke !== null}
-        title={`Revoke ${confirmRevoke?.name ?? 'device'}?`}
-        message="It disconnects right away and has to pair or ask again."
-        actions={
-          confirmRevoke
-            ? [{
-                title: 'Revoke access',
-                destructive: true,
-                action: () =>
-                  run(async () => {
-                    try {
-                      await (await store.ready()).call('revokeDevice', { key: confirmRevoke.key })
-                    } catch (e) {
-                      store.setError(errorText(e))
-                    }
-                    await loadDevices()
-                  }),
-              }]
-            : []
-        }
-        onClose={() => setConfirmRevoke(null)}
-      />
       <Dialog
         open={confirmAutoApproval}
         title="Let account devices in without a code?"
@@ -333,81 +250,17 @@ function accountComputerStatus(computer: CloudComputer, olderCopy: boolean) {
   return computer.lastSeenAt ? `Older copy · last seen ${relativeDay(new Date(computer.lastSeenAt))}` : 'Older copy'
 }
 
-function deviceDetail(device: AuthorizedDevice) {
-  const parts = [device.source === 'account' ? 'Approved through the account' : 'Paired with a QR code']
-  if (device.connected) parts.push('connected')
-  else if (device.lastSeenAt) parts.push(`seen ${relativeDay(new Date(device.lastSeenAt))}`)
-  return parts.join(' · ')
-}
-
-/** A one-time pairing QR (v3) from a computer this app manages: its keys, a code, and how to reach it. */
+/** "Pair iPhone" for a computer this app manages, through its store. */
 function PairingPanel({ store }: { store: BotStore }) {
   useModel(store)
-  useScreenViewed('pairing')
-  const [info, setInfo] = useState<PairingInfo | null>(null)
-  const [qr, setQr] = useState<string | null>(null)
-  const [error, setError] = useState<string | null>(null)
-  const name = store.hostName
-
-  const load = useCallback(async () => {
+  const requestCode = useCallback(async () => {
     const client = liveClient(store)
-    if (!client) return setError(`${store.hostName} isn't connected.`)
-    try {
-      const pairing = await client.call<PairingInfo>('pairing')
-      setQr(await QRCode.toDataURL(pairing.pairingUrl, { errorCorrectionLevel: 'M', margin: 0, width: 400, color: { dark: '#000000', light: '#ffffff' } }))
-      setInfo(pairing)
-      setError(null)
-    } catch (e) {
-      setError(errorText(e))
-    }
+    if (!client) throw new Error(`${store.hostName} isn't connected.`)
+    return client.call<PairingInfo>('pairing')
   }, [store])
-
-  useEffect(() => void load(), [load])
-  // A fresh code when this one expires while it's on screen.
-  useEffect(() => {
-    if (!info?.expiresAt) return
-    const timer = setTimeout(() => void load(), Math.max(1000, info.expiresAt - Date.now()))
-    return () => clearTimeout(timer)
-  }, [info?.expiresAt, load])
-
-  return (
-    <VStack align="center" gap={12} className="settings-pairing">
-      {info && qr ? (
-        <>
-          <div className="pairing-qr settings-appear">
-            <img src={qr} alt={`Pairing code for ${name}`} width={200} height={200} />
-          </div>
-          <Text as="div" size="caption" tone="secondary" className="settings-centered">
-            Scan with the Codync app or the iPhone Camera. No Tailscale or open ports needed: your iPhone connects directly on the same Wi-Fi, and through the encrypted relay anywhere else.
-          </Text>
-          {store.cloud?.enabled !== true ? (
-            <Text as="div" size="caption" tone="attention" className="settings-centered">
-              {info.urls.length === 0
-                ? 'No network address found and “Reach from anywhere” is off. Connect to Wi-Fi or turn it on.'
-                : `“Reach from anywhere” is off, so the iPhone only reaches ${name} on the same network.`}
-            </Text>
-          ) : null}
-          <HStack gap={4}>
-            {info.expiresAt ? (
-              <Text size="caption2" tone="tertiary">
-                Works once, until {new Date(info.expiresAt).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}
-              </Text>
-            ) : null}
-            <IconButton title="New code" icon="arrow.clockwise" onClick={() => void load()} />
-            <IconButton title="Copy pairing link" icon="doc.on.doc" onClick={() => window.codync.app.copy(info.pairingUrl)} />
-          </HStack>
-        </>
-      ) : error ? (
-        <>
-          <Text as="div" size="caption" tone="danger" className="settings-centered">{error}</Text>
-          <IconButton title="Try again" icon="arrow.clockwise" onClick={() => void load()} />
-        </>
-      ) : (
-        <Spinner size={20} />
-      )}
-    </VStack>
-  )
+  return <PairingCode name={store.hostName} cloudOn={store.cloud?.enabled === true} requestCode={requestCode} />
 }
+
 // MARK: SSH
 
 /** Add or change an SSH computer. Only fields ssh takes as separate arguments; nothing goes through a shell. */

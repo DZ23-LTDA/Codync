@@ -147,6 +147,16 @@ class AccountScreenTest {
         assertEquals(listOf(cloud, cloud), asked)
     }
 
+    @Test fun whileOneComputerIsAskedForAccessTheOthersWait() {
+        val asked = CloudComputer("asked-computer", "Asked computer", "asked-key", online = true)
+        val other = CloudComputer("other-computer", "Other computer", "other-key", online = true)
+        val state = fixture().copy(cloudComputers = listOf(asked, other), askingAccess = asked.computerId)
+        compose.setContent { Hosted { SettingsView(state, viewModel(), null, {}, {}, {}) } }
+        val buttons = compose.onAllNodesWithText("Ask for access")
+        buttons[0].assertIsEnabled()
+        buttons[1].assertIsNotEnabled()
+    }
+
     @Test fun thePendingAccessBannerShowsTheCodeAndCancels() {
         var cancelled = false
         compose.setContent { Hosted { AccessBanner(AccessTicket("request", Long.MAX_VALUE, "123456", "computer", "key"), "Fixture computer") { cancelled = true } } }

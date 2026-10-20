@@ -19,7 +19,8 @@ pub use model::{After, AgentModel, Bot, Entry, Kind, Mark, ModelOption, Msg, Sta
 pub use slash::SlashAction;
 pub use ui::{
     ACTIONS, Action, COLORS, Click, Confirm, ConfirmAct, Dir, FIELDS, FILTERS, Field, Focus, FolderPicker, Form, Goto,
-    GotoItem, GroupField, GroupForm, Hits, NewBot, NewBotField, Overlay, SHAPES, Toast, Toggle, TraceMode, Width,
+    GotoItem, GroupField, GroupForm, Hits, NewBot, NewBotField, Overlay, PairCode, SHAPES, Toast, Toggle, TraceMode,
+    Width,
 };
 
 use serde_json::{Value, json};

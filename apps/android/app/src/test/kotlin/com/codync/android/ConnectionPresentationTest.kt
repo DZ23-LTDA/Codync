@@ -64,6 +64,20 @@ class ConnectionPresentationTest {
         assertEquals("Revoked", computerStatusText(state(LinkState.Failed("Revoked", 403), listOf(cloud("new", online = true)))))
     }
 
+    @Test fun aComputerSeenAfterItsNamesakeJoinedTheAccountRunsBesideItAndIsNotStale() {
+        val namesake = cloud("new", online = true).copy(claimedAt = 100)
+        fun own(seen: Long) = cloud("fixture", online = false).copy(lastSeenAt = seen)
+        // Its own account entry says when it was last seen.
+        assertFalse(state(LinkState.ComputerOffline(null), listOf(own(200), namesake)).isStale)
+        assertTrue(state(LinkState.ComputerOffline(null), listOf(own(50), namesake)).isStale)
+        assertFalse(state(LinkState.Failed("Connection closed."), listOf(own(200), namesake)).isStale)
+        // Paired with its code only: the relay's last seen decides.
+        assertFalse(state(LinkState.ComputerOffline(200), listOf(namesake)).isStale)
+        assertTrue(state(LinkState.ComputerOffline(50), listOf(namesake)).isStale)
+        // Without the namesake's join time, the name alone.
+        assertTrue(state(LinkState.ComputerOffline(200), listOf(cloud("new", online = true))).isStale)
+    }
+
     @Test fun anOfflineAccountComputerNamedLikeTheCurrentOneIsAnOlderCopy() {
         val old = cloud("old", online = false)
         assertTrue(state(LinkState.Connecting, listOf(old)).isOlderCopy(old))

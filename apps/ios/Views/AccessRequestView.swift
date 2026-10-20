@@ -12,6 +12,9 @@ struct AccessRequestView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     /// A code was shown: when it goes away without an approval, the request is over (denied or expired).
     @State private var sawTicket: Bool
+    /// Why it ended, taken from `accounts.lastError` when the code went: shown here, so the computers
+    /// list under this sheet doesn't say it again.
+    @State private var outcome: String?
 
     init(computer: CloudComputer, pending: Bool) {
         self.computer = computer
@@ -63,12 +66,12 @@ struct AccessRequestView: View {
                 Button("Try again") { withAnimation(Motion.reduced(Motion.layout, reduceMotion)) { self.error = nil } }
                     .buttonStyle(.secondary)
             } else if sawTicket {
-                Text(accounts.lastError ?? "\(computer.name) didn't approve this request.")
+                Text(outcome ?? "\(computer.name) didn't approve this request.")
                     .foregroundStyle(Palette.secondary)
                     .multilineTextAlignment(.center)
                 Button("Ask again") {
                     withAnimation(Motion.reduced(Motion.layout, reduceMotion)) {
-                        accounts.lastError = nil
+                        outcome = nil
                         sawTicket = false
                     }
                 }
@@ -90,7 +93,14 @@ struct AccessRequestView: View {
         .background(Palette.background)
         // Closing keeps waiting in the background; the computer shows up once approved.
         .safeAreaInset(edge: .top, spacing: 0) { ModalHeader("Access") }
-        .onChange(of: ticket?.requestId) { _, id in if id != nil { sawTicket = true } }
+        .onChange(of: ticket?.requestId) { old, id in
+            if id != nil {
+                sawTicket = true
+            } else if old != nil, !approved {
+                outcome = accounts.lastError
+                accounts.lastError = nil
+            }
+        }
         .onChange(of: approved) { _, done in
             guard done else { return }
             Task {

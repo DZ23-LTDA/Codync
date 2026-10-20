@@ -51,9 +51,10 @@ struct BotListView: View {
         availableStores.filter { $0.connection == .online }
     }
 
-    /// Computers that can take a new bot once they're connected (not ones waiting for an update).
+    /// Computers that can take a new bot once they're connected (not ones waiting for an update, or
+    /// ones that won't come back: they turned this iPhone away, or are this computer's older identity).
     private var availableStores: [BotStore] {
-        accounts.computers.compactMap { accounts.store(for: $0.id) }.filter { $0.mismatch == nil }
+        accounts.computers.compactMap { accounts.store(for: $0.id) }.filter { $0.mismatch == nil && !accounts.isStale($0.computer.id) }
     }
 
     /// The rows the user can drag: each shown computer's heading (with several computers), in the
@@ -80,7 +81,8 @@ struct BotListView: View {
                 }
                 // A computer waiting for an update has its card instead; its bots aren't known yet.
                 if roster.isEmpty && shownStores.allSatisfy({ $0.mismatch == nil }) {
-                    EmptyRoster(canCreate: !availableStores.isEmpty, hasComputer: !accounts.computers.isEmpty,
+                    // Computers that turned this iPhone away count as none: the way on is in Computers.
+                    EmptyRoster(canCreate: !availableStores.isEmpty, hasComputer: accounts.computers.contains { !accounts.isStale($0.id) },
                                 create: newBot, showComputers: { app.showComputers = true })
                 }
                 ForEach(lines) { line in

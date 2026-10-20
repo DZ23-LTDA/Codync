@@ -15,9 +15,10 @@ public enum LinkState: Sendable, Equatable {
     case ready(HostRoute)
     /// The relay says the computer isn't connected (asleep, off): the mailbox still works.
     case hostOffline(lastSeen: Date?)
-    /// Revoked, lease expired, or the computer's identity changed: retrying won't help.
+    /// Revoked, or the computer's identity changed: retrying won't help.
     case unauthorized(String)
-    /// Can't reach the computer at all (neither directly nor through the relay).
+    /// Can't reach the computer at all (neither directly nor through the relay), or it can't confirm
+    /// this device's access for now.
     case failed(String)
 }
 

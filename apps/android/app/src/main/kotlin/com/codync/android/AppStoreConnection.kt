@@ -57,10 +57,12 @@ internal fun AppStore.pair(text: String, via: PairedVia) {
         try {
             val pairing = Pairing.parse(text, BuildConfig.URL_SCHEME)
             val old = state.value.computers.firstOrNull()
-            require(old == null || old.id == pairing.computer.id) { "Use Start over to pair a different computer." }
+            require(old == null || old.id == pairing.computer.id) { "Remove this phone's computer in Computers & settings to pair a different one." }
             require(old == null || old.signKey == pairing.computer.signKey) { "This computer's identity changed. Start over before pairing again." }
             val identity = withContext(Dispatchers.IO) { local.identity() }
-            val computer = HostConnector.pair(pairing, identity, Build.MODEL.take(100)).copy(color = old?.color)
+            // Picked on this phone: re-pairing keeps them (iOS `AccountStore.pair`).
+            val paired = HostConnector.pair(pairing, identity, Build.MODEL.take(100))
+            val computer = old?.let { paired.copy(color = it.color, route = it.route) } ?: paired
             withContext(Dispatchers.IO) { local.saveComputers(listOf(computer)); local.completeSetup() }
             mutableState.update { it.copy(computers = listOf(computer), setupComplete = true) }
             Analytics.capture(AnalyticsEvent.ComputerPaired(via, computer.id))

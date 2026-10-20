@@ -275,6 +275,13 @@ pub struct GroupForm {
     pub saving: bool,
 }
 
+/// The pair-a-phone sheet's code: on its way, shown (its pairing link), or why none came.
+pub enum PairCode {
+    Loading,
+    Ready(String),
+    Failed(String),
+}
+
 pub enum Overlay {
     Goto(Goto),
     Help(Editor),
@@ -284,7 +291,7 @@ pub enum Overlay {
     Form(Box<Form>),
     Group(GroupForm),
     Usage,
-    Pair(Option<String>),
+    Pair(PairCode),
     Memory(MemorySheet),
     /// A read-only conversation between two bots.
     BotChat(BotChatSheet),
