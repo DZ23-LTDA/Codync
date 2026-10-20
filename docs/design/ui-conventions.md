@@ -53,7 +53,7 @@ The chat window's account menu copies Grok Bot's: Usage, Get Codync for mobile, 
 The iPhone and the desktop no longer share UI code. `CodyncUI` (`apps/ios/Kit/`) is the iPhone app's own package; the desktop app (`apps/desktop/src/renderer/`) is a TypeScript port of the same screens with its own `BotStore`, chat items (`views/thread/chat-items.ts`) and Markdown blocks (`markdown-blocks.ts`).
 
 - The iPhone chat's chrome is in `ThreadView.swift` (`body`, `chrome`, `header`). The iPhone conversation (chat and thread) is a UIKit collection view of hosted SwiftUI rows (`ConversationList.swift`): it loads earlier messages from the computer as the reader scrolls up, runs under the bars and the composer (the list sits in the safe area and reaches past it, so rows never get a safe area of their own), follows the newest message until they scroll away (with a round "Jump to latest" button), and pops each new message in ([chat messages](../features/chat-messages.md)).
-- The desktop UI rules (custom controls, no system menus except the tray, icon-only buttons, fill or border) are implemented in `apps/desktop/src/renderer/components/` (`Controls.tsx`, `Overlay.tsx`, `Icon.tsx`, `Text.tsx`, `Stack.tsx`); how views use them and the theme tokens: [desktop styles](../guides/desktop-styles.md). Chrome on the sidebar (its header actions, the computer filter, Extensions) is outlined; chrome floating over the conversation (the title pill, the composer) is filled with a shadow. Corner radii and shadows come from the `--radius-*` and `--shadow-*` scale in `styles/theme.css`. Status text uses `--attention` (`--warning` is for dots and fills only), and destructive fills use `--danger-fill` with `--on-danger`, so both stay readable in light and dark. Sheets and dialogs hold focus while open: the window behind goes inert, Tab cycles inside, and focus returns to where it was on close.
+- The desktop UI rules (custom controls, no system menus except the tray, icon-only buttons, fill or border) are implemented in `apps/desktop/src/renderer/components/` (`Controls.tsx`, `Overlay.tsx`, `Icon.tsx`, `Text.tsx`, `Stack.tsx`); how views use them and the theme tokens: [desktop styles](../guides/desktop-styles.md). Chrome on the sidebar (its header actions, the computer filter, Extensions) is outlined; chrome floating over the conversation (the title pill, the composer) is filled with a shadow, and the composer also carries the floating-layer outline. Corner radii and shadows come from the `--radius-*` and `--shadow-*` scale in `styles/theme.css`. Status text uses `--attention` (`--warning` is for dots and fills only), and destructive fills use `--danger-fill` with `--on-danger`, so both stay readable in light and dark. Sheets and dialogs hold focus while open: the window behind goes inert, Tab cycles inside, and focus returns to where it was on close.
 - The Android app (`apps/android/`) ports the iPhone screens one to one in Compose. Where iOS uses system UI (the tab bar, menus, sheets, Liquid Glass), Android draws the same look with its `design` module: glass from Kyant's backdrop library (blur, lens refraction and highlight on RenderEffect/RuntimeShader), the iOS sheet with its grabber and drag-to-close, glass menus and context menus, Inter for SF Pro and Material Symbols for SF Symbols (`Symbol("sf.name")`), and the soft scroll edge under its bars (`ScrollEdge`: the content behind the header, composer and tab bar blurs and washes out). Android has no Liquid Glass of its own; Material widgets aren't used.
 - A change to one lands in the other and the TUI in the same change; see [native client parity](#native-client-parity).
 
@@ -229,12 +229,13 @@ so this desktop presentation change does not affect its keyboard workflow.
 Desktop styling is shared across macOS, Linux and Windows.
 
 Desktop modal sheets, confirmation dialogs and menus (dropdown and right-click
-menus, the account and action panels) use one subtle 1px outer outline, including
-Apps, Credentials, and Settings. The outline follows the existing corner radius and
-overlays the content without changing layout or intercepting input. This is an
-explicit exception to the filled-surface border rule. iOS keeps the system sheet's
-and system menu's own edge treatment; terminal dialogs retain their existing
-character borders. Neither receives an extra desktop-style outline.
+menus, the account and action panels) and the message composer use one subtle 1px
+inner outline (`--outline`), including Apps, Credentials, and Settings. The outline
+follows the existing corner radius and overlays the content without changing layout
+or intercepting input. This is an explicit exception to the filled-surface border
+rule. iOS keeps the system sheet's, system menu's and composer glass's own edge,
+Android its `design` module glass edge; terminal dialogs retain their existing
+character borders. None of them receives an extra desktop-style outline.
 
 Desktop sheets and dialogs sit a step above the page (`--sheet`, raised in dark
 mode, over a deeper scrim); inside them grouped rows and fields are quiet tints of

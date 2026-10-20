@@ -89,7 +89,7 @@
   content: '';
   position: absolute;
   inset: 0;
-  border: 1px solid color-mix(in srgb, var(--text) 18%, transparent);
+  border: 1px solid var(--outline);
   border-radius: inherit;
   pointer-events: none;
   z-index: 1;
