@@ -33,22 +33,23 @@ import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonPrimitive
 
-/** Create or edit a bot in a sheet, as iOS `BotEditorView`: the settings form plus Close and Save. */
+/** A bot's settings in a sheet, as iOS `BotEditorView`: the settings form plus Close and Save. New bots start in [NewBotView]. */
 @Composable fun BotEditor(state: AppState, initial: BotDraft, store: AppStore) {
     var draft by remember(initial.id) { mutableStateOf(initial) }
+    // A change made elsewhere (a bot that manages the team, another device) replaces each field not edited here.
+    var base by remember(initial.id) { mutableStateOf(initial) }
+    val saved = state.bots.firstOrNull { it.id == initial.id }?.let { BotDraft.from(it) }
+    LaunchedEffect(saved) { if (saved != null && saved != base) { draft = draft.rebased(base, saved); base = saved } }
     var folders by remember { mutableStateOf(false) }
     var viewingSkill by remember { mutableStateOf<SkillRef?>(null) }
     val online = state.actualConnection is LinkState.Ready
     val saving = "editor" in state.busy
     val dismiss = LocalDismissModal.current
-    val isNew = draft.id == null
-    // A new bot starts on an installed agent we know, with every connector and skill on.
-    LaunchedEffect(state.hello, state.plugins) { if (isNew) draft = fillDefaults(draft, state) }
     LaunchedEffect(online) { if (online) store.refreshPlugins() }
     Column(Modifier.fillMaxSize()) {
-        ModalHeader(if (isNew) "New bot" else "Settings") {
+        ModalHeader("Settings") {
             if (saving) Box(Modifier.size(36.dp), contentAlignment = Alignment.Center) { Spinner() }
-            else IconButton(if (isNew) "Create" else "Save", "checkmark", enabled = draft.isValid && online) {
+            else IconButton("Save", "checkmark", enabled = draft.isValid && online) {
                 store.saveBot(draft) { dismiss() }
             }
         }
@@ -62,21 +63,10 @@ import kotlinx.serialization.json.jsonPrimitive
     CodyncSheet(viewingSkill, { viewingSkill = null }) { SkillSheet(it, state, store) }
 }
 
-/** Picks an installed agent we know; connectors and skills start on once the computer has listed them. */
-private fun fillDefaults(draft: BotDraft, state: AppState): BotDraft {
-    val backends = backends(state)
-    var next = draft
-    if (backends.none { it.text("id") == draft.backend && it.available }) backends.firstOrNull { it.available && it.curated }?.text("id")
-        ?.let { next = next.copy(backend = it) }
-    val plugins = state.plugins
-    if (plugins != null && next.connectors == null && plugins.connectors.isNotEmpty()) next = next.copy(connectors = plugins.connectors.map { it.id })
-    if (plugins != null && next.skills.isEmpty() && plugins.skills.isNotEmpty() && draft.skills.isEmpty()) next = next.copy(skills = plugins.skills.map { it.id })
-    return next
-}
-
-private fun backends(state: AppState): List<JsonObject> = (state.hello?.get("backends") as? JsonArray).orEmpty().mapNotNull { it as? JsonObject }
-private val JsonObject.available get() = this["available"]?.jsonPrimitive?.booleanOrNull == true
-private val JsonObject.curated get() = this["curated"]?.jsonPrimitive?.booleanOrNull != false
+/** The computer's agents, as its hello lists them. */
+internal fun backends(state: AppState): List<JsonObject> = (state.hello?.get("backends") as? JsonArray).orEmpty().mapNotNull { it as? JsonObject }
+internal val JsonObject.available get() = this["available"]?.jsonPrimitive?.booleanOrNull == true
+internal val JsonObject.curated get() = this["curated"]?.jsonPrimitive?.booleanOrNull != false
 
 /** Bot settings: a big avatar, then sections in the Settings style (`CardSection`). */
 @Composable private fun BotSettingsForm(state: AppState, store: AppStore, draft: BotDraft, change: (BotDraft) -> Unit, viewSkill: (SkillRef) -> Unit,
@@ -91,20 +81,23 @@ private val JsonObject.curated get() = this["curated"]?.jsonPrimitive?.booleanOr
             AvatarPicker(draft.avatarShape, draft.avatarColor, { change(draft.copy(avatarShape = it)) }, { change(draft.copy(avatarColor = it)) })
         }
         CardSection("Profile") {
-            // A new bot is named from its first conversations; rename it any time after.
-            if (draft.id != null) row { Field("Name") { FieldBox(draft.name, { change(draft.copy(name = it)) }, "Name") } }
+            // A bot left unnamed at creation is named from its first conversations; rename it any time after.
+            row { Field("Name") { FieldBox(draft.name, { change(draft.copy(name = it)) }, "Name") } }
             row {
                 Field("Standing instructions", "Rules that always apply. Put task-specific requests in the chat instead.") {
                     FieldBox(draft.description, { change(draft.copy(description = it)) }, "e.g. Reviews PRs. Never pushes without asking.", 3, 8)
                 }
+            }
+            val bot = state.bots.firstOrNull { it.id == draft.id }
+            bot?.createdBy?.let { creator ->
+                row { ValueRow("Created by", "${state.bots.firstOrNull { it.id == creator }?.name ?: "A bot"} · ${RelativeTime.calendarDay(bot.createdAt)}") }
             }
         }
         CardSection("Agent") {
             row {
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     ValueRow("Computer", state.computers.firstOrNull()?.name ?: "Your computer")
-                    if (!online) Text(if (draft.id == null) "Connect this computer to create the bot." else "Reconnect to this computer to save settings.",
-                        style = Type.caption, color = Palette.warning)
+                    if (!online) Text("Reconnect to this computer to save settings.", style = Type.caption, color = Palette.warning)
                 }
             }
             row {
@@ -165,13 +158,18 @@ private val JsonObject.curated get() = this["curated"]?.jsonPrimitive?.booleanOr
                 },
                     draft.computer, { change(draft.copy(computer = it)) })
             }
+            // Only from a host that has it (its bots say).
+            if (state.bots.any { it.manageTeam != null }) row {
+                SwitchRow("Manage the team", "Let this bot create bots and change any bot's setup, its own included. The bots it creates can too.",
+                    draft.manageTeam, { change(draft.copy(manageTeam = it)) })
+            }
         }
         val plugins = state.plugins
         PluginToggles("Connectors", "No connectors yet. Add GitHub, Linear, Notion and more from Extensions.",
             plugins?.connectors.orEmpty().map { Triple(it.id, it.name, it.command ?: it.url.orEmpty()) },
             draft.connectors ?: plugins?.connectors.orEmpty().map { it.id }, { change(draft.copy(connectors = it)) })
         PluginToggles("Skills", "No skills yet. Get some from Extensions, or write your own.",
-            plugins?.skills.orEmpty().map { Triple(it.id, it.name, it.description) }, draft.skills, { change(draft.copy(skills = it)) }) { id ->
+            plugins?.skills.orEmpty().map { Triple(it.id, it.name, it.description) }, draft.skills.orEmpty(), { change(draft.copy(skills = it)) }) { id ->
             plugins?.skills?.firstOrNull { it.id == id }?.let { viewSkill(SkillRef(it.id, it.name, it.description)) }
         }
         draft.id?.let { MemoryCard(it, store) }

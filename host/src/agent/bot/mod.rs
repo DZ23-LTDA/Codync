@@ -1,7 +1,7 @@
 //! One actor per bot. It owns the bot's ACP process and session, runs turns one
 //! at a time, and maps ACP `session/update`s onto transcript entries.
 //!
-//! Chat model (from Grok Bot): the thread only shows user messages, the *final*
+//! Chat model (from Grok Bot): the chat only shows user messages, the *final*
 //! agent message of each turn, permission cards and notices. Narration between
 //! tool calls, thoughts, tool calls and plans are trace entries shown in the
 //! "full conversation" sheet, and surface live as the roster activity line.
@@ -11,9 +11,9 @@
 //! its dreaming (`memory`), messages sent while it works are folded into
 //! its next turn, and a turn cut off by a host restart is resumed.
 //!
-//! Lanes: besides its own chat, a bot talks in threads (each a session of its own,
-//! forked from the main one when the agent can fork) and in group chats (turns in
-//! its main session, written to the group's transcript; see `group`).
+//! Lanes: besides its own chat, a bot talks in group chats (turns in its main session,
+//! written to the group's transcript; see `group`). A routine run talks in its chat
+//! from a session of its own (see `session`).
 
 mod compaction;
 mod fast_mode;
@@ -54,7 +54,7 @@ pub enum NoticeStyle {
 pub enum Cmd {
     RefreshTools,
     Routine(String),
-    /// The user wrote in the bot's chat or one of its threads.
+    /// The user wrote in the bot's chat.
     Send {
         lane: Lane,
         entry_id: String,
@@ -93,6 +93,12 @@ pub enum Cmd {
         entry_id: String,
         option_id: Option<String>,
     },
+    /// A Codync tool asks the user before it acts (`chat::manage`), on the agent's kind of approval card.
+    Approve {
+        title: String,
+        detail: String,
+        reply: tokio::sync::oneshot::Sender<bool>,
+    },
     NewSession,
     Reconfigure(Box<BotConfig>),
     Shutdown,
@@ -125,10 +131,8 @@ pub fn spawn(hub: Arc<Hub>, cfg: BotConfig) -> BotHandle {
     // A turn the previous host process never finished (crash, update, restart), unless
     // it's stale: an hour-old task is more likely unwanted than awaited (gawkbot's rule).
     let interrupted = hub.store.kv_get(&inflight_key(&cfg.id)).and_then(|v| {
-        let (started, thread) = v.split_once('\t').unwrap_or((&v, ""));
-        let started: i64 = started.parse().ok()?;
-        (now_ms() - started < STALE_RESUME_MS)
-            .then(|| Lane { chat: cfg.id.clone(), thread: (!thread.is_empty()).then(|| thread.to_owned()) })
+        let started: i64 = v.parse().ok()?;
+        (now_ms() - started < STALE_RESUME_MS).then(|| Lane::main(&cfg.id))
     });
     let dreamer = memory::spawn_dreamer(hub.clone(), cfg.id.clone());
     let lane = Lane::main(&cfg.id);
@@ -140,10 +144,9 @@ pub fn spawn(hub: Arc<Hub>, cfg: BotConfig) -> BotHandle {
         cfg,
         conn: None,
         session_id,
-        thread_sessions: HashMap::new(),
+        run_sessions: HashMap::new(),
         lane,
         turn_session: None,
-        thread_intro: None,
         active_group: None,
         active_routine: None,
         routine_deadline: None,
@@ -176,6 +179,7 @@ pub fn spawn(hub: Arc<Hub>, cfg: BotConfig) -> BotHandle {
         cancel_deadline: None,
         exit_tail: None,
         tools_changed: false,
+        restart_after_turn: false,
         fast_support,
         idle_checked: Instant::now(),
     };
@@ -202,11 +206,9 @@ fn activity(title: &str) -> &str {
 struct SessionCaps {
     /// `session/load`: resume a session after a restart.
     load: bool,
-    /// `session/fork`: a thread starts as a copy of the main session.
-    fork: bool,
     /// `session/close`: an idle session can be released while the agent keeps running.
     close: bool,
-    /// ACP `systemPrompt`: instructions on `session/new`, `load` and `fork` that the agent keeps at system level.
+    /// ACP `systemPrompt`: instructions on `session/new` and `load` that the agent keeps at system level.
     system_prompt: bool,
     /// ACP `additionalDirectories`: folders outside `cwd` the agent may work in, here the memory folders.
     additional_directories: bool,
@@ -292,14 +294,12 @@ struct Actor {
     conn: Option<Conn>,
     /// The main session: the bot's own chat and its group turns.
     session_id: Option<String>,
-    /// Thread root -> the thread's session (loaded from kv on first use).
-    thread_sessions: HashMap<String, String>,
+    /// Routine run slot -> the run's session (loaded from kv on first use).
+    run_sessions: HashMap<String, String>,
     /// Where the current (or last) turn talks; entries go there.
     lane: Lane,
     /// The session the current turn prompts.
     turn_session: Option<String>,
-    /// Told on the first message of a new thread session: what the thread is about.
-    thread_intro: Option<String>,
     active_group: Option<GroupTurn>,
     active_routine: Option<String>,
     routine_deadline: Option<Instant>,
@@ -341,8 +341,8 @@ struct Actor {
     /// The bot's `react` this turn; with no message sent, it is the reply.
     reacted: Reacted,
     files: files::FileShares,
-    /// permission entry id -> JSON-RPC request id
-    perms: HashMap<String, Value>,
+    /// permission entry id -> who waits for the answer
+    perms: HashMap<String, updates::Answer>,
     stop_requested: bool,
     /// A cancelled turn still running past this stops its agent process.
     cancel_deadline: Option<Instant>,
@@ -351,6 +351,8 @@ struct Actor {
     /// Connectors changed: restart the agent before the next turn so the
     /// session is resumed with the new MCP servers.
     tools_changed: bool,
+    /// A change that restarts the agent (`restart_agent`) came during a turn: it restarts once the turn ends.
+    restart_after_turn: bool,
     /// What the agent says about Fast mode; clients see it in the bot's runtime.
     fast_support: FastModeSupport,
     /// When idle sessions and agents were last looked for.
@@ -367,23 +369,14 @@ struct RoutineCompletion {
 type Done = Result<Value>;
 
 impl Actor {
-    /// `interrupted`: the previous host process stopped a turn in this lane (the bot's
-    /// chat or one of its threads); resume it first.
+    /// `interrupted`: the previous host process stopped a turn in the bot's chat; resume it first.
     async fn run(mut self, mut rx: mpsc::UnboundedReceiver<Cmd>, interrupted: Option<Lane>) {
         let (done_tx, mut done_rx) = mpsc::unbounded_channel::<Done>();
         let mut flush_tick = tokio::time::interval(Duration::from_millis(300));
         if let Some(run) = self.hub.routines.recovery(&self.cfg.id) {
             self.active_routine = Some(run.id.clone());
             self.routine_deadline = Some(Instant::now() + self.hub.routines.timeout(&run.id));
-            if let Some(root) = run.root_id {
-                self.resume_interrupted(Lane::in_thread(&self.cfg.id, &root), &done_tx).await;
-            } else {
-                self.finish_routine(
-                    crate::routines::Status::Interrupted,
-                    Some("Routine has no saved session; inspect before retrying".into()),
-                    None,
-                );
-            }
+            self.resume_interrupted(Lane::main(&self.cfg.id), &done_tx).await;
         } else if let Some(lane) = interrupted {
             self.resume_interrupted(lane, &done_tx).await;
         }
@@ -412,6 +405,7 @@ impl Actor {
                 }
                 _ = flush_tick.tick() => {
                     self.flush(false);
+                    self.expire_abandoned().await;
                     if self.routine_completion.is_some() && self.retry_routine_completion() {
                         self.set_inflight(false);
                         self.next_in_queue(&done_tx).await;

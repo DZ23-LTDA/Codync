@@ -8,10 +8,10 @@ use serde_json::Value;
 /// Raise it only when this host stops sending or accepting something older clients depend on;
 /// the release gate (tools/release-gate.py) then offers the release once the App Store has that
 /// iPhone app.
-pub const MIN_APP: &str = "2.18.0";
+pub const MIN_APP: &str = "2.20.1";
 
 /// The oldest host the terminal client works with.
-pub const MIN_HOST: &str = "2.12.0";
+pub const MIN_HOST: &str = "2.20.1";
 
 /// Which side has to update before a client and a host can work together.
 #[derive(Debug, Clone, PartialEq, Eq)]

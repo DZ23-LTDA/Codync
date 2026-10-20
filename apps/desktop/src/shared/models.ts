@@ -37,6 +37,10 @@ export interface Bot {
   skills: string[]
   /** The bot can see and operate the computer's desktop. */
   computer: boolean
+  /** The bot can create bots (which can too) and change any bot's setup (the built-in `manage` tools); null from an older host. */
+  manageTeam: boolean | null
+  /** The bot that created this one; null when the user did. */
+  createdBy: string | null
   /** Uses the memory all the user's bots share ("About you"). */
   sharedMemory: boolean
   /** Keeps the harness's own memory (Claude Code's…) on beside Codync's; null where it has no switch. */
@@ -50,7 +54,6 @@ export interface Bot {
   activity: string
   startedAt?: number | null
   workingChat?: string | null
-  workingThread?: string | null
   unread: number
   lastMessage?: string | null
   lastAt: number
@@ -84,6 +87,8 @@ export function normalizeBot(raw: Partial<Bot> & { id: string }): Bot {
     connectors: raw.connectors ?? [],
     skills: raw.skills ?? [],
     computer: raw.computer ?? false,
+    manageTeam: raw.manageTeam ?? null,
+    createdBy: raw.createdBy ?? null,
     sharedMemory: raw.sharedMemory ?? raw.managedWorkspace ?? false,
     harnessMemory: raw.harnessMemory ?? null,
     memoryRev: raw.memoryRev ?? 0,
@@ -94,7 +99,6 @@ export function normalizeBot(raw: Partial<Bot> & { id: string }): Bot {
     activity: raw.activity ?? '',
     startedAt: raw.startedAt ?? null,
     workingChat: raw.workingChat ?? null,
-    workingThread: raw.workingThread ?? null,
     unread: raw.unread ?? 0,
     lastMessage: raw.lastMessage ?? null,
     lastAt: raw.lastAt ?? createdAt,
@@ -104,9 +108,8 @@ export function normalizeBot(raw: Partial<Bot> & { id: string }): Bot {
 export const isGroup = (b: Bot) => b.kind === 'group'
 export const isWorking = (b: Bot) => b.status === 'working' || b.status === 'needsInput'
 export const needsInput = (b: Bot) => b.status === 'needsInput'
-/** Working right now in this chat's main conversation (`thread == null`) or in that thread. */
-export const isWorkingIn = (b: Bot, chat: string, thread: string | null | undefined) =>
-  isWorking(b) && (b.workingChat ?? b.id) === chat && (b.workingThread ?? null) === (thread ?? null)
+/** Working right now in this chat (its own, or a group it's in). */
+export const isWorkingIn = (b: Bot, chat: string) => isWorking(b) && (b.workingChat ?? b.id) === chat
 export const folderName = (b: Bot) =>
   b.managedWorkspace ? 'Personal workspace' : (b.cwd.split('/').filter(Boolean).pop() ?? b.cwd)
 
@@ -149,12 +152,13 @@ export function groupBotReactions(reactions: BotReaction[]): { emoji: string; bo
   return groups
 }
 
-export interface ThreadSummary {
-  count: number
-  lastAt: number
-  /** Who replied, first reply first: bot ids, and `user`. */
-  authors: string[]
-  unread?: number
+/** The message a user message replies to, as the host quoted it. */
+export interface ReplyQuote {
+  id: string
+  /** `user`, or the bot that wrote it. */
+  author: string
+  /** Its text (or file names), at most 500 characters. */
+  text: string
 }
 
 export interface Attachment {
@@ -232,7 +236,8 @@ export interface EntryData {
   /** notice: info | error | divider */
   style?: string
   author?: string
-  thread?: ThreadSummary
+  /** user: the message this one replies to. */
+  replyTo?: ReplyQuote
   reactions?: string[]
   /** The bots' reactions, one per bot, oldest first. */
   botReactions?: BotReaction[]
@@ -245,7 +250,6 @@ export interface Entry {
   id: string
   seq: number
   botId: string
-  threadId?: string | null
   rev: number
   /** user | agent | thought | tool | plan | permission | notice */
   kind: string
@@ -270,6 +274,17 @@ export function isChat(e: Entry): boolean {
     default:
       return false
   }
+}
+
+/** Messages a reply can quote: the user's and the bots' final replies, once the computer has them. */
+export function isReplyable(e: Entry): boolean {
+  return !e.id.startsWith('local-') && (e.kind === 'user' || (e.kind === 'agent' && e.data.final === true))
+}
+
+/** The quote a sending reply shows until the computer's own replaces it. */
+export function quoteOf(e: Entry): ReplyQuote {
+  const names = [...(e.data.attachments ?? []), ...(e.data.files ?? [])].map((f) => f.name).join(', ')
+  return { id: e.id, author: e.kind === 'user' ? 'user' : (e.data.author ?? e.botId), text: (e.data.text || names).slice(0, 500) }
 }
 
 export interface UsageWindow {
@@ -476,6 +491,7 @@ export interface BotDraft {
   connectors?: string[]
   skills?: string[]
   computer?: boolean
+  manageTeam?: boolean
   sharedMemory?: boolean
   harnessMemory?: boolean
 }
@@ -500,6 +516,7 @@ export function draftOf(bot: Bot): BotDraft {
     connectors: bot.connectors,
     skills: bot.skills,
     computer: bot.computer,
+    manageTeam: bot.manageTeam ?? undefined,
   }
 }
 

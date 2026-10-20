@@ -124,7 +124,8 @@ public final class BotStore {
     /// a spinner on it and takes no second answer.
     public internal(set) var answering: [String: String] = [:]
 
-    @ObservationIgnored var readingViews: [UUID: ReadingScope] = [:]
+    /// The chats on screen, by the view showing each.
+    @ObservationIgnored var readingViews: [UUID: String] = [:]
 
     var cacheStamp: String?
 
@@ -143,7 +144,7 @@ public final class BotStore {
         self.storage = storage
         makeTransport = transport
         usage = storage.usage[computer.id] ?? Usage()
-        composerDrafts = storage.composerDrafts[computer.id] ?? [:]
+        composerDrafts = Self.chatDrafts(storage.composerDrafts[computer.id] ?? [:])
         loadCache()
     }
 
@@ -201,19 +202,12 @@ public final class BotStore {
 
     public var hiddenBots: [Bot] { bots.values.filter(\.hidden).sorted { $0.name < $1.name } }
 
-    /// A bot's or group's main chat (thread replies are left out).
-    public func chat(_ botId: String) -> [Entry] { (entries[botId] ?? []).filter { $0.threadId == nil } }
+    /// Everything in a bot's or group's chat this device has, oldest first (trace included).
+    public func chat(_ botId: String) -> [Entry] { entries[botId] ?? [] }
 
-    /// Everything in a chat, threads included (the full conversation).
-    public func allEntries(_ botId: String) -> [Entry] { entries[botId] ?? [] }
-
-    /// A catch-up full of thread replies can leave only a few main-chat entries, or none.
     public func canLoadOlder(_ botId: String) -> Bool {
-        !historyComplete.contains(botId) && allEntries(botId).contains { $0.seq > 0 && $0.seq != Int64.max }
+        !historyComplete.contains(botId) && chat(botId).contains { $0.seq > 0 && $0.seq != Int64.max }
     }
-
-    /// The replies in the thread on `root`, oldest first.
-    public func replies(_ botId: String, root: String) -> [Entry] { (entries[botId] ?? []).filter { $0.threadId == root } }
 
     /// A group's bots that still exist.
     public func members(of group: Bot) -> [Bot] { group.members.compactMap { bots[$0] } }

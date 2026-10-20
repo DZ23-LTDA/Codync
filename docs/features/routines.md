@@ -76,14 +76,18 @@ next deadlines and run records are saved in SQLite (`routines.v1`). Due triggers
 are coalesced into one run per routine; only one routine per bot is dispatched at a
 time. Bot actors serialize routine work with ordinary conversation work.
 
-Each run gets its own conversation thread and agent session. When the run ends,
-the agent stops if nothing else has a session open (it ran just for the run;
-not on Windows, see [agent processes](../architecture/conversation-runtime.md));
-otherwise only the run's session closes (agents that can close sessions). Either
-way a frequent schedule doesn't keep a set of MCP servers alive per run, and
-opening the run's thread resumes its session (agents that can resume sessions). Final results appear
-in the main conversation and use normal encrypted push delivery. Returning `(pass)`
-or no text completes silently. A test run can run a paused routine. Pausing or
+A run talks in the bot's chat: a "Routine · <name>" notice, then the run's trace and
+its reply, which is the result, all in the turn the notice takes when the run begins (a
+message sent meanwhile gets the next one). It runs in a fresh agent session of its own
+(`routines::session_slot`, kept in kv `lane.session.<bot>@<bot>/routine-<run>` so a
+restart can resume it, and forgotten once the run's outcome is saved). When the run ends, the agent stops if nothing else has a
+session open (it ran just for the run; not on Windows, see
+[agent processes](../architecture/conversation-runtime.md)); otherwise only the run's
+session closes (agents that can close sessions). Either way a frequent schedule
+doesn't keep a set of MCP servers alive per run. A successful run alerts with its
+reply through normal encrypted push delivery; a failed or interrupted one leaves a
+"Routine could not finish" notice. Returning `(pass)` or no text completes silently.
+Replying to a run's result goes to the bot's main session, with the result quoted. A test run can run a paused routine. Pausing or
 deleting cancels pending runs; work already running can finish. Deleting a bot
 cancels its pending work. Missed intervals coalesce rather than replaying a backlog.
 
@@ -95,9 +99,9 @@ in a new session. Session recovery cannot guarantee exactly-once external side
 effects; inspect the transcript before retrying an interrupted action.
 
 Each run has a timeout (default one hour, configurable from 1 to 86400 seconds).
-A hung agent is terminated so subsequent work can proceed. Completed results are
-persisted before publication, with stable transcript IDs to avoid duplicate
-results after restart. Failed publication retries without rerunning the agent.
+A hung agent is terminated so subsequent work can proceed. A run's outcome is
+saved before it is reported, and a failure notice has a stable transcript ID, so a
+restart never reports it twice. Failed reporting retries without rerunning the agent.
 The latest 1000 terminal runs are retained globally, plus active/unpublished runs;
 the panel returns the latest 200 runs per bot. Deduplication lasts while the
 corresponding run record is retained.

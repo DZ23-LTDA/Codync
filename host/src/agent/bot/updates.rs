@@ -8,6 +8,15 @@ use crate::remote::push::{self, AlertKind};
 use crate::store::{EntryKind, Permission};
 use serde_json::{Value, json};
 use std::time::{Duration, Instant};
+use tokio::sync::oneshot;
+
+/// Who waits for an approval card's answer.
+pub(super) enum Answer {
+    /// The agent's `session/request_permission`, by its JSON-RPC id.
+    Agent(Value),
+    /// A Codync tool (`Cmd::Approve`): true when the user allowed it.
+    Codync(oneshot::Sender<bool>),
+}
 
 impl Actor {
     pub(super) async fn on_incoming(&mut self, inc: Option<Incoming>) {
@@ -182,10 +191,29 @@ impl Actor {
             "status": "pending",
             "selected": Value::Null,
         });
+        self.show_card(&title, data, Answer::Agent(rpc_id));
+    }
+
+    /// `Cmd::Approve`: Allow or Deny on a card, with what the tool will do in its details.
+    pub(super) fn ask_approval(&mut self, title: &str, detail: &str, reply: oneshot::Sender<bool>) {
+        if self.turn.is_none() {
+            return; // dropping `reply` refuses: no turn waits on it
+        }
+        let data = json!({
+            "title": title, "toolKind": "other", "command": Value::Null, "detail": detail, "diffs": [],
+            "options": [{"optionId": "allow", "name": "Allow", "kind": "allow_once"},
+                        {"optionId": "deny", "name": "Deny", "kind": "reject_once"}],
+            "status": "pending", "selected": Value::Null,
+        });
+        self.show_card(title, data, Answer::Codync(reply));
+    }
+
+    /// Posts an approval card in the turn's lane and tells the user it needs them.
+    fn show_card(&mut self, title: &str, data: Value, answer: Answer) {
         let turn = self.turn.unwrap_or(0);
         self.close_seg();
         if let Some(e) = self.add(EntryKind::Permission, turn, data) {
-            self.perms.insert(e.id, rpc_id);
+            self.perms.insert(e.id, answer);
         }
         self.hub.set_runtime(&self.cfg.id, |r| {
             r.status = BotStatus::NeedsInput;
@@ -198,22 +226,46 @@ impl Actor {
             &target,
             Some(&self.cfg.id),
             &format!("{} needs you", self.cfg.name),
-            &title,
+            title,
             AlertKind::NeedsInput,
         );
     }
 
+    /// A Codync card whose tool stopped waiting (it timed out, or its call was dropped) expires, buttons and all.
+    pub(super) async fn expire_abandoned(&mut self) {
+        let gone: Vec<String> = self
+            .perms
+            .iter()
+            .filter(|(_, answer)| matches!(answer, Answer::Codync(reply) if reply.is_closed()))
+            .map(|(id, _)| id.clone())
+            .collect();
+        for id in gone {
+            self.answer_permission(&id, None).await;
+        }
+    }
+
     pub(super) async fn answer_permission(&mut self, entry_id: &str, option_id: Option<String>) {
-        let Some(rpc_id) = self.perms.remove(entry_id) else { return };
-        let outcome = match &option_id {
-            Some(o) => json!({"outcome": {"outcome": "selected", "optionId": o}}),
-            None => json!({"outcome": {"outcome": "cancelled"}}),
-        };
-        if let Some(conn) = &self.conn {
-            let _ = conn.acp.respond(rpc_id, outcome).await;
+        let Some(answer) = self.perms.remove(entry_id) else { return };
+        let mut status = if option_id.is_some() { "answered" } else { "cancelled" };
+        match answer {
+            Answer::Agent(rpc_id) => {
+                let outcome = match &option_id {
+                    Some(o) => json!({"outcome": {"outcome": "selected", "optionId": o}}),
+                    None => json!({"outcome": {"outcome": "cancelled"}}),
+                };
+                if let Some(conn) = &self.conn {
+                    let _ = conn.acp.respond(rpc_id, outcome).await;
+                }
+            }
+            Answer::Codync(reply) => {
+                // The tool stopped waiting (see `expire_abandoned`): nothing acts on the answer.
+                if reply.send(option_id.as_deref() == Some("allow")).is_err() {
+                    status = "expired";
+                }
+            }
         }
         if let Some(mut e) = self.hub.store.entry(entry_id) {
-            e.data["status"] = if option_id.is_some() { "answered" } else { "cancelled" }.into();
+            e.data["status"] = status.into();
             e.data["selected"] = option_id.into();
             self.hub.set_entry(entry_id, &e.data);
         }
@@ -226,8 +278,8 @@ impl Actor {
     }
 
     /// A `send_message`: the user's next bubble, in the turn's lane, right away. Only in the
-    /// bot's own chat and threads, including independent messages; a room, an ask or a
-    /// routine reads the turn's reply.
+    /// bot's own chat, including independent messages; a room, an ask or a routine reads
+    /// the turn's reply.
     pub(super) fn send_to_user(&mut self, text: String) -> anyhow::Result<()> {
         let Some(turn) = self.turn else { anyhow::bail!("no turn is running") };
         if self.active_request.as_ref().is_some_and(crate::chat::team::BotRequest::expects_reply) {

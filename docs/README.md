@@ -28,7 +28,7 @@ Source review, a passing build, local integration tests and production acceptanc
 ## Features
 
 - [Chat messages](features/chat-messages.md)
-- [Group chats and reply threads](features/groups-and-threads.md)
+- [Group chats and replies](features/groups-and-replies.md)
 - [Bot-to-bot collaboration](features/bot-collaboration.md)
 - [Context and memory](features/context-and-memory.md)
 - [Bot memory and compaction](design/bot-memory.md) (design; storage, gate and dreaming built, compaction to come)

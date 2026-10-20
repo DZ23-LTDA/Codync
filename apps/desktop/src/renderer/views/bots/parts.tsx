@@ -1,12 +1,10 @@
 import { useId, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from 'react'
 import { createPortal } from 'react-dom'
-import type { Bot } from '@shared/models'
-import { BotAvatar } from '../../components/Avatar'
+import { CharacterAvatar } from '../../components/Avatar'
 import { RowLabel, Switch } from '../../components/Controls'
-import { Icon } from '../../components/Icon'
 import { anchorPlacement, useEscape, usePresence } from '../../components/Overlay'
 import { VStack } from '../../components/Stack'
-import { Text } from '../../components/Text'
+import { AVATAR_COLORS, AVATAR_SHAPES } from '../../lib/theme'
 import './bots.css'
 
 /** A labeled input inside a section row: label (and an optional note) over the field, which they name. */
@@ -52,16 +50,25 @@ export function AutoTextArea({ value, onChange, placeholder, minRows, maxRows, c
   return <textarea ref={ref} rows={minRows} className={className} value={value} placeholder={placeholder} onChange={(e) => onChange(e.target.value)} onKeyDown={onKeyDown} />
 }
 
-/** A picked bot (To: field, group editor); its x takes it back out. */
-export function BotChip({ bot, onRemove }: { bot: Bot; onRemove: () => void }) {
+/** The avatar's shape and color: each a wrapping, centered row of choices, ringed when picked. */
+export function AvatarPicker({ shape, color, onShape, onColor }: { shape: string; color: string; onShape: (s: string) => void; onColor: (c: string) => void }) {
   return (
-    <span className="bot-chip">
-      <BotAvatar bot={bot} size={20} animated={false} />
-      <Text size="body" tone="text" truncate className="bot-chip-name">{bot.name}</Text>
-      <button className="bot-chip-remove" aria-label={`Remove ${bot.name}`} title={`Remove ${bot.name}`} onClick={onRemove}>
-        <Icon name="xmark" size={10} weight="semibold" color="var(--secondary)" />
-      </button>
-    </span>
+    <VStack gap={12} className="avatar-picker">
+      <div className="swatch-row">
+        {AVATAR_SHAPES.map((s) => (
+          <button key={s} className={`swatch ${s === shape ? 'on' : ''}`} aria-label={`${s} shape`} aria-pressed={s === shape} onClick={() => onShape(s)}>
+            <CharacterAvatar shape={s} color={color} size={36} />
+          </button>
+        ))}
+      </div>
+      <div className="swatch-row">
+        {AVATAR_COLORS.map((c) => (
+          <button key={c.id} className={`swatch ${c.id === color ? 'on' : ''}`} aria-label={c.label} aria-pressed={c.id === color} onClick={() => onColor(c.id)}>
+            <span className="swatch-color" style={{ background: c.hex }} />
+          </button>
+        ))}
+      </div>
+    </VStack>
   )
 }
 

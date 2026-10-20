@@ -1,4 +1,4 @@
-//! The new/edit bot and group chat forms.
+//! The bot settings form and the new/edit group chat form.
 
 use ratatui::buffer::Buffer;
 use ratatui::layout::{Position, Rect};
@@ -13,16 +13,22 @@ use super::chat::composer_lines;
 use super::overlay::input_line;
 use super::set_cursor;
 use super::style::{FACE, avatar, bot_color, face_style, theme};
+use super::time::{MONTHS, local, month_day};
+
+/// "created by Lead · Oct 20" for a bot another bot created (`chat::manage`).
+fn created_by(app: &App, id: &str) -> Option<String> {
+    let bot = app.bots.get(id)?;
+    let creator = app.bots.get(bot.created_by.as_deref()?).map_or("a bot", |b| b.name.as_str());
+    let (month, day) = month_day(local(bot.created_at).0);
+    Some(format!("created by {creator} · {} {day}", MONTHS[month]))
+}
 
 pub(super) fn form_view(buf: &mut Buffer, area: Rect, app: &App, f: &Form) {
     let t = theme();
-    let r = centered(area, 88, if f.bot_id.is_some() { 34 } else { 32 });
-    let title = match &f.bot_id {
-        Some(id) => app.bots.get(id).map_or_else(|| f.name.text.clone(), |b| b.name.clone()),
-        None => "New bot · 2/2 name and looks".into(),
-    };
+    let r = centered(area, 88, 38);
+    let title = app.bots.get(&f.bot_id).map_or_else(|| f.name.text.clone(), |b| b.name.clone());
     let inner = frame_box(buf, r, t.text, t.panel, Some((&title, t.text)));
-    let inner = if f.bot_id.is_some() { page_tabs(buf, inner, Page::Settings) } else { inner };
+    let inner = page_tabs(buf, inner, Page::Settings);
     let wide = inner.width >= 70;
     let fx = if wide { inner.x + 18 } else { inner.x };
     if wide {
@@ -57,6 +63,7 @@ pub(super) fn form_view(buf: &mut Buffer, area: Rect, app: &App, f: &Form) {
             Field::Approvals => "Approvals",
             Field::Notify => "Notify",
             Field::Computer => "Use computer",
+            Field::Team => "Manage team",
             Field::Color => "Color",
             Field::Shape => "Shape",
             Field::Connectors => "Connectors",
@@ -86,9 +93,12 @@ pub(super) fn form_view(buf: &mut Buffer, area: Rect, app: &App, f: &Form) {
         };
         match field {
             Field::Name => {
-                // A new bot may stay unnamed: the host names it after its first conversations.
-                let placeholder = if f.bot_id.is_none() { "Named after a few chats" } else { "Name" };
-                text_field(buf, &f.name, placeholder, y);
+                text_field(buf, &f.name, "Name", y);
+                if let Some(by) = created_by(app, &f.bot_id)
+                    && w(&f.name.text) + w(&by) + 2 < usize::from(vw)
+                {
+                    rput(buf, inner.right(), y, &by, t.dim.patch(base));
+                }
             }
             Field::Instructions => {
                 text_field(buf, &f.instructions, "e.g. Reviews PRs. Never pushes without asking.", y);
@@ -112,7 +122,7 @@ pub(super) fn form_view(buf: &mut Buffer, area: Rect, app: &App, f: &Form) {
             Field::Fast => {
                 let s = if f.fast { "◉ On   ○ Off" } else { "○ On   ◉ Off" };
                 // Known once the agent's model list loads, or once the bot's own sessions say.
-                let saved = f.bot_id.as_ref().and_then(|id| app.bots.get(id)).filter(|b| b.backend == f.backend);
+                let saved = app.bots.get(&f.bot_id).filter(|b| b.backend == f.backend);
                 let offered = match app.models.get(&f.backend) {
                     _ if saved.is_some_and(super::super::app::Bot::fast_shown) => "",
                     Some(Some(_)) if !app.fast_mode.contains(&f.backend) => "  · not offered by this agent",
@@ -168,6 +178,14 @@ pub(super) fn form_view(buf: &mut Buffer, area: Rect, app: &App, f: &Form) {
                 let status = super::computer_access::status(&app.screen, app.online);
                 put(buf, vx, y, vw, &format!("{s}  · {status}"), t.text.patch(base));
             }
+            Field::Team => {
+                let s = match f.manage_team {
+                    Some(true) => "◉ On   ○ Off",
+                    Some(false) => "○ On   ◉ Off",
+                    None => "Needs a newer Codync host",
+                };
+                put(buf, vx, y, vw, s, t.text.patch(base));
+            }
             Field::Notify => {
                 let s = if f.notify { "◉ Done and needs-you   ○ Off" } else { "○ Done and needs-you   ◉ Off" };
                 put(buf, vx, y, vw, s, t.text.patch(base));
@@ -210,7 +228,7 @@ pub(super) fn form_view(buf: &mut Buffer, area: Rect, app: &App, f: &Form) {
     if let Some(e) = &f.error {
         put(buf, inner.x, by - 1, inner.width, e, t.red.patch(t.panel));
     } else if f.current() == Field::Fast {
-        let refusal = f.bot_id.as_ref().and_then(|id| app.bots.get(id)).and_then(super::super::app::Bot::fast_refusal);
+        let refusal = app.bots.get(&f.bot_id).and_then(super::super::app::Bot::fast_refusal);
         let (line, style) = match refusal {
             Some(why) => (why, t.amber),
             None => ("Faster replies for more usage, on models that offer it (Claude Code, Codex)".to_owned(), t.dim),
@@ -225,14 +243,12 @@ pub(super) fn form_view(buf: &mut Buffer, area: Rect, app: &App, f: &Form) {
             "Set up on the computer: Codync → Settings → Computer access",
             t.dim.patch(t.panel),
         );
+    } else if f.current() == Field::Team {
+        let line =
+            "Let this bot create bots and change any bot's setup, its own included. The bots it creates can too.";
+        put(buf, inner.x, by - 1, inner.width, line, t.dim.patch(t.panel));
     }
-    let save = if f.saving {
-        " … Saving "
-    } else if f.bot_id.is_some() {
-        " ↵ Save "
-    } else {
-        " ↵ Create "
-    };
+    let save = if f.saving { " … Saving " } else { " ↵ Save " };
     let x = put(buf, inner.x, by, 14, save, t.btn_primary) + 1;
     put(buf, x, by, 12, " esc Cancel ", t.text.patch(t.btn).add_modifier(Modifier::BOLD));
     let hint = match f.current() {
@@ -242,9 +258,13 @@ pub(super) fn form_view(buf: &mut Buffer, area: Rect, app: &App, f: &Form) {
         Field::Skills => "←→ move · space toggle · i details · tab next",
         Field::Agent => "←→ change · ↵ install / sign in · tab next",
         Field::Model => "←→ pick a model · or type its id",
-        Field::Fast | Field::Color | Field::Shape | Field::Approvals | Field::Notify | Field::Computer => {
-            "←→ change · tab next field"
-        }
+        Field::Fast
+        | Field::Color
+        | Field::Shape
+        | Field::Approvals
+        | Field::Notify
+        | Field::Computer
+        | Field::Team => "←→ change · tab next field",
         Field::Instructions => "⇧↵ new line · tab next field",
         Field::Name => "tab next field · ^s save",
     };
@@ -254,14 +274,17 @@ pub(super) fn form_view(buf: &mut Buffer, area: Rect, app: &App, f: &Form) {
 pub(super) fn group_view(buf: &mut Buffer, area: Rect, app: &App, g: &GroupForm) {
     let t = theme();
     let bots = app.group_candidates(&g.members);
-    let r = centered(area, 74, u(bots.len() + 12).max(16));
-    let title = if g.group_id.is_some() { "Group chat" } else { "New group chat" };
+    // A new group gets its About afterwards, in the editor.
+    let about = g.group_id.is_some();
+    let top = if about { 4 } else { 2 };
+    let r = centered(area, 74, u(bots.len() + 8).saturating_add(top).max(16));
+    let title = if about { "Group chat" } else { "New group chat" };
     let inner = frame_box(buf, r, t.text, t.panel, Some((title, t.text)));
     let label = |on: bool| if on { t.bold } else { t.secondary }.patch(t.panel);
     let on_bots = g.field == GroupField::Bots;
     put(buf, inner.x, inner.y, 8, "Name", label(g.field == GroupField::Name));
     let default = app.group_default_name(&g.members);
-    let placeholder = if default.is_empty() { "Name" } else { default.as_str() };
+    let placeholder = if default.is_empty() { "Name your group" } else { default.as_str() };
     input_line(
         buf,
         Rect::new(inner.x + 8, inner.y, inner.width.saturating_sub(8), 1),
@@ -271,23 +294,25 @@ pub(super) fn group_view(buf: &mut Buffer, area: Rect, app: &App, g: &GroupForm)
         g.field == GroupField::Name,
         false,
     );
-    put(buf, inner.x, inner.y + 2, 8, "About", label(g.field == GroupField::About));
-    input_line(
-        buf,
-        Rect::new(inner.x + 8, inner.y + 2, inner.width.saturating_sub(8), 1),
-        inner.y + 2,
-        &g.about,
-        "What this group works on (optional)",
-        g.field == GroupField::About,
-        false,
-    );
-    put(buf, inner.x, inner.y + 4, inner.width, &format!("Bots · {}", g.members.len()), label(on_bots));
-    let list_h = usize::from(inner.height.saturating_sub(9));
+    if about {
+        put(buf, inner.x, inner.y + 2, 8, "About", label(g.field == GroupField::About));
+        input_line(
+            buf,
+            Rect::new(inner.x + 8, inner.y + 2, inner.width.saturating_sub(8), 1),
+            inner.y + 2,
+            &g.about,
+            "What this group works on (optional)",
+            g.field == GroupField::About,
+            false,
+        );
+    }
+    put(buf, inner.x, inner.y + top, inner.width, &format!("Bots · {}", g.members.len()), label(on_bots));
+    let list_h = usize::from(inner.height.saturating_sub(top + 5));
     let off = g.cursor.saturating_sub(list_h.saturating_sub(1));
     if bots.is_empty() {
-        put(buf, inner.x, inner.y + 5, inner.width, "No bots yet. n creates one.", t.dim.patch(t.panel));
+        put(buf, inner.x, inner.y + top + 1, inner.width, "No bots yet. Create a bot first.", t.dim.patch(t.panel));
     }
-    for (y, (i, b)) in (inner.y + 5..).zip(bots.iter().enumerate().skip(off).take(list_h)) {
+    for (y, (i, b)) in (inner.y + top + 1..).zip(bots.iter().enumerate().skip(off).take(list_h)) {
         let sel = on_bots && i == g.cursor;
         let base = if sel { t.sel } else { t.panel };
         if sel {
@@ -319,7 +344,7 @@ pub(super) fn group_view(buf: &mut Buffer, area: Rect, app: &App, g: &GroupForm)
     }
     let save = if g.saving {
         " … Saving "
-    } else if g.group_id.is_some() {
+    } else if about {
         " ↵ Save "
     } else {
         " ↵ Create "

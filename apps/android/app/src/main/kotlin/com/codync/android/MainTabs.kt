@@ -42,7 +42,7 @@ private enum class AppTab { Bots, State }
     val bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
     val barSpace = bottom + 62.dp + 24.dp
     GlassStage(Modifier.fillMaxSize(), chrome = {
-        // An account computer this phone asked on its own after sign-in: the code to check, until it answers.
+        // An access request still waiting after its sheet closed: the code to check, until the computer answers.
         val ticket = state.access
         AnimatedVisibility(ticket != null && state.selectedBot == null, Modifier.align(Alignment.BottomCenter).padding(bottom = barSpace - 16.dp),
             enter = fadeIn(Motion.fade()) + slideInVertically(Motion.layoutOffset) { it }, exit = fadeOut(Motion.fade()) + slideOutVertically(Motion.layoutOffset) { it }) {

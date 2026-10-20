@@ -163,7 +163,7 @@ extension BotStore {
         heldDrop = nil
         if new != connection { Motion.animate { connection = new } }
         if recovering {
-            for scope in Set(readingViews.values) { markRead(scope.botId, thread: scope.thread) }
+            for botId in Set(readingViews.values) { markRead(botId) }
         }
     }
 

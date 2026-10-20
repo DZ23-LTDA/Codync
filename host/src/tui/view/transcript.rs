@@ -1,4 +1,4 @@
-//! A chat's lines: messages, turns, threads and reactions.
+//! A chat's lines: messages, the messages replies quote, turns and reactions.
 
 use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
@@ -9,8 +9,9 @@ use super::super::md::{self, truncate, width as w};
 use super::buffer::u;
 use super::chat::with_bg;
 use super::permission::{decided_line, permission_card};
+use super::roster::plain;
 use super::style::{FACE, bot_color, face_style, person, spin, theme};
-use super::time::{clock, when};
+use super::time::clock;
 
 pub(super) struct Built {
     pub(super) lines: Vec<Line<'static>>,
@@ -58,43 +59,22 @@ pub(super) fn name_style(color: &str) -> Style {
     if t.color { Style::default().fg(bot_color(color)).add_modifier(Modifier::BOLD) } else { t.bold }
 }
 
-/// "3 replies", "1 reply".
-fn replies(n: i64) -> String {
-    if n == 1 { "1 reply".into() } else { format!("{n} replies") }
-}
-
 pub(super) fn build_chat(app: &App, b: &Bot, width: usize) -> Built {
     let t = theme();
     let mut out = Built { lines: vec![], buttons: vec![], messages: vec![] };
-    let thread = app.thread.as_deref();
     let entries = app.lane(&b.id);
     let info = turn_info(&entries);
-    if entries.is_empty() && thread.is_none() {
+    if entries.is_empty() {
         intro(&mut out, app, b, width);
         return out;
     }
-    if thread.is_none() && !app.history_complete(&b.id) {
+    if !app.history_complete(&b.id) {
         out.lines.push(Line::from(Span::styled(" ↑ older messages load when you scroll up", t.dim)));
     }
-    if let Some(root) = thread {
-        // The message the thread is on, then its replies.
-        if let Some(e) = app.entries.get(&b.id).and_then(|m| m.values().find(|e| e.id == root)) {
-            entry_lines(&mut out, app, b, e, &HashMap::new(), false, width);
-        }
-        let n = entries.iter().filter(|e| e.is_message()).count();
-        let label = if n == 0 {
-            " No replies yet ".to_owned()
-        } else {
-            format!(" {} ", replies(i64::try_from(n).unwrap_or(0)))
-        };
-        gap(&mut out);
-        let side = width.saturating_sub(w(&label) + 4);
-        out.lines.push(Line::from(Span::styled(format!(" ───{label}{}", "─".repeat(side)), t.dim)));
-    }
     // A bot's messages arrive whole (Grok Bot's `send_message`); what it writes along the way is trace.
-    for item in group(&b.id, &entries, thread.is_none()) {
+    for item in group(&b.id, &entries) {
         match item {
-            Item::Entry(e) => entry_lines(&mut out, app, b, e, &info, thread.is_none(), width),
+            Item::Entry(e) => entry_lines(&mut out, app, b, e, &info, width),
             Item::Group(g) => {
                 let from = out.lines.len();
                 let lead = format!("{} messages with ", g.count);
@@ -105,7 +85,7 @@ pub(super) fn build_chat(app: &App, b: &Bot, width: usize) -> Built {
     // A turn in flight: who's on it and what they're doing.
     let last_turn = entries.iter().map(|e| e.turn).max().unwrap_or(0);
     // A message doesn't end the turn: the bot may send several.
-    if b.status == Status::Working && b.works_in(thread) {
+    if b.status == Status::Working && b.works_here() {
         gap(&mut out);
         out.lines.push(Line::from(Span::styled(format!(" {}", b.name), name_style(&b.color))));
         let act = if b.activity.is_empty() { "Working…".to_owned() } else { b.activity.clone() };
@@ -120,13 +100,9 @@ pub(super) fn build_chat(app: &App, b: &Bot, width: usize) -> Built {
                 t.dim,
             )));
         }
-    } else if matches!(b.status, Status::Working | Status::NeedsInput) && !b.works_in(thread) {
-        // Busy somewhere else: another thread here, or a group it's in.
-        let place = match b.away() {
-            Some(g) => app.author_name(Some(g)),
-            None if b.working_thread.is_some() => "a thread".to_owned(),
-            None => "the chat".to_owned(),
-        };
+    } else if let Some(group) = b.away().filter(|_| matches!(b.status, Status::Working | Status::NeedsInput)) {
+        // Busy in a group it's in.
+        let place = app.author_name(Some(group));
         gap(&mut out);
         let line = if b.status == Status::NeedsInput {
             Span::styled(format!(" ◆ Needs you in {place} · ! opens it"), t.amber)
@@ -175,16 +151,8 @@ fn intro(out: &mut Built, app: &App, b: &Bot, width: usize) {
     out.lines.extend(md::wrap(&[Span::styled(hello, t.secondary)], width, &[Span::raw("  ")], &[Span::raw("  ")]));
 }
 
-/// One chat entry. `main`: the main chat, where a message shows its thread's replies line.
-fn entry_lines(
-    out: &mut Built,
-    app: &App,
-    b: &Bot,
-    e: &Entry,
-    info: &HashMap<i64, TurnInfo>,
-    main: bool,
-    width: usize,
-) {
+/// One chat entry.
+fn entry_lines(out: &mut Built, app: &App, b: &Bot, e: &Entry, info: &HashMap<i64, TurnInfo>, width: usize) {
     let t = theme();
     // In a group each reply is its author's; elsewhere the bot's own.
     let author = if b.group { app.bots.get(e.data["author"].as_str().unwrap_or_default()) } else { Some(b) };
@@ -202,6 +170,7 @@ fn entry_lines(
                 _ => {}
             }
             out.lines.push(Line::from(head));
+            out.lines.extend(quote_line(e, width));
             let mut body = if e.text().is_empty() {
                 vec![]
             } else {
@@ -222,9 +191,6 @@ fn entry_lines(
             out.lines.extend(with_bg(body, width, t.band));
             reactions(out, app, e);
             out.messages.push((e.id.clone(), from, out.lines.len()));
-            if main {
-                thread_line(out, app, e);
-            }
         }
         Kind::Agent if e.is_final() => {
             gap(out);
@@ -265,9 +231,6 @@ fn entry_lines(
                     format!("   ↳ {} step{}{files} · o opens them", ti.steps, if ti.steps == 1 { "" } else { "s" }),
                     t.dim,
                 )));
-            }
-            if main {
-                thread_line(out, app, e);
             }
         }
         Kind::Permission => {
@@ -413,33 +376,10 @@ fn file_size(bytes: u64) -> String {
     }
 }
 
-/// Under a message with a thread: how many replies, how recently (click opens it).
-fn thread_line(out: &mut Built, app: &App, e: &Entry) {
-    let Some(text) = thread_summary(&e.data["thread"]) else { return };
-    let mut line = vec![Span::raw("   "), Span::styled(text, theme().secondary)];
-    // Who replied: one cell each, first reply first (the host keeps them distinct).
-    let authors: Vec<&str> =
-        e.data["thread"]["authors"].as_array().into_iter().flatten().filter_map(|a| a.as_str()).collect();
-    for a in authors.iter().take(5) {
-        line.push(Span::raw(" "));
-        line.push(person(app, a));
-    }
-    if authors.len() > 5 {
-        line.push(Span::styled(format!(" +{}", authors.len() - 5), theme().dim));
-    }
-    let width = u(line.iter().skip(1).map(|s| w(&s.content)).sum());
-    out.buttons.push((out.lines.len(), 3, width, Click::Thread(e.id.clone())));
-    out.lines.push(Line::from(line));
-}
-
-/// "↳ 3 replies · 12:31" (or "· 1 new") from the host's `data.thread`, or nothing without replies.
-fn thread_summary(v: &serde_json::Value) -> Option<String> {
-    let n = v["count"].as_i64().filter(|&n| n > 0)?;
-    let at = match v["unread"].as_i64().unwrap_or(0) {
-        0 => when(v["lastAt"].as_i64().unwrap_or(0)),
-        unread => format!("{unread} new"),
-    };
-    Some(if at.is_empty() { format!("↳ {}", replies(n)) } else { format!("↳ {} · {at}", replies(n)) })
+/// The message a reply answers, on one line above its text.
+fn quote_line(e: &Entry, width: usize) -> Option<Line<'static>> {
+    let text = plain(e.data["replyTo"]["text"].as_str()?);
+    Some(Line::from(Span::styled(format!(" ↳ “{}”", truncate(&text, width.saturating_sub(6))), theme().dim)))
 }
 
 #[cfg(test)]
@@ -481,7 +421,6 @@ mod tests {
             turn: 1,
             kind: Kind::Notice,
             created_at: 0,
-            thread_id: None,
             data: serde_json::json!({
                 "text": "Messaged b: Please review the secret plan\nCompleted.", "style": "info", "status": status,
                 "heading": "Messaged b: Please review the secret plan",
@@ -497,7 +436,7 @@ mod tests {
         let bot = &app.bots["a"];
         let render = |e: &Entry| {
             let mut out = Built { lines: vec![], buttons: vec![], messages: vec![] };
-            entry_lines(&mut out, &app, bot, e, &HashMap::new(), true, 80);
+            entry_lines(&mut out, &app, bot, e, &HashMap::new(), 80);
             out
         };
         let ok = render(&exchange_entry("completed"));
@@ -521,14 +460,14 @@ mod tests {
         line.data =
             serde_json::json!({"text": "Remembered: likes tea", "memory": {"action": "remember", "status": "done"}});
         let mut out = Built { lines: vec![], buttons: vec![], messages: vec![] };
-        entry_lines(&mut out, &app, &app.bots["a"], &line, &HashMap::new(), true, 80);
+        entry_lines(&mut out, &app, &app.bots["a"], &line, &HashMap::new(), 80);
         assert!(out.lines.is_empty() && out.messages.is_empty());
         line.data = serde_json::json!({"text": "Kept this conversation.", "handoff": {"status": "kept"}});
-        entry_lines(&mut out, &app, &app.bots["a"], &line, &HashMap::new(), true, 80);
+        entry_lines(&mut out, &app, &app.bots["a"], &line, &HashMap::new(), 80);
         assert!(out.lines.is_empty(), "a kept handoff changed nothing");
         line.data =
             serde_json::json!({"text": "Earlier context was summarized to make room.", "compaction": {"byHost": true}});
-        entry_lines(&mut out, &app, &app.bots["a"], &line, &HashMap::new(), true, 80);
+        entry_lines(&mut out, &app, &app.bots["a"], &line, &HashMap::new(), 80);
         assert!(out.lines.is_empty(), "a summary keeps the same conversation going");
     }
 
@@ -546,9 +485,9 @@ mod tests {
         let refs: Vec<&Entry> = entries.iter().collect();
         let build = |refs: &[&Entry]| {
             let mut out = Built { lines: vec![], buttons: vec![], messages: vec![] };
-            for item in group(&bot.id, refs, true) {
+            for item in group(&bot.id, refs) {
                 match item {
-                    Item::Entry(e) => entry_lines(&mut out, &app, bot, e, &HashMap::new(), true, 80),
+                    Item::Entry(e) => entry_lines(&mut out, &app, bot, e, &HashMap::new(), 80),
                     Item::Group(g) => {
                         let lead = format!("{} messages with ", g.count);
                         bot_message_line(&mut out, &app, g.first, &g.peer, &lead, g.failed, 0);
@@ -568,14 +507,20 @@ mod tests {
     }
 
     #[test]
-    fn thread_summary_counts_replies() {
-        assert_eq!(thread_summary(&serde_json::json!({"count": 0})), None);
-        assert_eq!(thread_summary(&serde_json::Value::Null), None);
-        assert_eq!(thread_summary(&serde_json::json!({"count": 1})).as_deref(), Some("↳ 1 reply"));
-        assert_eq!(thread_summary(&serde_json::json!({"count": 3, "lastAt": 0})).as_deref(), Some("↳ 3 replies"));
-        assert_eq!(
-            thread_summary(&serde_json::json!({"count": 3, "lastAt": 0, "unread": 1})).as_deref(),
-            Some("↳ 3 replies · 1 new")
-        );
+    fn a_reply_shows_the_message_it_answers() {
+        let app = app_with_bots();
+        let reply = Entry {
+            id: "u".into(),
+            seq: 2,
+            turn: 2,
+            kind: Kind::User,
+            created_at: 0,
+            data: serde_json::json!({"text": "why?", "replyTo": {"id": "e", "author": "a", "text": "## Plan\n- ready"}}),
+        };
+        let mut out = Built { lines: vec![], buttons: vec![], messages: vec![] };
+        entry_lines(&mut out, &app, &app.bots["a"], &reply, &HashMap::new(), 80);
+        let text: Vec<String> = out.lines.iter().map(ToString::to_string).collect();
+        assert_eq!(text[1], " ↳ “Plan”", "{text:?}");
+        assert!(text[2].contains("why?"));
     }
 }

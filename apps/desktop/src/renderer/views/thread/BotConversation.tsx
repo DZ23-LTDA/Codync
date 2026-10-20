@@ -59,7 +59,7 @@ export function BotConversationView({ botId, peerId }: { botId: string; peerId: 
   const [fetched, setFetched] = useState<Entry[] | null>(null)
   const [error, setError] = useState<string | null>(null)
   const scroller = useRef<HTMLDivElement>(null)
-  const rows = buildBotConversation(botConversation(fetched ?? [], store.chat(botId), peerId))
+  const rows = buildBotConversation(botConversation(fetched ?? [], store.allEntries(botId), peerId))
 
   useEffect(() => {
     let current = true

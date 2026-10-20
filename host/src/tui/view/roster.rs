@@ -111,8 +111,8 @@ pub(super) fn roster(buf: &mut Buffer, r: Rect, app: &mut App, narrow: bool) {
     }
 }
 
-/// A one-line preview without Markdown punctuation.
-fn plain(s: &str) -> String {
+/// A one-line preview without Markdown punctuation: its first line (also how a reply's quote shows).
+pub(super) fn plain(s: &str) -> String {
     let line = s.lines().map(str::trim).find(|l| !l.is_empty()).unwrap_or_default();
     line.trim_start_matches(['#', '>', '-', '*', ' ']).replace("**", "").replace('`', "")
 }

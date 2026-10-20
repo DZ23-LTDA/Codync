@@ -1,6 +1,6 @@
-//! The `entries` table: the transcript of every chat and thread.
+//! The `entries` table: the transcript of every chat.
 
-use super::model::{Entry, EntryKind, Lane, ReadScope};
+use super::model::{Entry, EntryKind, Lane};
 use super::{Store, logged, next_rev, now_ms};
 use crate::LockExt;
 use anyhow::{Result, ensure};
@@ -20,11 +20,10 @@ fn row_entry(r: &rusqlite::Row) -> rusqlite::Result<Entry> {
         data: serde_json::from_str(&data).unwrap_or(Value::Null),
         created_at: r.get(7)?,
         updated_at: r.get(8)?,
-        thread_id: r.get(9)?,
     })
 }
 
-const ENTRY_COLS: &str = "seq, id, bot_id, rev, kind, turn, data, created_at, updated_at, thread_id";
+const ENTRY_COLS: &str = "seq, id, bot_id, rev, kind, turn, data, created_at, updated_at";
 /// A bot still winding down after its deletion can't leave lines behind (`?2` is the chat).
 const LIVE_CHAT: &str = "WHERE NOT EXISTS (SELECT 1 FROM bots WHERE id = ?2 AND deleted = 1)";
 
@@ -36,17 +35,16 @@ impl Store {
         let id = uuid::Uuid::new_v4().to_string();
         let added = c.execute(
             &format!(
-                "INSERT INTO entries(id, bot_id, thread_id, rev, kind, turn, data, created_at, updated_at)
-                 SELECT ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?8 {LIVE_CHAT}"
+                "INSERT INTO entries(id, bot_id, rev, kind, turn, data, created_at, updated_at)
+                 SELECT ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?7 {LIVE_CHAT}"
             ),
-            params![id, lane.chat, lane.thread, rev, kind.as_str(), turn, data.to_string(), now],
+            params![id, lane.chat, rev, kind.as_str(), turn, data.to_string(), now],
         )?;
         ensure!(added == 1, "the chat was deleted");
         Ok(Entry {
             id,
             seq: c.last_insert_rowid(),
             bot_id: lane.chat.clone(),
-            thread_id: lane.thread.clone(),
             rev,
             kind: kind.as_str().to_owned(),
             turn,
@@ -57,7 +55,14 @@ impl Store {
     }
 
     /// Deterministic IDs make routine transcript publication retryable after a crash.
-    pub fn insert_entry_once(&self, id: &str, lane: &Lane, kind: EntryKind, data: &Value) -> Result<(Entry, bool)> {
+    pub fn insert_entry_once(
+        &self,
+        id: &str,
+        lane: &Lane,
+        kind: EntryKind,
+        turn: i64,
+        data: &Value,
+    ) -> Result<(Entry, bool)> {
         let mut c = self.db.locked();
         let tx = c.transaction()?;
         if let Some(entry) =
@@ -67,8 +72,8 @@ impl Store {
         }
         let rev = next_rev(&tx)?;
         let now = now_ms();
-        let added = tx.execute(&format!("INSERT INTO entries(id, bot_id, thread_id, rev, kind, turn, data, created_at, updated_at) SELECT ?1, ?2, ?3, ?4, ?5, 0, ?6, ?7, ?7 {LIVE_CHAT}"),
-            params![id, lane.chat, lane.thread, rev, kind.as_str(), data.to_string(), now])?;
+        let added = tx.execute(&format!("INSERT INTO entries(id, bot_id, rev, kind, turn, data, created_at, updated_at) SELECT ?1, ?2, ?3, ?4, ?7, ?5, ?6, ?6 {LIVE_CHAT}"),
+            params![id, lane.chat, rev, kind.as_str(), data.to_string(), now, turn])?;
         ensure!(added == 1, "the chat was deleted");
         let entry = tx.query_row(&format!("SELECT {ENTRY_COLS} FROM entries WHERE id = ?"), [id], row_entry)?;
         tx.commit()?;
@@ -125,11 +130,11 @@ impl Store {
         Ok(st.query_map(params![since, cap], row_entry)?.collect::<rusqlite::Result<_>>()?)
     }
 
-    /// Older main-chat entries (threads load whole with [`Self::thread`]).
+    /// Older entries of a chat.
     pub fn history(&self, bot_id: &str, before_seq: i64, limit: i64) -> Result<Vec<Entry>> {
         let c = self.db.locked();
         let mut st = c.prepare(&format!(
-            "SELECT {ENTRY_COLS} FROM entries WHERE bot_id = ?1 AND thread_id IS NULL AND seq < ?2
+            "SELECT {ENTRY_COLS} FROM entries WHERE bot_id = ?1 AND seq < ?2
              ORDER BY seq DESC LIMIT ?3"
         ))?;
         let mut rows: Vec<Entry> =
@@ -152,7 +157,7 @@ impl Store {
         Ok(st.query_map([backend], row_entry)?.collect::<rusqlite::Result<_>>()?)
     }
 
-    /// Chat-visible messages (the user's, final replies) in any of `bot_id`'s lanes that
+    /// Chat-visible messages (the user's, final replies) in `bot_id`'s chat that
     /// contain every term (case-insensitive for ASCII), newest first, from `from` (a `seq`) back.
     // ponytail: substring scan, no index (CJK needs no tokenizer this way): 0.6 s over 180k messages of one bot.
     // An FTS5 trigram table once a bot's search passes a second.
@@ -173,23 +178,11 @@ impl Store {
         Ok(st.query_map(rusqlite::params_from_iter(args), row_entry)?.collect::<rusqlite::Result<_>>()?)
     }
 
-    /// A thread's newest `limit` entries, oldest first.
-    pub fn thread(&self, bot_id: &str, root: &str, limit: i64) -> Result<Vec<Entry>> {
-        let c = self.db.locked();
-        let mut st = c.prepare(&format!(
-            "SELECT {ENTRY_COLS} FROM entries WHERE bot_id = ?1 AND thread_id = ?2 ORDER BY seq DESC LIMIT ?3"
-        ))?;
-        let mut rows: Vec<Entry> =
-            st.query_map(params![bot_id, root, limit], row_entry)?.collect::<rusqlite::Result<_>>()?;
-        rows.reverse();
-        Ok(rows)
-    }
-
     /// The newest `limit` bot-to-bot notices in `bot_id`'s main chat that involve `peer_id`, oldest first.
     pub fn bot_conversation(&self, bot_id: &str, peer_id: &str, limit: i64) -> Result<Vec<Entry>> {
         let c = self.db.locked();
         let mut st = c.prepare(&format!(
-            "SELECT {ENTRY_COLS} FROM entries WHERE bot_id = ?1 AND thread_id IS NULL AND kind = 'notice'
+            "SELECT {ENTRY_COLS} FROM entries WHERE bot_id = ?1 AND kind = 'notice'
                AND json_type(data, '$.botMessage') = 'object'
                AND ?2 IN (json_extract(data, '$.botMessage.sourceBotId'), json_extract(data, '$.botMessage.targetBotId'))
              ORDER BY seq DESC LIMIT ?3"
@@ -200,7 +193,7 @@ impl Store {
         Ok(rows)
     }
 
-    /// Messages in all of `bot_id`'s own lanes (its chat and threads) after `after_seq`, oldest first: the
+    /// Messages in `bot_id`'s chat after `after_seq`, oldest first: the
     /// user's, and final replies. Dreaming reads these.
     pub fn conversation_since(&self, bot_id: &str, after_seq: i64, limit: i64) -> Result<Vec<Entry>> {
         let c = self.db.locked();
@@ -212,7 +205,7 @@ impl Store {
         Ok(st.query_map(params![bot_id, after_seq, limit], row_entry)?.collect::<rusqlite::Result<_>>()?)
     }
 
-    /// The newest entry of a bot's chat and threads.
+    /// The newest entry of a bot's chat.
     pub fn last_seq(&self, bot_id: &str) -> i64 {
         let c = self.db.locked();
         logged(
@@ -226,13 +219,12 @@ impl Store {
     pub fn messages_after(&self, lane: &Lane, after_seq: i64, limit: i64) -> Result<Vec<Entry>> {
         let c = self.db.locked();
         let mut st = c.prepare(&format!(
-            "SELECT {ENTRY_COLS} FROM entries WHERE bot_id = ?1 AND thread_id IS ?2 AND seq > ?3 AND
+            "SELECT {ENTRY_COLS} FROM entries WHERE bot_id = ?1 AND seq > ?2 AND
                (kind = 'user' OR (kind = 'agent' AND json_extract(data, '$.final') = 1))
-             ORDER BY seq DESC LIMIT ?4"
+             ORDER BY seq DESC LIMIT ?3"
         ))?;
-        let mut rows: Vec<Entry> = st
-            .query_map(params![lane.chat, lane.thread, after_seq, limit], row_entry)?
-            .collect::<rusqlite::Result<_>>()?;
+        let mut rows: Vec<Entry> =
+            st.query_map(params![lane.chat, after_seq, limit], row_entry)?.collect::<rusqlite::Result<_>>()?;
         rows.reverse();
         Ok(rows)
     }
@@ -241,38 +233,12 @@ impl Store {
     pub fn last_spoke(&self, lane: &Lane, bot: &str) -> i64 {
         let c = self.db.locked();
         let n = c.query_row(
-            "SELECT COALESCE(MAX(seq), 0) FROM entries WHERE bot_id = ?1 AND thread_id IS ?2 AND kind = 'agent'
-               AND json_extract(data, '$.final') = 1 AND json_extract(data, '$.author') = ?3",
-            params![lane.chat, lane.thread, bot],
+            "SELECT COALESCE(MAX(seq), 0) FROM entries WHERE bot_id = ?1 AND kind = 'agent'
+               AND json_extract(data, '$.final') = 1 AND json_extract(data, '$.author') = ?2",
+            params![lane.chat, bot],
             |r| r.get(0),
         );
         logged("last spoke", n).unwrap_or(0)
-    }
-
-    /// A thread's reply count, newest reply time, the bots that replied (first reply first)
-    /// and how many replies are unread.
-    pub fn thread_summary(&self, chat: &str, root: &str) -> Result<Value> {
-        let read_rev = self.bot(chat)?.map_or(0, |r| r.read_rev);
-        let unread = self.unread(chat, read_rev, ReadScope::Thread(root));
-        let c = self.db.locked();
-        let mut st = c.prepare(
-            "SELECT kind, json_extract(data, '$.author'), created_at FROM entries WHERE bot_id = ?1 AND thread_id = ?2
-               AND (kind = 'user' OR (kind = 'agent' AND json_extract(data, '$.final') = 1)) ORDER BY seq",
-        )?;
-        let rows = st.query_map(params![chat, root], |r| {
-            Ok((r.get::<_, String>(0)?, r.get::<_, Option<String>>(1)?, r.get::<_, i64>(2)?))
-        })?;
-        let (mut count, mut last_at, mut authors) = (0, 0, Vec::<String>::new());
-        for row in rows {
-            let (kind, author, at) = row?;
-            count += 1;
-            last_at = at;
-            let author = if kind == EntryKind::User.as_str() { "user".to_owned() } else { author.unwrap_or_default() };
-            if !author.is_empty() && !authors.contains(&author) {
-                authors.push(author);
-            }
-        }
-        Ok(serde_json::json!({"count": count, "lastAt": last_at, "authors": authors, "unread": unread}))
     }
 
     /// Permission cards left `pending` (and sends left `queued`) by a crash or restart

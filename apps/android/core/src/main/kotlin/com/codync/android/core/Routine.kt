@@ -17,7 +17,7 @@ import kotlinx.serialization.json.*
 
 @Serializable data class RoutineRun(
     val id: String, val routineId: String, val botId: String, val status: String,
-    val createdAt: Long = 0, val finishedAt: Long? = null, val detail: String? = null, val rootId: String? = null,
+    val createdAt: Long = 0, val finishedAt: Long? = null, val detail: String? = null,
 ) {
     val isActive: Boolean get() = status in listOf("pending", "starting", "running", "recovering")
     val label: String get() = when (status) {

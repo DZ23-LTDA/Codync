@@ -100,6 +100,13 @@ def prompt(request):
             time.sleep(0.3)
         send({"id": request["id"], "result": {"stopReason": "end_turn"}})
         return
+    if text.split("\n\n")[-1].startswith("MANAGE "):
+        tool, arguments = text.split("\n\n")[-1].split(" ", 2)[1:]
+        response = mcp_call("manage", tool, json.loads(arguments))
+        reply = ("Refused: " if response.get("isError") else "Done: ") + response["content"][0]["text"]
+        update({"sessionUpdate": "agent_message_chunk", "content": {"type": "text", "text": reply}})
+        send({"id": request["id"], "result": {"stopReason": "end_turn"}})
+        return
     if text.split("\n\n")[-1] == "OK":
         update({"sessionUpdate": "agent_message_chunk", "content": {"type": "text", "text": "(pass)"}})
         send({"id": request["id"], "result": {"stopReason": "end_turn"}})

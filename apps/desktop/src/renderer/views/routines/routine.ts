@@ -35,7 +35,6 @@ export interface RoutineRun {
   createdAt: number
   finishedAt?: number | null
   detail?: string | null
-  rootId?: string | null
 }
 
 export const isActiveRun = (run: RoutineRun) => ['pending', 'starting', 'running', 'recovering'].includes(run.status)

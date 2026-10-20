@@ -113,7 +113,7 @@
   overflow-y: auto;
   overflow-anchor: none;
 }
-/* The scrolling body of a thread or the trace sheet, under its header. */
+/* The scrolling body of the trace sheet, under its header. */
 .thread-scroll {
   flex: 1;
   overflow-y: auto;
@@ -318,16 +318,11 @@
 .reaction-chip-bots > * + * {
   margin-left: -5px;
 }
-.thread-chip {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 5px 10px;
-  border-radius: var(--radius-pill);
-  background: var(--surface);
-}
-.thread-chip-authors > * + * {
-  margin-left: -6px;
+/* The message a reply quotes, at the top of its bubble: one line, no wider than a short message. */
+.bubble-quote {
+  max-width: 320px;
+  margin-bottom: 4px;
+  user-select: none;
 }
 /* Agent-side cards (working, approvals) stop short of the far edge. */
 .agent-inset {
@@ -359,20 +354,6 @@
   text-align: left;
   font-size: var(--text-caption);
   color: var(--secondary);
-}
-
-/* Thread */
-.replies-content {
-  padding: 8px 16px 0;
-}
-.replies-count {
-  padding: 12px 0;
-}
-.replies-count-label {
-  white-space: nowrap;
-}
-.replies-composer {
-  flex: none;
 }
 
 .call-overlay {

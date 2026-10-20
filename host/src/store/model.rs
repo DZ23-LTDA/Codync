@@ -106,6 +106,13 @@ pub struct BotConfig {
     /// The bot gets the built-in `computer` MCP server (see `screen`).
     #[serde(default)]
     pub computer: bool,
+    /// The bot gets the built-in `manage` MCP server: it creates bots and changes any bot's setup
+    /// (see `chat::manage`). The user turns it on; the bots such a bot creates have it too.
+    #[serde(default)]
+    pub manage_team: bool,
+    /// The bot that created this one with `create_bot`; none when the user did.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub created_by: Option<String>,
     /// Uses the memory shared by all bots ("yours"). Unset: on for a bot in its own workspace, off for one in a
     /// project folder (see `chat::memory::shared`).
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -133,6 +140,11 @@ fn null_as_false<'de, D: serde::Deserializer<'de>>(value: D) -> Result<bool, D::
     Ok(Option::<bool>::deserialize(value)?.unwrap_or(false))
 }
 
+/// The avatar colors and shapes every client offers.
+pub const AVATAR_COLORS: [&str; 11] =
+    ["black", "brown", "red", "orange", "yellow", "green", "cyan", "blue", "violet", "magenta", "gray"];
+pub const AVATAR_SHAPES: [&str; 8] = ["blob", "pebble", "squircle", "tablet", "wedge", "hex", "cloud", "teardrop"];
+
 fn default_color() -> String {
     "blue".into()
 }
@@ -140,42 +152,20 @@ fn default_shape() -> String {
     "blob".into()
 }
 
-/// kv key for per-bot state in one lane (`what`: `session`, `seen`).
-pub fn lane_key(what: &str, bot_id: &str, lane: &Lane) -> String {
-    format!("lane.{what}.{bot_id}@{}", lane.key())
+/// kv key for the agent session of one of a bot's routine runs (`slot`: see `routines::session_slot`).
+pub fn run_session_key(bot_id: &str, slot: &str) -> String {
+    format!("lane.session.{bot_id}@{bot_id}/{slot}")
 }
 
-/// What the user has read (`markRead`): the main chat, one thread, or all of a chat.
-#[derive(Clone, Copy, Debug)]
-pub enum ReadScope<'a> {
-    All,
-    Chat,
-    Thread(&'a str),
-}
-
-/// Where an entry lives: a bot's or group's chat (`bot_id`), and optionally a thread in it,
-/// named by its root entry. Every lane a bot talks in has its own ACP session.
+/// Where entries go and a turn talks: a bot's own chat or a group's (`chat`, a bot id).
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Lane {
     pub chat: String,
-    pub thread: Option<String>,
 }
 
 impl Lane {
     pub fn main(chat: &str) -> Self {
-        Self { chat: chat.to_owned(), thread: None }
-    }
-
-    pub fn in_thread(chat: &str, root: &str) -> Self {
-        Self { chat: chat.to_owned(), thread: Some(root.to_owned()) }
-    }
-
-    /// Stable text form for kv keys: `chat` or `chat/root`.
-    pub fn key(&self) -> String {
-        match &self.thread {
-            Some(t) => format!("{}/{t}", self.chat),
-            None => self.chat.clone(),
-        }
+        Self { chat: chat.to_owned() }
     }
 }
 
@@ -185,14 +175,24 @@ pub struct Entry {
     pub id: String,
     pub seq: i64,
     pub bot_id: String,
-    /// The thread's root entry; `None` in the main chat.
-    pub thread_id: Option<String>,
     pub rev: i64,
     pub kind: String,
     pub turn: i64,
     pub data: Value,
     pub created_at: i64,
     pub updated_at: i64,
+}
+
+/// A message's text, or the names of its files when it has none.
+pub fn message_text(data: &Value) -> String {
+    match data["text"].as_str().unwrap_or_default() {
+        "" => {
+            let names: Vec<&str> =
+                data["attachments"].as_array().into_iter().flatten().filter_map(|a| a["name"].as_str()).collect();
+            names.join(", ")
+        }
+        text => text.to_owned(),
+    }
 }
 
 pub struct LastMessage {

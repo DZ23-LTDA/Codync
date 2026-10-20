@@ -73,8 +73,7 @@ Reading the current implementation turned up these problems.
     (`COMPACT_USER_MESSAGE_MAX_TOKENS`). Remote compaction keeps developer messages only behind a feature flag.
   - `codex-acp` passes developer instructions only on `session/new`, not on load or resume.
   - Codync re-sends the profile in none of these cases.
-- **Fork drops the opening.** `session/fork` sends no `_meta`, and the adapter forwards none, so a new thread needs
-  an immediate `session/load` (`host/src/agent/bot/session.rs`).
+- **Fork drops the opening.** `session/fork` sends no `_meta`, and the adapter forwards none.
 - **Adapter signals are ignored.** Both `claude-agent-acp` and `codex-acp` report:
   - `usage_update{used,size}`;
   - per-prompt `cachedReadTokens` / `cachedWriteTokens`;
@@ -339,7 +338,7 @@ Source policy:
 | Source | Can create memory |
 |---|---|
 | UI edit | Directly |
-| User text in the main chat or a thread | Yes, through the gate |
+| User text in the bot's own chat | Yes, through the gate |
 | User text in a group room | Only for the bot(s) addressed, tagged with the room id |
 | Voice transcript (`source: voice`) | Only after UI confirmation or a second occurrence. Audio-model attacks such as AudioHijack reach 79–96%. |
 | Bot-to-bot requests | Never. They also never read another bot's private layer. |
@@ -409,7 +408,7 @@ It stays byte-identical until compaction or a new session.
   - Not the ACP spec `systemPrompt` field yet: for Claude the adapter rebuilds it as preset plus append and drops
     the other options.
   - `excludeDynamicSections` moves the working directory, git status and similar per-session context into the
-    first user message. The opening is then identical across a bot's main chat, threads and routines, and a new
+    first user message. The opening is then identical across a bot's chat, group turns and routines, and a new
     session reads the cache.
 - **Change the opening only at compaction or rollover.** Every change restarts the adapter's query and replays
   history. Resume has had regressions, such as 2.1.288 dropping files a compaction had just restored.
@@ -418,12 +417,11 @@ It stays byte-identical until compaction or a new session.
   - They are unstable and any re-render invalidates the system-prompt cache layer, so the design doesn't depend on
     them.
 - **Deltas.** Changes made elsewhere reach the bot as one `<system-reminder>`-style block prefixed to its next
-  message. That covers UI edits and what other threads or bots learned.
+  message. That covers UI edits and what other sessions or bots learned.
   - Nothing is sent for what this session learned itself, because the bot already heard it.
 - **Ledger.** It records two numbers per session: the memory revision the opening contains, and the revision deltas
   have delivered up to.
 - **The handoff summary goes in the first user message**, not the opening, because it differs per session.
-- **Fork.** Re-send the parent's `_meta.systemPrompt` on `session/fork`.
 - **Settings isolation.** Consider `settingSources: []` or `["project"]`. The adapter default
   `["user","project","local"]` loads the user's own `~/.claude/CLAUDE.md` and settings into every bot.
 
@@ -436,8 +434,8 @@ it offers (`Instructions` in `agent/bot`):
    rebuilds that field without the object options (`excludeDynamicSections`), so Claude stays on `_meta`.
 2. **ACP `systemPrompt`** ([Client-Provided System Prompt](https://github.com/agentclientprotocol/agent-client-protocol/blob/main/docs/rfds/client-system-prompt.mdx),
    unstable): when an agent advertises `sessionCapabilities.systemPrompt`, the opening goes as
-   `{"mode": "append", "content": [text]}` on `session/new`, `session/load` (the session's current snapshot) and
-   `session/fork` (the main session's). The agent keeps it at system level, across compaction.
+   `{"mode": "append", "content": [text]}` on `session/new` and `session/load` (the session's current snapshot). The
+   agent keeps it at system level, across compaction.
 3. **Every other agent: the first message.** A `<bot-profile>` block precedes the first prompt of a new session.
    After a compaction the next prompt carries a fresh one that says it replaces any earlier profile, so the agent
    never holds two versions that disagree. The compaction is the agent's `compaction_update`, or, for an agent
@@ -520,8 +518,8 @@ to true "does not turn idle compaction on".
   "conversations being compacted over and over" in 2.1.301.
 - One issue reported 211 compactions in a single session.
 
-Threads, group rooms and routines are never compacted early. Most are not revisited, so the cost isn't spent ahead
-of time. When the main chat is nearly full, a new thread starts from a handoff instead of a fork.
+Group rooms and routines are never compacted early. Most are not revisited, so the cost isn't spent ahead
+of time.
 
 **Before a host-initiated compaction:**
 
@@ -542,7 +540,7 @@ The keep-list:
 
 - **Verbatim:** the last user request, and every "don't / 不要".
 - **Exact identifiers:** paths, URLs and ids (OpenClaw keeps "exact opaque identifiers").
-- **Kept:** decisions with reasons, pending tasks with the next step, who said what in rooms, and the thread intro.
+- **Kept:** decisions with reasons, pending tasks with the next step, and who said what in rooms.
 - **Left out:** identity and memory, because the host re-injects them.
 
 The keep-list also lives in the opening, so harness-initiated compactions see it.
@@ -552,8 +550,7 @@ The keep-list also lives in the opening, so harness-initiated compactions see it
 
 1. Reset the ledger's delivered number to the opening's, and send one merged delta.
 2. Re-send `<bot-profile>` to non-Claude harnesses. Do the same after every resume.
-3. Re-send the thread intro inside a thread.
-4. Store the summary as a transcript entry and show an "Earlier conversation summarized" card.
+3. Store the summary as a transcript entry and show an "Earlier conversation summarized" card.
    - Codex's `compaction_update` carries no summary. For Codex the host builds the card from its own transcript:
      the boundary plus the latest turns.
 

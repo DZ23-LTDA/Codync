@@ -1,4 +1,4 @@
-//! How a bot talks to the user, Grok Bot's way: in its chat (and threads) the user sees
+//! How a bot talks to the user, Grok Bot's way: in its chat the user sees
 //! only the messages the bot sends with the built-in `chat` MCP server's `send_message`,
 //! each one its own bubble. What the agent writes as its reply stays in the trace, unless
 //! it sent nothing in the turn: then its last text becomes the reply, as before.
@@ -12,7 +12,7 @@ use std::time::Duration;
 use tokio::sync::oneshot;
 
 /// How to talk to the user: part of every bot's instructions (`context`), and the `chat` server's.
-pub const INSTRUCTIONS: &str = "In your chat with the user and its threads, the user sees only what you send with send_message; \
+pub const INSTRUCTIONS: &str = "In your chat with the user, the user sees only what you send with send_message; \
 text you write as your reply never reaches them. Send a message whenever you have something worth telling them: \
 short and plain, one thought per message, in the user's language. Lead with the result, then what needs the user. \
 Use send_file(path, name?) to share a generated regular file (any type, up to 100 MiB); a local path in text is not a download. Don't send just to acknowledge, to say you started or are still working, or to repeat yourself. \
@@ -37,7 +37,7 @@ pub fn tools() -> Value {
         "annotations": {"readOnlyHint": false, "idempotentHint": false},
     }, {
         "name": "send_file",
-        "description": "Share one regular file with the user in your own chat or thread. Any file type, including empty files, up to 100 MiB. The host saves an immutable copy. Paths are absolute or relative to your working directory. A successful response means the file message was published; do not repeat it.",
+        "description": "Share one regular file with the user in your own chat. Any file type, including empty files, up to 100 MiB. The host saves an immutable copy. Paths are absolute or relative to your working directory. A successful response means the file message was published; do not repeat it.",
         "inputSchema": {"type": "object", "properties": {"path": {"type": "string"}, "name": {"type": "string", "description": "Optional display filename, without folders."}}, "required": ["path"]},
         "annotations": {"readOnlyHint": false, "idempotentHint": false},
     }])

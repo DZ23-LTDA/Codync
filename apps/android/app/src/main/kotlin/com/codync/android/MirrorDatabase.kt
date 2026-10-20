@@ -18,25 +18,27 @@ import kotlinx.serialization.json.jsonObject
 
 /** All entity writes, send reconciliation and the event cursor commit together. */
 class MirrorDatabase(context: Context, directory: File, computerId: String) :
-    SQLiteOpenHelper(context, File(directory, "mirror-$computerId.db").absolutePath, null, 2) {
+    SQLiteOpenHelper(context, File(directory, "mirror-$computerId.db").absolutePath, null, 3) {
     init { require(computerId.matches(Regex("[A-Za-z0-9_-]{22}"))) }
 
     override fun onCreate(db: SQLiteDatabase) {
         db.execSQL("CREATE TABLE meta(k TEXT PRIMARY KEY, v TEXT NOT NULL)")
         db.execSQL("CREATE TABLE bots(id TEXT PRIMARY KEY, rev INTEGER NOT NULL, deleted INTEGER NOT NULL, payload TEXT NOT NULL)")
-        db.execSQL("CREATE TABLE entries(id TEXT PRIMARY KEY, bot_id TEXT NOT NULL, thread_id TEXT, seq INTEGER NOT NULL, rev INTEGER NOT NULL, nonce TEXT, payload TEXT NOT NULL)")
-        db.execSQL("CREATE INDEX entries_lane ON entries(bot_id, thread_id, seq)")
-        db.execSQL("CREATE INDEX entries_nonce ON entries(bot_id, nonce)")
+        createConversation(db)
         db.execSQL("CREATE TABLE pending(nonce TEXT PRIMARY KEY, created INTEGER NOT NULL, payload TEXT NOT NULL)")
-        db.execSQL("CREATE TABLE history(lane TEXT PRIMARY KEY)")
     }
+    /** The conversation is a cache of the computer's: an older schema's is dropped and fetched again; unsent messages stay. */
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
-        require(oldVersion == 1 && newVersion == 2) { "Unsupported mirror schema" }
-        db.execSQL("ALTER TABLE entries ADD COLUMN nonce TEXT")
+        db.execSQL("DROP TABLE IF EXISTS entries")
+        db.execSQL("DROP TABLE IF EXISTS history")
+        createConversation(db)
+        setMeta(db, "rev", "0")
+    }
+    private fun createConversation(db: SQLiteDatabase) {
+        db.execSQL("CREATE TABLE entries(id TEXT PRIMARY KEY, bot_id TEXT NOT NULL, seq INTEGER NOT NULL, rev INTEGER NOT NULL, nonce TEXT, payload TEXT NOT NULL)")
+        db.execSQL("CREATE INDEX entries_chat ON entries(bot_id, seq)")
         db.execSQL("CREATE INDEX entries_nonce ON entries(bot_id, nonce)")
-        rows(db, "SELECT payload FROM entries") { WireJson.decodeFromString<Entry>(it) }.forEach { entry ->
-            if (entry.kind == "user") db.update("entries", ContentValues().apply { put("nonce", entry.clientNonce) }, "id=?", arrayOf(entry.id))
-        }
+        db.execSQL("CREATE TABLE history(lane TEXT PRIMARY KEY)")
     }
 
     @Synchronized fun snapshot(): MirrorSnapshot {
@@ -128,7 +130,7 @@ class MirrorDatabase(context: Context, directory: File, computerId: String) :
         val revision = db.rawQuery("SELECT rev FROM entries WHERE id=?", arrayOf(entry.id)).use { if (it.moveToFirst()) it.getLong(0) else -1 }
         if (revision > entry.rev) return
         check(db.insertWithOnConflict("entries", null, ContentValues().apply {
-            put("id", entry.id); put("bot_id", entry.botId); put("thread_id", entry.threadId)
+            put("id", entry.id); put("bot_id", entry.botId)
             put("seq", entry.seq); put("rev", entry.rev); put("payload", WireJson.encodeToString(entry))
             put("nonce", entry.clientNonce?.takeIf { entry.kind == "user" })
         }, SQLiteDatabase.CONFLICT_REPLACE) != -1L) { "Couldn't save the conversation update." }

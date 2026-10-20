@@ -66,7 +66,6 @@ impl App {
                     draft.insert("\n");
                 }
                 draft.insert("I want a routine that ");
-                self.thread = None;
                 self.focus = Focus::Chat;
                 self.typing = true;
                 return None;

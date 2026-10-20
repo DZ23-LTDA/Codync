@@ -8,51 +8,34 @@ public struct EditorRequest: Identifiable {
     public init(_ draft: BotDraft) { self.draft = draft }
 }
 
-/// Create or edit a bot in a modal (iPhone): the settings form plus Close / Save.
+/// Edit a bot in a modal (iPhone): the settings form plus Close / Save.
 public struct BotEditorView: View {
     @Environment(BotStore.self) private var model
     @Environment(\.dismissModal) private var dismiss
     @State var draft: BotDraft
-    private let computers: [(id: ComputerID, label: String)]
-    private let computer: Binding<ComputerID>?
-
-    /// `computer` lets a new bot pick which computer it runs on; the caller swaps the `BotStore` to match.
-    public init(draft: BotDraft, computers: [(id: ComputerID, label: String)] = [], computer: Binding<ComputerID>? = nil) {
-        _draft = State(initialValue: draft)
-        self.computers = computers
-        self.computer = computer
-    }
     @State private var saving = false
     @State private var error: String?
 
-    private var isNew: Bool { draft.id == nil }
+    public init(draft: BotDraft) {
+        _draft = State(initialValue: draft)
+    }
 
     public var body: some View {
         VStack(spacing: 0) {
-            ModalHeader(isNew ? "New bot" : "Settings") {
+            ModalHeader("Settings") {
                 if saving {
                     Spinner()
                 } else {
-                    IconButton(isNew ? "Create" : "Save", systemImage: "checkmark") { save() }
+                    IconButton("Save", systemImage: "checkmark") { save() }
                         .disabled(!draft.isValid || saving || model.connection != .online)
                 }
             }
-            BotSettingsForm(draft: $draft, error: error, computers: computers, computer: computer)
+            BotSettingsForm(draft: $draft, error: error)
         }
         .background(Palette.background)
-        .onAppear { if isNew { model.fillDefaults(&draft) } }
-        // A new bot's connectors and skills start on once the computer has listed them.
-        .onChange(of: model.installedConnectors.map(\.id) + model.installedSkills.map(\.id)) {
-            if isNew { model.fillDefaults(&draft) }
-        }
-        .onChange(of: model.computer.id) {
-            // Folders, models and connectors belong to the old computer.
-            draft.cwd = ""
-            draft.model = nil
-            draft.modelOptions = [:]
-            draft.connectors = nil
-            draft.skills = nil
-            model.fillDefaults(&draft)
+        // A change made elsewhere (a bot that manages the team, another device) replaces each field not edited here.
+        .onChange(of: draft.id.flatMap { model.bots[$0] }.map(BotDraft.init)) { base, fresh in
+            if let base, let fresh { draft = draft.rebased(from: base, onto: fresh) }
         }
     }
 
@@ -62,9 +45,8 @@ public struct BotEditorView: View {
         error = nil
         Task {
             do {
-                let bot = try await model.save(draft.normalized)
+                _ = try await model.save(draft.normalized)
                 dismiss()
-                if isNew { model.selection = bot.id }
             } catch {
                 self.error = error.localizedDescription
             }
@@ -73,7 +55,7 @@ public struct BotEditorView: View {
     }
 }
 
-/// Which settings a form shows: all of them (a new bot), what changes often (instructions, model,
+/// Which settings a form shows: all of them (the editor), what changes often (instructions, model,
 /// fast mode: the details sheet's Details page) or the rest (its Settings page).
 enum FormPart {
     case all, often, rarely
@@ -84,8 +66,6 @@ enum FormPart {
 struct BotSettingsForm: View {
     @Binding var draft: BotDraft
     let error: String?
-    var computers: [(id: ComputerID, label: String)] = []
-    var computer: Binding<ComputerID>?
     var scrolls = true
     var part: FormPart = .all
     @Environment(BotStore.self) private var model
@@ -189,30 +169,19 @@ struct BotSettingsForm: View {
                             .transition(.opacity.combined(with: .move(edge: .top)))
                     }
                 }
-                // A new bot is named from its first conversations (Grok Bot's flow); rename it any time after.
-                if draft.id != nil {
-                    Field("Name") {
-                        TextField("Name", text: $draft.name).fieldBox()
-                    }
+                Field("Name") {
+                    TextField("Name", text: $draft.name).fieldBox()
                 }
                 if part == .all { instructions }
+                if let bot = draft.id.flatMap({ model.bots[$0] }), let creator = bot.createdBy {
+                    ValueRow("Created by", value: "\(model.bots[creator]?.name ?? "A bot") · \(Date(milliseconds: bot.createdAt).formatted(date: .abbreviated, time: .omitted))")
+                }
             }
 
             // On the details sheet the agent and its model are on the Details page; what's left is where it works.
             CardSection(part == .all ? "Agent" : "Workspace") {
-                VStack(alignment: .leading, spacing: 6) {
-                    ValueRow("Computer") {
-                        if let computer {
-                            ChoicePicker(selection: computer, options: computers, fitsAvailableWidth: true)
-                                .accessibilityLabel("Computer")
-                        } else {
-                            Text(model.hostName).lineLimit(1)
-                        }
-                    }
-                    if computer != nil, model.connection != .online {
-                        Text("Connect this computer to create the bot, or choose another computer.")
-                            .font(.caption).foregroundStyle(Palette.warning)
-                    }
+                ValueRow("Computer") {
+                    Text(model.hostName).lineLimit(1)
                 }
                 if part == .all {
                     agentPicker
@@ -259,6 +228,11 @@ struct BotSettingsForm: View {
                         ? "Let this bot see the screen and use the mouse and keyboard."
                         : "Let this bot see the screen and use the mouse and keyboard. On that computer, open Codync → Settings → Computer access to set up permissions first.",
                               isOn: Binding(get: { draft.computer ?? false }, set: { draft.computer = $0 }))
+                }
+                // Only from a host that has it (its bots say).
+                if model.bots.values.contains(where: { $0.manageTeam != nil }) {
+                    SwitchRow("Manage the team", detail: "Let this bot create bots and change any bot's setup, its own included. The bots it creates can too.",
+                              isOn: Binding(get: { draft.manageTeam ?? false }, set: { draft.manageTeam = $0 }))
                 }
             }
 
@@ -360,69 +334,13 @@ private struct FieldBox: ViewModifier {
 }
 
 extension BotDraft {
-    /// A new bot may go without a name: the host names it after its first conversations.
-    var isValid: Bool { id == nil || !name.trimmingCharacters(in: .whitespaces).isEmpty }
+    /// A saved bot keeps a name; only a new one goes without (the host names it after its first conversations).
+    var isValid: Bool { !name.trimmingCharacters(in: .whitespaces).isEmpty }
 
     /// What the host should get: no stale command unless the agent is custom.
     var normalized: BotDraft {
         var d = self
         if d.backend != "custom" { d.command = nil }
         return d
-    }
-}
-
-public extension BotStore {
-    /// Picks an installed agent we know (a registry agent nobody chose is never the default);
-    /// empty cwd requests a personal workspace from the host.
-    func fillDefaults(_ draft: inout BotDraft) {
-        if hello?.backends.first(where: { $0.id == draft.backend })?.available != true,
-           let first = hello?.backends.first(where: { $0.available && $0.curated == true }) {
-            draft.backend = first.id
-        }
-        // Connectors and skills start on; left unset, the host turns on every one.
-        if draft.connectors == nil, !installedConnectors.isEmpty {
-            draft.connectors = installedConnectors.map(\.id)
-        }
-        if draft.skills == nil, !installedSkills.isEmpty {
-            draft.skills = installedSkills.map(\.id)
-        }
-    }
-}
-
-struct AvatarPicker: View {
-    @Binding var shape: String
-    @Binding var color: String
-
-    var body: some View {
-        VStack(spacing: 12) {
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 10) {
-                    ForEach(AvatarPalette.shapes, id: \.self) { s in
-                        CharacterAvatar(shape: s, color: color, size: 36)
-                            .padding(4)
-                            .background(Circle().strokeBorder(s == shape ? Palette.accent : .clear, lineWidth: 2))
-                            .onTapGesture { withAnimation(Motion.hover) { shape = s } }
-                            .accessibilityLabel("\(s) shape")
-                            .accessibilityAddTraits(s == shape ? .isSelected : [])
-                    }
-                }
-                .padding(4)
-            }
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 10) {
-                    ForEach(AvatarPalette.colors) { c in
-                        Circle()
-                            .fill(c.color)
-                            .frame(width: 26, height: 26)
-                            .padding(4)
-                            .background(Circle().strokeBorder(c.id == color ? Palette.accent : .clear, lineWidth: 2))
-                            .onTapGesture { withAnimation(Motion.hover) { color = c.id } }
-                            .accessibilityLabel(c.label)
-                            .accessibilityAddTraits(c.id == color ? .isSelected : [])
-                    }
-                }
-                .padding(4)
-            }
-        }
     }
 }

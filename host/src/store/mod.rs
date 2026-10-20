@@ -13,7 +13,10 @@ mod model;
 mod schema;
 
 pub use devices::{Device, DeviceSource, Scope};
-pub use model::{BotConfig, BotKind, BotRow, Entry, EntryKind, Lane, Permission, ReadScope, lane_key};
+pub use model::{
+    AVATAR_COLORS, AVATAR_SHAPES, BotConfig, BotKind, BotRow, Entry, EntryKind, Lane, Permission, message_text,
+    run_session_key,
+};
 
 use crate::LockExt;
 use anyhow::Result;

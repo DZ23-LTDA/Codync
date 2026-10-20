@@ -3,26 +3,24 @@ import SwiftUI
 
 /// The rows a conversation is made of.
 
-/// One chat-visible entry in a chat or a thread, with what can be done to it.
+/// One chat-visible entry in a chat, with what can be done to it.
 struct ChatRow: View {
     let entry: Entry
     let groupStart: Bool
     /// The bot or group the chat belongs to.
     let chat: Bot?
     let openTrace: () -> Void
-    /// Main chat only: start (or open) the thread on this message.
-    var openThread: ((Entry) -> Void)?
+    /// Quotes this message in the composer; nil where it can't be.
+    var reply: (() -> Void)?
     @Environment(BotStore.self) private var model
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
-        let reply = openThread.map { open in { open(entry) } }
         switch entry.kind {
         case "user":
             VStack(alignment: .trailing, spacing: 4) {
                 UserBubble(entry: entry, botWorking: chat?.isWorking == true, reply: reply)
                 ReactionsRow(entry: entry)
-                threadChip
             }
             .animation(Motion.reduced(Motion.layout, reduceMotion), value: entry.data.reactions)
             .animation(Motion.reduced(Motion.layout, reduceMotion), value: entry.data.botReactions)
@@ -31,11 +29,8 @@ struct ChatRow: View {
             VStack(alignment: .leading, spacing: 4) {
                 if chat?.isGroup == true, groupStart { AuthorLabel(botId: entry.data.author) }
                 AgentBubble(entry: entry, openTrace: openTrace, reply: reply)
-                Group {
-                    ReactionsRow(entry: entry)
-                    threadChip
-                }
-                .padding(.leading, chat?.isGroup == true ? 34 : 0)
+                ReactionsRow(entry: entry)
+                    .padding(.leading, chat?.isGroup == true ? 34 : 0)
             }
             .animation(Motion.reduced(Motion.layout, reduceMotion), value: entry.data.reactions)
             .animation(Motion.reduced(Motion.layout, reduceMotion), value: entry.data.botReactions)
@@ -56,12 +51,6 @@ struct ChatRow: View {
             } else {
                 NoticeRow(entry: entry).padding(.top, 10)
             }
-        }
-    }
-
-    @ViewBuilder private var threadChip: some View {
-        if let summary = entry.data.thread, summary.count > 0, let openThread {
-            ThreadChip(summary: summary) { openThread(entry) }
         }
     }
 }
@@ -96,48 +85,20 @@ struct AuthorLabel: View {
     }
 }
 
-/// Under a message with a thread (Slack's): who replied, how many, how recently.
-struct ThreadChip: View {
-    let summary: ThreadSummary
-    let open: () -> Void
-    @Environment(BotStore.self) private var model
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+/// The message a reply quotes, as its first line without Markdown markers.
+struct QuoteLine: View {
+    let text: String
 
     var body: some View {
-        Button(action: open) {
-            HStack(spacing: 6) {
-                HStack(spacing: -6) {
-                    ForEach(summary.authors.compactMap { model.bots[$0] }.prefix(3)) { bot in
-                        CharacterAvatar(bot: bot, size: 18, animated: false)
-                    }
-                }
-                Text(summary.count == 1 ? "1 reply" : "\(summary.count) replies")
-                    .font(.footnote.weight(.semibold))
-                    .foregroundStyle(Palette.accent)
-                if let unread = summary.unread, unread > 0 {
-                    Text("\(unread) new")
-                        .font(.footnote.weight(.semibold))
-                        .foregroundStyle(Palette.text)
-                        .transition(.opacity)
-                } else {
-                    Text(RelativeTime.day(Date(milliseconds: summary.lastAt)))
-                        .font(.footnote)
-                        .foregroundStyle(Palette.tertiary)
-                }
-                Image(systemName: "chevron.right").font(.caption2).foregroundStyle(Palette.tertiary)
-            }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 5)
-            .background(Palette.surface, in: Capsule())
-            .contentShape(Capsule())
+        Label {
+            Text("“\(MessagePreview.text(text))”").lineLimit(1)
+        } icon: {
+            Image(systemName: "text.bubble")
         }
-        .buttonStyle(PressScale())
-        .animation(Motion.reduced(Motion.layout, reduceMotion), value: summary.unread)
-        .accessibilityLabel(
-            "View thread, \(summary.count) \(summary.count == 1 ? "reply" : "replies")"
-                + ((summary.unread ?? 0) > 0 ? ", \(summary.unread ?? 0) new" : "")
-        )
-        .help("View thread")
+        .font(.subheadline)
+        .foregroundStyle(Palette.secondary)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Replying to \(text)")
     }
 }
 
@@ -152,7 +113,7 @@ struct UserBubble: View {
             if let attachments = entry.data.attachments, !attachments.isEmpty {
                 AttachmentList(attachments: attachments, botId: entry.botId)
             }
-            if !(entry.data.text ?? "").isEmpty { text }
+            if !(entry.data.text ?? "").isEmpty || entry.data.replyTo != nil { text }
                 status
         }
         .frame(maxWidth: .infinity, alignment: .trailing)
@@ -160,16 +121,21 @@ struct UserBubble: View {
     }
 
     private var text: some View {
-            Text(entry.data.text ?? "")
-                .font(.body)
-                .foregroundStyle(Palette.text)
-                .textSelection(.enabled)
+            VStack(alignment: .leading, spacing: 4) {
+                if let quote = entry.data.replyTo { QuoteLine(text: quote.text) }
+                if let text = entry.data.text, !text.isEmpty {
+                    Text(text)
+                        .font(.body)
+                        .foregroundStyle(Palette.text)
+                        .textSelection(.enabled)
+                }
+            }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 10)
                 .background(Palette.bubbleUser, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
                 .contextActions(reactions: model.reactionPick(entry)) {
                     var items = [MenuItem("Copy", icon: "square.on.square") { Pasteboard.copy(entry.data.text) }]
-                    if let reply { items.append(MenuItem("Reply in thread", icon: "arrowshape.turn.up.left", action: reply)) }
+                    if let reply { items.append(MenuItem("Reply", icon: "arrowshape.turn.up.left", action: reply)) }
                     return items
                 }
     }
@@ -233,7 +199,7 @@ struct AgentBubble: View {
                         MenuItem("Copy", icon: "square.on.square") { Pasteboard.copy(entry.data.text) },
                         MenuItem("Show what it did", icon: "list.bullet", action: openTrace),
                     ]
-                    if let reply { items.insert(MenuItem("Reply in thread", icon: "arrowshape.turn.up.left", action: reply), at: 1) }
+                    if let reply { items.insert(MenuItem("Reply", icon: "arrowshape.turn.up.left", action: reply), at: 1) }
                     return items
                 }
         }
@@ -352,10 +318,9 @@ struct WorkingIndicator: View {
 }
 
 extension BotStore {
-    /// The latest thinking of the turn running in a chat (`thread` nil) or thread: the newest
-    /// thought since the last message.
-    func currentThinking(_ botId: String, thread: String?) -> String? {
-        for e in allEntries(botId).reversed() where e.threadId == thread {
+    /// The latest thinking of the turn running in a chat: the newest thought since the last message.
+    func currentThinking(_ botId: String) -> String? {
+        for e in chat(botId).reversed() {
             if e.kind == "user" || (e.kind == "agent" && e.data.final == true) { return nil }
             if e.kind == "thought", let text = e.data.text, !text.isEmpty { return text }
         }
@@ -421,6 +386,6 @@ struct ReactionsRow: View {
 extension ChatRow: @MainActor Equatable {
     static func == (a: Self, b: Self) -> Bool {
         a.entry == b.entry && a.groupStart == b.groupStart && a.chat?.isGroup == b.chat?.isGroup
-            && a.chat?.isWorking == b.chat?.isWorking && (a.openThread == nil) == (b.openThread == nil)
+            && a.chat?.isWorking == b.chat?.isWorking && (a.reply == nil) == (b.reply == nil)
     }
 }

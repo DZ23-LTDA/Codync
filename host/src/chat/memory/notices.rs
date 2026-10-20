@@ -67,7 +67,7 @@ pub fn answer(hub: &Hub, notice_id: &str, accept: bool) -> Result<Value> {
     if card.status != Status::Pending {
         bail!("This card was already answered.");
     }
-    let lane = Lane { chat: notice.bot_id.clone(), thread: notice.thread_id.clone() };
+    let lane = Lane::main(&notice.bot_id);
     if accept {
         match write(hub, &cfg, &lane, card.message.clone(), &action) {
             Ok((entry, previous)) => {

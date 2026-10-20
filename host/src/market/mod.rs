@@ -179,6 +179,16 @@ pub fn skills(store: &crate::store::Store) -> Vec<Skill> {
     load(store, "skills")
 }
 
+/// Everything a bot can turn on: installed connectors and connected apps.
+pub fn connector_ids(store: &crate::store::Store) -> Result<Vec<String>> {
+    Ok(list_connectors(store)?["items"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter_map(|c| c["id"].as_str().map(str::to_owned))
+        .collect())
+}
+
 fn save<T: Serialize>(store: &crate::store::Store, key: &str, items: &[T]) -> Result<()> {
     store.kv_set(key, &serde_json::to_string(items)?)
 }

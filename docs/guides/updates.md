@@ -20,9 +20,18 @@ the installer relaunches from the background, so a one-shot `updateRelaunchInFro
 preference asks for it).
 
 While a release is available, an **Update** badge sits right of **Extensions** in the
-chat window's sidebar (`UpdateBadge`). After a confirmation it restarts into the release
+chat window's sidebar (`UpdateBadge`). One click restarts into the release
 (`updates.install()`): straight away when it is staged, otherwise once its download
-finishes, without a second click. The badge disappears once Codync runs the latest version.
+finishes, without a second click. Codync stays usable while it downloads; the badge fills a
+ring with the progress, then spins while the app restarts. The badge disappears once Codync
+runs the latest version.
+
+For the seconds macOS's installer (ShipIt) takes to swap the bundle, no Codync window shows.
+Opening the old app then would cancel the install ("App Still Running"), so the app records
+the install it starts, on Restart or on Quit with a staged release (`updateInstalling`),
+and an older copy launched within two minutes, while ShipIt still runs, quits at once. A detached wait opens Codync again once ShipIt stops
+(at most two minutes): the new release comes forward after an install, and the old one opens
+normally after a failed attempt instead of staying shut.
 
 The app checks daily.
 Automatic installation waits until no Codync window is focused, there has been no

@@ -1,5 +1,5 @@
 import { useRef } from 'react'
-import { isChat, type Entry } from '@shared/models'
+import type { Entry } from '@shared/models'
 import { groupExchanges, type BotExchange, type ChatSlot } from './bot-exchange'
 
 export type ChatItem =
@@ -9,14 +9,14 @@ export type ChatItem =
 
 /**
  * Chat-visible entries plus time separators (gaps > 1 h) and author grouping. A bot's messages
- * arrive whole (Grok Bot's `send_message`); what it writes along the way is trace. `grouped`
- * (the main transcript, not threads) folds runs of bot exchanges with one peer into one item.
+ * arrive whole (Grok Bot's `send_message`); what it writes along the way is trace. Runs of bot
+ * exchanges with one peer fold into one item.
  */
-export function buildChat(entries: Entry[], grouped = false): ChatItem[] {
+export function buildChat(entries: Entry[]): ChatItem[] {
   const out: ChatItem[] = []
   let lastDate: number | null = null
   let lastAuthor: string | null = null
-  const slots: ChatSlot[] = grouped ? groupExchanges(entries) : entries.filter(isChat).map((entry) => ({ entry, exchanges: null }))
+  const slots: ChatSlot[] = groupExchanges(entries)
   for (const { entry: e, exchanges } of slots) {
     const id = e.kind === 'user' && e.data.clientNonce ? `user-${e.data.clientNonce}` : e.id
     if (lastDate === null || e.createdAt - lastDate > 3_600_000) {

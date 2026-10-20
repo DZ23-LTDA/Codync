@@ -5,12 +5,13 @@ use ratatui::buffer::Buffer;
 use ratatui::layout::{Position, Rect};
 use ratatui::style::{Modifier, Style};
 
-use super::super::app::{App, Editor, NEW_GROUP, Overlay, tilde};
+use super::super::app::{App, Editor, Overlay, tilde};
 use super::super::md::{truncate, width as w};
 use super::buffer::{centered, dim_all, frame_box, put, restyle, rput, u};
 use super::forms::{form_view, group_view};
 use super::goto::goto;
 use super::help::help;
+use super::new_bot::new_bot_view;
 use super::pair::pair;
 use super::set_cursor;
 use super::style::{rgb, theme};
@@ -54,75 +55,7 @@ pub(super) fn overlay(buf: &mut Buffer, area: Rect, app: &mut App, top: &Overlay
             let x = put(buf, inner.x, inner.y + 4, 30, &format!(" ↵ {} ", c.button), danger) + 1;
             put(buf, x, inner.y + 4, 14, " esc Cancel ", t.text.patch(t.btn).add_modifier(Modifier::BOLD));
         }
-        Overlay::Agents(a) => {
-            let t = theme();
-            let choices: Vec<serde_json::Value> = app.agent_choices(&a.query.text).into_iter().cloned().collect();
-            let group_row = App::agent_group_row(&a.query.text);
-            let h = u(choices.len() + usize::from(group_row) + 8).min(area.height.saturating_sub(2)).max(10);
-            let r = centered(area, 74, h);
-            let inner = frame_box(buf, r, t.text, t.panel, Some(("New bot · 1/2 agent", t.text)));
-            field_line(buf, inner, inner.y, &a.query, "type to filter", true);
-            let list_h = usize::from(inner.height.saturating_sub(4));
-            let off = a.cursor.saturating_sub(list_h.saturating_sub(1));
-            if choices.is_empty() && !group_row {
-                put(
-                    buf,
-                    inner.x,
-                    inner.y + 2,
-                    inner.width,
-                    if app.backends.is_empty() { "Loading agents…" } else { "No agent matches" },
-                    t.dim.patch(t.panel),
-                );
-            }
-            for (y, (i, c)) in (inner.y + 2..).zip(choices.iter().enumerate().skip(off).take(list_h)) {
-                let row = Rect::new(inner.x - 1, y, inner.width + 2, 1);
-                let sel = i == a.cursor;
-                if sel {
-                    restyle(buf, row, t.sel);
-                }
-                let installed = c["installed"].as_bool().unwrap_or(false);
-                let base = if sel { t.sel } else { t.panel };
-                put(
-                    buf,
-                    inner.x,
-                    y,
-                    2,
-                    if installed { "✓" } else { "↓" },
-                    if installed { t.green } else { t.dim }.patch(base),
-                );
-                put(
-                    buf,
-                    inner.x + 2,
-                    y,
-                    inner.width / 2,
-                    c["name"].as_str().unwrap_or_default(),
-                    if sel { t.bold } else { t.text }.patch(base),
-                );
-                let how = if installed { "on this computer".to_owned() } else { "fetched on first use".to_owned() };
-                rput(buf, inner.right(), y, &how, t.dim.patch(base));
-            }
-            // Last row: a group chat instead of a bot.
-            let gi = choices.len();
-            if group_row && gi >= off && gi < off + list_h {
-                let y = inner.y + 2 + u(gi - off);
-                let sel = gi == a.cursor;
-                let base = if sel { t.sel } else { t.panel };
-                if sel {
-                    restyle(buf, Rect::new(inner.x - 1, y, inner.width + 2, 1), t.sel);
-                }
-                put(buf, inner.x, y, 2, "+", t.secondary.patch(base));
-                put(buf, inner.x + 2, y, inner.width / 2, NEW_GROUP, if sel { t.bold } else { t.text }.patch(base));
-                rput(buf, inner.right(), y, "several bots, one chat", t.dim.patch(base));
-            }
-            put(
-                buf,
-                inner.x,
-                inner.bottom() - 1,
-                inner.width,
-                "↵ next: folder   ↑↓ move   esc cancel",
-                t.dim.patch(t.panel),
-            );
-        }
+        Overlay::NewBot(n) => new_bot_view(buf, area, n),
         Overlay::Folder(p) => {
             let t = theme();
             let matches = App::folder_matches(p);

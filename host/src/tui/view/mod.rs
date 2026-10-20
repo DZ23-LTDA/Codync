@@ -14,6 +14,7 @@ mod computer_access;
 mod forms;
 mod goto;
 mod help;
+mod new_bot;
 mod overlay;
 mod pair;
 mod permission;

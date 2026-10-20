@@ -38,7 +38,7 @@ The bot is the same agent on the computer; the call only changes how you talk to
   or switching accounts ends its calls and closes the transport.
 - Final replies and approval notices are delivered from the store's incoming events
   directly to the audio session, rather than waiting for a SwiftUI view update.
-  Replayed final replies, other bots and thread replies are not read into this call.
+  Replayed final replies and other bots' replies are not read into this call.
 
 ## Dictation
 

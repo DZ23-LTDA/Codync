@@ -48,10 +48,10 @@ public final class AccountStore {
     /// Persisted in the context (channel route).
     private var saved: [Computer]
     private var accessPolls: [ComputerID: Task<Void, Never>] = [:]
+    /// Access requests still waiting for their code, joined by a second ask.
+    private var asks: [ComputerID: Task<AccessTicket, any Error>] = [:]
     private var isActive = true
     private var retired = false
-    /// Asked once per launch: a denied or cancelled request isn't repeated behind the user's back.
-    private var asked: Set<ComputerID> = []
 
     public convenience init(storage: SharedStore.Context, cloud: CloudClient?) {
         self.init(storage: storage, cloud: cloud) { computer in
@@ -142,9 +142,6 @@ public final class AccountStore {
             let list = try await cloud.computers()
             guard !retired else { return }
             if list != cloudComputers { Motion.animate { cloudComputers = list } }
-            // Signed in, ask every account computer this device can't use yet for access, without
-            // a tap. Computers set to auto-approve let it straight in; the others show the code.
-            await askForAccess()
         } catch let error as CloudError where !error.isTransient {
             lastError = error.localizedDescription
         } catch {
@@ -154,19 +151,44 @@ public final class AccountStore {
         }
     }
 
-    /// Starts an access request; the returned `code` must match the one the computer shows.
+    /// Asks the computer for access; the code arrives in `pendingAccess`, where it must match the one
+    /// the computer shows. The request runs here, not in the caller: it outlives a closed sheet, so the
+    /// computer never waits on a request nobody reveals, and asking again while it runs joins it
+    /// instead of committing a second one.
     /// Approval is then picked up in the background and the computer joins `stores`.
-    public func requestAccess(_ id: ComputerID) async throws -> AccessTicket {
+    public func requestAccess(_ id: ComputerID) async throws {
+        if let ask = asks[id], !ask.isCancelled {
+            _ = try await ask.value
+            return
+        }
         guard let cloud, let target = cloudComputers.first(where: { $0.computerId == id }) else {
             throw CloudError(status: 404, code: "notFound", message: "That computer isn't in your account.")
         }
-        let ticket = try await cloud.requestAccess(id, signKey: target.signKey)
-        guard !retired else { throw CancellationError() }
-        Analytics.shared.capture(.accessRequested)
-        setPending(id, ticket)
         accessPolls[id]?.cancel()
-        accessPolls[id] = Task { [weak self] in await self?.awaitApproval(ticket, target: target, cloud: cloud) }
-        return ticket
+        let ask = Task { try await cloud.requestAccess(id, signKey: target.signKey) }
+        asks[id] = ask
+        accessPolls[id] = Task { [weak self] in
+            await withTaskCancellationHandler {
+                let result = await ask.result
+                guard let self else { return }
+                if self.asks[id] == ask { self.asks[id] = nil }
+                let ticket: AccessTicket
+                do {
+                    ticket = try result.get()
+                } catch {
+                    // With the sheet closed nothing else sees it; an open sheet shows it too.
+                    log.info("access request failed: \(error.localizedDescription, privacy: .public)")
+                    return
+                }
+                guard !self.retired, !Task.isCancelled else { return }
+                Analytics.shared.capture(.accessRequested)
+                self.setPending(id, ticket)
+                await self.awaitApproval(ticket, target: target, cloud: cloud)
+            } onCancel: {
+                ask.cancel()
+            }
+        }
+        _ = try await ask.value
     }
 
     /// An offline account computer named like one this device uses or sees online: most likely the same
@@ -213,25 +235,6 @@ public final class AccountStore {
             await refreshCloud()
         } catch {
             lastError = error.localizedDescription
-        }
-    }
-
-    private func askForAccess() async {
-        let waiting = cloudComputers.filter { c in
-            c.isOnline && c.access != "granted" && !asked.contains(c.computerId)
-                && pendingAccess[c.computerId] == nil && stores[c.computerId] == nil
-        }
-        for computer in waiting {
-            asked.insert(computer.computerId)
-            do {
-                _ = try await requestAccess(computer.computerId)
-            } catch let error as CloudError where !error.isTransient {
-                lastError = error.localizedDescription
-            } catch {
-                // Asked without a tap: a connection or cloud hiccup isn't worth a dialog.
-                // The computer stays in the list, where it can be asked by hand.
-                log.info("access request failed: \(error.localizedDescription, privacy: .public)")
-            }
         }
     }
 

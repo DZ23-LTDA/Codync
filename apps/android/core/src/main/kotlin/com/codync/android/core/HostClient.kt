@@ -33,11 +33,14 @@ data class Bot(
     val connectors: List<String> = emptyList(),
     val skills: List<String> = emptyList(),
     val computer: Boolean = false,
+    /** The bot can create bots (which can too) and change any bot's setup (the built-in `manage` tools); null from an older host. */
+    val manageTeam: Boolean? = null,
+    /** The bot that created this one; null when the user did. */
+    val createdBy: String? = null,
     val autoName: Boolean = false,
     val createdAt: Long = 0,
     val startedAt: Long? = null,
     val workingChat: String? = null,
-    val workingThread: String? = null,
     val lastMessage: String? = null,
     val lastAt: Long = 0,
     val status: String = "idle",
@@ -58,9 +61,11 @@ data class Bot(
     val fastModeRefusal: String? get() = if (fastMode && fastModeSupport == "refused")
         "The agent turned it off: ${fastModeIssue ?: "not available"}. Switch it off and on to try again." else null
 
-    /** Working right now in this chat's main conversation (`thread == null`) or in that thread. */
-    fun isWorking(chat: String, thread: String?): Boolean =
-        status in listOf("working", "needsInput") && (workingChat ?: id) == chat && workingThread == thread
+    /** A group's bots, in member order, from [bots]. */
+    fun memberBots(bots: List<Bot>): List<Bot> = members.mapNotNull { id -> bots.firstOrNull { it.id == id } }
+
+    /** Working right now in this chat (its own, or a group it's in). */
+    fun isWorking(chat: String): Boolean = status in listOf("working", "needsInput") && (workingChat ?: id) == chat
 }
 
 object HostClient {

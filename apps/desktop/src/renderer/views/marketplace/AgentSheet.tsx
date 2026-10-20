@@ -74,7 +74,7 @@ export function NodeNotice({ onAdd }: { onAdd: () => void }) {
  * Getting an agent ready on the computer: install it, add Node.js when it runs on Node and
  * the computer has none, then sign in. Sign-in
  * options come from the agent itself (ACP), plus Codync's own command for
- * CLIs it knows. Bots are made from New chat, not here.
+ * CLIs it knows. Bots are made from New bot, not here.
  */
 /** `recheck`: opened from a chat's sign-in request, whose agent refused a turn, so the agent is
  *  asked again however signed in it looked. */

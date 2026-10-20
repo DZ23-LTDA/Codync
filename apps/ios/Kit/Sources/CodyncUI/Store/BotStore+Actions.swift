@@ -108,18 +108,12 @@ extension BotStore {
         }
     }
 
-    struct ReadingScope: Hashable {
-        let botId: String
-        let thread: String?
-    }
-
     /// Views register only while visible in an active scene. Multiple windows may
     /// read the same conversation without unregistering each other.
-    func setReading(_ token: UUID, botId: String, thread: String?, active: Bool) {
+    func setReading(_ token: UUID, botId: String, active: Bool) {
         if active {
-            let scope = ReadingScope(botId: botId, thread: thread)
-            readingViews[token] = scope
-            if connection == .online { markRead(botId, thread: thread) }
+            readingViews[token] = botId
+            if connection == .online { markRead(botId) }
         } else {
             readingViews[token] = nil
         }
@@ -127,15 +121,12 @@ extension BotStore {
 
     func acknowledgeVisibleConversations(_ botId: String, entry: Entry? = nil) {
         guard connection == .online else { return }
-        for scope in Set(readingViews.values) where scope.botId == botId {
-            if let entry, (!entry.isChat || entry.threadId != scope.thread) { continue }
-            markRead(botId, thread: scope.thread)
-        }
+        guard readingViews.values.contains(botId), entry?.isChat != false else { return }
+        markRead(botId)
     }
 
-    /// The main chat on screen (or the thread on `thread`) is read; the host ignores it
-    /// when nothing there is unread.
-    public func markRead(_ botId: String, thread: String? = nil) {
+    /// The chat on screen is read; the host ignores it when nothing there is unread.
+    public func markRead(_ botId: String) {
         // Entry events may arrive before the roster's unread count. The host is
         // authoritative and treats a redundant scoped acknowledgement as a no-op.
         Task {
@@ -146,7 +137,7 @@ extension BotStore {
             }
             guard !Task.isCancelled, isActive, let client = live else { return }
             do {
-                try await client.markRead(botId, threadId: thread)
+                try await client.markRead(botId)
             } catch {
                 // The visible scope is acknowledged again when the link recovers.
                 log.debug("read acknowledgement deferred: \(error.localizedDescription)")
@@ -154,11 +145,11 @@ extension BotStore {
         }
     }
 
-    /// The roster's "Mark as read": the chat and all its threads.
+    /// The roster's "Mark as read": everything in the chat.
     public func markAllRead(_ botId: String) {
         guard (bots[botId]?.unread ?? 0) > 0 else { return }
         bots[botId]?.unread = 0
-        perform(replay: true) { try await $0.markRead(botId, all: true) }
+        perform(replay: true) { try await $0.markRead(botId) }
     }
 
     public func setPinned(_ bot: Bot, _ pinned: Bool) {
@@ -231,6 +222,14 @@ extension BotStore {
         perform(replay: true) { _ = try await $0.updateBot(d) }
     }
 
+    /// The composer's `/fast`: the bot's Fast mode flips; in a group, every member that shows it
+    /// goes to the opposite of the group's state.
+    public func toggleFastMode(_ bot: Bot) {
+        guard bot.isGroup else { return setFastMode(bot, !bot.fastMode) }
+        let group = GroupFastMode(members(of: bot))
+        for member in group.members { setFastMode(member, group.state == .off) }
+    }
+
     // MARK: roster order
 
     /// Puts the roster in `ids` order (pinned bots still sort first) and sends it; the host
@@ -267,12 +266,6 @@ extension BotStore {
     public func updateGroup(_ draft: GroupDraft) async throws {
         let group = try await ready().updateGroup(draft)
         bots[group.id] = group
-    }
-
-    /// Pages in a thread's replies (the stream only carries recent entries).
-    public func loadThread(_ botId: String, root: String) async {
-        guard let client, let replies = try? await client.thread(botId: botId, rootId: root) else { return }
-        for e in replies { upsert(e) }
     }
 
     /// The bot-to-bot notices between a chat and a peer. Never `upsert`ed: old notices in the

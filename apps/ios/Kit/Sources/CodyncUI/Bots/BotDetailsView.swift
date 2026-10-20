@@ -53,6 +53,10 @@ struct BotDetailsView: View {
         .overlay(alignment: .topTrailing) { actions }
         .tracked(.screenViewed(.botDetails))
         .task(id: botId) { draft = bot.map(BotDraft.init) }
+        // A change made elsewhere (a bot that manages the team, another device) replaces each field not edited here.
+        .onChange(of: bot.map(BotDraft.init)) { base, fresh in
+            if let base, let fresh, base.id == fresh.id { draft = draft?.rebased(from: base, onto: fresh) }
+        }
         .onChange(of: draft) { _, draft in autosave(draft) }
         .codyncSheet(item: $template) { BotTemplateView(draft: $0.draft) }
     }

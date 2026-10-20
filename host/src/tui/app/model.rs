@@ -38,7 +38,6 @@ pub enum After {
     Tracked,
     Analytics,
     History(String),
-    Thread,
     Dirs,
     Pairing,
     Backends,
@@ -107,6 +106,11 @@ pub struct Bot {
     pub hidden: bool,
     pub notify: bool,
     pub computer: bool,
+    /// It creates bots and changes any bot's setup (`chat::manage`); `None` from a host without it.
+    pub manage_team: Option<bool>,
+    /// The bot that created this one; `None` when the user did.
+    pub created_by: Option<String>,
+    pub created_at: i64,
     /// The harness's own memory kept on beside Codync's; `None` where it has no switch.
     pub harness_memory: Option<bool>,
     pub connectors: Vec<String>,
@@ -120,9 +124,8 @@ pub struct Bot {
     /// A group chat: several bots and the user, no agent of its own.
     pub group: bool,
     pub members: Vec<String>,
-    /// Where the running turn talks: a chat (`None` = its own) and a thread in it.
+    /// Where the running turn talks: a chat (`None` = its own).
     pub working_chat: Option<String>,
-    pub working_thread: Option<String>,
 }
 
 fn strs(v: &Value) -> Vec<String> {
@@ -217,6 +220,9 @@ impl Bot {
             hidden: v["hidden"].as_bool().unwrap_or(false),
             notify: v["notify"].as_bool().unwrap_or(true),
             computer: v["computer"].as_bool().unwrap_or(false),
+            manage_team: v["manageTeam"].as_bool(),
+            created_by: v["createdBy"].as_str().map(str::to_owned),
+            created_at: v["createdAt"].as_i64().unwrap_or(0),
             harness_memory: v["harnessMemory"].as_bool(),
             connectors: strs(&v["connectors"]),
             skills: strs(&v["skills"]),
@@ -234,13 +240,12 @@ impl Bot {
             group: v["kind"] == "group",
             members: strs(&v["members"]),
             working_chat: v["workingChat"].as_str().map(str::to_owned),
-            working_thread: v["workingThread"].as_str().map(str::to_owned),
         })
     }
 
-    /// Whether the running turn talks in this chat: its main lane (`None`) or that thread.
-    pub fn works_in(&self, thread: Option<&str>) -> bool {
-        self.away().is_none() && self.working_thread.as_deref() == thread
+    /// Whether the running turn talks in this chat.
+    pub fn works_here(&self) -> bool {
+        self.away().is_none()
     }
 
     /// The other chat (a group) the running turn talks in, if it isn't this bot's own.
@@ -279,8 +284,6 @@ pub struct Entry {
     pub kind: Kind,
     pub data: Value,
     pub created_at: i64,
-    /// The main-chat message whose thread this is in; `None` is the main chat.
-    pub thread_id: Option<String>,
 }
 
 impl Entry {
@@ -304,7 +307,6 @@ impl Entry {
                 kind,
                 data: v["data"].clone(),
                 created_at: v["createdAt"].as_i64().unwrap_or(0),
-                thread_id: v["threadId"].as_str().map(str::to_owned),
             },
         ))
     }
@@ -333,6 +335,16 @@ impl Entry {
 
     pub fn is_final(&self) -> bool {
         self.kind == Kind::Agent && self.data["final"].as_bool().unwrap_or(false)
+    }
+
+    /// A message the user can answer with a reply: theirs, or a final reply (the host checks too).
+    pub fn takes_reply(&self) -> bool {
+        self.kind == Kind::User || self.is_final()
+    }
+
+    /// The text a reply quotes: the message's, or its files' names.
+    pub fn quoted(&self) -> String {
+        crate::store::message_text(&self.data)
     }
 
     /// What the chat shows as a message: the user's, and each turn's final reply.
@@ -396,7 +408,6 @@ mod tests {
                 {"optionId": "a", "name": "Allow", "kind": "allow_once"},
             ]}),
             created_at: 0,
-            thread_id: None,
         };
         assert!(e.pending());
         let kinds: Vec<String> = e.options().into_iter().map(|o| o.2).collect();

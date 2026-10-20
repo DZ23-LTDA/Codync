@@ -57,7 +57,6 @@ export const prefs = {
   sidebarCompact: pref('sidebarCompact', false),
   sidebarWidth: pref('desktopSidebarWidth', 266),
   detailsPanelWidth: pref('detailsPanelWidth', 292),
-  repliesPanelWidth: pref('repliesPanelWidth', 420),
   hiddenComputers: pref('hiddenComputers', ''),
   computerOrder: pref<string[]>('computerOrder', []),
   collapsedComputers: pref<string[]>('collapsedComputerSections', []),

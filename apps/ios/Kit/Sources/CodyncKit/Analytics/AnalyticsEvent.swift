@@ -37,7 +37,7 @@ public enum AnalyticsEvent: Equatable, Sendable {
     }
     public enum VoiceEngine: String, Sendable { case onDevice = "on_device", openai, gemini, cloud }
     public enum Screen: String, Sendable {
-        case bots, state, chat, thread, trace, botDetails = "bot_details", memory, routines, marketplace
+        case bots, state, chat, trace, botDetails = "bot_details", memory, routines, marketplace
         case settings, computers, usage, account, pairing, voiceSettings = "voice_settings", remoteScreen = "remote_screen"
     }
 

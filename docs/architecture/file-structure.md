@@ -11,10 +11,10 @@ Codync/
 │   │   ├── main.rs            # CLI entry, shared helpers (LockExt, http)
 │   │   ├── hub.rs, store/     # Shared state + event fan-out / SQLite persistence (schema, model, bots, entries, devices)
 │   │   ├── service/           # Data dir, launchd/systemd/Windows install, keep-awake
-│   │   ├── usage.rs, mcp.rs
+│   │   ├── usage.rs, mcp.rs   # mcp.rs: built-in stdio MCP servers; mcp/remote.rs: remote connector proxy
 │   │   ├── screen/            # Remote screen: helper protocol, helper socket, phone viewers, bot computer use (cua-driver)
 │   │   ├── api/               # Dispatch (mod.rs), HTTP/SSE routes (http.rs, events.rs), method groups (bots.rs, host.rs, marketplace.rs, remote.rs), caller permissions (devices.rs)
-│   │   ├── agent/             # ACP client, harness discovery, registry, sign-in, setup PTYs, bot actor
+│   │   ├── agent/             # ACP client, harness discovery, registry, sign-in, setup PTYs, bot actor, new bot defaults (new_bot.rs)
 │   │   ├── chat/              # Groups, bot-to-bot requests, prompt snapshots, memory
 │   │   ├── remote/            # Identity, wire crypto, E2E channel, cloud, relay socket, push
 │   │   ├── market/            # Marketplace (registry.rs, install.rs, skills.rs), Composio, MCP OAuth
@@ -91,6 +91,7 @@ Codync/
 | Agent process, ACP, queue and session lifecycle | `host/src/agent/bot/` (`launch.rs`, `queue.rs`, `session.rs`, `turn.rs`, `updates.rs`), `acp.rs` |
 | Compaction timing and rollover | `host/src/agent/bot/compaction.rs`, the handoff card in `host/src/chat/handoff.rs`; the rules in `codync-mem`'s `compaction.rs` |
 | Group room turns / bot-to-bot requests | `host/src/chat/group.rs` / `team.rs` |
+| Team management (bots creating and changing bots) | `host/src/chat/manage.rs`, its approval card (`Cmd::Approve`) in `agent/bot/updates.rs` |
 | Prompt snapshots and memory | `host/src/chat/context.rs`, `memory/` (`api.rs`, `tools.rs`, `notices.rs`, `dream.rs`, `import.rs`; long-form files in `files.rs`, `file_api.rs`, `file_tools.rs`, `file_notices.rs`); the rules in `host/crates/memory` (`codync-mem`, files in `files.rs`, dreaming in `dream/`); harnesses' own memory turned off in `host/src/agent/own_memory.rs` |
 | Identity, encryption and direct channel | `host/src/remote/identity.rs`, `crypto.rs`, `channel.rs` |
 | Host cloud state and relay connection | `host/src/remote/cloud.rs`, `relay.rs` |
@@ -119,7 +120,7 @@ Codync/
 - `CodyncKit` owns serializable models, clients and rendering primitives shared with widgets. It must not import `CodyncUI` or ClerkKit.
 - `CodyncUI` owns the iPhone app's observable stores and screens. App-specific lifecycle, OAuth configuration and device hooks belong in `apps/`.
 - Each `BotStore` (Swift, and its TypeScript port in the desktop app) talks to one computer. `AccountStore` aggregates stores and routes by `BotReference`; bare bot IDs are not globally unique.
-- The host owns routing, reply counts, permissions and group turn scheduling. Clients render these results; they do not reimplement host policy.
+- The host owns routing, reply quotes, permissions and group turn scheduling. Clients render these results; they do not reimplement host policy.
 - Android: `core` is plain JVM (no Android or Compose imports) and `design` holds no I/O; `app` uses both. Like the other clients it renders host state and sends intents, never product logic.
 - `cloud/` transports encrypted chat traffic and manages account metadata. `relay/` delivers APNs pushes. The two Workers have separate configuration and tests.
 
@@ -130,9 +131,9 @@ Codync/
 | bot | Named agent persona; a group is also a roster entry with `kind: group` |
 | agent / backend | Coding harness and its ACP adapter |
 | chat | Main, persistent conversation with a bot or group |
-| thread | Replies under a main-chat root message |
+| reply | A user message answering an earlier message of its chat, with that message's quote |
 | group | Chat with several bots and the user; no agent process of its own |
-| lane | `(chat, thread)` destination of a turn |
+| lane | Destination of a turn: a bot's own chat or a group's |
 | session | Harness-owned ACP model context; distinct from stored chat history |
 | trace | Full conversation, including intermediate/tool events |
 | computer / host | User-facing paired environment / the daemon that serves it |

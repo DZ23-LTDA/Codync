@@ -43,7 +43,7 @@ export class BotMirror extends Observable {
   routineDrafts = new Map<string, string>()
   readonly composerDrafts: ComposerDrafts
   lastError: string | null = null
-  /** A kit view selected a bot on this store (new chat, editor); the account picks it up. */
+  /** A kit view selected a bot on this store (new bot or group, editor); the account picks it up. */
   selection: string | null = null
   /** Permission cards whose answer is on its way, with the chosen option. */
   answering = new Map<string, string>()
@@ -115,21 +115,13 @@ export class BotMirror extends Observable {
     return this.hello?.backends.find((b) => b.id === id)?.name ?? builtInBackendName(id)
   }
 
-  /** A bot's or group's main chat (thread replies are left out). */
-  chat(botId: string) {
-    return (this.entries.get(botId) ?? []).filter((e) => !e.threadId)
-  }
-
+  /** A bot's or group's chat, trace entries included. */
   allEntries(botId: string) {
     return this.entries.get(botId) ?? []
   }
 
   canLoadOlder(botId: string) {
     return canLoadHistory(this.allEntries(botId), this.historyComplete.has(botId))
-  }
-
-  replies(botId: string, root: string) {
-    return (this.entries.get(botId) ?? []).filter((e) => e.threadId === root)
   }
 
   members(group: Bot) {
@@ -140,12 +132,11 @@ export class BotMirror extends Observable {
     return (id && this.bots.get(id)?.name) || 'A deleted bot'
   }
 
-  /** The latest thinking of the turn running in a chat (`thread` null) or thread. */
-  currentThinking(botId: string, thread: string | null) {
+  /** The latest thinking of the turn running in a chat. */
+  currentThinking(botId: string) {
     const list = this.allEntries(botId)
     for (let i = list.length - 1; i >= 0; i--) {
       const e = list[i]!
-      if ((e.threadId ?? null) !== thread) continue
       if (e.kind === 'user' || (e.kind === 'agent' && e.data.final === true)) return null
       if (e.kind === 'thought' && e.data.text) return e.data.text
     }

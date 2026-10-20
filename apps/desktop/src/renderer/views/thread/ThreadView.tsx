@@ -1,5 +1,5 @@
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { draftOf, isGroup, isWorkingIn, type Bot, type BotDraft } from '@shared/models'
+import { draftOf, isGroup, isWorkingIn, type Bot, type BotDraft, type Entry } from '@shared/models'
 import { BotAvatar, GroupAvatar } from '../../components/Avatar'
 import { Spinner } from '../../components/Controls'
 import { Icon } from '../../components/Icon'
@@ -16,7 +16,6 @@ import { ChatRow, TimeSeparator, WorkingIndicator } from './ChatRows'
 import { Composer } from './Composer'
 import { ChatSidePanel } from './ChatSidePanel'
 import { DetailsPanel, type DetailsTab } from './DetailsPanel'
-import { RepliesView } from './RepliesView'
 import { TraceView } from './TraceView'
 import { useReading } from './reading'
 import { GroupEditorView } from '../bots/GroupEditorView'
@@ -31,14 +30,14 @@ const WIDE = 680
 
 /**
  * One endless conversation with a bot or a group chat. Only deliberate messages show here; tool
- * calls and thinking live in the "Full conversation" sheet. Any message can start a thread,
- * which opens beside the chat.
+ * calls and thinking live in the "Full conversation" sheet. Replying to a message quotes it in the composer.
  */
 export const ThreadView = memo(function ThreadView({ botId }: { botId: string }) {
   const store = useStore()
   const bot = store.bots.get(botId) ?? null
   const [showTrace, setShowTrace] = useState(false)
-  const [openThread, setOpenThread] = useState<string | null>(null)
+  const [replyTo, setReplyTo] = useState<Entry | null>(null)
+  const cancelReply = useCallback(() => setReplyTo(null), [])
   const [botChat, setBotChat] = useState<string | null>(null)
   const [editingGroup, setEditingGroup] = useState(false)
   const [templateDraft, setTemplateDraft] = useState<BotDraft | null>(null)
@@ -59,8 +58,7 @@ export const ThreadView = memo(function ThreadView({ botId }: { botId: string })
   const [, setSqueezed] = useState(0)
   const squeezeBelow = useRef(0)
   const [detailsWidth, setDetailsWidth] = usePref(prefs.detailsPanelWidth)
-  const [repliesWidth, setRepliesWidth] = usePref(prefs.repliesPanelWidth)
-  useReading(store, botId, null)
+  useReading(store, botId)
   // The chat window remounts this per conversation (`key`), so each one opened counts.
   useScreenViewed('chat')
 
@@ -83,9 +81,8 @@ export const ThreadView = memo(function ThreadView({ botId }: { botId: string })
     }
   }, [])
 
-  const panelOpen = wide && (!!openThread || showSettings)
-  const preferredPanel = openThread ? repliesWidth : detailsWidth
-  squeezeBelow.current = panelOpen ? preferredPanel : 0
+  const panelOpen = wide && showSettings
+  squeezeBelow.current = panelOpen ? detailsWidth : 0
   // The side panel's edge drags its width, leaving the conversation at least 380 wide.
   const panelWidth = (w: number) => Math.min(Math.max(260, w), width.current - 380)
   // A compact Details presentation dismisses once the window is wide enough for the inspector.
@@ -93,15 +90,9 @@ export const ThreadView = memo(function ThreadView({ botId }: { botId: string })
     if (wide) setCompactDetails(false)
   }, [wide])
   const toggleDetails = useCallback(() => {
-    if (!wide) {
-      setOpenThread(null)
-      setCompactDetails((c) => !c)
-    } else if (openThread) {
-      // The thread occupies the inspector slot: << shows details instead of toggling behind it.
-      setOpenThread(null)
-      setShowSettings(true)
-    } else setShowSettings((s) => !s)
-  }, [wide, openThread])
+    if (!wide) setCompactDetails((c) => !c)
+    else setShowSettings((s) => !s)
+  }, [wide])
 
   useEffect(
     () =>
@@ -112,14 +103,11 @@ export const ThreadView = memo(function ThreadView({ botId }: { botId: string })
   )
 
   const openTrace = useCallback(() => setShowTrace(true), [])
-  const openThreadOn = useCallback((root: { id: string }) => setOpenThread(root.id), [])
-  const closeThread = useCallback(() => setOpenThread(null), [])
 
   const presentRoutine = useCallback((id: string | null) => {
     setRoutineId(id)
     setRoutineRequest((r) => r + 1)
     setDetailsTab('details')
-    setOpenThread(null)
     setShowSettings(true)
     if (!wide) setCompactDetails(true)
   }, [wide])
@@ -150,7 +138,7 @@ export const ThreadView = memo(function ThreadView({ botId }: { botId: string })
           <TopFade />
           <div className="top-chrome-row">
             <Spacer />
-            {(!showSettings || openThread || !wide) && !compactDetails ? (
+            {(!showSettings || !wide) && !compactDetails ? (
               <MacChatButton className="ringed" title="Conversation details" icon="chevron.left.2" direction={[-1, 0]} onClick={toggleDetails} />
             ) : null}
           </div>
@@ -167,7 +155,8 @@ export const ThreadView = memo(function ThreadView({ botId }: { botId: string })
             {store.shownConnection.kind !== 'online' || store.mismatch ? <ConnectionSubtitle /> : null}
           </button>
         </div>
-        <Transcript botId={botId} openTrace={openTrace} openThread={openThreadOn} openRoutine={presentRoutine} openBotChat={setBotChat} />
+        {/* An update card takes the composer's place, so there's nothing to reply with. */}
+        <Transcript botId={botId} openTrace={openTrace} onReply={store.mismatch ? undefined : setReplyTo} openRoutine={presentRoutine} openBotChat={setBotChat} />
         <div className="composer-dock" ref={dock}>
           <div className="composer-fade" />
           {store.mismatch ? (
@@ -177,6 +166,8 @@ export const ThreadView = memo(function ThreadView({ botId }: { botId: string })
           ) : (
             <Composer
               botId={botId}
+              reply={replyTo}
+              cancelReply={cancelReply}
               onCall={!calling && bot ? () => setCalling(true) : null}
               onInterrupt={callSpeaking ? () => interruptCall.current?.() : null}
             />
@@ -190,19 +181,16 @@ export const ThreadView = memo(function ThreadView({ botId }: { botId: string })
       </div>
       <ChatSidePanel
         open={panelOpen}
-        width={panelWidth(preferredPanel)}
+        width={panelWidth(detailsWidth)}
         min={260}
         max={width.current - 380}
-        onResize={(w) => (openThread ? setRepliesWidth : setDetailsWidth)(panelWidth(w))}
+        onResize={(w) => setDetailsWidth(panelWidth(w))}
       >
-        {openThread ? <RepliesView key={openThread} botId={botId} rootId={openThread} close={closeThread} /> : details}
+        {details}
       </ChatSidePanel>
 
       <Sheet open={compactDetails} onClose={() => setCompactDetails(false)} width={340} height={600}>
         {details}
-      </Sheet>
-      <Sheet open={openThread !== null && !wide} onClose={closeThread} width={440} height={600}>
-        {openThread ? <RepliesView botId={botId} rootId={openThread} close={closeThread} /> : null}
       </Sheet>
       <Sheet open={botChat !== null} onClose={() => setBotChat(null)} width={620} height={560}>
         {botChat ? <BotConversationView botId={botId} peerId={botChat} /> : null}
@@ -214,7 +202,7 @@ export const ThreadView = memo(function ThreadView({ botId }: { botId: string })
         {templateDraft ? <BotTemplateView draft={templateDraft} /> : null}
       </Sheet>
       <Sheet open={editingGroup} onClose={() => setEditingGroup(false)} width={420} height={560}>
-        <GroupEditorView group={bot} />
+        {bot ? <GroupEditorView group={bot} /> : null}
       </Sheet>
     </div>
   )
@@ -255,13 +243,13 @@ function ConnectionSubtitle() {
 /** The messages: every loaded message, brought to the newest as it changes while the reader is at the bottom. */
 const PAGE = 40
 
-const Transcript = memo(function Transcript({ botId, openTrace, openThread, openRoutine, openBotChat }: { botId: string; openTrace: () => void; openThread: (e: { id: string }) => void; openRoutine: (id: string | null) => void; openBotChat: (peerId: string) => void }) {
+const Transcript = memo(function Transcript({ botId, openTrace, onReply, openRoutine, openBotChat }: { botId: string; openTrace: () => void; onReply?: (e: Entry) => void; openRoutine: (id: string | null) => void; openBotChat: (peerId: string) => void }) {
   const store = useStore()
   const bot = store.bots.get(botId) ?? null
-  const live = !!bot && isWorkingIn(bot, botId, null) && !store.isOffline
+  const live = !!bot && isWorkingIn(bot, botId) && !store.isOffline
   // Rebuilt only when this chat changes: the store replaces a chat's list on every change.
   const entries = store.allEntries(botId)
-  const all = useMemo(() => buildChat(store.chat(botId), true), [store, botId, entries])
+  const all = useMemo(() => buildChat(entries), [entries])
   // The newest 40 items first; older pages come in near the top.
   const [firstShown, setFirstShown] = useState<string | null>(null)
   const [loadingEarlier, setLoadingEarlier] = useState(false)
@@ -300,7 +288,7 @@ const Transcript = memo(function Transcript({ botId, openTrace, openThread, open
     if (at === 0) {
       const anchor = list[0]?.id
       await store.loadOlder(botId)
-      list = buildChat(store.chat(botId), true)
+      list = buildChat(store.allEntries(botId))
       at = anchor ? Math.max(0, list.findIndex((i) => i.id === anchor)) : 0
     }
     if (at > 0) setFirstShown(list[Math.max(0, at - PAGE)]!.id)
@@ -360,12 +348,12 @@ const Transcript = memo(function Transcript({ botId, openTrace, openThread, open
           {items.length === 0 && bot ? <div className="transcript-intro">{isGroup(bot) ? <GroupIntroCard group={bot} /> : <IntroCard bot={bot} />}</div> : null}
           {items.map((item) => (
             <div key={item.id} className={arrivals.has(item.id) ? rowIn(item) : undefined}>
-              <Row item={item} chat={bot} openTrace={openTrace} openThread={openThread} openRoutine={openRoutine} openBotChat={openBotChat} />
+              <Row item={item} chat={bot} openTrace={openTrace} onReply={onReply} openRoutine={openRoutine} openBotChat={openBotChat} />
             </div>
           ))}
           {bot && live ? (
             <div className={arrivals.has('working') ? 'chat-working row-in' : 'chat-working'}>
-              <WorkingIndicator bot={bot} thinking={store.currentThinking(botId, null)} />
+              <WorkingIndicator bot={bot} thinking={store.currentThinking(botId)} />
             </div>
           ) : null}
           <div className="chat-end" />
@@ -388,7 +376,7 @@ const Transcript = memo(function Transcript({ botId, openTrace, openThread, open
   )
 })
 
-function Row({ item, chat, openTrace, openThread, openRoutine, openBotChat }: { item: ChatItem; chat: Bot | null; openTrace: () => void; openThread: (e: { id: string }) => void; openRoutine: (id: string | null) => void; openBotChat: (peerId: string) => void }) {
+function Row({ item, chat, openTrace, onReply, openRoutine, openBotChat }: { item: ChatItem; chat: Bot | null; openTrace: () => void; onReply?: (e: Entry) => void; openRoutine: (id: string | null) => void; openBotChat: (peerId: string) => void }) {
   if (item.kind === 'separator') {
     return <TimeSeparator date={item.date} />
   }
@@ -402,7 +390,7 @@ function Row({ item, chat, openTrace, openThread, openRoutine, openBotChat }: { 
       </button>
     )
   }
-  return <ChatRow entry={e} groupStart={item.groupStart} chat={chat} openTrace={openTrace} openThread={openThread} />
+  return <ChatRow entry={e} groupStart={item.groupStart} chat={chat} openTrace={openTrace} onReply={onReply} />
 }
 
 /** The start of an empty group chat: who's in it and how the room works. */

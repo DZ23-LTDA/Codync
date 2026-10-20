@@ -252,6 +252,13 @@ enum McpServer {
         #[arg(long, default_value_t = service::DEFAULT_PORT)]
         port: u16,
     },
+    /// Create bots and change any bot's setup, for a bot that may manage the team.
+    Manage {
+        #[arg(long)]
+        bot: String,
+        #[arg(long, default_value_t = service::DEFAULT_PORT)]
+        port: u16,
+    },
     /// Search the bot's own chat history.
     Memory {
         #[arg(long)]
@@ -482,6 +489,7 @@ async fn main() -> Result<()> {
         Sub::Mcp { server: McpServer::Routines { bot, port } } => mcp::serve(bot, port, mcp::Server::Routines).await,
         Sub::Mcp { server: McpServer::Chat { bot, port } } => mcp::serve(bot, port, mcp::Server::Chat).await,
         Sub::Mcp { server: McpServer::Team { bot, port } } => mcp::serve(bot, port, mcp::Server::Team).await,
+        Sub::Mcp { server: McpServer::Manage { bot, port } } => mcp::serve(bot, port, mcp::Server::Manage).await,
         Sub::Mcp { server: McpServer::Memory { bot, port } } => mcp::serve(bot, port, mcp::Server::Memory).await,
         Sub::Mcp { server: McpServer::Composio { bot, port } } => mcp::serve(bot, port, mcp::Server::Composio).await,
         Sub::Mcp { server: McpServer::Local { connector, port } } => mcp::serve_local(connector, port).await,

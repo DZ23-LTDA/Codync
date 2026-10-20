@@ -1,7 +1,7 @@
 import { execFile, execFileSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { EventEmitter } from 'node:events'
-import { existsSync, promises as fs, readFileSync, realpathSync } from 'node:fs'
+import { existsSync, mkdirSync, promises as fs, readFileSync, realpathSync, writeFileSync } from 'node:fs'
 import { homedir, platform } from 'node:os'
 import { join, resolve } from 'node:path'
 import { app } from 'electron'
@@ -385,7 +385,13 @@ export const prefs = (() => {
     set: (key: string, value: unknown) => {
       const data = load()
       data[key] = value
-      void fs.mkdir(app.getPath('userData'), { recursive: true }).then(() => fs.writeFile(file(), JSON.stringify(data)))
+      // Synchronous: a marker set right before the app quits (an update install) must be on disk.
+      try {
+        mkdirSync(app.getPath('userData'), { recursive: true })
+        writeFileSync(file(), JSON.stringify(data))
+      } catch (error) {
+        console.error(`prefs: couldn't save ${key}:`, error)
+      }
     },
   }
 })()

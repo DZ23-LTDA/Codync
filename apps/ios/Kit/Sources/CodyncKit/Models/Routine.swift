@@ -56,7 +56,6 @@ public struct RoutineRun: Codable, Identifiable, Hashable, Sendable {
     public var createdAt: Int64
     public var finishedAt: Int64?
     public var detail: String?
-    public var rootId: String?
     public var isActive: Bool { ["pending", "starting", "running", "recovering"].contains(status) }
 }
 

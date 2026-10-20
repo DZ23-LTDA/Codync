@@ -13,8 +13,7 @@ it has no pointer tooltip or link-opening action.
 ## Messages are sent, not streamed
 
 - Every bot gets the built-in `chat` MCP server (`codync-host mcp chat`,
-  `host/src/chat/outbox.rs`) with `send_message {text}` and `send_file {path, name?}`. In the bot's own chat and its
-  threads, each call is one chat bubble, added to the turn's lane at once as an `agent` entry with
+  `host/src/chat/outbox.rs`) with `send_message {text}` and `send_file {path, name?}`. In the bot's own chat, each call is one chat bubble, added to the turn's lane at once as an `agent` entry with
   `final: true`. A turn can send several.
 - The agent's own reply text (`agent_message_chunk`) stays in the trace when the turn sent
   text through `send_message`. A turn that sent nothing (an agent that ignores the tool, or has no MCP) falls back to
@@ -45,7 +44,7 @@ it has no pointer tooltip or link-opening action.
 ## Bot reactions
 
 - The `chat` server's `react {emoji, to?}` (`host/src/chat/reactions.rs`) goes through the bot's actor,
-  which puts one emoji on the message the turn answers: in its own chat or thread, the user's message that
+  which puts one emoji on the message the turn answers: in its own chat, the user's message that
   started the turn; in a group, the newest message its prompt showed from `to` ("user" or a participant's
   name), or from anyone else. Routines and bot requests can't react. Each bot keeps one reaction per
   message; a new emoji replaces it.

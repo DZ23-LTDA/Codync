@@ -39,11 +39,16 @@ running (the message is queued).
 The terminal UI keeps its filename row and backspace removal: its text renderer does
 not implement terminal image protocols. Sending and limits: [file attachments](../features/file-attachments.md).
 
+While replying to a message, the composer shows its quote on top: `text.bubble`, “text”
+on one line and an X that cancels (the terminal UI: `↳ “…”`, esc cancels). The
+placeholder reads "Reply…", and leaving the chat cancels the reply. See
+[replies](../features/groups-and-replies.md).
+
 ## Draft lifetime
 
 Text is saved exactly, including leading/trailing whitespace, blank lines and emoji.
-Main chats and individual threads have separate drafts. Switching destinations or
-reopening the client restores their text. Deleting a bot removes its drafts.
+Each chat has its own draft. Switching chats or reopening the client restores its
+text. Deleting a bot removes its drafts.
 
 Desktop stores text in a versioned localStorage record per account context and
 computer, independently of transcript caches. iOS uses its account-scoped
@@ -77,7 +82,7 @@ node tools/composer-check/serve.mjs
 ```
 
 The fixture never connects to the host or sends to a real bot. Check typing,
-Shift-Return, CJK composition, eight-line overflow, width changes, bot/thread
-switching, reload restoration, offline sending, call/send/stop/interrupt changes,
+Shift-Return, CJK composition, eight-line overflow, width changes, bot switching,
+replies (Toggle reply), reload restoration, offline sending, call/send/stop/interrupt changes,
 attachment removal, inspector opening/closing and Reduced Motion. The fixture's
 sent-message log and drafts are separate from real account data.

@@ -46,7 +46,7 @@ pub struct Snapshot {
     pub memory: String,
 }
 
-// A bot talks in several lanes (its chat, threads, groups), each its own session: snapshots
+// A bot talks in several sessions (its chat and groups, routine runs), each with its own: snapshots
 // and epochs are kept per session.
 fn key(bot_id: &str, session: &str) -> String {
     format!("context.{bot_id}.{session}")

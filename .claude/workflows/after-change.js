@@ -111,7 +111,7 @@ const reviewFix = confirmed.length ? await fix('review findings', confirmed) : n
 
 const walk = (round) => agent(`End-to-end test a code change on the real apps, ${e2e} e2e as CLAUDE.md "End-to-end test every change" defines it (minimal: only this computer's platform; full: also Lima Linux and the UTM Windows VM, skipping and reporting a VM that isn't installed).
 ${scope}
-Walk the flows the change touches, as a person would, and note what you saw. Stop the old build before installing the new one. In this worktree \`npm run dev\` in apps/desktop runs an isolated sandbox (docs/guides/dev-app.md#worktree-sandboxes); never stop or replace the shared Codync Dev, the production Codync app or another session's sandbox, and stop everything you started when done. A change with nothing to walk (CI, tools, docs) reports one not_run check saying so.${round > 1 ? ' This is the second walk, after fixes for the failures of the first.' : ''}`,
+Walk the flows the change touches, as a person would, and note what you saw. Stop the old build before installing the new one. In this worktree \`npm run dev\` in apps/desktop runs an isolated sandbox (docs/guides/dev-app.md#worktree-sandboxes); never stop or replace the shared Codync Dev, the production Codync app or another session's sandbox, and when done leave this worktree's \`npm run dev\` running (it is stopped after the merge) but stop anything else you started. A change with nothing to walk (CI, tools, docs) reports one not_run check saying so.${round > 1 ? ' This is the second walk, after fixes for the failures of the first.' : ''}`,
   { label: `e2e:${round}`, phase: 'E2E', schema: CHECKS })
 
 phase('E2E')
@@ -144,4 +144,5 @@ return {
   e2e: { checks: walked?.checks ?? [], fix: e2eFix },
   cleanup,
   refactor: { suggested: refactors, applied },
+  next: 'Unless an e2e check failed or a skipped fix matters: commit in this worktree, rebase on origin/dev, fast-forward dev, push origin dev, pull dev in the main checkout. Only once that merge is pushed (never before, and not at all if the merge or push fails): stop this worktree\'s `npm run dev` (its Vite, Electron app and sandbox host) and check none of it remains, then leave the worktree and, from the main checkout, delete it: `git worktree remove --force <worktree>`, `git branch -D <branch>`, then `npm run dev -- --prune` in apps/desktop.',
 }

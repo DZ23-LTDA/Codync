@@ -1,10 +1,11 @@
 import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react'
-import { isBelow } from '@shared/compat'
-import { isGroup, isWorkingIn, type Bot } from '@shared/models'
+import { groupFastMode } from '@shared/fast-mode'
+import { isGroup, isWorkingIn, quoteOf, type Bot, type Entry } from '@shared/models'
 import { BotAvatar } from '../../components/Avatar'
 import { Icon } from '../../components/Icon'
+import { IconButton } from '../../components/Controls'
 import { usePresence } from '../../components/Overlay'
-import { VStack } from '../../components/Stack'
+import { HStack, VStack } from '../../components/Stack'
 import { Text } from '../../components/Text'
 import { useModel } from '../../lib/observable'
 import { useStore } from '../../store/context'
@@ -13,18 +14,21 @@ import { pluginsFor } from '../marketplace/plugins'
 import { composerEnter } from './composer-keyboard'
 import { CommandMenu, useCommandMenu } from './CommandMenu'
 import { ComposerAttachment } from './ComposerAttachment'
+import { QuoteRow } from './ChatRows'
 import { useDictation } from './dictation'
-import { builtInCommand, SKILLS_HOST, slashCommands, slashQuery, type SlashCommand } from './slash-commands'
+import { builtInCommand, slashCommands, slashQuery, type SlashCommand } from './slash-commands'
 
 type Trailing = 'interrupt' | 'stop' | 'call' | 'send'
 
 /**
- * The message box under a chat or a thread: send, or stop while the bot (or the group) is
- * working there. In a group, typing `@` suggests its bots; with one bot, a leading `/` lists its commands.
+ * The message box under a chat: send, or stop while the bot (or the group) is working there. A leading `/` lists
+ * the commands (a group's are its bots'); in a group, typing `@` suggests its bots. While `reply` is set, the
+ * message it quotes sits at the top of the box and goes out with the next send.
  */
-export function Composer({ botId, thread = null, onCall, onInterrupt }: {
+export function Composer({ botId, reply = null, cancelReply, onCall, onInterrupt }: {
   botId: string
-  thread?: string | null
+  reply?: Entry | null
+  cancelReply?: () => void
   /** Starts a voice call; while the box is empty it takes the send button's place. */
   onCall?: (() => void) | null
   /** Interrupts the bot while it is speaking in a voice call. */
@@ -32,19 +36,19 @@ export function Composer({ botId, thread = null, onCall, onInterrupt }: {
 }) {
   const store = useStore()
   // Remount transient editor state (selection, attachments, IME) when its destination changes.
-  return <DestinationComposer key={JSON.stringify([store.contextId, store.computer.id, botId, thread])}
-    botId={botId} thread={thread} onCall={onCall} onInterrupt={onInterrupt} />
+  return <DestinationComposer key={JSON.stringify([store.contextId, store.computer.id, botId])}
+    botId={botId} reply={reply} cancelReply={cancelReply} onCall={onCall} onInterrupt={onInterrupt} />
 }
 
-function DestinationComposer({ botId, thread, onCall, onInterrupt }: {
-  botId: string; thread: string | null; onCall?: (() => void) | null; onInterrupt?: (() => void) | null
+function DestinationComposer({ botId, reply, cancelReply, onCall, onInterrupt }: {
+  botId: string; reply: Entry | null; cancelReply?: () => void; onCall?: (() => void) | null; onInterrupt?: (() => void) | null
 }) {
   const store = useStore()
   const plugins = useModel(pluginsFor(store))
   const bot = store.bots.get(botId) ?? null
   const drafts = store.composerDrafts
-  const draft = useSyncExternalStore(drafts.subscribe, () => drafts.get(botId, thread))
-  const setDraft = (text: string) => drafts.set(botId, thread, text)
+  const draft = useSyncExternalStore(drafts.subscribe, () => drafts.get(botId))
+  const setDraft = (text: string) => drafts.set(botId, text)
   const [files, setFiles] = useState<OutgoingFile[]>([])
   const dictation = useDictation(draft, setDraft)
   const field = useRef<HTMLTextAreaElement>(null)
@@ -52,23 +56,30 @@ function DestinationComposer({ botId, thread, onCall, onInterrupt }: {
   const composing = useRef(false)
   /** Text pasted into this draft since the last send. */
   const pasted = useRef<string[]>([])
-  const working = !!bot && isWorkingIn(bot, botId, thread)
+  const working = !!bot && isWorkingIn(bot, botId)
   const empty = !draft.trim() && !files.length
   const canSend = !empty && (store.connection.kind === 'online' || (store.canQueue && !files.length))
   const canAttach = !!bot
 
-  const placeholder = thread ? 'Reply…' : bot && isGroup(bot) ? 'Message everyone · @ to ask one bot' : working ? `Queue a message for ${bot?.name ?? ''}` : `Ask ${bot?.name ?? ''}`
+  const members = bot && isGroup(bot) ? store.members(bot) : []
+
+  const placeholder = reply ? 'Reply…' : bot && isGroup(bot) ? 'Ask everyone · @ to ask one bot' : working ? `Queue a message for ${bot?.name ?? ''}` : `Ask ${bot?.name ?? ''}`
 
   // A routine's "Try it" fills the box.
   const routineDraft = store.routineDrafts.get(botId)
   useEffect(() => {
-    if (thread || routineDraft === undefined) return
+    if (routineDraft === undefined) return
     const incoming = store.consumeRoutineDraft(botId)
     if (incoming === undefined) return
-    const previous = drafts.get(botId, thread)
-    drafts.set(botId, thread, previous ? `${previous}\n${incoming}` : incoming)
+    const previous = drafts.get(botId)
+    drafts.set(botId, previous ? `${previous}\n${incoming}` : incoming)
     field.current?.focus()
-  }, [routineDraft, thread, botId, store, drafts])
+  }, [routineDraft, botId, store, drafts])
+
+  // Picking a message to reply to brings the caret here.
+  useEffect(() => {
+    if (reply) field.current?.focus()
+  }, [reply])
 
   // Measure a separate, wrapping copy: collapsing the live textarea to zero breaks its
   // height transition, caret scroll and IME composition. Observe font/width changes too.
@@ -98,7 +109,7 @@ function DestinationComposer({ botId, thread, onCall, onInterrupt }: {
     return /\n/.test(query) || query.length > 24 ? null : query
   })()
   const suggestions: Bot[] =
-    mentionQuery !== null && bot ? store.members(bot).filter((m) => !mentionQuery || m.name.toLowerCase().includes(mentionQuery.toLowerCase())) : []
+    mentionQuery !== null ? members.filter((m) => !mentionQuery || m.name.toLowerCase().includes(mentionQuery.toLowerCase())) : []
 
   const mention = (member: Bot) => {
     const at = draft.lastIndexOf('@')
@@ -107,16 +118,20 @@ function DestinationComposer({ botId, thread, onCall, onInterrupt }: {
     field.current?.focus()
   }
 
-  // Not in a group: each member has its own skills.
-  const skillsShown = !!bot && !isGroup(bot) && !isBelow(store.hello?.version ?? '', SKILLS_HOST)
   const slash = slashQuery(draft)
-  const commands = slash === null ? [] : slashCommands(bot, slash, skillsShown ? plugins.installedSkills : [])
+  const commands = slash === null ? [] : slashCommands(bot, slash, plugins.installedSkills, members)
 
   const run = (command: SlashCommand) => {
     if (!bot) return
     switch (command.action.kind) {
       case 'fast':
-        store.setFastMode(bot, !bot.fastMode)
+        if (isGroup(bot)) {
+          // Each member's own Fast mode: all on, or all back off.
+          const fast = groupFastMode(members)
+          for (const m of fast?.members ?? []) store.setFastMode(m, fast?.state === 'off')
+        } else {
+          store.setFastMode(bot, !bot.fastMode)
+        }
         setDraft('')
         break
       case 'skill':
@@ -141,10 +156,11 @@ function DestinationComposer({ botId, thread, onCall, onInterrupt }: {
   }
 
   const submit = () => {
-    const command = files.length ? null : builtInCommand(bot, draft)
+    const command = files.length ? null : builtInCommand(bot, draft, members)
     if (command) return run(command)
     if (!canSend) return
-    store.send(draft, botId, thread, files, undefined, pasted.current)
+    store.send(draft, botId, { files, pasted: pasted.current, replyTo: reply && quoteOf(reply) })
+    cancelReply?.()
     pasted.current = []
     setDraft('')
     setFiles([])
@@ -185,6 +201,14 @@ function DestinationComposer({ botId, thread, onCall, onInterrupt }: {
       >
         <div className="composer-surface">
           <CommandMenu commands={menu.shown} index={menu.index} hover={menu.hover} pick={run} />
+          <ComposerReveal open={!!reply}>
+            {reply ? (
+              <HStack gap={4} className="composer-reply">
+                <QuoteRow quote={quoteOf(reply)} className="composer-reply-quote" />
+                <IconButton title="Cancel reply" icon="xmark" size={24} onClick={cancelReply} />
+              </HStack>
+            ) : null}
+          </ComposerReveal>
           <ComposerReveal open={files.length > 0}>
             <div className="file-chips">
               {files.map((f) => (
@@ -207,17 +231,22 @@ function DestinationComposer({ botId, thread, onCall, onInterrupt }: {
                 value={draft}
                 placeholder={placeholder}
                 spellCheck
-                aria-label={thread ? 'Reply' : 'Message'}
+                aria-label={reply ? 'Reply' : 'Message'}
                 aria-keyshortcuts="Enter Shift+Enter"
                 onCompositionStart={() => { composing.current = true }}
                 onCompositionEnd={() => { composing.current = false }}
                 onChange={(e) => {
                   setDraft(e.target.value)
                   // Starting a command: list the computer's skills again.
-                  if (skillsShown && e.target.value === '/') void plugins.refresh()
+                  if (bot && e.target.value === '/') void plugins.refresh()
                 }}
                 onKeyDown={(e) => {
                   if (menu.onKey(e, composing.current || e.nativeEvent.isComposing || e.keyCode === 229)) return
+                  if (e.key === 'Escape' && reply) {
+                    e.preventDefault()
+                    cancelReply?.()
+                    return
+                  }
                   // Return sends, Shift-Return adds a line; an input method's Return picks its candidate.
                   const action = composerEnter({ key: e.key, shiftKey: e.shiftKey, altKey: e.altKey, repeat: e.repeat, isComposing: composing.current || e.nativeEvent.isComposing, keyCode: e.keyCode })
                   if (e.key === 'Enter' && e.repeat && !e.shiftKey && !e.altKey) e.preventDefault()

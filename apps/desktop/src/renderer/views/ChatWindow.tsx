@@ -1,9 +1,9 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import type { WindowCommand } from '@shared/ipc'
 import { isSSHConnecting, showsChat as shouldShowChat } from '@shared/ssh-startup'
 import { draftOf, type Bot, type BotDraft } from '@shared/models'
 import { CharacterAvatar } from '../components/Avatar'
-import { Button, ChoicePicker, IconButton, ResizeHandle } from '../components/Controls'
+import { Button, IconButton, ResizeHandle } from '../components/Controls'
 import { AnchoredMenu, Dialog, ModalHeader, Sheet, type MenuItem } from '../components/Overlay'
 import { HStack, Spacer } from '../components/Stack'
 import { Text } from '../components/Text'
@@ -12,7 +12,7 @@ import { prefs, stepTextSize, usePref, DEFAULT_TEXT_SIZE } from '../lib/prefs'
 import { useApp, StoreContext } from '../store/context'
 import { account } from '../store/account'
 import { analytics } from '../store/analytics'
-import { refKey, sameRef, parseRef, type BotRef } from '../store/app-model'
+import { refKey, sameRef, parseRef } from '../store/app-model'
 import type { BotStore } from '../store/bot-store'
 import { useComputerRoster } from '../store/computer-roster'
 import { BotRoster } from './BotRoster'
@@ -20,7 +20,7 @@ import { SidebarFooter } from './SidebarFooter'
 import { UpdateBadge } from './UpdateButton'
 import { ComputerFilterHeader, computerSelection } from './ComputerFilterHeader'
 import { ThreadView } from './thread/ThreadView'
-import { NewChatView } from './bots/NewChatView'
+import { NewBotView, NewGroupView } from './bots/NewBotView'
 import { BotEditorView } from './bots/BotEditorView'
 import { MarketplaceView } from './marketplace/MarketplaceView'
 import { SettingsView, type SettingsPage } from './settings/SettingsView'
@@ -163,6 +163,12 @@ interface EditTarget {
   store: BotStore
 }
 
+/** A new bot or group chat being made, and the computer it goes to. */
+interface CreateTarget {
+  kind: 'bot' | 'group'
+  computerId: string
+}
+
 function ChatSplitView() {
   const app = useApp()
   const ssh = useSSH()
@@ -171,10 +177,7 @@ function ChatSplitView() {
   const [sidebarWidth, setSidebarWidth] = usePref(prefs.sidebarWidth)
   const [hidden, setHidden] = usePref(prefs.hiddenComputers)
   const [searching, setSearching] = useState(false)
-  const [composing, setComposing] = useState(false)
-  const [composingGroup, setComposingGroup] = useState(false)
-  const [composeComputer, setComposeComputer] = useState<string | null>(null)
-  const previousSelection = useRef<BotRef | null>(null)
+  const [creating, setCreating] = useState<CreateTarget | null>(null)
   const [newMenu, setNewMenu] = useState(false)
   const [railNewMenu, setRailNewMenu] = useState(false)
   const [contextBot, setContextBot] = useState<{ target: BotTarget; x: number; y: number } | null>(null)
@@ -205,29 +208,23 @@ function ChatSplitView() {
   const shown = new Set(computerSelection(app.computers.map((c) => c.id), hidden).shown)
   const onlineStores = stores.filter((s) => shown.has(s.computer.id) && s.connection.kind === 'online' && !s.mismatch)
   const selectedStore = app.selectedStore
-  const composeStore = composeComputer ? app.store(composeComputer) : null
+  const createStore = creating ? app.store(creating.computerId) : null
   const roster = useComputerRoster(app, shown)
   const visibleRoster = roster.items
 
-  const compose = (group = false) => {
-    setComposingGroup(group)
+  const create = (kind: CreateTarget['kind']) => {
     // The selected bot's computer if it's online, else this computer, else any online one.
     const target = [selectedStore, app.local].find((s) => s && onlineStores.includes(s)) ?? onlineStores[0]
-    if (!target) return
-    if (!composing) previousSelection.current = app.selection
-    setComposeComputer(target.computer.id)
-    app.select(null)
-    setComposing(true)
+    if (target) setCreating({ kind, computerId: target.computer.id })
   }
-
-  useEffect(() => {
-    if (app.selection) setComposing(false)
-  }, [app.selection])
+  const computerChoice = creating && onlineStores.length > 1
+    ? { options: onlineStores.map((s) => ({ id: s.computer.id, label: s.hostName })), selection: creating.computerId, onChange: (computerId: string) => setCreating({ ...creating, computerId }) }
+    : null
 
   useEffect(
     () =>
       window.codync.app.onCommand((c) => {
-        if (c.kind === 'newChat' && onlineStores.length) compose()
+        if (c.kind === 'newBot' && onlineStores.length) create('bot')
         if (c.kind === 'search') setSearching(true)
         if (c.kind === 'toggleSidebar') setCompact(!prefs.sidebarCompact.get())
       }),
@@ -238,10 +235,10 @@ function ChatSplitView() {
   useEffect(() => {
     const target = window.codync.debugOpen
     if (!target || debugOpened.current) return
-    if (target === 'compose' || target === 'group') {
+    if (target === 'newBot' || target === 'newGroup') {
       if (!onlineStores.length) return
       debugOpened.current = true
-      compose(target === 'group')
+      create(target === 'newBot' ? 'bot' : 'group')
     } else if (target === 'plugins') {
       if (!app.local) return
       debugOpened.current = true
@@ -258,8 +255,8 @@ function ChatSplitView() {
   })
 
   const newItems = (): MenuItem[] => [
-    { title: 'New chat', icon: 'square.and.pencil', action: () => compose() },
-    { title: 'New group chat', icon: 'person.2', action: () => compose(true) },
+    { title: 'New bot', icon: 'plus', action: () => create('bot') },
+    { title: 'New group chat', icon: 'person.2', action: () => create('group') },
   ]
 
   const openMarketplace = () => setMarketplace((selectedStore ?? app.local ?? onlineStores[0])?.computer.id ?? null)
@@ -306,24 +303,7 @@ function ChatSplitView() {
   const selectedBot = selected && selectedStore?.bots.get(selected.botId)
 
   let detail: ReactNode
-  if (composing && composeStore) {
-    detail = (
-      <div className="detail-column" key={`${composeStore.computer.id}-${composingGroup}`}>
-        {onlineStores.length > 1 ? (
-          <ComputerPicker stores={onlineStores} value={composeStore.computer.id} onChange={setComposeComputer} />
-        ) : null}
-        <StoreContext.Provider value={composeStore}>
-          <NewChatView
-            group={composingGroup}
-            onClose={() => {
-              setComposing(false)
-              if (!app.selection) app.select(previousSelection.current)
-            }}
-          />
-        </StoreContext.Provider>
-      </div>
-    )
-  } else if (selected && selectedStore && selectedBot) {
+  if (selected && selectedStore && selectedBot) {
     detail = (
       <StoreContext.Provider value={selectedStore}>
         <ThreadView key={refKey(selected)} botId={selected.botId} />
@@ -342,8 +322,8 @@ function ChatSplitView() {
         </HStack>
         <Text as="div" size="title2" weight="semibold">{connecting ? 'Connecting to your computers…' : 'Your coding agents, as teammates.'}</Text>
         <Text as="div" tone="secondary" className="empty-detail-message">{connecting ? 'Your bots will appear once connected. Manage computers to see connection progress.' : 'Pick a bot, or create one for each kind of work and point it at a project.'}</Text>
-        <Button onClick={() => compose()} disabled={!onlineStores.length}>
-          New Bot
+        <Button onClick={() => create('bot')} disabled={!onlineStores.length}>
+          New bot
         </Button>
       </div>
     )
@@ -374,7 +354,7 @@ function ChatSplitView() {
           {visibleRoster.length === 0 && !roster.grouped && !compact && mismatchStores.length === 0 ? (
             <div className="roster-empty">
               <Text as="div" size="body" weight="medium">{onlineStores.length ? 'No bots yet' : 'Waiting for a computer'}</Text>
-              {onlineStores.length ? <Text as="div" size="callout" tone="secondary">Use + to start a new chat.</Text> : null}
+              {onlineStores.length ? <Text as="div" size="callout" tone="secondary">Use + to create a bot.</Text> : null}
             </div>
           ) : null}
         </div>
@@ -432,6 +412,14 @@ function ChatSplitView() {
           </StoreContext.Provider>
         ) : null}
       </Sheet>
+      <Sheet open={creating !== null} onClose={() => setCreating(null)} maxHeight={sheetHeight}>
+        {creating && createStore ? (
+          <StoreContext.Provider value={createStore}>
+            {/* A group's bots belong to its computer: another computer starts it over. */}
+            {creating.kind === 'bot' ? <NewBotView computer={computerChoice} /> : <NewGroupView key={creating.computerId} computer={computerChoice} />}
+          </StoreContext.Provider>
+        ) : null}
+      </Sheet>
       <Sheet open={marketplace !== null} onClose={() => setMarketplace(null)} width={Math.min(920, windowSize.width - 80)} height={sheetHeight} dismissOnDim>
         {marketplace && app.store(marketplace) ? (
           <StoreContext.Provider value={app.store(marketplace)!}>
@@ -458,16 +446,5 @@ function ChatSplitView() {
       />
       <Dialog open={errorMessage !== null} title="Something went wrong" message={errorMessage} actions={[]} cancel="OK" onClose={() => app.clearErrors()} />
     </div>
-  )
-}
-
-/** Which computer a new chat goes to, when more than one is online. */
-function ComputerPicker({ stores, value, onChange }: { stores: BotStore[]; value: string; onChange: (id: string) => void }) {
-  const options = useMemo(() => stores.map((s) => ({ id: s.computer.id, label: s.hostName })), [stores])
-  return (
-    <HStack gap={8} className="compose-computer">
-      <Text tone="secondary">On</Text>
-      <ChoicePicker selection={value} options={options} onChange={onChange} />
-    </HStack>
   )
 }

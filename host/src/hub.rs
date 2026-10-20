@@ -7,7 +7,7 @@ use crate::remote::identity::Identity;
 use crate::remote::push;
 use crate::screen::Screen;
 use crate::service;
-use crate::store::{BotConfig, Entry, EntryKind, Lane, ReadScope, Store};
+use crate::store::{BotConfig, Entry, EntryKind, Lane, Store};
 use crate::usage::Usage;
 use anyhow::{Result, anyhow, bail};
 use serde::Serialize;
@@ -38,7 +38,7 @@ pub struct Runtime {
     pub status: BotStatus,
     pub activity: String,
     pub started_at: Option<i64>,
-    /// Where the running turn talks: its own chat, a thread, or a group.
+    /// Where the running turn talks: its own chat or a group.
     pub lane: Option<Lane>,
     /// The user's message that started the running turn; `None` for a turn a routine, a room or another bot
     /// started. Memory cites it as where a fact was learned.
@@ -222,7 +222,7 @@ impl Hub {
         let row = self.store.bot(&id)?.filter(|b| !b.deleted).ok_or_else(|| anyhow!("unknown bot"))?;
         let mut merged = serde_json::to_value(&row.config)?;
         for (k, v) in patch.as_object().into_iter().flatten() {
-            if k != "id" && k != "createdAt" {
+            if !matches!(k.as_str(), "id" | "createdAt" | "createdBy") {
                 merged[k] = v.clone();
             }
         }
@@ -301,38 +301,16 @@ impl Hub {
     }
 
     /// Marks what the user has seen as read. Nothing unread there is a no-op, so clients
-    /// may call it whenever a chat or thread is on screen.
-    pub fn mark_read(&self, id: &str, scope: ReadScope) -> Result<()> {
+    /// may call it whenever a chat is on screen.
+    pub fn mark_read(&self, id: &str) -> Result<()> {
         let Some(row) = self.store.bot(id)? else { bail!("unknown bot") };
-        if let ReadScope::Thread(root) = scope
-            && !self.store.entry(root).is_some_and(|r| r.bot_id == id && r.thread_id.is_none())
-        {
-            bail!("unknown thread");
-        }
-        // A thread gets its own read mark the first time, or the main chat's would cover it.
-        let first = matches!(scope, ReadScope::Thread(root) if self.store.kv_get(&format!("read.{root}")).is_none());
-        if !first && self.store.unread(id, row.read_rev, scope) == 0 {
+        if self.store.unread(id, row.read_rev) == 0 {
             return Ok(());
         }
-        let roots = match scope {
-            ReadScope::All => self.store.unread_roots(id),
-            ReadScope::Thread(root) => vec![root.to_owned()],
-            ReadScope::Chat => Vec::new(),
-        };
-        {
-            let _g = self.emit_lock.locked();
-            match scope {
-                ReadScope::All => self.store.mark_all_read(id)?,
-                ReadScope::Chat => self.store.mark_read(id)?,
-                ReadScope::Thread(root) => self.store.mark_thread_read(id, root)?,
-            };
-            // Before the summaries' later revs: a client resuming after them must not miss the row.
-            if let Some(v) = self.bot_value(id) {
-                let _ = self.events.send(json!({"type": "bot", "rev": v["rev"], "bot": v}));
-            }
-        }
-        for root in roots {
-            self.refresh_thread_summary(id, &root);
+        let _g = self.emit_lock.locked();
+        self.store.mark_read(id)?;
+        if let Some(v) = self.bot_value(id) {
+            let _ = self.events.send(json!({"type": "bot", "rev": v["rev"], "bot": v}));
         }
         Ok(())
     }
@@ -403,88 +381,54 @@ impl Hub {
     /// Persists and broadcasts a new transcript entry. A failed write is logged here
     /// (once) and yields `None`: the conversation goes on without that line.
     pub fn add_entry(&self, lane: &Lane, kind: EntryKind, turn: i64, data: &Value) -> Option<Entry> {
-        let added = {
-            let _g = self.emit_lock.locked();
-            match self.store.insert_entry(lane, kind, turn, data) {
-                Ok(e) => {
-                    let _ = self.events.send(json!({"type": "entry", "rev": e.rev, "entry": e}));
-                    Some(e)
-                }
-                Err(error) => {
-                    tracing::error!(
-                        error = format!("{error:#}"),
-                        chat = lane.chat,
-                        kind = kind.as_str(),
-                        "couldn't save transcript entry"
-                    );
-                    None
-                }
+        let _g = self.emit_lock.locked();
+        match self.store.insert_entry(lane, kind, turn, data) {
+            Ok(e) => {
+                let _ = self.events.send(json!({"type": "entry", "rev": e.rev, "entry": e}));
+                Some(e)
             }
-        };
-        if let Some(e) = &added {
-            self.update_thread_summary(e);
+            Err(error) => {
+                tracing::error!(
+                    error = format!("{error:#}"),
+                    chat = lane.chat,
+                    kind = kind.as_str(),
+                    "couldn't save transcript entry"
+                );
+                None
+            }
         }
-        added
     }
 
-    pub fn add_entry_once(&self, id: &str, lane: &Lane, kind: EntryKind, data: &Value) -> Result<(Entry, bool)> {
-        let (entry, added) = {
-            let _guard = self.emit_lock.locked();
-            let (entry, added) = self.store.insert_entry_once(id, lane, kind, data)?;
-            if added {
-                let _ = self.events.send(json!({"type":"entry","rev":entry.rev,"entry":entry}));
-            }
-            (entry, added)
-        };
+    pub fn add_entry_once(
+        &self,
+        id: &str,
+        lane: &Lane,
+        kind: EntryKind,
+        turn: i64,
+        data: &Value,
+    ) -> Result<(Entry, bool)> {
+        let _guard = self.emit_lock.locked();
+        let (entry, added) = self.store.insert_entry_once(id, lane, kind, turn, data)?;
         if added {
-            self.update_thread_summary(&entry);
+            let _ = self.events.send(json!({"type":"entry","rev":entry.rev,"entry":entry}));
         }
         Ok((entry, added))
     }
 
     /// Updates and broadcasts an entry; failures are logged here, like [`Self::add_entry`].
     pub fn set_entry(&self, id: &str, data: &Value) -> Option<Entry> {
-        let updated = {
-            let _g = self.emit_lock.locked();
-            match self.store.update_entry(id, data) {
-                Ok(e) => {
-                    if let Some(e) = &e {
-                        let _ = self.events.send(json!({"type": "entry", "rev": e.rev, "entry": e}));
-                    }
-                    e
+        let _g = self.emit_lock.locked();
+        match self.store.update_entry(id, data) {
+            Ok(e) => {
+                if let Some(e) = &e {
+                    let _ = self.events.send(json!({"type": "entry", "rev": e.rev, "entry": e}));
                 }
-                Err(error) => {
-                    tracing::error!(error = format!("{error:#}"), entry = id, "couldn't update transcript entry");
-                    None
-                }
+                e
             }
-        };
-        if let Some(e) = &updated {
-            self.update_thread_summary(e);
-        }
-        updated
-    }
-
-    /// A message in a thread refreshes the summary on its root (`data.thread`: reply count,
-    /// newest reply, who replied, unread replies), which the main chat shows under it.
-    fn update_thread_summary(&self, e: &Entry) {
-        let Some(root) = &e.thread_id else { return };
-        let visible =
-            e.kind == EntryKind::User.as_str() || (e.kind == EntryKind::Agent.as_str() && e.data["final"] == true);
-        if visible {
-            self.refresh_thread_summary(&e.bot_id, root);
-        }
-    }
-
-    fn refresh_thread_summary(&self, chat: &str, root: &str) {
-        let Some(mut root_entry) = self.store.entry(root) else { return };
-        match self.store.thread_summary(chat, root) {
-            Ok(summary) if root_entry.data["thread"] != summary => {
-                root_entry.data["thread"] = summary;
-                self.set_entry(root, &root_entry.data);
+            Err(error) => {
+                tracing::error!(error = format!("{error:#}"), entry = id, "couldn't update transcript entry");
+                None
             }
-            Ok(_) => {}
-            Err(error) => tracing::warn!(error = format!("{error:#}"), root, "couldn't summarize thread"),
         }
     }
 
@@ -515,7 +459,7 @@ impl Hub {
     }
 }
 
-fn validate(cfg: &BotConfig) -> Result<()> {
+pub(crate) fn validate(cfg: &BotConfig) -> Result<()> {
     if cfg.name.trim().is_empty() {
         bail!("name is required");
     }

@@ -11,7 +11,7 @@ import { readClipboardFiles, readFiles } from './files'
 import { Tray } from './tray'
 import { applyDockVisibility, setShowInDock, showInDock } from './dock'
 import { AccountService } from './account'
-import { Updates } from './updates'
+import { Updates, yieldsToInstall } from './updates'
 import { handleURL, registerAuthIPC, registerSchemes, urlFromArgv } from './auth'
 import { registerSpeech } from './speech'
 import { registerScreenIPC } from './screen'
@@ -129,7 +129,7 @@ function menu() {
         { label: 'Smaller', accelerator: 'CmdOrCtrl+-', click: () => send({ kind: 'stepTextSize', up: false }, false) },
         { label: 'Actual Size', accelerator: 'CmdOrCtrl+0', click: () => send({ kind: 'stepTextSize', up: null }, false) },
         { type: 'separator' },
-        { label: 'New Chat', accelerator: 'CmdOrCtrl+N', click: () => send({ kind: 'newChat' }) },
+        { label: 'New Bot', accelerator: 'CmdOrCtrl+N', click: () => send({ kind: 'newBot' }) },
         { label: 'Search Bots', accelerator: 'CmdOrCtrl+F', click: () => send({ kind: 'search' }) },
         { label: 'Toggle Sidebar', accelerator: 'Ctrl+CmdOrCtrl+S', click: () => send({ kind: 'toggleSidebar' }, false) },
         { label: 'Conversation Details', accelerator: 'Alt+CmdOrCtrl+I', click: () => send({ kind: 'toggleDetails' }, false) },
@@ -206,7 +206,9 @@ function registerIPC(tray: Tray) {
   })
 }
 
-if (!app.requestSingleInstanceLock()) {
+if (yieldsToInstall()) {
+  app.exit(0)
+} else if (!app.requestSingleInstanceLock()) {
   if (!app.isPackaged) console.error(`${app.getName()} is already running. Quit it first, or run another copy beside it: npm run dev -- --name <name>`)
   app.quit()
 } else {
