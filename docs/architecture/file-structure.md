@@ -95,7 +95,7 @@ Codync/
 | Prompt snapshots and memory | `host/src/chat/context.rs`, `memory/` (`api.rs`, `tools.rs`, `notices.rs`, `dream.rs`, `import.rs`; long-form files in `files.rs`, `file_api.rs`, `file_tools.rs`, `file_notices.rs`); the rules in `host/crates/memory` (`codync-mem`, files in `files.rs`, dreaming in `dream/`); harnesses' own memory turned off in `host/src/agent/own_memory.rs` |
 | Identity, encryption and direct channel | `host/src/remote/identity.rs`, `crypto.rs`, `channel.rs` |
 | Host cloud state and relay connection | `host/src/remote/cloud.rs`, `relay.rs` |
-| Agent discovery, sign-in, setup terminal, Node.js for npm agents | `host/src/agent/backends.rs`, `registry.rs`, `auth.rs`, `term.rs`, `node.rs` |
+| Agent discovery, sign-in, setup terminal, Node.js for npm agents | `host/src/agent/backends.rs` (+ `backends/sign_in.rs`), `registry.rs`, `auth.rs`, `term.rs`, `node.rs` |
 | Fast mode (session config option) | `host/src/agent/config.rs`, `agent/bot/fast_mode.rs` |
 | Marketplace, Composio, connector OAuth | `host/src/market/` |
 | Screen bridge and built-in MCP tools | `host/src/screen/`, `mcp.rs` |
