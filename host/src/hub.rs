@@ -212,6 +212,7 @@ impl Hub {
         }
         if !cfg.is_group() {
             self.spawn_bot(cfg.clone());
+            crate::market::agent_sign_in::ask_before_first_message(self, &cfg);
         }
         self.emit_bot(&cfg.id);
         Ok(self.bot_value(&cfg.id).unwrap_or(Value::Null))

@@ -90,6 +90,13 @@ impl Store {
         Ok(c.query_row(&format!("SELECT {ENTRY_COLS} FROM entries WHERE id = ?1"), [id], row_entry).optional()?)
     }
 
+    /// Moves an entry back in time, for tests of what happens to old entries.
+    #[cfg(test)]
+    pub fn backdate_entry(&self, id: &str, created_at: i64) {
+        let c = self.db.locked();
+        c.execute("UPDATE entries SET created_at = ?2 WHERE id = ?1", params![id, created_at]).expect("backdate");
+    }
+
     pub fn entry(&self, id: &str) -> Option<Entry> {
         let c = self.db.locked();
         let row = c.query_row(&format!("SELECT {ENTRY_COLS} FROM entries WHERE id = ?1"), [id], row_entry);

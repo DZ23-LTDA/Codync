@@ -4,7 +4,7 @@ use super::{Actor, CANCEL_GRACE, Cmd, Done, NoticeStyle, Queued, RESUME_PROMPT, 
 use crate::agent::own_memory;
 use crate::chat::memory;
 use crate::hub::BotStatus;
-use crate::market::requests;
+use crate::market::agent_sign_in;
 use crate::store::{Lane, now_ms};
 use anyhow::{Result, anyhow};
 use serde_json::json;
@@ -300,8 +300,7 @@ impl Actor {
             return false;
         };
         crate::agent::backends::set_signed_in(backend, Some(false));
-        let invited =
-            requests::invite_agent_sign_in(&self.hub, &self.cfg.id, &self.lane, backend, h.name, &self.turn_entries);
+        let invited = agent_sign_in::invite(&self.hub, &self.cfg.id, &self.lane, backend, h.name, &self.turn_entries);
         invited
             .inspect_err(
                 |error| tracing::warn!(bot = %self.cfg.id, error = format!("{error:#}"), "couldn't ask to sign in"),

@@ -16,6 +16,7 @@
 //! they're reduced to a safe slug first. Secret values (API keys, tokens) stay
 //! on this computer; listings only say which keys are set.
 
+pub mod agent_sign_in;
 pub mod composio;
 pub mod logins;
 pub mod oauth;
