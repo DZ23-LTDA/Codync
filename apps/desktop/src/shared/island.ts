@@ -199,4 +199,4 @@ export function notchOf(screens: NotchScreen[], bounds: { x: number; width: numb
 }
 
 /** The setting's name: a notch on the Mac, the top edge elsewhere. */
-export const islandLabel = (platform: string) => (platform === 'darwin' ? 'Show in notch' : 'Show at top of screen')
+export const islandLabel = (platform: string) => (platform === 'darwin' ? 'Show in Notch' : 'Show at top of screen')

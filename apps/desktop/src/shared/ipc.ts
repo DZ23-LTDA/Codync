@@ -3,6 +3,7 @@ import type { SharedFile } from './models'
 import type { SSHBridge } from './ssh'
 import type { ScreenAgentState } from './computer-access'
 import type { IslandRect, IslandScreen, IslandSummary } from './island'
+import type { VoiceKey, VoiceShortcut } from './voice-shortcut'
 import type { ErrorReport } from './error-report'
 
 // The bridge between the main process (host lifecycle, loopback HTTP, tray, windows)
@@ -71,6 +72,8 @@ export type WindowCommand =
   | { kind: 'refresh' }
   | { kind: 'respondPermission'; ref: string; entryId: string; optionId: string }
   | { kind: 'sendMessage'; ref: string; text: string }
+  /** The voice input shortcut, while the island is off: a double tap starts dictating into the composer, a tap sends. */
+  | { kind: 'voiceKey'; key: VoiceKey }
   /** The chat window was shown again after being hidden (`window_opened`). */
   | { kind: 'windowOpened' }
 
@@ -149,6 +152,11 @@ export interface CodyncBridge {
     start(locale: string | null): void
     stop(): void
     onEvent(cb: (e: SpeechEvent) => void): () => void
+    /** The voice input shortcut (Settings → General); always `off` without on-device speech. */
+    shortcut(): Promise<VoiceShortcut>
+    setShortcut(shortcut: VoiceShortcut): Promise<VoiceShortcut>
+    /** A call is on (or over): it has the microphone, so the voice input shortcut does nothing meanwhile. */
+    setCalling(on: boolean): void
   }
   ssh: SSHBridge
   /** The notch island (shared/island.ts): its setting, the chat window's summary, and the island window's side. */
@@ -169,6 +177,8 @@ export interface CodyncBridge {
     /** ⌥Y / ⌥N answer the approval on screen, from any app, while it shows. */
     setKeys(on: boolean): void
     onKey(cb: (answer: 'allow' | 'deny') => void): () => void
+    /** The voice input shortcut's taps, from any app, while the island is on. */
+    onVoiceKey(cb: (key: VoiceKey) => void): () => void
     respond(ref: string, entryId: string, optionId: string): void
     send(ref: string, text: string): void
     openBot(ref: string): void

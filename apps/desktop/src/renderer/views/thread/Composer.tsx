@@ -4,6 +4,7 @@ import { isGroup, isWorkingIn, quoteOf, type Bot, type Entry } from '@shared/mod
 import { BotAvatar } from '../../components/Avatar'
 import { Icon } from '../../components/Icon'
 import { IconButton } from '../../components/Controls'
+import { RecordingPill } from '../../components/RecordingPill'
 import { usePresence } from '../../components/Overlay'
 import { HStack, VStack } from '../../components/Stack'
 import { Text } from '../../components/Text'
@@ -17,6 +18,7 @@ import { ComposerAttachment } from './ComposerAttachment'
 import { QuoteRow } from './ChatRows'
 import { useDictation } from './dictation'
 import { builtInCommand, slashCommands, slashQuery, type SlashCommand } from './slash-commands'
+import { useVoiceShortcut } from './voice-shortcut-keys'
 
 type Trailing = 'interrupt' | 'stop' | 'call' | 'send'
 
@@ -50,7 +52,7 @@ function DestinationComposer({ botId, reply, cancelReply, onCall, onInterrupt }:
   const draft = useSyncExternalStore(drafts.subscribe, () => drafts.get(botId))
   const setDraft = (text: string) => drafts.set(botId, text)
   const [files, setFiles] = useState<OutgoingFile[]>([])
-  const dictation = useDictation(draft, setDraft)
+  const dictation = useDictation(setDraft)
   const field = useRef<HTMLTextAreaElement>(null)
   const measure = useRef<HTMLDivElement>(null)
   const composing = useRef(false)
@@ -157,8 +159,10 @@ function DestinationComposer({ botId, reply, cancelReply, onCall, onInterrupt }:
 
   const submit = () => {
     const command = files.length ? null : builtInCommand(bot, draft, members)
+    if (!command && !canSend) return
+    // Words still on their way would land in the emptied box (and the shortcut's tap would send them again).
+    dictation.cancel()
     if (command) return run(command)
-    if (!canSend) return
     store.send(draft, botId, { files, pasted: pasted.current, replyTo: reply && quoteOf(reply) })
     cancelReply?.()
     pasted.current = []
@@ -166,6 +170,10 @@ function DestinationComposer({ botId, reply, cancelReply, onCall, onInterrupt }:
     setFiles([])
     field.current?.focus()
   }
+  useVoiceShortcut(dictation, draft, submit, () => field.current?.focus())
+  useEffect(() => {
+    if (dictation.error) store.setError(dictation.error)
+  }, [dictation.error, store])
 
   const trailing: Trailing = onInterrupt && !draft && !files.length ? 'interrupt' : working && !draft && !files.length ? 'stop' : onCall && !draft && !files.length ? 'call' : 'send'
   const [symbol, label] = ({
@@ -271,15 +279,11 @@ function DestinationComposer({ botId, reply, cancelReply, onCall, onInterrupt }:
                 }}
               />
             </div>
-            {dictation.available ? (
-              <button
-                className={`press composer-mic ${dictation.listening ? 'on' : ''}`}
-                aria-label={dictation.listening ? 'Stop dictating' : 'Dictate'}
-                title={dictation.listening ? 'Stop dictating' : 'Dictate'}
-                aria-pressed={dictation.listening}
-                onClick={dictation.toggle}
-              >
-                <Icon name={dictation.listening ? 'mic.fill' : 'mic'} size={13} weight="medium" />
+            {dictation.listening ? (
+              <RecordingPill startedAt={dictation.startedAt} sample={() => dictation} onStop={() => dictation.finish()} className="composer-recording" />
+            ) : dictation.available ? (
+              <button className="press composer-mic" aria-label="Dictate" title="Dictate" onClick={() => dictation.start(draft)}>
+                <Icon name="mic" size={13} weight="medium" />
               </button>
             ) : null}
             <button

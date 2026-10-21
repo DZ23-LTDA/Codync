@@ -44,15 +44,51 @@ The bot is the same agent on the computer; the call only changes how you talk to
 
 The composer's mic (beside send / call, as in Grok Bot) types what you say into the box with the
 same on-device recognizer and the call's language setting; nothing is sent until you send it.
-Words appear as they're recognized, after what's already typed; tapping the mic again, or the
-recognizer finishing on a pause, stops it, and a call takes the microphone from it.
+Words appear as they're recognized, after what's already typed. While it listens the mic becomes
+a recording pill (stop, the time, dots that follow your voice), on the iPhone and the desktop, and
+a call takes the microphone from it. On the desktop, dictation ends only on the pill's stop (or the
+shortcut's tap), which waits for the last words, on an error (shown in the window), or when another
+window takes the speech helper; it doesn't stop on a pause. On the iPhone the pill's stop keeps what
+was recognized so far. The desktop island's message field has the same mic and pill.
 
 - Desktop (`views/thread/dictation.ts`): the speech helper, macOS only, so Linux and Windows show
   no mic. An unpackaged `npm run dev` can't use it: macOS stops the helper because the dev Electron
   has no speech usage description, so test it in a packaged build (`dist:mac:dev`), like calls.
-- iPhone (`Thread/Dictation.swift`): `SFSpeechRecognizer` on device; with no microphone route
-  (some simulators) the mic does nothing.
+- Desktop: the speech helper serves one window at a time. When another window starts it (the
+  island while the chat window dictates or calls, or the other way round), `main/speech.ts` tells
+  the window that lost it (`stopped`) and ignores that window's stop.
+- iPhone (`Thread/Dictation.swift`, pill in `Thread/RecordingPill.swift`, dots shared with the call
+  bar in `LevelDots.swift`): `SFSpeechRecognizer` on device; with no microphone route (some
+  simulators) the mic does nothing.
+- Android has no composer mic yet.
 - The terminal UI has no microphone, so no mic.
+
+### Voice input shortcut
+
+Desktop on macOS, set in **Settings → General → System** (*Voice input shortcut*: off, the right ⌘
+twice (the default) or the left ⌘ twice; `voiceShortcut` in `host-prefs.json`). From any app, a
+double tap of that key starts dictation into the [notch island](notch-island.md)'s message field
+while the island is on, else into the chat window's composer (the top bot when no chat is open).
+One more tap stops it and sends what was said once the last words are in; the pill's stop leaves
+the words in the field unsent, and an error leaves nothing for the tap to send.
+Double-tapping to stop counts as that one tap, not a new start. While a call is on (any engine),
+the shortcut does nothing: the call has the microphone.
+
+- `apps/desktop/src/main/voice-shortcut.ts` keeps an `osascript -l JavaScript` process with an
+  `NSEvent` global monitor for modifier changes, plus the seconds since the last key press or
+  mouse click. Neither needs the Accessibility or Input Monitoring grant, and the app never sees
+  what is typed. The chat window reports calls (`voice:calling`) so taps are dropped meanwhile.
+- `shared/voice-shortcut.ts` decides what counts: a press under 0.3 s with no other modifier held
+  and no key pressed or click meanwhile is a tap; a second tap starting within 0.4 s of the first,
+  with no key pressed or click since the first, is a double tap. ⌘C, ⌘V and ⌘-clicks with the
+  same key are neither.
+- The renderer side is `Dictation.shortcutKey` (`views/thread/dictation.ts`), shared by the
+  composer and the island's model; `VoiceKeyRouter` (`shared/voice-shortcut.ts`) decides whether
+  a tap starts, sends or does nothing. The chat window queues taps for its composer in
+  `views/thread/voice-shortcut-keys.ts`.
+- macOS only: Windows and Linux have no ⌘ or on-device speech, and a modifier-only shortcut
+  there would need a native keyboard hook. The iPhone, Android and the terminal UI have no global
+  keyboard shortcut.
 
 ## Background verification
 
