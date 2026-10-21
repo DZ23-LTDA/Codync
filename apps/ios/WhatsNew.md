@@ -11,9 +11,9 @@ a version without one gets a generic "Bug fixes and improvements" line. Delete o
 ### zh-Hant
 - Routine 還沒動手就失敗（例如額度用完）時，會在 1、5、15 分鐘後自動再試；已經動過手或超過時間上限的失敗，通知旁有重試按鈕讓你決定
 - Bot 的記憶頁改成唯讀，想改記憶直接跟 bot 說；Dreams 分頁新增的記憶是綠色、封存的是紅色，旁邊的資訊按鈕說明做夢在做什麼
-- Bot 可以設定後備 agent：Claude Code 額度用完、被限流或登出時，下一個 agent（例如 Codex）會在同一個聊天接手，帶著記憶和這一輪做到哪裡；原本的 agent 恢復後自動換回來，也可以按 Switch back。Bot 也能自己設定這份清單，可在設定中關閉
+- Bot 可以設定後備 agent：Claude Code 額度用完、被限流或登出時，下一個 agent（例如 Codex）會在同一個聊天接手，帶著記憶和這一輪做到哪裡；原本的 agent 恢復後自動換回來，也可以按 Switch back；如果是被登出，聊天裡會同時出現它的登入卡片，登入後就換回來。Bot 也能自己設定這份清單，可在設定中關閉
 
 ### en-US
 - A routine that fails before doing anything (a usage limit, say) tries again on its own after 1, 5 and 15 minutes; one that already acted or hit its time limit gets a retry button on its failure notice, so you decide
 - A bot's memory is now read-only: to change it, tell the bot. In the Dreams tab, added memories show in green, archived ones in red, and an info button explains what dreaming does
-- Fallback agents: when a bot's agent runs out of usage, is rate limited or signed out, the next one (Codex, say) carries on in the same chat, with its memory and where the turn had got to; the bot goes back once its own agent recovers, or when you tap Switch back. A bot can set this list itself, which you can turn off in its settings
+- Fallback agents: when a bot's agent runs out of usage, is rate limited or signed out, the next one (Codex, say) carries on in the same chat, with its memory and where the turn had got to; the bot goes back once its own agent recovers, or when you tap Switch back. If it was signed out, its sign-in card shows up in the chat too, and signing in brings it back. A bot can set this list itself, which you can turn off in its settings

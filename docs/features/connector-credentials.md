@@ -71,12 +71,15 @@ card naming the agent (`backend`) and the user messages it couldn't answer
 (`entryIds`) instead of an error. Only agents Codync knows by name get the card;
 others show the agent's error. A new bot gets the card before its first message
 when the agent's sign-in check, run in the background as the bot is created, finds
-it signed out. A bot keeps one such card; messages that fail later join it. The
+it signed out. When a [fallback agent](agent-fallback.md) takes the turn over, or a bot skips
+an agent another bot found signed out, the card comes anyway, holding no message (the fallback
+answers it). A bot keeps one such card in each chat; messages that fail later join it. The
 card's Sign in opens the agent's sign-in sheet from Extensions. As soon as a sign-in
 check (`agentAuth`, `agentAuthenticate`, `setAgentEnv`, connectorRequestFinish on the
 card, a new bot's check, or the re-check at host start and `refreshBackends`) finds
 the agent signed in, or a turn of the agent finishes (signed in outside Codync),
-every pending card for it completes and its messages go out again;
+every pending card for it completes, its messages go out again and bots that moved on to a
+fallback while it was signed out come back on their next message;
 a message older than 24 hours isn't sent again. The card itself doesn't expire.
 
 MCP connection requests and runtime secret retrieval are loopback-only. Authorized

@@ -1,5 +1,6 @@
 //! The card that asks the user to sign in to a bot's own agent (Claude Code…): posted when a
-//! new bot's agent isn't signed in, or when a turn fails for that reason, and completed once it is.
+//! new bot's agent isn't signed in, or when a turn fails for that reason (also when a fallback agent
+//! takes the turn over, then holding no message), and completed once it is.
 //! Only agents Codync knows by name (`backends::HARNESSES`) get one; others show the agent's error.
 use super::requests::{MAX_AGE, RequestKind, RequestStatus};
 use crate::{
@@ -66,7 +67,7 @@ pub async fn refresh(hub: &Hub) {
 
 /// `bot`'s turn failed because agent `backend` (`name`) needs signing in: a card in `lane` asks
 /// the user to, and `entries` (the user messages it couldn't answer) go out again once they have.
-/// A bot keeps one such card; messages that fail later join it.
+/// A bot keeps one such card in each chat; messages that fail later join it.
 pub fn invite(hub: &Hub, bot: &str, lane: &Lane, backend: &str, name: &str, entries: &[String]) -> Result<()> {
     // A routine's, a room's or another bot's turn has no message of the user's to send again.
     let text = if entries.is_empty() { NEEDED } else { HOLDING };
@@ -84,17 +85,21 @@ fn invite_saying(
     text: &str,
 ) -> Result<()> {
     let _guard = SIGN_IN.locked();
-    if let Some(card) = hub.store.pending_sign_ins(backend)?.into_iter().find(|card| card.bot_id == bot) {
+    // In a room the card's chat is the room's: `botId` says whose it is.
+    let mine = |card: &crate::store::Entry| card.bot_id == lane.chat && card.data["connectionRequest"]["botId"] == bot;
+    if let Some(card) = hub.store.pending_sign_ins(backend)?.into_iter().find(mine) {
         let mut data = card.data;
         let mut ids = data["connectionRequest"]["entryIds"].as_array().cloned().unwrap_or_default();
+        let held = ids.len();
         for id in entries {
             if !ids.iter().any(|v| v == id.as_str()) {
                 ids.push(json!(id));
             }
         }
-        if !ids.is_empty() {
-            data["text"] = HOLDING.into();
+        if ids.len() == held {
+            return Ok(());
         }
+        data["text"] = HOLDING.into();
         data["connectionRequest"]["entryIds"] = Value::Array(ids);
         hub.set_entry(&card.id, &data).ok_or_else(|| anyhow!("Could not update the sign-in request"))?;
         return Ok(());
@@ -126,6 +131,7 @@ pub fn answered(hub: &Hub, backend: &str) {
 /// Agent `backend` is signed in now: its sign-in cards complete, and the messages they hold go
 /// out again (a message older than a day doesn't).
 pub fn agent_signed_in(hub: &Hub, backend: &str) -> Result<()> {
+    crate::agent::fallback::signed_in(hub, backend);
     let _guard = SIGN_IN.locked();
     for card in hub.store.pending_sign_ins(backend)? {
         let mut data = card.data.clone();
@@ -182,6 +188,21 @@ mod tests {
             }
         });
         waited.await.unwrap_or_else(|_| panic!("timed out waiting for {what}"));
+    }
+
+    #[tokio::test]
+    async fn signing_in_brings_bots_back_from_their_fallbacks() {
+        use crate::agent::fallback::{Reason, rest};
+        let (hub, dir) = fixture();
+        let wrapped = rest::account_of("kiro", Some("kiro-cli acp"));
+        rest::record(&hub.store, &wrapped, Reason::SignedOut, now_ms(), None);
+        rest::record(&hub.store, "kiro", Reason::UsageLimit, now_ms(), None);
+        agent_signed_in(&hub, "kiro").unwrap();
+        assert_eq!(rest::get(&hub.store, &wrapped, now_ms()), None, "the agent no longer rests for its sign-in");
+        let usage = rest::get(&hub.store, "kiro", now_ms()).map(|r| r.reason);
+        assert_eq!(usage, Some(Reason::UsageLimit), "signing in doesn't give usage back");
+        hub.shutdown().await;
+        let _ = std::fs::remove_dir_all(dir);
     }
 
     #[tokio::test]

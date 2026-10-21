@@ -38,6 +38,9 @@ pub(super) struct Relay {
     tried: Vec<String>,
     /// Agents (their `rest::account`) that lack their step's model: skipped until the bot's settings change.
     no_model: Vec<String>,
+    /// Agents this turn left signed out, in order, whose sign-in cards are in the chat. When no agent can answer, the
+    /// first one's card holds the turn's messages.
+    signed_out: Vec<String>,
     /// The next `start_turn` is this turn again, on the next agent.
     retrying: bool,
     /// The agents that failed this turn, in order: why, and what each had done.
@@ -91,17 +94,34 @@ impl Actor {
         if !std::mem::take(&mut self.relay.retrying) {
             self.relay.tried.clear();
             self.relay.failed.clear();
+            self.relay.signed_out.clear();
             self.relay.stopped = None;
         }
         self.relay.exhausted = false;
         self.relay.line = None;
         self.relay.carried = None;
         self.relay.attempt = Some(Attempt { lane: lane.clone(), entries: entries.to_vec(), text: text.to_owned() });
-        let target = self.next_step(now_ms()).unwrap_or(0);
+        let now = now_ms();
+        let target = self.next_step(now).unwrap_or(0);
+        self.left_signed_out_before(target, now);
         let from = self.cfg.clone();
         if fallback::account(&self.base, target) != rest::account(&from) {
             self.switch_to(target).await;
             self.relay.line = self.tell_switch(&from, target);
+        }
+    }
+
+    /// A turn (or its retry) starting on step `target`: the agents before it that rest because a bot found them
+    /// signed out ask to be signed in here too.
+    fn left_signed_out_before(&mut self, target: usize, now: i64) {
+        let signed_out = |s: &usize| {
+            rest::get(&self.hub.store, &fallback::account(&self.base, *s), now)
+                .is_some_and(|r| r.reason == Reason::SignedOut)
+        };
+        let skipped: Vec<String> =
+            (0..target).filter(signed_out).map(|s| fallback::backend(&self.base, s).to_owned()).collect();
+        for agent in skipped {
+            self.left_signed_out(&agent);
         }
     }
 
@@ -251,6 +271,11 @@ impl Actor {
             let failed = start_error.as_ref().unwrap_or(error);
             if self.next_step(now).is_none() {
                 self.relay.exhausted = true;
+                // No agent answers the turn's messages: they go out again once the first one left signed out is
+                // signed in (the last agent's own card holds them only when there is none, `held_for_sign_in`).
+                if let Some(first) = self.relay.signed_out.first().filter(|_| !self.turn_entries.is_empty()) {
+                    self.sign_in_card(first, &self.turn_entries);
+                }
                 return match start_error {
                     Some(e) => {
                         self.start_failed(&e);
@@ -258,6 +283,9 @@ impl Actor {
                     }
                     None => false,
                 };
+            }
+            if reason == Reason::SignedOut {
+                self.left_signed_out(&agent);
             }
             self.report_turn(false, Some(failed), "error");
             crate::analytics::agent_fell_back(&self.hub, &agent, reason);
@@ -278,6 +306,22 @@ impl Actor {
                 }
             }
         }
+    }
+
+    /// The turn moves past agent `agent`, signed out: its sign-in card goes in the chat, holding no message (the next
+    /// agent answers them, unless none can: `fall_back`). Signing in there brings the bot back (`fallback::signed_in`).
+    /// Once per turn.
+    fn left_signed_out(&mut self, agent: &str) {
+        if crate::agent::backends::harness(agent).is_some() && !self.relay.signed_out.iter().any(|a| a == agent) {
+            self.relay.signed_out.push(agent.to_owned());
+            self.sign_in_card(agent, &[]);
+        }
+    }
+
+    /// The messages the sign-in card of the agent this turn ended on holds: none when the card of an agent the turn
+    /// left signed out holds them already (`fall_back` ran out of agents), so they go out again once.
+    pub(super) fn held_for_sign_in(&self) -> &[String] {
+        if self.relay.exhausted && !self.relay.signed_out.is_empty() { &[] } else { &self.turn_entries }
     }
 
     /// A hidden turn (a compaction, a resume) stays on its agent and isn't started again elsewhere.
@@ -335,18 +379,13 @@ impl Actor {
 
     /// The agent answered a turn: whatever rest it had is over.
     pub(super) fn agent_answered(&mut self) {
-        let account = rest::account(&self.cfg);
-        if rest::clear(&self.hub.store, &account) {
-            fallback::tell_bots(&self.hub, &account);
-        }
+        fallback::end_rest(&self.hub, &rest::account(&self.cfg));
     }
 
     /// `switchBack`: the bot's own agent again, now when idle, or for its next turn.
     pub(super) async fn switch_back(&mut self) {
         let own = fallback::account(&self.base, 0);
-        if rest::clear(&self.hub.store, &own) {
-            fallback::tell_bots(&self.hub, &own);
-        }
+        fallback::end_rest(&self.hub, &own);
         if self.turn.is_none() && rest::account(&self.cfg) != own {
             let from = self.cfg.clone();
             self.idle_relay();

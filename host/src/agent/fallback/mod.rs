@@ -86,6 +86,21 @@ pub fn tell_bots(hub: &Hub, rested: &str) {
     }
 }
 
+/// `account`'s rest is over (it answered, the user asked for it again, it's signed in): bots that use it show it.
+pub fn end_rest(hub: &Hub, account: &str) {
+    if rest::clear(&hub.store, account) {
+        tell_bots(hub, account);
+    }
+}
+
+/// Agent `backend` is signed in now: its rests for being signed out are over (one for usage stays), so bots that
+/// moved on to a fallback come back on their next message.
+pub fn signed_in(hub: &Hub, backend: &str) {
+    for account in rest::signed_out(&hub.store, backend) {
+        end_rest(hub, &account);
+    }
+}
+
 /// Saved fallbacks are at most `MAX_FALLBACKS`, each a known agent or a custom command, and no agent twice
 /// (the bot's own included): falling back between one agent's models is that agent's own setting.
 pub fn check(cfg: &BotConfig) -> Result<()> {

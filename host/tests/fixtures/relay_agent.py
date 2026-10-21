@@ -1,7 +1,7 @@
 """ACP agent for the fallback chain test, run as `relay_agent.py <name>`. While `<name>.limit` exists in its folder,
 every prompt edits a file and then fails the way Claude's adapter reports a usage limit; otherwise it answers
-"<name> answered". Sessions load (`<name>-s<n>`) unless `<name>.noload` exists; every request goes to `<name>.jsonl` in
-its folder."""
+"<name> answered". While `<name>.signedout` exists, every prompt fails asking to sign in (ACP's -32000). Sessions load
+(`<name>-s<n>`) unless `<name>.noload` exists; every request goes to `<name>.jsonl` in its folder."""
 
 import json
 import os
@@ -43,7 +43,9 @@ for line in sys.stdin:
         send({"id": message["id"], "result": {}})
     elif method == "session/prompt":
         sid = params["sessionId"]
-        if os.path.exists(f"{NAME}.limit"):
+        if os.path.exists(f"{NAME}.signedout"):
+            send({"id": message["id"], "error": {"code": -32000, "message": "Authentication required"}})
+        elif os.path.exists(f"{NAME}.limit"):
             tool = {"toolCallId": "t1", "title": "Edit a.txt", "kind": "edit", "status": "completed"}
             update(sid, {"sessionUpdate": "tool_call", **tool})
             update(sid, {"sessionUpdate": "agent_message_chunk", "content": {"type": "text", "text": "Edited a.txt"}})

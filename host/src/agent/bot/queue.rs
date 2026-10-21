@@ -309,11 +309,17 @@ impl Actor {
     /// chat, which sends this turn's messages again once the user has signed in. Whether it did.
     pub(super) fn invite_sign_in(&self, e: &anyhow::Error) -> bool {
         let backend = &self.cfg.backend;
-        let Some(h) = crate::agent::backends::harness(backend).filter(|_| crate::agent::acp::needs_sign_in(e)) else {
+        if crate::agent::backends::harness(backend).is_none() || !crate::agent::acp::needs_sign_in(e) {
             return false;
-        };
+        }
         crate::agent::backends::set_signed_in(backend, Some(false));
-        let invited = agent_sign_in::invite(&self.hub, &self.cfg.id, &self.lane, backend, h.name, &self.turn_entries);
+        self.sign_in_card(backend, self.held_for_sign_in())
+    }
+
+    /// Agent `backend`'s sign-in card in the chat, holding `entries`. Whether it's there.
+    pub(super) fn sign_in_card(&self, backend: &str, entries: &[String]) -> bool {
+        let Some(h) = crate::agent::backends::harness(backend) else { return false };
+        let invited = agent_sign_in::invite(&self.hub, &self.cfg.id, &self.lane, backend, h.name, entries);
         invited
             .inspect_err(
                 |error| tracing::warn!(bot = %self.cfg.id, error = format!("{error:#}"), "couldn't ask to sign in"),

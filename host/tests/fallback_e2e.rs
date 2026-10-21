@@ -166,3 +166,58 @@ async fn a_bot_without_fallbacks_offers_to_add_one() {
     assert_eq!(failed["data"]["addFallback"], true);
     assert!(failed["data"]["text"].as_str().unwrap().contains("You've hit your limit"));
 }
+
+#[tokio::test]
+async fn a_signed_out_agent_hands_the_turn_over_and_asks_to_sign_in() {
+    let host = Host::start().await;
+    // A harness Codync knows (it gets a sign-in card) that no machine running the tests has installed.
+    let bot =
+        json!({"name": "Signed", "backend": "kimi", "command": agent("primary"), "connectors": [], "notify": false});
+    let bot = host.call("createBot", bot).await["bot"]["id"].as_str().unwrap().to_owned();
+    let fallbacks = json!([{"backend": "codex", "command": agent("standin")}]);
+    host.call("updateBot", json!({"id": bot, "fallbacks": fallbacks})).await;
+    let folder = host.home.join("bots").join(&bot).join("workspace");
+    std::fs::write(folder.join("primary.signedout"), "").unwrap();
+
+    host.reply(&bot, "Fix the build").await;
+    let reply = wait_for(&host, &bot, "reply", |e| e["kind"] == "agent" && e["data"]["final"] == true).await;
+    assert_eq!(reply["data"]["text"], "standin answered");
+    let card = wait_for(&host, &bot, "sign-in card", |e| e["data"]["connectionRequest"]["kind"] == "agent").await;
+    let request = &card["data"]["connectionRequest"];
+    assert_eq!((request["backend"].as_str(), request["status"].as_str()), (Some("kimi"), Some("pending")));
+    assert_eq!(request["entryIds"], json!([]), "the fallback answered: nothing waits for the sign-in");
+    let line = wait_for(&host, &bot, "switch line", |e| e["data"]["agentSwitch"].is_object()).await;
+    assert_eq!(line["data"]["text"], "Kimi Code is signed out. Codex carried on.");
+    assert_eq!(bot_value(&host, &bot).await["resting"][0]["reason"], "signedOut");
+
+    // Another bot on the same agent skips it while it rests, and asks to sign in too.
+    let second = json!({"name": "Second", "backend": "kimi", "command": agent("primary"), "connectors": [],
+        "notify": false, "fallbacks": fallbacks});
+    let second = host.call("createBot", second).await["bot"]["id"].as_str().unwrap().to_owned();
+    host.reply(&second, "Fix the tests").await;
+    let line = wait_for(&host, &second, "switch line", |e| e["data"]["agentSwitch"].is_object()).await;
+    assert_eq!(line["data"]["text"], "Kimi Code is signed out. Codex carried on.");
+    let card = wait_for(&host, &second, "sign-in card", |e| e["data"]["connectionRequest"]["kind"] == "agent").await;
+    assert_eq!(card["data"]["connectionRequest"]["backend"], "kimi");
+
+    // One that starts on an agent before it skips it when that agent fails, and asks to sign in too.
+    let chain = json!([{"backend": "kimi", "command": agent("primary")}, fallbacks[0]]);
+    let third = json!({"name": "Third", "backend": "custom", "command": agent("limited"), "connectors": [],
+        "notify": false, "fallbacks": chain});
+    let third = host.call("createBot", third).await["bot"]["id"].as_str().unwrap().to_owned();
+    std::fs::write(host.home.join("bots").join(&third).join("workspace").join("limited.limit"), "").unwrap();
+    host.reply(&third, "Fix the docs").await;
+    let card = wait_for(&host, &third, "sign-in card", |e| e["data"]["connectionRequest"]["kind"] == "agent").await;
+    assert_eq!(card["data"]["connectionRequest"]["backend"], "kimi");
+
+    // A turn of the agent elsewhere means it's signed in (with a command of its own, too): the bot goes back.
+    let solo =
+        json!({"name": "Solo", "backend": "kimi", "command": agent("helper"), "connectors": [], "notify": false});
+    let solo = host.call("createBot", solo).await["bot"]["id"].as_str().unwrap().to_owned();
+    host.reply(&solo, "Hello").await;
+    wait_for(&host, &bot, "the card to complete", |e| e["data"]["connectionRequest"]["status"] == "ready").await;
+    std::fs::remove_file(folder.join("primary.signedout")).unwrap();
+    host.reply(&bot, "Thanks").await;
+    wait_for(&host, &bot, "back line", |e| e["data"]["text"] == "Back on Kimi Code.").await;
+    assert!(last_prompt(&host, &bot, "primary").contains("Thanks"));
+}

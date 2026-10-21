@@ -57,7 +57,7 @@ Read from the ACP answer: the JSON-RPC code, the adapter's category (Claude's `d
 | `usageLimit` | Claude: `rate_limit`/`billing_error` with the Agent SDK's usage-limit text ("You've hit your…"). Codex: `usageLimitExceeded` | Until the reset the agent reported (`usage` windows at 100%); unknown: 1 h |
 | `outOfCredits` | Claude `billing_error`, `account_on_hold` | 6 h |
 | `rateLimited`, `overloaded` | Claude `rate_limit`, `overloaded`, `server_error`; codex-acp `rateLimitExceeded`, `serverOverloaded` | 1, 5, 25, then 60 min for failures in a row |
-| `signedOut` | ACP `-32000`, `authentication_failed` | 10 min (the harness shows signed out) |
+| `signedOut` | ACP `-32000`, `authentication_failed` | Until it's signed in, looking again after 1 h; an agent Codync can't sign in to (no sign-in card): 10 min. The chat of each bot that moves past it gets the agent's sign-in card (holding no message: the fallback answers it), and signing in there brings the bot back |
 | `notStarting` | `FailureKind::NotSetUp`, `Timeout`, `Exited` | 5 min |
 | `modelMissing` | `model_not_found`, or the agent refusing the step's model (`FailureKind::NoModel`) | None: it's the bot's setup, not the agent's. The bot skips that step until its settings change |
 
@@ -67,6 +67,8 @@ so only its usage limit moves a Codex bot on today.
 
 **Rests** (`fallback::rest`, `kv` `rest.<account>`: the agent, or a custom command's own) are the computer's: once one
 bot finds Claude Code out of usage, every bot skips it until it resets. A rest ends at its time, when any turn on that agent ends normally, or with Switch back.
+A signed-out rest also ends when the agent is signed in (`agent_sign_in::agent_signed_in`: the card, Extensions, a turn of it
+finishing, a re-check), for each of its accounts; a usage rest stays.
 Usage windows only time a usage limit's rest; they never skip an agent on their own (extra usage can go past 100%).
 
 ## Carrying the turn over
@@ -88,11 +90,13 @@ turn keeps its number, messages, routine run, room turn or bot request; permissi
     sent and its last note, with "check what's already done before you redo any step". It follows a handoff the user
     approved, which waits for the next turn if this one can't start at all.
 - **Every agent failed** (the turn ran out of agents): the failure notice as before, saying how each agent is ("No agent in this bot's list could
-  answer: Claude Code reached its usage limit (resets in 2 h); Codex …"). A routine run's 1/5/15-minute retries still
+  answer: Claude Code reached its usage limit (resets in 2 h); Codex …"). The turn's messages wait on the sign-in card
+  of the first agent it left signed out, and go out again once that agent is signed in. A routine run's 1/5/15-minute retries still
   follow. A bot without fallbacks whose agent ran out of usage, was rate limited or overloaded gets `addFallback` on the
   notice.
 - **Going back.** Each turn starts on the first step that isn't resting, so the bot goes back on its first turn after
-  the reset, never mid-turn. Switch back (`switchBack`) clears its own agent's rest and moves an idle bot now.
+  the reset, never mid-turn; after signing in to a signed-out agent, on its next message. Switch back (`switchBack`)
+  clears its own agent's rest and moves an idle bot now.
 
 ## The bot sets its own
 
@@ -114,7 +118,9 @@ iPhone, Android, desktop and terminal show the same things:
   and a ⋯ menu (Move up, Move down, Remove); "No fallbacks yet."; a caption; and the "Let the bot change its
   fallbacks" switch. The bot's own Agent row says when it resets.
 - **Chat**: one line where another agent took over ("Claude Code reached its usage limit (resets in 2 h). Codex carried
-  on.") or the bot's own came back ("Back on Claude Code."); it unfolds to what the agent was told. A failure with
+  on.") or the bot's own came back ("Back on Claude Code."); it unfolds to what the agent was told. Moving past a
+  signed-out agent also posts its sign-in card (`connectionRequest` kind `agent`), whose Sign in opens the agent's
+  sign-in sheet. A failure with
   `addFallback` offers **Add a fallback**, which opens the Agent card.
 - **Terminal**: the bot form's Fallbacks field (←→ pick, space adds the next free agent or cycles a fallback's model,
   `a` changes its agent, `[`/`]` move, `x` removes) and "Bot edits" (whether the bot may change them); Details shows the agent in use and the chain,
