@@ -69,7 +69,7 @@ host answers and sends it once the host is up.
 | `bot_deleted` | host | `deleteBot` | — |
 | `message_sent` | host | `send` (a resend counts once) | `kind`, `agent`, `reply` (whether it quotes a message), `attachments` (count) |
 | `turn_stopped` | host | `stop` | — |
-| `turn_finished` | host | An agent's turn ends | `agent`, `outcome` (`done`/`stopped`/`failed`/`incomplete`), `stop_reason`, `source` (`user`/`routine`/`group`/`bot`), `seconds`; when failed, `error` and, for `agent_error`, `rpc_code` and `agent_reason` |
+| `turn_finished` | host | An agent's turn ends | `agent`, `outcome` (`done`/`stopped`/`failed`/`incomplete`), `stop_reason`, `source` (`user`/`routine`/`group`/`bot`), `seconds`; when failed, `error` and, for `agent_error`, `rpc_code` and `agent_reason` (the adapter's own category, else one the host reads from the message, which is never sent: `session_ended`/`rate_limit`/`quota`/`overloaded`/`context`/`model`/`network`/`provider`/`unknown`) |
 | `session_reset` | host | `newSession` | — |
 | `permission_answered` | host | `respondPermission` | `choice` (`allow_once`/`allow_always`/`reject_once`/`reject_always`/`other`) |
 | `reaction_added` | host | `react` | — |
