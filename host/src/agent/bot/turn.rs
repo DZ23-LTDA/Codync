@@ -125,6 +125,9 @@ impl Actor {
         self.set_inflight(
             self.active_request.is_none() && self.active_group.is_none() && self.active_routine.is_none(),
         );
+        // A message the host wrote in the user's place (`from: host`) isn't the user asking.
+        let typed = |id: &&String| self.hub.store.entry(id).is_some_and(|e| e.data["from"] != "host");
+        let message = if from_user { entry_ids.iter().rev().find(typed).cloned() } else { None };
         self.hub.set_runtime(&self.id(), |r| {
             r.status = BotStatus::Working;
             r.activity = match (self.compacting.is_some(), hidden) {
@@ -135,7 +138,7 @@ impl Actor {
             .into();
             r.started_at = Some(now_ms());
             r.lane = Some(lane.clone());
-            r.message = if from_user { entry_ids.last().cloned() } else { None };
+            r.message = message;
         });
 
         // Memory files changed since (in an editor, say) reach the opening or the next notice.
@@ -206,6 +209,8 @@ impl Actor {
             self.hub.routines.mark_started(&self.hub.store, id)?;
             self.set_inflight(true);
         }
+        // From here what changes in its memory folders is the bot's, however it changed them.
+        memory::files::begin_turn(&self.cfg.id, &sid, self.hub.runtime(&self.cfg.id).message);
         // Written before this returns, so a Stop right after is sent after the prompt.
         let answer = acp.send("session/prompt", params).await?;
         if !self.turn_memory_revision.is_empty()

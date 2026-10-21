@@ -75,7 +75,6 @@ host answers and sends it once the host is up.
 | `permission_answered` | host | `respondPermission` | `choice` (`allow_once`/`allow_always`/`reject_once`/`reject_always`/`other`) |
 | `reaction_added` | host | `react` | — |
 | `handoff_answered` | host | `editHandoff`, `keepConversation` | `action` (`edit`/`keep`) |
-| `memory_edited` | host | A memory method that changes something | `action` (`save`/`pin`/`archive`/`forget`/`clear`/`undo_dream`/`answer`/`undo`/`file_save`/`file_delete`/`file_restore`) |
 | `routine_saved` | host | `saveRoutine` | — |
 | `routine_toggled` | host | `setRoutineEnabled` | `enabled` |
 | `routine_deleted` | host | `deleteRoutine` | — |

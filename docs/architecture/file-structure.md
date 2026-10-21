@@ -92,7 +92,7 @@ Codync/
 | Compaction timing and rollover | `host/src/agent/bot/compaction.rs`, the handoff card in `host/src/chat/handoff.rs`; the rules in `codync-mem`'s `compaction.rs` |
 | Group room turns / bot-to-bot requests | `host/src/chat/group.rs` / `team.rs` |
 | Team management (bots creating and changing bots) | `host/src/chat/manage.rs`, its approval card (`Cmd::Approve`) in `agent/bot/updates.rs` |
-| Prompt snapshots and memory | `host/src/chat/context.rs`, `memory/` (`api.rs`, `tools.rs`, `notices.rs`, `dream.rs`, `import.rs`; long-form files in `files.rs`, `file_api.rs`, `file_tools.rs`, `file_notices.rs`); the rules in `host/crates/memory` (`codync-mem`, files in `files.rs`, dreaming in `dream/`); harnesses' own memory turned off in `host/src/agent/own_memory.rs` |
+| Prompt snapshots and memory | `host/src/chat/context.rs`, `memory/` (`api.rs` the apps' read-only view, `tools.rs` and `file_tools.rs` the MCP tools, `files.rs` the folders and scan, `file_api.rs`, `dream.rs`, `import.rs`); the rules in `host/crates/memory` (`codync-mem`: files and facts in `files/`, dreaming in `dream/`, tombstones in `store.rs`, the old entries in `legacy.rs`); harnesses' own memory turned off in `host/src/agent/own_memory.rs` |
 | Identity, encryption and direct channel | `host/src/remote/identity.rs`, `crypto.rs`, `channel.rs` |
 | Host cloud state and relay connection | `host/src/remote/cloud.rs`, `relay.rs` |
 | Agent discovery, sign-in, setup terminal, Node.js for npm agents | `host/src/agent/backends.rs` (+ `backends/sign_in.rs`), `registry.rs`, `auth.rs`, `term.rs`, `node.rs` |

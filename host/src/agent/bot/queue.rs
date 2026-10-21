@@ -291,6 +291,7 @@ impl Actor {
         // What the chain carried in (a recap, a takeover) was this turn's; the user's handoff waits for the next.
         self.relay.carried = None;
         self.turn = None;
+        memory::files::drop_turn(&self.cfg.id);
         if self.routine_completion.is_none() {
             self.set_inflight(false);
         }

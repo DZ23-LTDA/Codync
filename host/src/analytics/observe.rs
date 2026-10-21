@@ -8,18 +8,7 @@ use crate::store::BotConfig;
 use serde_json::{Map, Value};
 
 /// Methods that stand for one event with one fixed property.
-const FIXED: [(&str, Event, &str, &str); 19] = [
-    ("saveMemory", Event::MemoryEdited, "action", "save"),
-    ("pinMemory", Event::MemoryEdited, "action", "pin"),
-    ("archiveMemory", Event::MemoryEdited, "action", "archive"),
-    ("forgetMemory", Event::MemoryEdited, "action", "forget"),
-    ("clearMemory", Event::MemoryEdited, "action", "clear"),
-    ("undoDream", Event::MemoryEdited, "action", "undo_dream"),
-    ("answerMemory", Event::MemoryEdited, "action", "answer"),
-    ("undoMemory", Event::MemoryEdited, "action", "undo"),
-    ("saveMemoryFile", Event::MemoryEdited, "action", "file_save"),
-    ("deleteMemoryFile", Event::MemoryEdited, "action", "file_delete"),
-    ("restoreMemoryFile", Event::MemoryEdited, "action", "file_restore"),
+const FIXED: [(&str, Event, &str, &str); 8] = [
     ("editHandoff", Event::HandoffAnswered, "action", "edit"),
     ("keepConversation", Event::HandoffAnswered, "action", "keep"),
     ("credentialSaveLogin", Event::CredentialSaved, "kind", "login"),
@@ -275,14 +264,7 @@ mod tests {
     }
 
     #[test]
-    fn memory_handoff_and_credentials_name_a_fixed_action() {
-        let memory = props("saveMemory", &json!({"botId": "b1", "text": "likes tea"})).expect("an edit");
-        assert_eq!(memory, (Event::MemoryEdited, json!({"action": "save", "client": "local"})));
-        assert_eq!(
-            props("restoreMemoryFile", &json!({})).map(|(_, p)| p["action"].clone()),
-            Some(json!("file_restore"))
-        );
-        assert_eq!(props("undoDream", &json!({})).map(|(_, p)| p["action"].clone()), Some(json!("undo_dream")));
+    fn handoff_and_credentials_name_a_fixed_action() {
         assert_eq!(
             props("keepConversation", &json!({})),
             Some((Event::HandoffAnswered, json!({"action": "keep", "client": "local"})))

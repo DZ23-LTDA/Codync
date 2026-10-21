@@ -211,9 +211,7 @@ pub(super) async fn call(hub: &Arc<Hub>, method: &str, b: Value) -> Result<Contr
             hub.send_cmd(str_arg(&b, "botId")?, Cmd::NewSession)?;
             json!({})
         }
-        "memory" | "saveMemory" | "pinMemory" | "archiveMemory" | "forgetMemory" | "clearMemory" | "undoDream"
-        | "answerMemory" | "undoMemory" | "memoryFile" | "saveMemoryFile" | "deleteMemoryFile"
-        | "restoreMemoryFile" => crate::chat::memory::call(hub, method, &b).await?,
+        "memory" | "memoryFile" => crate::chat::memory::call(hub, method, &b).await?,
         "editHandoff" | "keepConversation" => crate::chat::handoff::call(hub, method, &b)?,
         "react" => {
             let e = hub.react(str_arg(&b, "entryId")?, str_arg(&b, "emoji")?)?;

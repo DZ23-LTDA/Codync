@@ -91,6 +91,21 @@ impl Host {
         self.refused("memoryCall", json!({"botId": bot, "name": name, "arguments": arguments})).await
     }
 
+    /// A memory layer's folder: a bot's own, or the shared one (`None`).
+    pub fn memory_folder(&self, bot: Option<&str>) -> PathBuf {
+        bot.map_or_else(|| self.home.join("shared-memory"), |bot| self.home.join("bots").join(bot).join("bot-memory"))
+    }
+
+    /// Writes a memory file the way an editor would, already settled, so the host's next scan takes it.
+    pub fn write_memory(&self, bot: Option<&str>, name: &str, content: &str) {
+        let dir = self.memory_folder(bot);
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join(name);
+        std::fs::write(&path, content).unwrap();
+        let file = std::fs::File::options().write(true).open(&path).unwrap();
+        file.set_modified(std::time::SystemTime::now() - Duration::from_secs(5)).unwrap();
+    }
+
     /// A bot running `tests/fixtures/<fixture>` with `args`.
     pub async fn fixture_bot(&self, name: &str, fixture: &str, args: &str) -> String {
         let script = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures").join(fixture);

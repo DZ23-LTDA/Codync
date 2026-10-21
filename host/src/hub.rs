@@ -40,8 +40,9 @@ pub struct Runtime {
     pub started_at: Option<i64>,
     /// Where the running turn talks: its own chat or a group.
     pub lane: Option<Lane>,
-    /// The user's message that started the running turn; `None` for a turn a routine, a room or another bot
-    /// started. Memory cites it as where a fact was learned.
+    /// The user's message that started the running turn, typed in the bot's own chat; `None` for a turn a routine,
+    /// a room, another bot or the host started. Memory cites it as where a fact was learned, and only such a turn
+    /// may change or take out what memory says.
     pub message: Option<String>,
     /// The ACP session the running turn prompts. A memory write made there is one that session already knows.
     pub session: Option<String>,

@@ -19,7 +19,7 @@ export function harnessInfo(harness: string, readable: boolean): Point[] {
 /** What dreaming does, beside its read-only log. */
 export const dreamsInfo: Point[] = [
   { icon: 'moon', title: 'Tidying between chats', detail: 'After five quiet minutes or eight messages, the bot reads what you said since its last run and updates its memory.' },
-  { icon: 'plus.circle', title: 'Adds and archives', detail: 'Green lines are memories it added. Red lines are ones it archived because they went out of date or moved into a note. It can also add a line to a note.' },
+  { icon: 'plus.circle', title: 'Adds and takes out', detail: 'Green lines are memories it added. Red lines are ones it took out because they went out of date or moved into a note. It can also add a line to a note.' },
   { icon: 'text.bubble', title: 'Only your words', detail: "What it adds quotes something you typed yourself; pasted text, the bot's replies and other bots don't count. It never changes what you wrote. It may also put a passed date in the past tense, or move a detail into a note when memory is full." },
   { icon: 'lock.shield', title: 'Kept apart', detail: 'It runs in its own session, away from the chat, and fixed checks decide what it may save.' },
   { icon: 'eye', title: 'A record', detail: 'This tab only shows what it did. To change a memory, tell the bot.' },

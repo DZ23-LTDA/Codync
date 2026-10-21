@@ -121,7 +121,7 @@ fn author(app: &App, e: &Value) -> String {
 /// What dreaming did, read-only, under what it does (the other apps' info sheet, short).
 fn dreams(buf: &mut Buffer, body: Rect, memory: &MemorySheet) {
     let palette = theme();
-    let about = "Between chats the bot tidies its memory from what you typed, away from the chat: + added, − archived. \
+    let about = "Between chats the bot tidies its memory from what you typed, away from the chat: + added, − taken out. \
                  Pasted text and its replies never count. A record: to change a memory, tell the bot.";
     let muted = palette.secondary.patch(palette.panel);
     let lines = wrap(&[Span::styled(about, muted)], usize::from(body.width), &[], &[]);
@@ -138,7 +138,7 @@ fn dreams(buf: &mut Buffer, body: Rect, memory: &MemorySheet) {
         let base = row(buf, body, y, index == memory.cursor);
         let count = |k: &str| d[k].as_array().map_or(0, Vec::len);
         let head = format!(
-            "{} · added {} · archived {}{}",
+            "{} · added {} · taken out {}{}",
             when(d["at"].as_i64().unwrap_or(0)),
             count("added"),
             count("archived"),
