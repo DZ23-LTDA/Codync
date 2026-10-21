@@ -3,11 +3,15 @@ import Speech
 import SwiftUI
 
 /// Dictation into the message box with on-device speech: the words appear as they're recognized,
-/// after what was already typed; the mic again, or the recognizer finishing on a pause, stops it.
-/// It uses the call's language setting.
+/// after what was already typed; the recording pill's stop, or the recognizer finishing on a pause,
+/// stops it. It uses the call's language setting.
 @MainActor @Observable
 final class Dictation {
     private(set) var listening = false
+    /// When it started listening, for the recording pill's time.
+    private(set) var startedAt = Date.now
+    /// The microphone's level while listening, 0…1.
+    private(set) var level: Float = 0
     @ObservationIgnored private let engine = AVAudioEngine()
     @ObservationIgnored private var request: SFSpeechAudioBufferRecognitionRequest?
     @ObservationIgnored private var task: SFSpeechRecognitionTask?
@@ -48,13 +52,16 @@ final class Dictation {
         self.request = request
         let input = engine.inputNode
         input.removeTap(onBus: 0)
-        input.installTap(onBus: 0, bufferSize: 1024, format: format, block: Self.tap(request))
+        input.installTap(onBus: 0, bufferSize: 1024, format: format, block: OnDeviceEngine.tap(request) { [weak self] level in
+            Task { @MainActor in if self?.listening == true { self?.level = level } }
+        })
         engine.prepare()
         do {
             try engine.start()
         } catch {
             return stop()
         }
+        startedAt = .now
         listening = true
         task = recognizer.recognitionTask(with: request, resultHandler: Self.results(self, generation: generation))
     }
@@ -70,16 +77,13 @@ final class Dictation {
         heard = nil
         if listening { try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation) }
         listening = false
+        level = 0
     }
 
     private func recognized(_ text: String, final: Bool, generation: Int) {
         guard generation == self.generation else { return }
         heard?(text)
         if final { stop() }
-    }
-
-    private nonisolated static func tap(_ request: SFSpeechAudioBufferRecognitionRequest) -> AVAudioNodeTapBlock {
-        { buffer, _ in request.append(buffer) }
     }
 
     private nonisolated static func results(_ dictation: Dictation, generation: Int) -> @Sendable (SFSpeechRecognitionResult?, (any Error)?) -> Void {

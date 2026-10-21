@@ -207,29 +207,31 @@ struct Composer: View {
         .animation(Motion.reduced(Motion.morph, reduceMotion), value: canSend)
     }
 
-    /// Dictation, beside send / call (Grok Bot's): a light circle; red while it listens.
+    /// Dictation, beside send / call (Grok Bot's): a light circle; while it listens, the recording pill.
     private var micButton: some View {
-        let on = dictation.listening
-        return Button {
-            if on {
-                dictation.stop()
+        Group {
+            if dictation.listening {
+                RecordingPill(dictation: dictation, height: buttonSize)
+                    .transition(.opacity.combined(with: .scale(scale: 0.9, anchor: .trailing)))
             } else {
-                dictatedAfter = draft
-                Task { await dictation.start { said in draft = Dictation.join(dictatedAfter, said) } }
+                Button {
+                    dictatedAfter = draft
+                    Task { await dictation.start { said in draft = Dictation.join(dictatedAfter, said) } }
+                } label: {
+                    Image(systemName: "mic")
+                        .font(.system(size: 15, weight: .medium))
+                        .foregroundStyle(Palette.secondary)
+                        .frame(width: buttonSize, height: buttonSize)
+                        .background(Palette.bubbleAgent, in: Circle())
+                        .contentShape(Circle())
+                }
+                .buttonStyle(PressScale())
+                .accessibilityLabel("Dictate")
+                .help("Dictate")
+                .transition(.opacity)
             }
-        } label: {
-            Image(systemName: on ? "mic.fill" : "mic")
-                .font(.system(size: 15, weight: .medium))
-                .contentTransition(.symbolEffect(.replace))
-                .foregroundStyle(on ? .white : Palette.secondary)
-                .frame(width: buttonSize, height: buttonSize)
-                .background(on ? Palette.danger : Palette.bubbleAgent, in: Circle())
-                .contentShape(Circle())
         }
-        .buttonStyle(PressScale())
-        .accessibilityLabel(on ? "Stop dictating" : "Dictate")
-        .help(on ? "Stop dictating" : "Dictate")
-        .animation(Motion.reduced(Motion.morph, reduceMotion), value: on)
+        .animation(Motion.reduced(Motion.morph, reduceMotion), value: dictation.listening)
     }
 
     private var box: some View {
