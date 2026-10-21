@@ -25,6 +25,7 @@ Key facts:
 - [Website](https://www.codync.dev): overview, pricing and FAQ
 - [Free AI agent app](https://www.codync.dev/free-ai-agent-app): what free means and what the bots do
 - [Comparisons](https://www.codync.dev/compare): Codync side by side with similar apps
+- [codync-mem](https://www.codync.dev/codync-mem): the open-source Rust crate behind the bots' memory (Markdown files the bot keeps, and the rules for who may change them)
 - [Source code on GitHub](https://github.com/leepokai/Codync): README, install guide and docs
 - [Discord](https://discord.gg/KBAX3Qznxh): community, help and feedback
 - [Group chats and replies](https://github.com/leepokai/Codync/blob/main/docs/features/groups-and-replies.md)
