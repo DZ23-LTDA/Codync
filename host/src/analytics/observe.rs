@@ -124,6 +124,12 @@ fn call_event(method: &str, b: &Value, p: &mut Map<String, Value>) -> Option<Eve
             Event::SkillInstalled
         }
         "removeSkill" => Event::SkillRemoved,
+        // A bot's `save_skill`: a new skill, or new text for one (`id`).
+        "chatCall" if b["name"] == crate::chat::skills::TOOL => {
+            let rewrite = crate::chat::skills::rewritten_id(&b["arguments"]).is_some();
+            p.insert("change".into(), (if rewrite { "update" } else { "new" }).into());
+            Event::SkillWritten
+        }
         "agentSetup" | "agentAuthenticate" => {
             // An agent's catalog id; Node.js setup names none.
             if let Some(agent) = b["backend"].as_str().filter(|a| !a.is_empty()) {
@@ -347,6 +353,14 @@ mod tests {
             Some((Event::ConnectorRemoved, json!({"client": "local"})))
         );
         assert_eq!(props("removeSkill", &json!({"id": "s"})).map(|(e, _)| e), Some(Event::SkillRemoved));
+        let written =
+            |arguments: Value| props("chatCall", &json!({"botId": "b", "name": "save_skill", "arguments": arguments}));
+        assert_eq!(
+            written(json!({"name": "Deploy", "instructions": "never sent"})),
+            Some((Event::SkillWritten, json!({"change": "new", "client": "local"})))
+        );
+        assert_eq!(written(json!({"id": "deploy"})).map(|(_, p)| p["change"].clone()), Some(json!("update")));
+        assert_eq!(props("chatCall", &json!({"name": "send_message"})), None, "other chat tools aren't events");
         assert_eq!(props("connectorSignIn", &json!({"id": "c"})).map(|(e, _)| e), Some(Event::ConnectorSigninStarted));
         let setup = props("agentSetup", &json!({"backend": "claude-acp", "step": "install"}));
         assert_eq!(setup, Some((Event::AgentSetupStarted, json!({"agent": "claude-acp", "client": "local"}))));

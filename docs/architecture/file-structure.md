@@ -98,6 +98,7 @@ Codync/
 | Agent discovery, sign-in, setup terminal, Node.js for npm agents | `host/src/agent/backends.rs` (+ `backends/sign_in.rs`), `registry.rs`, `auth.rs`, `term.rs`, `node.rs` |
 | Fast mode (session config option) | `host/src/agent/config.rs`, `agent/bot/fast_mode.rs` |
 | Marketplace, Composio, connector OAuth | `host/src/market/` |
+| Skills a bot writes (`save_skill`) | `host/src/chat/skills.rs`, stored by `host/src/market/skills.rs` |
 | Screen bridge and built-in MCP tools | `host/src/screen/`, `mcp.rs` |
 | Swift transport and cloud API | `apps/ios/Kit/Sources/CodyncKit/Client/` |
 | Account aggregation / one host mirror | `apps/ios/Kit/Sources/CodyncUI/Store/AccountStore.swift` / `BotStore.swift` (+ `BotStore+Connection`, `+Sync`, `+Sending`, `+Actions`, `+Plugins`, `+Cache`) |

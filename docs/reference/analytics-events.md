@@ -90,6 +90,7 @@ host answers and sends it once the host is up.
 | `connector_signin_started` | host | `connectorSignIn` | — |
 | `skill_installed` | host | `installSkill` | `custom` |
 | `skill_removed` | host | `removeSkill` | — |
+| `skill_written` | host | A bot's `save_skill` (`chatCall`) | `change` (`new`/`update`) |
 | `credential_saved` | host | A key, login or vault is saved (clearing one isn't) | `kind` (`login`/`onepassword`/`connector`/`composio`/`voice`/`agent_env`) |
 | `agent_setup_started` | host | `agentSetup` (an agent's install or sign-in terminal) | `agent` |
 | `agent_signed_in` | host | `agentAuthenticate` | `agent` |

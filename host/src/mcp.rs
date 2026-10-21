@@ -1,4 +1,4 @@
-//! Built-in stdio MCP servers: `chat` sends the user messages, reacts to messages and changes the bot's name and instructions; `team` discovers and asks other bots; `manage`
+//! Built-in stdio MCP servers: `chat` sends the user messages, reacts to messages, changes the bot's name and instructions and saves skills; `team` discovers and asks other bots; `manage`
 //! creates bots and changes any bot's setup, and `computer` operates the desktop, when enabled. Calls go through authenticated loopback
 //! HTTP to the running host, which owns delegation and screen control.
 
@@ -61,6 +61,7 @@ pub async fn serve(bot: String, port: u16, server: Server) -> Result<()> {
             if let Some(list) = tools.as_array_mut() {
                 list.extend(crate::chat::profile::tools());
                 list.push(crate::chat::reactions::tool());
+                list.push(crate::chat::skills::tool());
             }
             ("codync-chat", crate::chat::outbox::INSTRUCTIONS, tools)
         }
