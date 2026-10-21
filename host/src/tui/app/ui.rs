@@ -89,21 +89,12 @@ pub struct Goto {
 pub enum ConfirmAct {
     Delete(String),
     NewSession(String),
-    /// A bot's own memory, or (`true`) the one all bots share.
-    ClearMemory(String, bool),
     /// Keeps a bot's harness's own memory on beside Codync's.
     KeepHarnessMemory(String),
     DeleteRoutine(String, String),
     RotateRoutineKey(String, String),
     RemoveConnector(String),
     RemoveSkill(String),
-    /// A long-form memory note, over the content with hash `base`.
-    DeleteMemoryFile {
-        bot: String,
-        shared: bool,
-        name: String,
-        base: Option<String>,
-    },
 }
 
 pub struct Confirm {

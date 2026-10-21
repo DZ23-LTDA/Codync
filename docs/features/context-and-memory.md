@@ -57,9 +57,9 @@ the `codync-mem` crate; `chat/memory` runs them in the host.
 - **The bot's tools** (built-in `memory` MCP server): `remember`, `revise_memory`, `archive_memory`,
   `search_memory`, `search_history`. Every bot writes at once, in any turn and to either layer, whatever its
   permission: memory isn't an action on the user's computer. Nothing about memory shows in the chat (no lines,
-  cards or working line); the user reviews and changes it in the bot's memory settings. A forgotten memory is never
-  written again by a bot or dreaming, reworded or not: its text stays closed to that layer, and the message it came
-  from to both layers the bot uses. Entry ids are never reused, so a stale id can't reach a newer entry. Memory
+  cards or working line); the user reviews it in the bot's memory settings and changes it by telling the bot. A
+  forgotten memory is never written again by a bot or dreaming, reworded or not: its text stays closed to that
+  layer, and the message it came from to both layers the bot uses. Entry ids are never reused, so a stale id can't reach a newer entry. Memory
   lines and cards that older hosts put in the chat are hidden by the apps; `answerMemory` and `undoMemory` still
   answer them for older apps.
 - **Checks** on every write but the user's own (`codync_mem::check`): no hidden characters, prompt-carrying
@@ -78,8 +78,8 @@ the `codync-mem` crate; `chat/memory` runs them in the host.
     once it settles). A change from a bot's tool call that changes files (an edit, delete or move, or one with
     diffs, naming the path; a read doesn't count) runs the checks, the cap and the description; one that fails is
     put back (logged, nothing in the chat). Other changes (an editor, another program) are recorded as "this
-    computer". The note's versions in the memory settings show every change and bring any one back; a description
-    that fails the checks is withheld from the index.
+    computer". The host keeps every version (the apps don't list them); a description that fails the checks is
+    withheld from the index.
   - Every host write (the apps, `edit_memory`, dreaming, undo) is compare-and-swap on the content's hash, through a
     temporary file renamed over the note. `search_memory` also returns matching lines of the files.
   - Deleting a bot deletes its folder and versions; "Forget everything" deletes a layer's files and versions; a
@@ -108,12 +108,14 @@ the `codync-mem` crate; `chat/memory` runs them in the host.
   (empty until it saves something). An edit to another harness turns the switch off. Using the harness's memory
   instead of Codync's is planned: [harness memory](../plans/harness-memory.md).
 - **The apps** (iPhone, desktop, terminal) show "About you", "This bot", the dream log and Claude Code's notes,
-  with add, edit, pin, archive, forget and forget-everything. Under each layer's entries (the terminal: a Notes
-  section) they list its notes with description, size and date, marked past a cap; a note opens to read, edit,
-  delete or bring back any version, and on the desktop, when the host is this computer, in the user's editor. They
-  fetch with `memory` and fetch again when the bot's `memoryRev` moves. Methods: `memory`, `saveMemory`,
-  `pinMemory`, `archiveMemory`, `forgetMemory`, `clearMemory`, `undoDream`, `memoryFile`, `saveMemoryFile`,
-  `deleteMemoryFile`, `restoreMemoryFile`.
+  read-only since 2.21.0: the user changes memory by telling the bot in the chat. Each layer shows its entries with
+  who wrote them, then its notes (the terminal: a Notes section) with description, size and date, marked past a
+  cap; a note opens to read. The dream log shows added lines green and archived red, beside an info button (the
+  terminal: a short paragraph above it) saying what dreaming does. The switches stay: "Use what your bots share"
+  and the harness's own memory. They fetch with `memory` and `memoryFile`, and fetch again when the bot's
+  `memoryRev` moves. The host still answers the edit methods older apps call: `saveMemory`, `pinMemory`,
+  `archiveMemory`, `forgetMemory`, `clearMemory`, `undoDream`, `saveMemoryFile`, `deleteMemoryFile`,
+  `restoreMemoryFile`.
 - **Moving the old memory**: on the first start of this version, each bot's Engram database (or the Markdown
   memory before it) moves in once. What the old opening showed comes in active as far as the cap allows (the
   profile and pinned facts first, then the newest), the rest archived; then the old files (deleted bots' too) and

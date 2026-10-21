@@ -18,8 +18,8 @@ mod skill;
 mod when;
 
 pub use analytics::AnalyticsSheet;
-pub use fields::{handoff_fields, memory_file_fields};
-pub use memory::{MemoryMode, MemorySheet, Section};
+pub use fields::handoff_fields;
+pub use memory::{MemoryMode, MemorySheet, Scroll, Section};
 pub use pages::Page;
 pub use skill::SkillSheet;
 pub use when::{complete_zone, local_zone};
@@ -176,13 +176,6 @@ pub enum Submit {
     Import,
     /// A handoff card's text (the card's entry id).
     Handoff(String),
-    /// A long-form memory note: a new one (`name` none) or a change over the content with hash `base`.
-    MemoryFile {
-        bot: String,
-        shared: bool,
-        name: Option<String>,
-        base: Option<String>,
-    },
 }
 
 /// A few labeled text fields: an agent's keys, a connector's setup, a pasted MCP config.

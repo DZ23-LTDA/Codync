@@ -26,7 +26,8 @@ Built differently from the plan below, for now:
 
 - Search is a substring scan, not an FTS5 trigram index. Memory has a few hundred entries; the transcript scan
   took 0.6 s over 180k messages of one bot, so the index waits until a bot's search passes a second.
-- No revision history per entry; the dream log and the chat lines carry undo.
+- No revision history per entry. Since 2.21.0 the apps show memory read-only; the user changes it by telling the
+  bot.
 - No proposals: since 2026-10-18 every bot writes memory at once, and nothing about memory shows in the chat.
 - Health, religion and politics get no special notice yet; voice transcripts aren't marked, and group rooms
   don't feed dreaming.
@@ -389,7 +390,7 @@ run is never overwritten (OpenClaw uses optimistic concurrency the same way).
   removed") don't do this.
 - **Time review, daily.** Future tense turns into the past once the date passes. Relative dates become absolute at
   write time.
-- **Dream log.** Every run's changes are visible and can be undone in one tap.
+- **Dream log.** Every run's changes are visible, read-only since 2.21.0.
 - **Migrated entries.** Entries imported from Engram or Markdown change only on contrary evidence.
 
 ### Frozen opening
@@ -609,14 +610,12 @@ build.
   message.
 - **A per-bot switch** for "yours".
 - **Bot writes:** nothing in the chat (changed 2026-10-18 at the owner's request: memory lines and cards cluttered the
-  chat). Every bot writes at once whatever its permission, and the user reviews, edits or forgets in the memory
-  settings.
-- **The dream log** with undo.
-- **Entry actions:** edit, pin, forget, and forget everything.
+  chat). Every bot writes at once whatever its permission; the user reviews it in the memory settings, which are
+  read-only since 2.21.0 (the owner's call: the user changes memory by telling the bot).
+- **The dream log** (added green, archived red) with an info button saying what dreaming does.
 - **The harness's own memory switch** in the bot's section, off by default, with an info button; kept on, Claude Code's `MEMORY.md` shows read-only.
 - **Long-form memory** under each layer's cards: the files with name, description, size and date, an over-cap
-  mark, and a detail view to read, edit, and restore any version. The desktop app can open a file in the user's
-  editor.
+  mark, and a view to read one.
 - **In the chat**, only an editable handoff draft at rollover, folding to one line once sent; compactions and a
   kept handoff leave no line (2026-10-18, at the owner's request).
 
