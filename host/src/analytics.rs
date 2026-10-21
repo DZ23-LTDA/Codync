@@ -24,7 +24,7 @@ mod turns;
 pub use lifecycle::{KV_STARTED, Via, device_paired, host_started, phone_connected};
 pub use observe::{answered, observe_call};
 pub use reported::track;
-pub use turns::{TurnOutcome, TurnSource, turn_finished};
+pub use turns::{TurnOutcome, TurnSource, agent_fell_back, turn_finished};
 
 const KV_ENABLED: &str = "analytics_enabled";
 /// The account the install id was last merged into (one `$identify` per account).
@@ -65,6 +65,8 @@ pub enum Event {
     MessageSent,
     TurnStopped,
     TurnFinished,
+    /// A turn moved on to the bot's next agent (`agent::fallback`).
+    AgentFellBack,
     SessionReset,
     PermissionAnswered,
     ReactionAdded,
@@ -122,6 +124,7 @@ impl Event {
             Self::MessageSent => "message_sent",
             Self::TurnStopped => "turn_stopped",
             Self::TurnFinished => "turn_finished",
+            Self::AgentFellBack => "agent_fell_back",
             Self::SessionReset => "session_reset",
             Self::PermissionAnswered => "permission_answered",
             Self::ReactionAdded => "reaction_added",

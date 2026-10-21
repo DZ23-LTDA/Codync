@@ -1,6 +1,6 @@
 //! Commands from clients and the queue of turns waiting for the bot.
 
-use super::{Actor, CANCEL_GRACE, Cmd, Done, NoticeStyle, Queued, RESUME_PROMPT, RoutineCompletion, inflight_key};
+use super::{Actor, CANCEL_GRACE, Cmd, Done, Queued, RESUME_PROMPT, RoutineCompletion, inflight_key};
 use crate::agent::own_memory;
 use crate::chat::memory;
 use crate::hub::BotStatus;
@@ -75,12 +75,21 @@ impl Actor {
                     self.stop().await;
                 }
                 self.forget_session();
+                self.forget_parked();
                 // Retain and summarize completed exchanges even when the user starts afresh. The chat shows no line
                 // for it: the user just confirmed it.
                 let _ = self.dreamer.send(memory::DreamEvent::Flush);
             }
-            Cmd::Reconfigure(cfg) => {
-                let cfg = *cfg;
+            Cmd::SwitchBack => self.switch_back().await,
+            Cmd::Reconfigure(base) => {
+                let old = std::mem::replace(&mut self.base, *base);
+                // On its own agent the bot takes the new one; on a fallback it keeps that agent (its step may have
+                // moved) until `settle_chain` moves it off one it no longer uses.
+                let cfg = if crate::agent::fallback::step_of(&old, &self.cfg.backend) == Some(0) {
+                    crate::agent::fallback::effective(&self.base, 0)
+                } else {
+                    super::fallback::running(&self.base, &self.cfg)
+                };
                 // The harness reads its own memory's switch when it starts: an agent that can resume its session
                 // restarts into it, one that can't starts afresh.
                 let memory_changed = own_memory::kept(&cfg) != own_memory::kept(&self.cfg);
@@ -113,6 +122,7 @@ impl Actor {
                 } else if restart {
                     self.restart_agent().await;
                 }
+                self.settle_chain(&old).await;
             }
             Cmd::Shutdown => return false,
         }
@@ -183,7 +193,7 @@ impl Actor {
                             self.routine_deadline = Some(Instant::now() + prepared.timeout);
                             let result = self.start_turn(prepared.lane, &[], &prepared.prompt, false, done_tx).await;
                             if let Err(error) = result {
-                                self.start_failed(&error);
+                                self.start_error(error, done_tx).await;
                             }
                         }
                         Ok(None) => {
@@ -213,7 +223,7 @@ impl Actor {
                     self.active_request = Some(ask);
                     let result = self.start_turn(main.clone(), &ids, &prompt, false, done_tx).await;
                     if let Err(e) = result {
-                        self.start_failed(&e);
+                        self.start_error(e, done_tx).await;
                     }
                     continue;
                 }
@@ -229,7 +239,7 @@ impl Actor {
                     self.active_group = Some(turn);
                     let result = self.start_turn(lane, &[], &prompt, false, done_tx).await;
                     if let Err(e) = result {
-                        self.start_failed(&e);
+                        self.start_error(e, done_tx).await;
                     }
                     continue;
                 }
@@ -256,12 +266,13 @@ impl Actor {
             }
             let ids: Vec<String> = batch.iter().map(|(id, _)| id.clone()).collect();
             let text = batch.iter().map(|(_, t)| t.as_str()).collect::<Vec<_>>().join("\n\n");
-            // A handoff waiting in the chat starts a new conversation with this message.
+            // A handoff waiting in the chat starts a new conversation with this message, as does one already taken
+            // for a turn that couldn't start.
             if lane == main {
-                self.handoff = self.take_handoff();
+                self.handoff = self.take_handoff().or_else(|| self.handoff.take());
             }
             if let Err(e) = self.start_turn(lane, &ids, &text, false, done_tx).await {
-                self.start_failed(&e);
+                self.start_error(e, done_tx).await;
             }
         }
     }
@@ -275,8 +286,10 @@ impl Actor {
         self.complete_group(Err(anyhow!("couldn't start: {e:#}")));
         if !self.invite_sign_in(e) {
             // `{:#}` keeps the reason ("starting `npx …`: EACCES"), not just "agent process exited".
-            self.notice(&format!("Couldn't start the agent: {e:#}"), NoticeStyle::Error);
+            self.failure_notice(e, &format!("Couldn't start the agent: {e:#}"));
         }
+        // What the chain carried in (a recap, a takeover) was this turn's; the user's handoff waits for the next.
+        self.relay.carried = None;
         self.turn = None;
         if self.routine_completion.is_none() {
             self.set_inflight(false);

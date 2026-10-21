@@ -68,6 +68,12 @@ pub fn turn_finished(
     capture(hub, Event::TurnFinished, p.as_object().cloned().unwrap_or_default());
 }
 
+/// `agent_fell_back`: a turn moved on from `agent` to the bot's next one, and why (never the error's text).
+pub fn agent_fell_back(hub: &Hub, agent: &str, reason: crate::agent::fallback::Reason) {
+    let p = json!({"agent": agent, "reason": reason});
+    capture(hub, Event::AgentFellBack, p.as_object().cloned().unwrap_or_default());
+}
+
 /// Why a turn failed, as a category (plus the agent's JSON-RPC error, for its code and own
 /// category): never the error's text, which can hold paths and agent output.
 fn failure_kind(e: &anyhow::Error) -> (&'static str, Option<&crate::agent::acp::RpcError>) {
@@ -77,6 +83,7 @@ fn failure_kind(e: &anyhow::Error) -> (&'static str, Option<&crate::agent::acp::
             FailureKind::NotSetUp => "not_installed",
             FailureKind::Timeout => "timeout",
             FailureKind::Exited => "exited",
+            FailureKind::NoModel => "no_model",
         };
         return (kind, None);
     }

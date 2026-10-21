@@ -89,6 +89,10 @@ impl Routines {
     pub fn mark_started(&self, store: &Store, id: &str) -> Result<()> {
         self.change(store, |s| {
             let r = s.runs.iter_mut().find(|r| r.id == id).context("routine run not found")?;
+            // Running already: its turn starts again on the bot's next agent (`agent::fallback`).
+            if r.status == Status::Running {
+                return Ok(());
+            }
             if !matches!(r.status, Status::Starting | Status::Recovering) {
                 bail!("routine is no longer runnable");
             }

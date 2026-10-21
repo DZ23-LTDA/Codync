@@ -202,6 +202,16 @@ public final class BotStore {
         hello?.backends.first { $0.id == id }?.name ?? BackendInfo.name(id)
     }
 
+    /// The ACP registry id an agent's logo is under.
+    func agentRegistry(_ id: String) -> String {
+        hello?.backends.first { $0.id == id }?.registry ?? id
+    }
+
+    /// An agent as the Agent pickers list it.
+    func agentLabel(_ backend: Backend) -> String {
+        backend.available ? backend.name : "\(backend.name) (not installed)"
+    }
+
     public var hiddenBots: [Bot] { bots.values.filter(\.hidden).sorted { $0.name < $1.name } }
 
     /// Everything in a bot's or group's chat this device has, oldest first (trace included).

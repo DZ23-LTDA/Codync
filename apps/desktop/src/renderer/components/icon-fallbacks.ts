@@ -32,6 +32,7 @@ const map: Record<string, IconNode> = {
   'arrow.right.to.line': L.ArrowRightToLine,
   'arrow.triangle.2.circlepath': L.RefreshCw,
   'arrow.triangle.branch': L.GitBranch,
+  'arrow.turn.down.right': L.CornerDownRight,
   'arrow.up': L.ArrowUp,
   'arrow.up.right.square': L.SquareArrowOutUpRight,
   'arrowshape.turn.up.left': L.Reply,

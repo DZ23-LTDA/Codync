@@ -21,6 +21,8 @@ import { TraceView } from './TraceView'
 import { useReading } from './reading'
 import { GroupEditorView } from '../bots/GroupEditorView'
 import { BotTemplateView } from '../bots/BotTemplateView'
+import { BotEditorView } from '../bots/BotEditorView'
+import { FormSheet } from '../marketplace/pieces'
 import { CallView } from '../call/CallView'
 import { MacChatButton } from './MacChatButton'
 import './thread.css'
@@ -49,6 +51,8 @@ export const ThreadView = memo(function ThreadView({ botId }: { botId: string })
   const [callSpeaking, setCallSpeaking] = useState(false)
   const interruptCall = useRef<(() => void) | null>(null)
   const [routineId, setRoutineId] = useState<string | null>(null)
+  // A group member's settings, opened from its notice.
+  const [editingMember, setEditingMember] = useState<string | null>(null)
   const [routineRequest, setRoutineRequest] = useState(0)
   const root = useRef<HTMLDivElement>(null)
   const dock = useRef<HTMLDivElement>(null)
@@ -113,6 +117,10 @@ export const ThreadView = memo(function ThreadView({ botId }: { botId: string })
     if (!wide) setCompactDetails(true)
   }, [wide])
 
+  // This bot's Agent card is on the Details tab; a group member's is in its settings.
+  const presentAgent = useCallback((id: string) => (id === botId ? presentRoutine(null) : setEditingMember(id)), [botId, presentRoutine])
+  const member = editingMember ? store.bots.get(editingMember) : undefined
+
   const details = (
     <DetailsPanel
       key={routineRequest}
@@ -157,7 +165,7 @@ export const ThreadView = memo(function ThreadView({ botId }: { botId: string })
           </button>
         </div>
         {/* An update card takes the composer's place, so there's nothing to reply with. */}
-        <Transcript botId={botId} openTrace={openTrace} onReply={store.mismatch ? undefined : setReplyTo} openRoutine={presentRoutine} openBotChat={setBotChat} />
+        <Transcript botId={botId} openTrace={openTrace} onReply={store.mismatch ? undefined : setReplyTo} openRoutine={presentRoutine} openAgent={presentAgent} openBotChat={setBotChat} />
         <div className="composer-dock" ref={dock}>
           <div className="composer-fade" />
           {store.mismatch ? (
@@ -205,6 +213,9 @@ export const ThreadView = memo(function ThreadView({ botId }: { botId: string })
       <Sheet open={editingGroup} onClose={() => setEditingGroup(false)} width={420} height={560}>
         {bot ? <GroupEditorView group={bot} /> : null}
       </Sheet>
+      <FormSheet open={!!member} onClose={() => setEditingMember(null)} width={520} height={680} fixed>
+        {member ? <BotEditorView key={member.id} draft={draftOf(member)} /> : null}
+      </FormSheet>
     </div>
   )
 })
@@ -244,7 +255,7 @@ function ConnectionSubtitle() {
 /** The messages: every loaded message, brought to the newest as it changes while the reader is at the bottom. */
 const PAGE = 40
 
-const Transcript = memo(function Transcript({ botId, openTrace, onReply, openRoutine, openBotChat }: { botId: string; openTrace: () => void; onReply?: (e: Entry) => void; openRoutine: (id: string | null) => void; openBotChat: (peerId: string) => void }) {
+const Transcript = memo(function Transcript({ botId, openTrace, onReply, openRoutine, openAgent, openBotChat }: { botId: string; openTrace: () => void; onReply?: (e: Entry) => void; openRoutine: (id: string | null) => void; openAgent: (botId: string) => void; openBotChat: (peerId: string) => void }) {
   const store = useStore()
   const bot = store.bots.get(botId) ?? null
   const live = !!bot && isWorkingIn(bot, botId) && !store.isOffline
@@ -349,7 +360,7 @@ const Transcript = memo(function Transcript({ botId, openTrace, onReply, openRou
           {items.length === 0 && bot ? <div className="transcript-intro">{isGroup(bot) ? <GroupIntroCard group={bot} /> : <IntroCard bot={bot} />}</div> : null}
           {items.map((item) => (
             <div key={item.id} className={arrivals.has(item.id) ? rowIn(item) : undefined}>
-              <Row item={item} chat={bot} openTrace={openTrace} onReply={onReply} openRoutine={openRoutine} openBotChat={openBotChat} />
+              <Row item={item} chat={bot} openTrace={openTrace} onReply={onReply} openRoutine={openRoutine} openAgent={openAgent} openBotChat={openBotChat} />
             </div>
           ))}
           {bot && live ? (
@@ -377,7 +388,7 @@ const Transcript = memo(function Transcript({ botId, openTrace, onReply, openRou
   )
 })
 
-function Row({ item, chat, openTrace, onReply, openRoutine, openBotChat }: { item: ChatItem; chat: Bot | null; openTrace: () => void; onReply?: (e: Entry) => void; openRoutine: (id: string | null) => void; openBotChat: (peerId: string) => void }) {
+function Row({ item, chat, openTrace, onReply, openRoutine, openAgent, openBotChat }: { item: ChatItem; chat: Bot | null; openTrace: () => void; onReply?: (e: Entry) => void; openRoutine: (id: string | null) => void; openAgent: (botId: string) => void; openBotChat: (peerId: string) => void }) {
   if (item.kind === 'separator') {
     return <TimeSeparator date={item.date} />
   }
@@ -385,7 +396,7 @@ function Row({ item, chat, openTrace, onReply, openRoutine, openBotChat }: { ite
   const e = item.entry
   if (e.kind === 'notice' && e.data.routineId) return <RoutineNotice entry={e} open={() => openRoutine(e.data.routineId!)} />
 
-  return <ChatRow entry={e} groupStart={item.groupStart} chat={chat} openTrace={openTrace} onReply={onReply} />
+  return <ChatRow entry={e} groupStart={item.groupStart} chat={chat} openTrace={openTrace} onReply={onReply} openAgent={openAgent} />
 }
 
 /** The start of an empty group chat: who's in it and how the room works. */

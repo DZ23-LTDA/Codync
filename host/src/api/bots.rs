@@ -46,6 +46,8 @@ pub(super) async fn call(hub: &Arc<Hub>, method: &str, b: Value) -> Result<Contr
                 crate::chat::profile::call(hub, bot, name, &b["arguments"]).await?
             } else if name == crate::chat::skills::TOOL {
                 crate::chat::skills::call(hub, bot, &b["arguments"]).await?
+            } else if crate::chat::fallbacks::TOOLS.contains(&name) {
+                crate::chat::fallbacks::call(hub, bot, name, &b["arguments"]).await?
             } else {
                 crate::chat::outbox::call(hub, bot, name, &b["arguments"]).await?
             }
@@ -199,6 +201,10 @@ pub(super) async fn call(hub: &Arc<Hub>, method: &str, b: Value) -> Result<Contr
                 Some(row) if row.config.is_group() => hub.groups.stop(hub, bot),
                 _ => hub.send_cmd(bot, Cmd::Stop)?,
             }
+            json!({})
+        }
+        "switchBack" => {
+            hub.send_cmd(str_arg(&b, "botId")?, Cmd::SwitchBack)?;
             json!({})
         }
         "newSession" => {

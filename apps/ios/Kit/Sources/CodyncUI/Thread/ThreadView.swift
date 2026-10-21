@@ -77,7 +77,7 @@ public struct ThreadView: View {
             }
             .codyncSheet(item: $botChat) { BotConversationView(botId: botId, peerId: $0.id) }
             .codyncSheet(item: $details) { request in
-                BotDetailsView(botId: botId, request: request)
+                BotDetailsView(botId: request.botId ?? botId, request: request)
             }
             .codyncSheet(isPresented: $editingGroup) {
                 if let bot { GroupEditorView(group: bot) }
@@ -103,7 +103,9 @@ public struct ThreadView: View {
             } else {
                 ChatRow(entry: e, groupStart: groupStart, chat: bot, openTrace: { showTrace = true },
                         // An update card takes the composer's place, so there's nothing to reply with.
-                        reply: e.isReplyable && model.mismatch == nil ? { reply(to: e) } : nil)
+                        reply: e.isReplyable && model.mismatch == nil ? { reply(to: e) } : nil,
+                        // In a group, the bot whose agent failed.
+                        addFallback: { details = DetailsRequest(botId: e.data.author ?? e.botId) })
                     .equatable()
             }
         }

@@ -36,6 +36,10 @@ impl App {
                 }
                 return None;
             }
+            // The bot's own agent again, while it runs on a fallback.
+            (KeyCode::Char('B'), _) if self.bots.get(&bot).is_some_and(|b| b.agent_step.is_some()) => {
+                self.call("switchBack", json!({"botId": bot}), After::Nothing);
+            }
             // Use the computer, on the Details page above the routines.
             (KeyCode::Char('u'), _) if !self.screen.is_null() => {
                 let on = self.bots.get(&bot).is_some_and(|b| b.computer);

@@ -83,7 +83,7 @@ function Identity({ bot }: { bot: Bot }) {
           `${bot.members.length} ${bot.members.length === 1 ? 'bot' : 'bots'}`
         ) : (
           <>
-            <AgentIcon registry={store.hello?.backends.find((b) => b.id === bot.backend)?.registry ?? bot.backend} size={12} />
+            <AgentIcon registry={store.agentRegistry(bot.backend)} size={12} />
             {store.backendName(bot.backend)}
             {bot.model ? ` · ${bot.model}` : null}
           </>

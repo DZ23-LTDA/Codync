@@ -74,6 +74,9 @@ struct BotSettingsForm: View {
     @State private var pickingAvatar = false
     @State private var viewingSkill: SkillRef?
 
+    /// The saved bot, as the host has it now.
+    private var bot: Bot? { draft.id.flatMap { model.bots[$0] } }
+
     var body: some View {
         Group {
             if scrolls {
@@ -100,9 +103,12 @@ struct BotSettingsForm: View {
         VStack(alignment: .leading, spacing: 30) {
             CardSection("Instructions") { instructions }
             CardSection("Agent") {
+                fallbackBanner
                 agentPicker
                 modelPicker
+                fallbackList
             }
+            .animation(Motion.reduced(Motion.layout, reduceMotion), value: bot?.agentStep)
             if let error {
                 Text(error).font(.footnote).foregroundStyle(Palette.danger)
             }
@@ -119,10 +125,12 @@ struct BotSettingsForm: View {
 
     private var agentPicker: some View {
         VStack(alignment: .leading, spacing: 8) {
-            ValueRow("Agent") {
-                ChoicePicker(selection: $draft.backend,
-                             options: (model.hello?.backends ?? []).map { ($0.id, $0.available ? $0.name : "\($0.name) (not installed)") } + [("custom", "Custom command")],
-                             image: { id in AgentIcon.image(registry: model.hello?.backends.first { $0.id == id }?.registry ?? id) })
+            ValueRow("Agent", detail: bot?.rest(of: draft.backend)?.line) {
+                ChoicePicker(selection: Binding(get: { draft.backend }, set: { agent in
+                                 withAnimation(Motion.reduced(Motion.layout, reduceMotion)) { draft.setAgent(agent) }
+                             }),
+                             options: (model.hello?.backends ?? []).map { ($0.id, model.agentLabel($0)) } + [("custom", "Custom command")],
+                             image: { AgentIcon.image(registry: model.agentRegistry($0)) })
             }
             if let b = model.hello?.backends.first(where: { $0.id == draft.backend }), !b.available {
                 Text(b.installHint).font(.caption).foregroundStyle(Palette.warning)
@@ -141,7 +149,17 @@ struct BotSettingsForm: View {
         AgentModelPicker(backend: draft.backend, selection: $draft.model, options: $draft.modelOptions,
                          fastMode: Binding(get: { draft.fastMode ?? false }, set: { on in
                              withAnimation(Motion.reduced(Motion.fade, reduceMotion)) { draft.fastMode = on }
-                         }), bot: draft.id.flatMap { model.bots[$0] })
+                         }), bot: bot)
+    }
+
+    /// While the bot runs on a fallback: which, and Switch back.
+    @ViewBuilder private var fallbackBanner: some View {
+        if let bot, let step = bot.agentStep { FallbackBanner(bot: bot, step: step) }
+    }
+
+    /// Only from a host that has fallbacks (its bots say).
+    @ViewBuilder private var fallbackList: some View {
+        if draft.fallbacks != nil { FallbackList(draft: $draft, bot: bot) }
     }
 
     @ViewBuilder private var sections: some View {
@@ -173,19 +191,21 @@ struct BotSettingsForm: View {
                     TextField("Name", text: $draft.name).fieldBox()
                 }
                 if part == .all { instructions }
-                if let bot = draft.id.flatMap({ model.bots[$0] }), let creator = bot.createdBy {
+                if let bot, let creator = bot.createdBy {
                     ValueRow("Created by", value: "\(model.bots[creator]?.name ?? "A bot") · \(Date(milliseconds: bot.createdAt).formatted(date: .abbreviated, time: .omitted))")
                 }
             }
 
             // On the details sheet the agent and its model are on the Details page; what's left is where it works.
             CardSection(part == .all ? "Agent" : "Workspace") {
+                if part == .all { fallbackBanner }
                 ValueRow("Computer") {
                     Text(model.hostName).lineLimit(1)
                 }
                 if part == .all {
                     agentPicker
                     modelPicker
+                    fallbackList
                 }
                 ValueRow("Workspace", detail: draft.cwd.isEmpty
                          ? "This bot has its own space for files. It can work in other folders when you ask."
@@ -215,6 +235,7 @@ struct BotSettingsForm: View {
                     ChoicePicker(selection: $draft.permission, options: [("ask", "Ask me"), ("auto", "Approve automatically")])
                 }
             }
+            .animation(Motion.reduced(Motion.layout, reduceMotion), value: bot?.agentStep)
 
             CardSection("Activity") {
                 SwitchRow("Notifications", detail: "Get notified when this bot finishes or needs you",

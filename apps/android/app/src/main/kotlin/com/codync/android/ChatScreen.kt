@@ -61,14 +61,14 @@ import com.kyant.shapes.Capsule
 
 /**
  * One endless conversation with a bot or a group, as iOS `ThreadView`: only deliberate messages
- * show; tool calls and thinking live in "Full conversation".
+ * show; tool calls and thinking live in "Full conversation". `editFallbacks` opens a bot's settings at its fallbacks.
  */
-@Composable fun ChatScreen(state: AppState, store: AppStore, edit: (Bot) -> Unit) {
+@Composable fun ChatScreen(state: AppState, store: AppStore, edit: (Bot) -> Unit, editFallbacks: (Bot) -> Unit = edit) {
     val bot = state.bots.firstOrNull { it.id == state.selectedBot } ?: return
-    key(state.contextId, state.generation, bot.id) { ThreadView(bot, state, store, edit) }
+    key(state.contextId, state.generation, bot.id) { ThreadView(bot, state, store, edit, editFallbacks) }
 }
 
-@Composable private fun ThreadView(bot: Bot, state: AppState, store: AppStore, edit: (Bot) -> Unit) {
+@Composable private fun ThreadView(bot: Bot, state: AppState, store: AppStore, edit: (Bot) -> Unit, editFallbacks: (Bot) -> Unit) {
     AnalyticsOnAppear(AnalyticsEvent.ScreenViewed(AnalyticsScreen.Chat))
     val context = LocalContext.current
     var confirmNewSession by remember { mutableStateOf(false) }
@@ -116,7 +116,8 @@ import com.kyant.shapes.Capsule
         }
     }) {
         Transcript(bot, chatState, store, connect, PaddingValues(start = 16.dp, end = 16.dp, top = top + 60.dp,
-            bottom = with(density) { composerHeight.toDp() } + 8.dp), indicatorTop = top + 50.dp, openRoutine = openRoutine, reply = reply) { peer = it }
+            bottom = with(density) { composerHeight.toDp() } + 8.dp), indicatorTop = top + 50.dp, openRoutine = openRoutine, reply = reply,
+            addFallback = editFallbacks) { peer = it }
     }
     CodyncDialog("Start a new session?", confirmNewSession, { confirmNewSession = false },
         message = "The conversation stays here, but the agent starts with a fresh context.") {
@@ -219,7 +220,7 @@ import com.kyant.shapes.Capsule
 
 /** The messages: all this phone has, earlier ones from the computer near the top, following the newest. */
 @Composable private fun Transcript(bot: Bot, state: AppState, store: AppStore, connect: ConnectionRequestActions, padding: PaddingValues,
-    indicatorTop: Dp, openRoutine: (String) -> Unit, reply: (Entry) -> Unit, openPeer: (String) -> Unit) {
+    indicatorTop: Dp, openRoutine: (String) -> Unit, reply: (Entry) -> Unit, addFallback: (Bot) -> Unit, openPeer: (String) -> Unit) {
     val entries = state.entries.filter { it.botId == bot.id && it.isChat }
     val pending = state.pending.filter { it.botId == bot.id }
     val items = chatItems(entries, pending)
@@ -243,7 +244,8 @@ import com.kyant.shapes.Capsule
                         retry = { store.retryRoutineRun(item.entry) }) { openRoutine(routine) }
                     else ChatRow(item.entry, item.groupStart, bot, state, store, openTrace = { store.showTrace(true) },
                         // An update card takes the composer's place, so there's nothing to reply with.
-                        reply = if (item.entry.isReplyable && state.mismatch == null) { { reply(item.entry) } } else null, connect = connect)
+                        reply = if (item.entry.isReplyable && state.mismatch == null) { { reply(item.entry) } } else null, connect = connect,
+                        addFallback = addFallback)
                 }
                 is ChatItem.Pending -> PendingBubble(item.send, item.groupStart, state, store)
                 is ChatItem.Exchanges -> BotMessageRow(item.group, state) { openPeer(item.group.peerId) }

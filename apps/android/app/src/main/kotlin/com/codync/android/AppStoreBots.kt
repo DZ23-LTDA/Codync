@@ -51,6 +51,9 @@ private fun AppStore.setFastMode(bot: Bot, on: Boolean) {
     command("updateBot", buildJsonObject { put("id", bot.id); put("fastMode", on) }, "roster:" + bot.id)
 }
 
+/** The bot's own agent again while it runs on a fallback: now if idle, else from its next turn. The host posts the chat line. */
+fun AppStore.switchBack(bot: Bot) = command("switchBack", body("botId" to bot.id), "switchBack:" + bot.id)
+
 fun AppStore.deleteBot(bot: Bot, onDeleted: () -> Unit) = action("delete:" + bot.id) {
     val active = ready()
     active.call("deleteBot", body("botId" to bot.id))

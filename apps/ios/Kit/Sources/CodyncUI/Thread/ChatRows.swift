@@ -12,6 +12,8 @@ struct ChatRow: View {
     let openTrace: () -> Void
     /// Quotes this message in the composer; nil where it can't be.
     var reply: (() -> Void)?
+    /// A failure notice's "Add a fallback": the bot's details.
+    var addFallback: (() -> Void)?
     @Environment(BotStore.self) private var model
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -48,8 +50,10 @@ struct ChatRow: View {
                 ConnectionRequestCard(entry: entry, request: request).padding(.top, 12)
             } else if let card = entry.data.handoff {
                 HandoffCardRow(entry: entry, card: card).padding(.top, 10)
+            } else if let change = entry.data.agentSwitch {
+                AgentSwitchRow(entry: entry, change: change).padding(.top, 10)
             } else {
-                NoticeRow(entry: entry).padding(.top, 10)
+                NoticeRow(entry: entry, addFallback: addFallback).padding(.top, 10)
             }
         }
     }
@@ -211,6 +215,7 @@ struct AgentBubble: View {
 
 struct NoticeRow: View {
     let entry: Entry
+    var addFallback: (() -> Void)?
 
     var body: some View {
         let text = entry.data.text ?? ""
@@ -227,10 +232,15 @@ struct NoticeRow: View {
     @ViewBuilder private func styled(_ text: String) -> some View {
         switch entry.data.style {
         case "error":
-            Label {
-                Text(text).font(.footnote).foregroundStyle(Palette.text).textSelection(.enabled)
-            } icon: {
-                Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(Palette.danger)
+            VStack(alignment: .leading, spacing: 10) {
+                Label {
+                    Text(text).font(.footnote).foregroundStyle(Palette.text).textSelection(.enabled)
+                } icon: {
+                    Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(Palette.danger)
+                }
+                if entry.data.addFallback == true, let addFallback {
+                    Button("Add a fallback", action: addFallback).buttonStyle(.secondary)
+                }
             }
             .padding(12)
             .frame(maxWidth: .infinity, alignment: .leading)

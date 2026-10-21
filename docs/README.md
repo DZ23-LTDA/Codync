@@ -34,6 +34,7 @@ Source review, a passing build, local integration tests and production acceptanc
 - [Bot memory and compaction](design/bot-memory.md) (design; storage, gate and dreaming built, compaction to come)
 - [Bot memory research](design/bot-memory-research.md) (files vs. database, embeddings, open-source systems, harness instructions)
 - [Bot workspaces](features/bot-workspaces.md)
+- [Agent fallbacks](features/agent-fallback.md) (the next agent carries a turn on when the bot's own runs out of usage)
 - [Routines](features/routines.md)
 - [Voice calls](features/voice-call.md)
 - [File attachments](features/file-attachments.md)

@@ -270,6 +270,12 @@ fn entry_lines(out: &mut Built, app: &App, b: &Bot, e: &Entry, info: &HashMap<i6
                 let hint =
                     if status == "draft" { " · o shows it · e edits · K keeps this chat" } else { " · o shows it" };
                 format!("{}{hint}", e.notice_text())
+            } else if e.data["agentSwitch"].is_object() {
+                // Another agent took over (or the bot's own came back): `o` shows what it was told.
+                let hint = if unfoldable(e).is_some() { " · o shows what it carried" } else { "" };
+                format!("↪ {}{hint}", e.notice_text())
+            } else if app.fallback_owner(&b.id, e).is_some() {
+                format!("{} · A adds a fallback", e.notice_text())
             } else if e.retries() {
                 format!("{} · F tries again", e.notice_text())
             } else {
@@ -301,7 +307,7 @@ fn entry_lines(out: &mut Built, app: &App, b: &Bot, e: &Entry, info: &HashMap<i6
                     &[Span::raw("   │ ")],
                 ));
             }
-            if e.data["connectionRequest"].is_object() || folded.is_some() || e.retries() {
+            if e.data["connectionRequest"].is_object() || folded.is_some() || e.retries() || e.adds_fallback() {
                 out.messages.push((e.id.clone(), from, out.lines.len()));
             }
         }
@@ -309,9 +315,9 @@ fn entry_lines(out: &mut Built, app: &App, b: &Bot, e: &Entry, info: &HashMap<i6
     }
 }
 
-/// The full text a chat line folds away: what a handoff carries.
+/// The full text a chat line folds away: what a handoff carries, or what an agent taking over was told.
 pub(in crate::tui) fn unfoldable(e: &Entry) -> Option<&str> {
-    e.data["handoff"]["text"].as_str().filter(|t| !t.is_empty())
+    e.data["handoff"]["text"].as_str().or_else(|| e.data["agentSwitch"]["carried"].as_str()).filter(|t| !t.is_empty())
 }
 
 /// A bot-to-bot exchange, or a run of them, as one compact line ("· Messaged ▌O▐ Owen",

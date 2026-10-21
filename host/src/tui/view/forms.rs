@@ -25,7 +25,7 @@ fn created_by(app: &App, id: &str) -> Option<String> {
 
 pub(super) fn form_view(buf: &mut Buffer, area: Rect, app: &App, f: &Form) {
     let t = theme();
-    let r = centered(area, 88, 38);
+    let r = centered(area, 88, 42);
     let title = app.bots.get(&f.bot_id).map_or_else(|| f.name.text.clone(), |b| b.name.clone());
     let inner = frame_box(buf, r, t.text, t.panel, Some((&title, t.text)));
     let inner = page_tabs(buf, inner, Page::Settings);
@@ -42,13 +42,7 @@ pub(super) fn form_view(buf: &mut Buffer, area: Rect, app: &App, f: &Form) {
     let vx = fx + label_w;
     let vw = inner.right().saturating_sub(vx);
     let mut y = inner.y + 1;
-    let agent_name = app
-        .backends
-        .iter()
-        .find(|b| b["id"].as_str() == Some(f.backend.as_str()))
-        .and_then(|b| b["name"].as_str())
-        .unwrap_or(&f.backend)
-        .to_owned();
+    let agent_name = app.agent_name(&f.backend);
     for (i, field) in FIELDS.iter().enumerate() {
         let active = i == f.field;
         let base = if active { t.sel } else { t.panel };
@@ -59,6 +53,8 @@ pub(super) fn form_view(buf: &mut Buffer, area: Rect, app: &App, f: &Form) {
             Field::Model => "Model",
             Field::ModelOptions => "Options",
             Field::Fast => "Fast mode",
+            Field::Fallbacks => "Fallbacks",
+            Field::SelfFallbacks => "Bot edits",
             Field::Folder => "Workspace",
             Field::Approvals => "Approvals",
             Field::Notify => "Notify",
@@ -152,6 +148,30 @@ pub(super) fn form_view(buf: &mut Buffer, area: Rect, app: &App, f: &Form) {
             }
             Field::Agent => {
                 put(buf, vx, y, vw, &format!("‹ {agent_name} ›"), t.text.patch(base));
+                if let Some(note) = app.bots.get(&f.bot_id).and_then(|b| super::fallbacks::rest_note(b, &f.backend)) {
+                    rput(buf, inner.right(), y, &note, t.amber.patch(base));
+                }
+            }
+            Field::Fallbacks => {
+                let bot = app.bots.get(&f.bot_id);
+                let mut items: Vec<String> =
+                    f.fallbacks.iter().enumerate().map(|(j, x)| super::fallbacks::step_item(app, bot, j, x)).collect();
+                if f.fallbacks.len() < crate::agent::fallback::MAX_FALLBACKS {
+                    items.push("+ add".into());
+                }
+                let mut x = vx;
+                for (j, item) in items.iter().enumerate() {
+                    let s = if active && j == f.sub { t.bold.add_modifier(Modifier::UNDERLINED) } else { t.text };
+                    if x + u(w(item)) >= inner.right() {
+                        put(buf, x, y, 2, "…", t.dim.patch(base));
+                        break;
+                    }
+                    x = put(buf, x, y, u(w(item)), item, s.patch(base)) + 2;
+                }
+            }
+            Field::SelfFallbacks => {
+                let s = if f.self_fallbacks { "◉ On   ○ Off" } else { "○ On   ◉ Off" };
+                put(buf, vx, y, vw, s, t.text.patch(base));
             }
             Field::Folder => {
                 put(
@@ -243,6 +263,14 @@ pub(super) fn form_view(buf: &mut Buffer, area: Rect, app: &App, f: &Form) {
             "Set up on the computer: Codync → Settings → Computer access",
             t.dim.patch(t.panel),
         );
+    } else if f.current() == Field::Fallbacks {
+        let line = format!(
+            "If {agent_name} runs out of usage or can't answer, the bot carries on with the next one. Chat, memory and workspace carry over."
+        );
+        put(buf, inner.x, by - 1, inner.width, &line, t.dim.patch(t.panel));
+    } else if f.current() == Field::SelfFallbacks {
+        let line = "Let the bot change its fallbacks: it can set this list itself, for example when you ask it to.";
+        put(buf, inner.x, by - 1, inner.width, line, t.dim.patch(t.panel));
     } else if f.current() == Field::Team {
         let line =
             "Let this bot create bots and change any bot's setup, its own included. The bots it creates can too.";
@@ -258,7 +286,9 @@ pub(super) fn form_view(buf: &mut Buffer, area: Rect, app: &App, f: &Form) {
         Field::Skills => "←→ move · space toggle · i details · tab next",
         Field::Agent => "←→ change · ↵ install / sign in · tab next",
         Field::Model => "←→ pick a model · or type its id",
+        Field::Fallbacks => "←→ pick · space add / model · a agent · [ ] move · x remove",
         Field::Fast
+        | Field::SelfFallbacks
         | Field::Color
         | Field::Shape
         | Field::Approvals

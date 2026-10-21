@@ -177,8 +177,7 @@ impl App {
 
     /// The name of the bot's harness as the agent list gives it ("Claude Code").
     pub fn harness_name(&self, bot: &str) -> String {
-        let Some(backend) = self.bots.get(bot).map(|b| b.backend.as_str()) else { return String::new() };
-        self.backends.iter().find(|b| b["id"] == backend).map_or_else(|| backend.to_owned(), |b| s(b, "name"))
+        self.bots.get(bot).map(|b| self.agent_name(&b.backend)).unwrap_or_default()
     }
 
     /// A bot's memory changed somewhere (its `memoryRev` moved): an open sheet fetches it again.

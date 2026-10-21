@@ -87,6 +87,12 @@ pub struct BotConfig {
     /// Ask the agent for its Fast mode (Claude Code, Codex): faster replies for more usage.
     #[serde(default)]
     pub fast_mode: bool,
+    /// Agents that carry on, in order, when the bot's own can't answer (see `agent::fallback`).
+    #[serde(default)]
+    pub fallbacks: Vec<Fallback>,
+    /// The bot may set its own fallbacks (`chat` server's `set_fallbacks`). On unless the user turns it off.
+    #[serde(default = "yes")]
+    pub self_fallbacks: bool,
     #[serde(default)]
     pub pinned: bool,
     /// Place in the roster, lowest first (after pinned bots). All 0 until the user drags one:
@@ -134,6 +140,23 @@ impl BotConfig {
     pub fn is_group(&self) -> bool {
         self.kind == BotKind::Group
     }
+}
+
+/// One step of a bot's fallback chain: another agent and the model to use on it.
+#[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct Fallback {
+    pub backend: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub command: Option<String>,
+    #[serde(default)]
+    pub model: Option<String>,
+    #[serde(default)]
+    pub model_options: BTreeMap<String, String>,
+}
+
+fn yes() -> bool {
+    true
 }
 
 fn null_as_false<'de, D: serde::Deserializer<'de>>(value: D) -> Result<bool, D::Error> {

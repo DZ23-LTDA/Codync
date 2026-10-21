@@ -248,6 +248,19 @@ impl Store {
         Ok(rows)
     }
 
+    /// The newest `kind` entry in `lane` after `after_seq`.
+    pub fn last_of_kind(&self, lane: &Lane, kind: EntryKind, after_seq: i64) -> Option<Entry> {
+        let c = self.db.locked();
+        let row = c.query_row(
+            &format!(
+                "SELECT {ENTRY_COLS} FROM entries WHERE bot_id = ?1 AND kind = ?2 AND seq > ?3 ORDER BY seq DESC LIMIT 1"
+            ),
+            params![lane.chat, kind.as_str(), after_seq],
+            row_entry,
+        );
+        logged("last entry of kind", row.optional()).flatten()
+    }
+
     /// The `seq` of `bot`'s last reply in `lane` (0 if it hasn't spoken there).
     pub fn last_spoke(&self, lane: &Lane, bot: &str) -> i64 {
         let c = self.db.locked();

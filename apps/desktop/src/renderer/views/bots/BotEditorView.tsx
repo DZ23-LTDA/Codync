@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { fastModeRefusal, fastModeShown } from '@shared/fast-mode'
+import { restLine, restOf, withBackend } from '@shared/fallbacks'
 import { draftOf, type Bot, type BotDraft, type DirListing } from '@shared/models'
 import { AgentIcon } from '../../components/AgentIcon'
 import { CharacterAvatar } from '../../components/Avatar'
@@ -11,6 +12,7 @@ import { Text } from '../../components/Text'
 import { useStore } from '../../store/context'
 import { useAgentModels } from './agent-models'
 import { AgentModelPicker } from './AgentModelPicker'
+import { agentChoice, AgentStepBanner, FallbacksRow } from './Fallbacks'
 import { errorText, isValid, lastPathComponent, normalized, useFollowSaved, usePlugins, type Plugins } from './drafts'
 import { FormSheet } from '../marketplace/pieces'
 import { SkillSheet, type SkillRef } from '../marketplace/SkillSheet'
@@ -145,16 +147,14 @@ function BotSettingsForm({ draft, onChange, error, plugins, part = 'all' }: {
     ) : null,
   ]
 
+  const ownRest = saved ? restOf(saved, draft.backend, Date.now()) : null
   const agent = (
     <VStack key="agent" gap={8}>
-      <ValueRow label="Agent">
+      <ValueRow label="Agent" detail={ownRest ? restLine(ownRest, Date.now()) : null}>
         <ChoicePicker
           selection={draft.backend}
-          options={[
-            ...backends.map((b) => ({ id: b.id, label: b.available ? b.name : `${b.name} (not installed)`, leading: <AgentIcon registry={b.registry ?? b.id} size={14} /> })),
-            { id: 'custom', label: 'Custom command', leading: <AgentIcon registry="custom" size={14} /> },
-          ]}
-          onChange={(id) => set('backend', id)}
+          options={[...backends.map(agentChoice), { id: 'custom', label: 'Custom command', leading: <AgentIcon registry="custom" size={14} /> }]}
+          onChange={(id) => onChange((d) => withBackend(d, id))}
         />
       </ValueRow>
       {backend && !backend.available ? <Text size="caption" tone="attention">{backend.installHint}</Text> : null}
@@ -169,6 +169,19 @@ function BotSettingsForm({ draft, onChange, error, plugins, part = 'all' }: {
       ) : null}
     </VStack>
   )
+  // While the bot runs on a fallback, the Agent card starts with it.
+  const step = saved?.agentStep ? <AgentStepBanner key="step" bot={saved} /> : null
+  // Only from a host that has them (its bots say).
+  const fallbacks = saved && saved.selfFallbacks !== null ? [
+    <FallbacksRow key="fallbacks" draft={draft} bot={saved} onChange={onChange} />,
+    <SwitchRow
+      key="self"
+      title="Let the bot change its fallbacks"
+      detail="It can set this list itself, for example when you ask it to."
+      on={draft.selfFallbacks ?? true}
+      onChange={(on) => set('selfFallbacks', on)}
+    />,
+  ] : null
 
   if (part === 'often') {
     return (
@@ -176,8 +189,10 @@ function BotSettingsForm({ draft, onChange, error, plugins, part = 'all' }: {
         <div className="bot-form-content">
           <CardSection title="Instructions">{instructions}</CardSection>
           <CardSection title="Agent">
+            {step}
             {agent}
             {model}
+            {fallbacks}
           </CardSection>
           {error ? <Text size="footnote" tone="danger" className="fade-in">{error}</Text> : null}
         </div>
@@ -209,11 +224,13 @@ function BotSettingsForm({ draft, onChange, error, plugins, part = 'all' }: {
 
         {/* In the inspector the agent and its model are on the Details tab; what's left is where it works. */}
         <CardSection title={part === 'all' ? 'Agent' : 'Workspace'}>
+          {part === 'all' ? step : null}
           <ValueRow label="Computer">
             <Text truncate>{store.hostName}</Text>
           </ValueRow>
           {part === 'all' ? agent : null}
           {part === 'all' ? model : null}
+          {part === 'all' ? fallbacks : null}
           <ValueRow
             label="Workspace"
             detail={

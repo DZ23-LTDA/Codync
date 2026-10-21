@@ -139,6 +139,11 @@ export class BotStore extends BotSync {
     this.perform((c) => c.call('newSession', { botId }))
   }
 
+  /** Back to the bot's own agent from a fallback: now if it's idle, else from its next turn. The host posts the chat line. */
+  switchBack(botId: string) {
+    this.perform((c) => c.call('switchBack', { botId }), true)
+  }
+
   logCall(botId: string, seconds: number) {
     this.perform((c) => c.call('logCall', { botId, seconds }))
   }

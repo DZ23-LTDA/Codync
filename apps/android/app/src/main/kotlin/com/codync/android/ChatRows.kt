@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
@@ -108,9 +109,9 @@ internal fun chatItems(entries: List<Entry>, pending: List<PendingSend>): List<C
         color = Palette.tertiary, textAlign = TextAlign.Center)
 }
 
-/** One chat-visible entry, with what can be done to it. `reply` quotes it in the composer. */
+/** One chat-visible entry, with what can be done to it. `reply` quotes it in the composer; `addFallback` opens a bot's fallbacks. */
 @Composable internal fun ChatRow(entry: Entry, groupStart: Boolean, chat: Bot?, state: AppState, store: AppStore,
-    openTrace: () -> Unit, reply: (() -> Unit)?, connect: ConnectionRequestActions) {
+    openTrace: () -> Unit, reply: (() -> Unit)?, connect: ConnectionRequestActions, addFallback: (Bot) -> Unit) {
     val group = chat?.kind == "group"
     when (entry.kind) {
         "user" -> Column(Modifier.fillMaxWidth().padding(top = if (groupStart) 12.dp else 4.dp).animateContentSize(Motion.layoutSize),
@@ -132,7 +133,11 @@ internal fun chatItems(entries: List<Entry>, pending: List<PendingSend>): List<C
         }
         else -> if (entry.data["connectionRequest"] is JsonObject) Box(Modifier.padding(top = 12.dp)) {
             ConnectionRequestCard(entry, state, store, connect.openApp, connect.install)
-        } else Box(Modifier.padding(top = 10.dp)) { NoticeRow(entry) }
+        } else Box(Modifier.padding(top = 10.dp)) {
+            // In a group, the member whose agent failed.
+            val owner = state.bots.firstOrNull { it.id == (entry.data.text("author") ?: entry.botId) && it.kind != "group" }
+            NoticeRow(entry, owner?.let { { addFallback(it) } })
+        }
     }
 }
 
@@ -308,7 +313,8 @@ internal val Entry.botReactions: Map<String, List<String>> get() =
     }
 }
 
-@Composable private fun NoticeRow(entry: Entry) {
+/** A line from the computer. `addFallback`, on a failure the bot's fallbacks could have carried, opens them. */
+@Composable private fun NoticeRow(entry: Entry, addFallback: (() -> Unit)?) {
     val text = entry.text
     val seconds = entry.data["callSeconds"]?.jsonPrimitive?.longOrNull
     when {
@@ -320,8 +326,12 @@ internal val Entry.botReactions: Map<String, List<String>> get() =
         entry.data.text("style") == "error" -> Row(Modifier.fillMaxWidth().clip(RoundedRectangle(12.dp))
             .background(Palette.danger.copy(alpha = 0.12f)).padding(12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Symbol("exclamationmark.triangle.fill", size = 16.dp, tint = Palette.danger)
-            SelectionContainer { Text(text, style = Type.footnote, color = Palette.text) }
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                SelectionContainer { Text(text, style = Type.footnote, color = Palette.text) }
+                if (addFallback != null && entry.data["addFallback"]?.jsonPrimitive?.booleanOrNull == true) SecondaryButton("Add a fallback", action = addFallback)
+            }
         }
+        "agentSwitch" in entry.data -> AgentSwitchLine(text, (entry.data["agentSwitch"] as? JsonObject)?.text("carried"))
         // A fresh conversation starts at the left, as on the iPhone.
         "handoff" in entry.data -> Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -329,6 +339,23 @@ internal val Entry.botReactions: Map<String, List<String>> get() =
             Text(text, style = Type.footnote, color = Palette.secondary)
         }
         else -> Text(text, Modifier.fillMaxWidth(), style = Type.footnote, color = Palette.secondary, textAlign = TextAlign.Center)
+    }
+}
+
+/** Another agent took over the chat (or its own is back): tapping the line unfolds what the new agent was told. */
+@Composable private fun AgentSwitchLine(text: String, carried: String?) {
+    val label: @Composable RowScope.() -> Unit = {
+        Symbol("arrow.turn.down.right", size = 13.dp, tint = Palette.secondary)
+        Spacer(Modifier.width(6.dp))
+        Text(text, Modifier.weight(1f, fill = false), style = Type.footnote, color = Palette.secondary)
+    }
+    var expanded by remember { mutableStateOf(false) }
+    if (carried.isNullOrEmpty()) Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, content = label)
+    else Disclosure(expanded, { expanded = !expanded }, Modifier.fillMaxWidth(), label) {
+        SelectionContainer {
+            Text(carried, Modifier.fillMaxWidth().clip(RoundedRectangle(12.dp)).background(Palette.bubbleAgent).padding(12.dp),
+                style = Type.footnote, color = Palette.secondary)
+        }
     }
 }
 

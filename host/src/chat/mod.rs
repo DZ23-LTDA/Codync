@@ -1,7 +1,8 @@
 //! Conversation features on top of bots: messages to the user, reactions and quote replies, group room turns,
-//! bot-to-bot requests, team management, prompt snapshots, long-term memory and automatic bot names.
+//! bot-to-bot requests, team management, a bot's own fallbacks, prompt snapshots, long-term memory and automatic bot names.
 
 pub mod context;
+pub mod fallbacks;
 pub mod files;
 pub mod group;
 pub mod handoff;

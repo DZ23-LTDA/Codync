@@ -28,6 +28,14 @@ export interface Bot {
    *  or `refused` (it turned it off; `fastModeIssue` says why). */
   fastModeSupport: string
   fastModeIssue: string | null
+  /** Agents that carry on, in order, when the bot's own can't answer. */
+  fallbacks: Fallback[]
+  /** The bot may set its own fallbacks; null from an older host (no fallbacks there). */
+  selfFallbacks: boolean | null
+  /** The fallback the bot is on right now; null on its own agent. */
+  agentStep: AgentStep | null
+  /** Agents of its chain (its own included) resting now; one whose `until` passed isn't. */
+  resting: Resting[]
   pinned: boolean
   /** Where the user dragged it, lowest first (after pinned bots); ties sort by recent activity. */
   position: number
@@ -80,6 +88,10 @@ export function normalizeBot(raw: Partial<Bot> & { id: string }): Bot {
     fastMode: raw.fastMode ?? false,
     fastModeSupport: raw.fastModeSupport ?? 'unknown',
     fastModeIssue: raw.fastModeIssue ?? null,
+    fallbacks: raw.fallbacks ?? [],
+    selfFallbacks: raw.selfFallbacks ?? null,
+    agentStep: raw.agentStep ?? null,
+    resting: raw.resting ?? [],
     pinned: raw.pinned ?? false,
     position: raw.position ?? 0,
     hidden: raw.hidden ?? false,
@@ -103,6 +115,34 @@ export function normalizeBot(raw: Partial<Bot> & { id: string }): Bot {
     lastMessage: raw.lastMessage ?? null,
     lastAt: raw.lastAt ?? createdAt,
   }
+}
+
+/** One step of a bot's fallback chain: another agent and the model to use on it. */
+export interface Fallback {
+  backend: string
+  /** A custom command, only from the bot itself (the apps don't offer one). */
+  command?: string
+  model: string | null
+  modelOptions: Record<string, string>
+}
+
+/** Why an agent can't answer: usageLimit · outOfCredits · rateLimited · overloaded · signedOut · notStarting · modelMissing */
+export type FallbackReason = string
+
+/** The fallback a bot runs on: which step, its agent and model, since when, and why it left the one before. */
+export interface AgentStep {
+  step: number
+  agent: string
+  model: string | null
+  since: number
+  reason: FallbackReason | null
+}
+
+/** An agent that can't answer until `until`. */
+export interface Resting {
+  agent: string
+  until: number
+  reason: FallbackReason
 }
 
 export const isGroup = (b: Bot) => b.kind === 'group'
@@ -200,6 +240,17 @@ export interface HandoffCard {
   text?: string
 }
 
+/** notice: another agent of the bot's chain carried on, or (`back`) the bot's own is back. */
+export interface AgentSwitch {
+  from: string
+  to: string
+  back: boolean
+  reason: FallbackReason | null
+  resetsAt: number | null
+  /** What the new agent was told, unfolded under the line. */
+  carried: string | null
+}
+
 export interface EntryData {
   /** Structured conversation data added to the existing team-tool notice. */
   botMessage?: BotMessage
@@ -207,6 +258,9 @@ export interface EntryData {
   compaction?: Compaction
   /** notice: the bot's chat starts over with this handoff (see `HandoffNotice`). */
   handoff?: HandoffCard
+  agentSwitch?: AgentSwitch
+  /** notice (error): the bot has no fallbacks and its agent ran out; offers to add one. */
+  addFallback?: boolean
   heading?: string
   delegationId?: string
   sourceBotId?: string
@@ -487,6 +541,8 @@ export interface BotDraft {
   model?: string | null
   modelOptions?: Record<string, string>
   fastMode?: boolean
+  fallbacks?: Fallback[]
+  selfFallbacks?: boolean
   pinned?: boolean
   hidden?: boolean
   notify?: boolean | null
@@ -512,6 +568,8 @@ export function draftOf(bot: Bot): BotDraft {
     model: bot.model ?? null,
     modelOptions: bot.modelOptions,
     fastMode: bot.fastMode,
+    fallbacks: bot.fallbacks,
+    selfFallbacks: bot.selfFallbacks ?? undefined,
     pinned: bot.pinned,
     hidden: bot.hidden,
     notify: bot.notify ?? null,

@@ -12,6 +12,8 @@ struct DetailsRequest: Identifiable {
     var tab: DetailsTab = .details
     /// A routine to open in its editor (Details page).
     var routineId: String?
+    /// Another bot's details than the chat's: a group member's, from its notice.
+    var botId: String?
 }
 
 /// A bot's details (Grok Bot's): who it is, then its details, memory and settings. Settings save
@@ -98,7 +100,7 @@ struct BotDetailsView: View {
                 .foregroundStyle(Palette.text)
                 .multilineTextAlignment(.center)
             HStack(spacing: 5) {
-                AgentIcon(registry: model.hello?.backends.first { $0.id == bot.backend }?.registry ?? bot.backend, size: 13)
+                AgentIcon(registry: model.agentRegistry(bot.backend), size: 13)
                 Text(bot.model.map { "\(model.backendName(bot.backend)) · \($0)" } ?? model.backendName(bot.backend))
             }
             .font(.footnote)

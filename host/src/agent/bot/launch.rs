@@ -4,7 +4,7 @@
 use super::{Adapter, Conn, SessionCaps};
 use crate::agent::acp::{self, Acp};
 use crate::store::BotConfig;
-use anyhow::{Result, anyhow};
+use anyhow::Result;
 use serde_json::{Value, json};
 use std::collections::{BTreeMap, HashMap};
 use std::time::{Duration, Instant};
@@ -87,7 +87,7 @@ fn model_choice<'a>(
 
 fn model_error(model: &str, e: &anyhow::Error) -> anyhow::Error {
     tracing::warn!(model, error = format!("{e:#}"), "couldn't set model");
-    anyhow!("Couldn't select model {model}: {e:#}")
+    acp::Failure::error(acp::FailureKind::NoModel, format!("Couldn't select model {model}: {e:#}"))
 }
 
 /// Cursor names a model variant `grok-4.7[reasoning_effort=high,fast=true]`. When the agent

@@ -30,8 +30,9 @@ impl Actor {
         let mut snapshot = self.snapshot(sid).await?;
         let remind_files = !snapshot.system.contains("send_file");
         let mut prompt = text.to_owned();
-        if let Some(handoff) = self.handoff.take() {
-            prompt = format!("{handoff}\n\n{prompt}");
+        // The user's handoff first, then what the fallback chain carries in.
+        for first in [self.relay.carried.take(), self.handoff.take()].into_iter().flatten() {
+            prompt = format!("{first}\n\n{prompt}");
         }
         // A compaction may have dropped the profile the session's first message carried.
         let resend = instructions == Instructions::FirstMessage && self.profile_resend.remove(sid);
@@ -114,6 +115,11 @@ impl Actor {
         self.reacted = Reacted::No;
         self.files.summary = None;
         self.files.cancel();
+        if hidden {
+            self.hidden_turn();
+        } else {
+            self.relay_turn(&lane, entry_ids, text).await;
+        }
         // A delegated or group turn has no live waiter after a host restart. Its persisted
         // notices are marked interrupted instead of silently repeating work.
         self.set_inflight(
@@ -142,6 +148,9 @@ impl Actor {
                 .context("routine session setup timed out")??;
         } else {
             self.ensure_session(slot.as_deref()).await?;
+        }
+        if !hidden {
+            self.carry_in();
         }
         let session = self.turn_session.clone();
         self.hub.set_runtime(&self.id(), |r| r.session.clone_from(&session));
@@ -223,27 +232,8 @@ impl Actor {
         {
             *used = Instant::now();
         }
-        self.files.cancel();
-        self.flush(true);
-        self.seg = Seg::None;
-        // Unanswered permission cards can't be answered after the turn.
-        let ids: Vec<String> = self.perms.drain().map(|(k, _)| k).collect();
-        for id in ids {
-            if let Some(mut e) = self.hub.store.entry(&id) {
-                e.data["status"] = "expired".into();
-                self.hub.set_entry(&id, &e.data);
-            }
-        }
         let stopped = self.stop_requested || matches!(&done, Ok(v) if v["stopReason"] == "cancelled");
-        // Tool calls the agent never closed out would spin forever in the trace.
-        for entry_id in self.tools.values() {
-            if let Some(mut e) = self.hub.store.entry(entry_id)
-                && matches!(e.data["status"].as_str(), Some("pending" | "in_progress"))
-            {
-                e.data["status"] = if stopped || done.is_err() { "failed" } else { "completed" }.into();
-                self.hub.set_entry(entry_id, &e.data);
-            }
-        }
+        self.close_attempt(stopped || done.is_err());
         let mut final_text = None;
         let routine = self.active_routine.is_some();
         let grouped = self.active_group.is_some() || routine;
@@ -285,7 +275,7 @@ impl Actor {
                 let tail = self.exit_tail.take().filter(|t| !t.is_empty());
                 if !self.invite_sign_in(e) {
                     let detail = tail.map(|t| format!("\n\n{}", acp::truncate(&t, 1200))).unwrap_or_default();
-                    self.notice(&format!("The agent failed: {e}{detail}"), NoticeStyle::Error);
+                    self.failure_notice(e, &format!("The agent failed: {e}{detail}"));
                 }
             }
             (_, "cancelled") | (Err(_), _) => self.notice("Stopped.", NoticeStyle::Info),
@@ -298,6 +288,9 @@ impl Actor {
         let failure = done.as_ref().err().filter(|_| !self.stop_requested);
         let failed = failure.is_some();
         self.report_turn(stopped, failure, &stop_reason);
+        if done.is_ok() && stop_reason == "end_turn" {
+            self.agent_answered();
+        }
         let reply = if stopped {
             Err(anyhow!("recipient was stopped; partial work may have happened"))
         } else if stop_reason != "end_turn" {
@@ -378,6 +371,29 @@ impl Actor {
 }
 
 impl Actor {
+    /// Ends what an attempt left open: file shares, the last text, unanswered permission cards (they can't be
+    /// answered after the turn) and tool calls the agent never closed out (they'd spin forever in the trace).
+    pub(super) fn close_attempt(&mut self, failed: bool) {
+        self.files.cancel();
+        self.flush(true);
+        self.seg = Seg::None;
+        let ids: Vec<String> = self.perms.drain().map(|(k, _)| k).collect();
+        for id in ids {
+            if let Some(mut e) = self.hub.store.entry(&id) {
+                e.data["status"] = "expired".into();
+                self.hub.set_entry(&id, &e.data);
+            }
+        }
+        for entry_id in self.tools.values() {
+            if let Some(mut e) = self.hub.store.entry(entry_id)
+                && matches!(e.data["status"].as_str(), Some("pending" | "in_progress"))
+            {
+                e.data["status"] = if failed { "failed" } else { "completed" }.into();
+                self.hub.set_entry(entry_id, &e.data);
+            }
+        }
+    }
+
     /// `turn_finished`, while the turn's start time is still in the runtime.
     pub(super) fn report_turn(&self, stopped: bool, failure: Option<&anyhow::Error>, stop_reason: &str) {
         let outcome = if stopped {

@@ -50,6 +50,9 @@ private data class SetupRoute(val step: String, val method: AgentAuthMethod? = n
 internal fun agentBackends(state: AppState): List<AgentBackend> =
     state.hello?.get("backends")?.let { runCatching { WireJson.decodeFromJsonElement<List<AgentBackend>>(it) }.getOrNull() }.orEmpty()
 
+/** The ACP registry id an agent's logo is under (`AgentIcon`). */
+internal fun agentRegistry(state: AppState, agent: String) = agentBackends(state).firstOrNull { it.id == agent }?.registry ?: agent
+
 /**
  * Getting an agent ready on the computer (iOS `AgentSheet`): install it, add Node.js when it runs
  * on Node and the computer has none, then sign in. `recheck` (a chat's sign-in request) asks the

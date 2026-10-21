@@ -109,6 +109,12 @@ public enum RelativeTime {
         return day + " " + date.formatted(date: .omitted, time: .shortened)
     }
 
+    /// A time to come: 3:00 PM today, otherwise Tue 3:00 PM.
+    public static func clock(_ date: Date, now: Date = .now) -> String {
+        let time = date.formatted(date: .omitted, time: .shortened)
+        return Calendar.current.isDate(date, inSameDayAs: now) ? time : "\(date.formatted(.dateTime.weekday(.abbreviated))) \(time)"
+    }
+
     public static func until(_ date: Date, now: Date = .now) -> String {
         let s = max(0, date.timeIntervalSince(now))
         let h = Int(s / 3600), m = Int(s.truncatingRemainder(dividingBy: 3600) / 60)
