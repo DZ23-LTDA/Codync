@@ -19,14 +19,18 @@ use serde::{Deserialize, Serialize};
 pub struct Identity {
     pub name: String,
     pub description: String,
-    pub skills: Vec<String>,
+    /// The skills block the agent is told (`market::skills_brief`), so a skill renamed or redescribed counts too.
+    #[serde(default)]
+    pub skills_brief: String,
 }
 
 impl Identity {
-    pub fn of(cfg: &BotConfig) -> Self {
-        let mut skills = cfg.skills.clone();
-        skills.sort();
-        Self { name: cfg.name.trim().to_owned(), description: cfg.description.trim().to_owned(), skills }
+    pub fn of(store: &Store, cfg: &BotConfig) -> Self {
+        Self {
+            name: cfg.name.trim().to_owned(),
+            description: cfg.description.trim().to_owned(),
+            skills_brief: crate::market::skills_brief(store, &cfg.skills).unwrap_or_default(),
+        }
     }
 }
 
@@ -101,7 +105,7 @@ pub fn resolve(store: &Store, cfg: &BotConfig, session: &str) -> Result<Snapshot
     if let Some(s) = stored.as_ref().filter(|s| s.epoch == epoch && !s.system.is_empty()) {
         return Ok(s.clone());
     }
-    let identity = Identity::of(cfg);
+    let identity = Identity::of(store, cfg);
     let memory = crate::chat::memory::current_revision(store, &cfg.id);
     let s = Snapshot {
         session: session.to_owned(),
@@ -146,7 +150,7 @@ pub fn invalidate(store: &Store, bot_id: &str) -> Result<()> {
 /// Records `system` (already handed to a new session), rendered at memory revision `memory`, as that session's
 /// snapshot.
 pub fn adopt(store: &Store, cfg: &BotConfig, session: &str, system: String, memory: String) -> Result<Snapshot> {
-    let identity = Identity::of(cfg);
+    let identity = Identity::of(store, cfg);
     let s = Snapshot {
         session: session.to_owned(),
         epoch: epoch(store, &cfg.id, session),
@@ -204,18 +208,18 @@ pub fn render(store: &Store, cfg: &BotConfig) -> String {
 /// The `<agent_profile_update>` block to append to the next message when the
 /// bot's identity changed since the agent last heard it.
 pub fn profile_update(store: &Store, snapshot: &Snapshot, cfg: &BotConfig) -> Option<(String, Identity)> {
-    let identity = Identity::of(cfg);
+    let identity = Identity::of(store, cfg);
     if identity == snapshot.announced {
         return None;
     }
     let or_none = |s: &str, none: &str| if s.is_empty() { none.to_owned() } else { s.to_owned() };
-    let skills = crate::market::skills_brief(store, &cfg.skills).unwrap_or_else(|| "Skills: none.".into());
+    let skills = if identity.skills_brief.is_empty() { "Skills: none." } else { &identity.skills_brief };
     let text = [
         "<agent_profile_update>".to_owned(),
         "Your agent profile changed. This full update is authoritative and supersedes the Agent profile section in your instructions and every earlier profile update in this conversation.".to_owned(),
         format!("Current name: {}", or_none(&identity.name, "(no name)")),
         format!("Current description: {}", or_none(&identity.description, "(no description)")),
-        skills,
+        skills.to_owned(),
         "Use this identity until a future conversation summary folds it into the Agent profile section.".to_owned(),
         "</agent_profile_update>".to_owned(),
     ]
@@ -290,6 +294,23 @@ mod tests {
         assert!(folded.system.contains("Description: Fix bugs and write tests"));
         // A new session starts over at epoch 0.
         assert_eq!(epoch(&store, &a.id, "s2"), 0);
+    }
+
+    #[test]
+    fn a_rewritten_skill_is_announced() {
+        let store = store();
+        let skill = |description: &str| {
+            let list = serde_json::json!([{"id": "release", "name": "Release", "description": description}]);
+            store.kv_set("skills", &list.to_string()).expect("save skills");
+        };
+        skill("When shipping");
+        let mut a = cfg("Fixer", "Fix bugs");
+        a.skills = vec!["release".into()];
+        let first = adopt(&store, &a, "s1", "SYSTEM v1".into(), String::new()).expect("adopt");
+        assert!(profile_update(&store, &first, &a).is_none());
+        skill("When shipping a release or a hotfix");
+        let (text, _) = profile_update(&store, &first, &a).expect("the description changed");
+        assert!(text.contains("- Release: When shipping a release or a hotfix"), "{text}");
     }
 
     #[test]

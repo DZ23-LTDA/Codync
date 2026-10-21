@@ -35,6 +35,10 @@ impl Hub {
         v["startedAt"] = rt.started_at.into();
         v["workingChat"] = rt.lane.as_ref().map(|l| l.chat.clone()).into();
         v["fastModeSupport"] = rt.fast_mode.as_str().into();
+        if !cfg.is_group() {
+            v["agentStep"] = json!(rt.agent_step);
+            v["resting"] = json!(crate::agent::fallback::resting(&self.store, cfg, crate::store::now_ms()));
+        }
         v["fastModeIssue"] = rt.fast_mode.issue().into();
         v["unread"] = self.store.unread(&cfg.id, row.read_rev).into();
         let preview = last.as_ref().map(|l| match &l.author {

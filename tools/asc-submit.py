@@ -7,8 +7,9 @@ SINCE (ISO 8601) ignores builds uploaded before it, so a tag run never submits a
 Runs in a checkout with the release tags.
 
 A release whose tag changes nothing the iPhone app is built from since the last version sent
-to App Review is skipped (FORCE=1 ships it anyway). Otherwise it starts the Xcode Cloud archive
-on the tag (only when SINCE is set or no build of the version exists yet) and waits for it.
+to App Review is skipped (FORCE=1 ships it anyway). Otherwise, when SINCE is set or no build of
+the version exists yet, it starts the Xcode Cloud archive on the tag (or on main while main is the
+tagged commit), then waits for the build.
 
 What's New comes from the version's section in apps/ios/WhatsNew.md, else from the
 "## What's New" bullets of the PRs merged since the last App Store version (PRS: `gh pr list
@@ -146,15 +147,31 @@ def last_sent(versions, version):
                  and v["attributes"]["appVersionState"] not in UNSENT), None)
 
 
+def archive_ref(tag, refs):
+    """Which of Xcode Cloud's refs ({canonical name: id}) to archive `tag` from: the tag, else main
+    while main is the tagged commit. Xcode Cloud hears of a new tag through a GitHub webhook that
+    sometimes never comes (v2.20.4)."""
+    if f"refs/tags/{tag}" in refs:
+        return f"refs/tags/{tag}"
+    sha = git("rev-list", "-n", "1", tag)
+    main = git("ls-remote", "origin", "refs/heads/main").split("\t")[0]
+    return "refs/heads/main" if sha and sha == main and "refs/heads/main" in refs else None
+
+
 def start_archive(tag):
     repo = call("GET", f"/ciWorkflows/{WORKFLOW_ID}/repository")["data"]["id"]
-    ref = wait_for(f"Xcode Cloud to see {tag}", lambda: next((
-        r["id"] for r in all_pages(f"/scmRepositories/{repo}/gitReferences?limit=200")
-        if r["attributes"]["canonicalName"] == f"refs/tags/{tag}"), None), 15)
+
+    def source():
+        refs = {r["attributes"]["canonicalName"]: r["id"]
+                for r in all_pages(f"/scmRepositories/{repo}/gitReferences?limit=200")}
+        name = archive_ref(tag, refs)
+        return name and (name, refs[name])
+
+    name, ref = wait_for(f"Xcode Cloud to see {tag}", source, 15)
     run = call("POST", "/ciBuildRuns", {"data": {"type": "ciBuildRuns", "relationships": {
         "workflow": {"data": {"type": "ciWorkflows", "id": WORKFLOW_ID}},
         "sourceBranchOrTag": {"data": {"type": "scmGitReferences", "id": ref}}}}})["data"]
-    print(f"started Xcode Cloud build {run.get('attributes', {}).get('number', run['id'])} on {tag}")
+    print(f"started Xcode Cloud build {run.get('attributes', {}).get('number', run['id'])} on {name}")
 
 
 def main(version):

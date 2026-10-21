@@ -23,12 +23,16 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import com.codync.android.core.Bot
 import com.codync.android.core.BotDraft
 import com.codync.android.core.CloudComputer
 import com.codync.android.core.GroupDraft
 import com.codync.android.design.*
 
 private enum class Root { Loading, Welcome, Pairing, Tabs }
+
+/** A bot's settings to open, at its fallbacks from a chat's "Add a fallback" (iOS `DetailsRequest`). */
+private data class BotEditRequest(val draft: BotDraft, val atFallbacks: Boolean = false)
 
 /** The app's root, as iOS `RootView`: the welcome and pairing until set up, then the tabs, with every sheet on top. */
 @Composable fun CodyncApp(state: AppState, store: AppStore) {
@@ -42,7 +46,7 @@ private enum class Root { Loading, Welcome, Pairing, Tabs }
     var creatingBot by rememberSaveable { mutableStateOf(false) }
     var creatingGroup by rememberSaveable { mutableStateOf(false) }
     var access by remember { mutableStateOf<CloudComputer?>(null) }
-    var editor by remember { mutableStateOf<BotDraft?>(null) }
+    var editor by remember { mutableStateOf<BotEditRequest?>(null) }
     var groupEditor by remember { mutableStateOf<GroupDraft?>(null) }
     var handledNavigation by rememberSaveable { mutableIntStateOf(state.navigationRequest) }
     var handledGeneration by rememberSaveable { mutableIntStateOf(state.generation) }
@@ -72,6 +76,7 @@ private enum class Root { Loading, Welcome, Pairing, Tabs }
         else -> Root.Tabs
     }
     BackHandler(root == Root.Pairing && !signedIn) { welcomed = false }
+    val edit = { bot: Bot -> if (bot.kind == "group") groupEditor = GroupDraft.from(bot) else editor = BotEditRequest(BotDraft.from(bot)) }
     val openMarketplace = { showAccount = false; accountSettings = false; showComputers = false; showMarketplace = true }
     Box(Modifier.fillMaxSize().background(Palette.background)) {
         AnimatedContent(root, transitionSpec = {
@@ -91,8 +96,8 @@ private enum class Root { Loading, Welcome, Pairing, Tabs }
                 }
                 Root.Tabs -> MainTabs(state, store, account = { showAccount = true }, manage = { showComputers = true }, usage = { showUsage = true },
                     newBot = { creatingBot = true }, newGroup = { creatingGroup = true },
-                    edit = { bot -> if (bot.kind == "group") groupEditor = GroupDraft.from(bot) else editor = BotDraft.from(bot) }) {
-                    ChatScreen(state, store) { bot -> if (bot.kind == "group") groupEditor = GroupDraft.from(bot) else editor = BotDraft.from(bot) }
+                    edit = edit) {
+                    ChatScreen(state, store, edit) { bot -> editor = BotEditRequest(BotDraft.from(bot), atFallbacks = true) }
                 }
             }
         }
@@ -130,9 +135,9 @@ private enum class Root { Loading, Welcome, Pairing, Tabs }
         AnalyticsOnAppear(AnalyticsEvent.ScreenViewed(AnalyticsScreen.BotDetails))
         key(state.contextId, state.generation, draft.id) { GroupEditor(state, draft, store) }
     }
-    CodyncSheet(editor.takeIf { !state.loading }, { editor = null }) { draft ->
+    CodyncSheet(editor.takeIf { !state.loading }, { editor = null }) { request ->
         AnalyticsOnAppear(AnalyticsEvent.ScreenViewed(AnalyticsScreen.BotDetails))
-        key(state.contextId, state.generation, draft.id) { BotEditor(state, draft, store) }
+        key(state.contextId, state.generation, request.draft.id) { BotEditor(state, request.draft, store, request.atFallbacks) }
     }
     // The remote screen opens over the app once its sheets have slid away.
     LaunchedEffect(state.screenRequest) { if (state.screenRequest != null) { closeAll(); showUsage = false } }

@@ -17,8 +17,8 @@ use super::manage::{
 };
 use super::md::truncate;
 use super::view::{
-    centered, composer_lines, field_line, frame_box, hline, input_line, put, restyle, rput, set_cursor, theme, u,
-    when_future,
+    centered, chain_line, composer_lines, field_line, frame_box, hline, input_line, put, restyle, rput, set_cursor,
+    theme, u, using_line, when_future,
 };
 
 fn s<'a>(v: &'a Value, k: &str) -> &'a str {
@@ -84,10 +84,23 @@ pub fn routines(buf: &mut Buffer, area: Rect, app: &App, l: &RoutineList) {
         let fast = if b.fast_mode { " · fast" } else { "" };
         put(buf, inner.x, inner.y, inner.width, &format!("{agent} · {model}{fast}"), t.text.patch(t.panel));
         rput(buf, inner.right(), inner.y, "i edits", t.dim.patch(t.panel));
+        let mut line = inner.y + 1;
+        // The agent it's on when its own can't answer, and the chain.
+        if let Some(using) = using_line(app, b) {
+            put(buf, inner.x, line, inner.width, &using, t.amber.patch(t.panel));
+            rput(buf, inner.right(), line, "B switches back", t.dim.patch(t.panel));
+            line += 1;
+        }
+        if let Some(chain) = chain_line(app, b) {
+            let room = usize::from(inner.width);
+            put(buf, inner.x, line, inner.width, &truncate(&chain, room), t.secondary.patch(t.panel));
+            line += 1;
+        }
         let first = b.description.lines().find(|l| !l.trim().is_empty()).unwrap_or("No standing instructions");
         let room = usize::from(inner.width);
-        put(buf, inner.x, inner.y + 1, inner.width, &truncate(first.trim(), room), t.secondary.patch(t.panel));
-        inner = Rect::new(inner.x, inner.y + 3, inner.width, inner.height.saturating_sub(3));
+        put(buf, inner.x, line, inner.width, &truncate(first.trim(), room), t.secondary.patch(t.panel));
+        let used = line + 2 - inner.y;
+        inner = Rect::new(inner.x, inner.y + used, inner.width, inner.height.saturating_sub(used));
     }
     if !app.screen.is_null() {
         let on = app.bots.get(&l.bot).is_some_and(|b| b.computer);
@@ -119,7 +132,15 @@ pub fn routines(buf: &mut Buffer, area: Rect, app: &App, l: &RoutineList) {
                 let on = it["enabled"] == true;
                 put(buf, inner.x, y, 2, if on { "●" } else { "○" }, if on { t.bold } else { t.dim }.patch(base));
                 put(buf, inner.x + 2, y, inner.width / 2, s(it, "name"), t.bold.patch(base));
-                let next = it["nextRunAt"].as_i64().map(|ms| format!("next {}", when_future(ms)));
+                // A retry still waiting comes before the schedule's next run.
+                let retry = l
+                    .runs
+                    .iter()
+                    .find(|r| r["routineId"] == it["id"] && r["status"] == "pending")
+                    .and_then(|r| r["notBefore"].as_i64());
+                let next = retry
+                    .map(|ms| format!("retry {}", when_future(ms)))
+                    .or_else(|| it["nextRunAt"].as_i64().map(|ms| format!("next {}", when_future(ms))));
                 rput(
                     buf,
                     inner.right(),

@@ -1,0 +1,50 @@
+import { CardForm, CardSection } from '../../components/Controls'
+import { Icon } from '../../components/Icon'
+import { ModalHeader, SheetPage } from '../../components/Overlay'
+import { HStack, IconSlot, VStack } from '../../components/Stack'
+import { Text } from '../../components/Text'
+
+interface Point { icon: string; title: string; detail: string }
+
+/** What the harness's own memory switch means. `readable`: Codync shows its notes (Claude Code's are a file). */
+export function harnessInfo(harness: string, readable: boolean): Point[] {
+  return [
+    { icon: 'brain', title: 'A memory of its own', detail: `${harness} keeps notes apart from Codync's memory. It's off by default, so this bot has one memory and you see all of it here.` },
+    { icon: 'square.on.square', title: 'Remembered twice', detail: 'With both on, the bot may save the same thing twice, and the two can disagree after something changes.' },
+    { icon: 'trash', title: 'Forgetting', detail: `What the bot forgets in Codync stays in ${harness}'s notes. Codync can't change them.` },
+    { icon: 'eye', title: 'Where to see it', detail: readable ? `Its notes show read-only under the ${harness} tab.` : `Codync can't show it; look in ${harness} itself.` },
+  ]
+}
+
+/** What dreaming does, beside its read-only log. */
+export const dreamsInfo: Point[] = [
+  { icon: 'moon', title: 'Tidying between chats', detail: 'After five quiet minutes or eight messages, the bot reads what you said since its last run and updates its memory.' },
+  { icon: 'plus.circle', title: 'Adds and takes out', detail: 'Green lines are memories it added. Red lines are ones it took out because they went out of date or moved into a note. It can also add a line to a note.' },
+  { icon: 'text.bubble', title: 'Only your words', detail: "What it adds quotes something you typed yourself; pasted text, the bot's replies and other bots don't count. It never changes what you wrote. It may also put a passed date in the past tense, or move a detail into a note when memory is full." },
+  { icon: 'lock.shield', title: 'Kept apart', detail: 'It runs in its own session, away from the chat, and fixed checks decide what it may save.' },
+  { icon: 'eye', title: 'A record', detail: 'This tab only shows what it did. To change a memory, tell the bot.' },
+]
+
+/** The memory screen's info buttons: a title and what to know, one point per row. The same text as the kit's; the terminal UI says it short in place. */
+export function MemoryInfoSheet({ icon, title, points }: { icon: string; title: string; points: Point[] }) {
+  return (
+    <SheetPage>
+      <ModalHeader icon={icon} title={title} />
+      <CardForm>
+        <CardSection>
+          {points.map((d) => (
+            <HStack key={d.title} align="flex-start" gap={12}>
+              <IconSlot width={20} tone="secondary" className="memory-info-icon">
+                <Icon name={d.icon} size={15} />
+              </IconSlot>
+              <VStack gap={2} grow>
+                <span>{d.title}</span>
+                <Text size="footnote" tone="secondary">{d.detail}</Text>
+              </VStack>
+            </HStack>
+          ))}
+        </CardSection>
+      </CardForm>
+    </SheetPage>
+  )
+}

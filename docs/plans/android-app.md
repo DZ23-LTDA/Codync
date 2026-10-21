@@ -20,7 +20,7 @@ emulator against a real host; device acceptance is listed separately.
 | Conversation | Ported: bubbles, Markdown/code, permissions, reactions, quote replies, Full conversation, bot-to-bot exchange lines and their conversation, routine notices that open their routine, files a bot shares (verified download, then the share sheet), sent images full size, pull down to reconnect, jump to latest, read receipts for every conversation on screen | Physical keyboard and TalkBack |
 | Composer | Ported: files/photos/paste (groups too, image thumbnails, Paste only when the clipboard holds files), `/` commands (Fast mode, skills listed fresh on `/`), @mentions in groups, call/send/stop/interrupt button | — |
 | Bot and group editors | Ported: avatar, profile, agent and model options, Fast mode, workspace folder picker, permissions, activity, connectors, skills (with their details) | — |
-| Memory | Ported: search, filters, add/edit, pin, review, history and timeline, export/import, forget all | — |
+| Memory | Broken since 2.18.0: the screen calls removed host methods (see [Not ported yet](#not-ported-yet)) | Port the read-only memory screen from `MemoryView.swift`, `MemoryFilesView.swift` and `MemoryInfoSheet.swift`, without add, edit, pin or forget |
 | Routines | Ported: list with switches, editor (schedule, webhook panel, run settings), test run, delete | Live provider/routine acceptance |
 | Extensions | Ported: agents (install, sign-in, setup terminal), registry connectors, Composio apps, skills, installed list, custom connector, own skill, credentials, chat connection request card | Real provider OAuth, 1Password |
 | Voice | Ported: call bar (provider name, fallback notice), Voice chat settings (engine, mode, models, voice, minutes this month), on device (the call's language through Android's on-device recognizer, Vosk English as the fallback, replies read by an offline voice for their language), OpenAI Realtime (WebRTC), Gemini Live, Speech mode, fallback to on device, group calls | Both providers with a real key on a device; a live microphone on a device |
@@ -50,9 +50,10 @@ was walked through on an emulator against a real host.
 - **Bot memory (2.18.0).** The host's memory moved out of Engram ([bot memory](../design/bot-memory.md)). The
   memory screen still calls the removed `memoryDetail`, `reviewMemory`, `exportMemory` and `importMemory`
   (`MemoryModel.kt`, `MemoryCard.kt`, `LiveMemoryTest.kt`), so it shows an error. Missing too: the two layers
-  (yours and the bot's) with archived entries, memory notes (long-form files with versions), the harness's own
-  memory switch with its info sheet (2.19.0) and the handoff card. Port them from the iPhone (`MemoryView.swift`,
-  `MemoryFilesView.swift`, `HarnessMemorySheet.swift`, `HandoffRows.swift`).
+  (yours and the bot's) with each `MEMORY.md` line and who wrote it, memory notes, the dream log with its info
+  sheet, the harness's own memory switch with its info sheet (2.19.0) and the handoff card. Since 2.21.0 the memory screen is read-only
+  (the user changes memory by telling the bot), so the port drops its add and edit controls. Port them from the
+  iPhone (`MemoryView.swift`, `MemoryFilesView.swift`, `MemoryInfoSheet.swift`, `HandoffRows.swift`).
 
 ### Not verified (needs an account, a key, a device or the real Mac)
 

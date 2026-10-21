@@ -4,6 +4,7 @@ mod analytics;
 mod editor;
 mod events;
 mod exchange;
+mod fallbacks;
 mod forms;
 mod input;
 mod model;

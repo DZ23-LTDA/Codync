@@ -34,6 +34,7 @@ Source review, a passing build, local integration tests and production acceptanc
 - [Bot memory and compaction](design/bot-memory.md) (design; storage, gate and dreaming built, compaction to come)
 - [Bot memory research](design/bot-memory-research.md) (files vs. database, embeddings, open-source systems, harness instructions)
 - [Bot workspaces](features/bot-workspaces.md)
+- [Agent fallbacks](features/agent-fallback.md) (the next agent carries a turn on when the bot's own runs out of usage)
 - [Routines](features/routines.md)
 - [Voice calls](features/voice-call.md)
 - [File attachments](features/file-attachments.md)
@@ -57,6 +58,7 @@ Source review, a passing build, local integration tests and production acceptanc
 Production signals (PostHog errors, failed turns) traced to a root cause, newest first. Dated
 records: the fixes they name have shipped or are listed as open.
 
+- [Claude reported signed in on Windows while signed out, 2026-10-20](investigations/windows-claude-sign-in-2026-10-20.md)
 - [PostHog error triage, 2026-10-19](investigations/posthog-errors-2026-10-19.md): host panics, desktop and iPhone crashes, failed Claude turns
 - [npm agents failing to start on Windows, 2026-10-14](investigations/windows-npm-agents-2026-10-14.md)
 

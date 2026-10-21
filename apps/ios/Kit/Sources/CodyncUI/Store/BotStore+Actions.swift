@@ -70,6 +70,8 @@ extension BotStore {
     public func stop(_ botId: String) { perform(replay: true) { try await $0.stop(botId) } }
     public func logCall(_ botId: String, seconds: Int) { perform { try await $0.logCall(botId, seconds: seconds) } }
     public func newSession(_ botId: String) { perform { try await $0.newSession(botId) } }
+    /// The bot's own agent again, off the fallback it runs on.
+    public func switchBack(_ botId: String) { perform(replay: true) { try await $0.switchBack(botId) } }
 
     // MARK: remote screen
 
@@ -93,18 +95,25 @@ extension BotStore {
         }
     }
 
-    public func respond(_ entry: Entry, option: String?) {
+    /// A card's button: `entry` shows `choice` as answering (its spinner) while `op` runs.
+    private func answer(_ entry: Entry, _ choice: String, _ op: @escaping @MainActor (HostClient) async throws -> Void) {
         guard answering[entry.id] == nil else { return }
-        Motion.animate { answering[entry.id] = option ?? "" }
+        Motion.animate { answering[entry.id] = choice }
         Task {
             do {
-                try await withLink(replay: true) { try await $0.respondPermission(entryId: entry.id, optionId: option) }
-                // The card's own update follows on the events stream; hold the spinner until then.
-                try? await Task.sleep(for: .seconds(2))
+                try await withLink(replay: true, op)
             } catch {
                 lastError = error.localizedDescription
             }
             Motion.animate { answering[entry.id] = nil }
+        }
+    }
+
+    public func respond(_ entry: Entry, option: String?) {
+        answer(entry, option ?? "") {
+            try await $0.respondPermission(entryId: entry.id, optionId: option)
+            // The card's own update follows on the events stream; hold the spinner until then.
+            try? await Task.sleep(for: .seconds(2))
         }
     }
 
@@ -203,16 +212,13 @@ extension BotStore {
 
     /// Carries on with the bot's current conversation instead of the handoff.
     public func keepConversation(_ entry: Entry) {
-        guard answering[entry.id] == nil else { return }
-        Motion.animate { answering[entry.id] = "handoff" }
-        Task {
-            do {
-                try await withLink(replay: true) { try await $0.keepConversation(entryId: entry.id) }
-            } catch {
-                lastError = error.localizedDescription
-            }
-            Motion.animate { answering[entry.id] = nil }
-        }
+        answer(entry, "handoff") { try await $0.keepConversation(entryId: entry.id) }
+    }
+
+    /// Runs a failed routine run's work again, from its notice; the notice's update drops the button.
+    public func retryRoutineRun(_ entry: Entry) {
+        guard let runId = entry.data.runId else { return }
+        answer(entry, "retry") { try await $0.retryRoutineRun(botId: entry.botId, runId: runId) }
     }
 
     public func setFastMode(_ bot: Bot, _ fastMode: Bool) {

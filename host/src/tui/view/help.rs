@@ -9,7 +9,7 @@ use super::buffer::{centered, frame_box, put, u};
 use super::overlay::field_line;
 use super::style::theme;
 
-const HELP: [(&str, &str, &str); 60] = [
+const HELP: [(&str, &str, &str); 63] = [
     ("MOVE", "j k  ↑ ↓", "next / previous bot"),
     ("MOVE", "[ ]", "previous / next bot"),
     ("MOVE", "1…9", "jump to bot 1–9"),
@@ -29,6 +29,7 @@ const HELP: [(&str, &str, &str); 60] = [
     ("CHAT", "o", "last turn's steps"),
     ("CHAT", "c", "copy the last reply"),
     ("CHAT", "C", "open connection / login request"),
+    ("CHAT", "F", "try a failed routine run again"),
     ("CHAT", "r", "reply to a message"),
     ("CHAT", "v", "pick a message"),
     ("CHAT", "j k  ↵", "picking: move / reply"),
@@ -36,6 +37,7 @@ const HELP: [(&str, &str, &str); 60] = [
     ("CHAT", "f", "picking: save its files"),
     ("CHAT", "o", "picking: show a summary, handoff or note change"),
     ("CHAT", "e K", "picking a handoff: edit / keep the chat"),
+    ("CHAT", "A", "picking a failure: add a fallback agent"),
     ("CHAT", "↵", "picking a bot message: open its conversation"),
     ("CHAT", "esc", "cancel the reply"),
     ("TYPE", "↵", "send"),
@@ -55,6 +57,7 @@ const HELP: [(&str, &str, &str); 60] = [
     ("BOTS", "S", "new session"),
     ("BOTS", "M", "memory"),
     ("BOTS", "R", "details: routines, computer"),
+    ("BOTS", "B", "details: switch back to the bot's own agent"),
     ("BOTS", "⇧← ⇧→", "between details, memory, settings"),
     ("BOTS", "A", "extensions, sign-in"),
     ("BOTS", "x", "delete bot or group"),

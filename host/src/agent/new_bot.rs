@@ -24,9 +24,9 @@ pub async fn with_defaults(hub: &Arc<Hub>, mut b: Value) -> Result<BotConfig> {
             }
         };
     }
-    // Skills too: every installed one is on unless the client picked them.
+    // Skills too: every installed one is on unless the client picked them, but a bot's skill stays with that bot.
     if b["skills"].is_null() && b["kind"] != "group" {
-        b["skills"] = json!(market::skills(&hub.store).into_iter().map(|s| s.id).collect::<Vec<_>>());
+        b["skills"] = json!(market::Installed::Skills.ids(&hub.store)?);
     }
     // And the agent, when the client names none.
     if b["backend"].as_str().is_none_or(str::is_empty) && b["kind"] != "group" {

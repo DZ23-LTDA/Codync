@@ -20,7 +20,7 @@ pub(super) async fn call(hub: &Arc<Hub>, method: &str, b: Value) -> Result<Contr
             str_arg(&b, "id")?,
             b["enabled"].as_bool().context("enabled is required")?,
         )?,
-        "deleteRoutine" => hub.routines.remove(&hub.store, str_arg(&b, "botId")?, str_arg(&b, "id")?)?,
+        "deleteRoutine" => hub.routines.remove(hub, str_arg(&b, "botId")?, str_arg(&b, "id")?)?,
         "runRoutine" => hub.routines.enqueue(
             &hub.store,
             str_arg(&b, "botId")?,
@@ -29,6 +29,7 @@ pub(super) async fn call(hub: &Arc<Hub>, method: &str, b: Value) -> Result<Contr
             None,
             true,
         )?,
+        "retryRoutineRun" => hub.routines.retry(hub, str_arg(&b, "botId")?, str_arg(&b, "runId")?)?,
         "routineWebhook" => hub.routines.credentials(
             hub,
             str_arg(&b, "botId")?,
@@ -43,6 +44,10 @@ pub(super) async fn call(hub: &Arc<Hub>, method: &str, b: Value) -> Result<Contr
             let (bot, name) = (str_arg(&b, "botId")?, str_arg(&b, "name")?);
             if crate::chat::profile::TOOLS.contains(&name) {
                 crate::chat::profile::call(hub, bot, name, &b["arguments"]).await?
+            } else if name == crate::chat::skills::TOOL {
+                crate::chat::skills::call(hub, bot, &b["arguments"]).await?
+            } else if crate::chat::fallbacks::TOOLS.contains(&name) {
+                crate::chat::fallbacks::call(hub, bot, name, &b["arguments"]).await?
             } else {
                 crate::chat::outbox::call(hub, bot, name, &b["arguments"]).await?
             }
@@ -198,13 +203,15 @@ pub(super) async fn call(hub: &Arc<Hub>, method: &str, b: Value) -> Result<Contr
             }
             json!({})
         }
+        "switchBack" => {
+            hub.send_cmd(str_arg(&b, "botId")?, Cmd::SwitchBack)?;
+            json!({})
+        }
         "newSession" => {
             hub.send_cmd(str_arg(&b, "botId")?, Cmd::NewSession)?;
             json!({})
         }
-        "memory" | "saveMemory" | "pinMemory" | "archiveMemory" | "forgetMemory" | "clearMemory" | "undoDream"
-        | "answerMemory" | "undoMemory" | "memoryFile" | "saveMemoryFile" | "deleteMemoryFile"
-        | "restoreMemoryFile" => crate::chat::memory::call(hub, method, &b).await?,
+        "memory" | "memoryFile" => crate::chat::memory::call(hub, method, &b).await?,
         "editHandoff" | "keepConversation" => crate::chat::handoff::call(hub, method, &b)?,
         "react" => {
             let e = hub.react(str_arg(&b, "entryId")?, str_arg(&b, "emoji")?)?;

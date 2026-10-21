@@ -1,7 +1,10 @@
 //! What the host sends: bots, transcript entries, and the messages that carry them.
 
+use serde::Deserialize;
 use serde_json::Value;
 use std::collections::BTreeMap;
+
+use crate::agent::fallback::Reason;
 
 use super::super::manage::Reply;
 use super::tilde;
@@ -113,6 +116,14 @@ pub struct Bot {
     pub created_at: i64,
     /// The harness's own memory kept on beside Codync's; `None` where it has no switch.
     pub harness_memory: Option<bool>,
+    /// Agents that carry on, in order, when its own can't answer (`agent::fallback`).
+    pub fallbacks: Vec<crate::store::Fallback>,
+    /// The bot may set its own fallbacks.
+    pub self_fallbacks: bool,
+    /// The fallback agent it's on now; `None` on its own.
+    pub agent_step: Option<String>,
+    /// Agents of its chain resting now.
+    pub resting: Vec<Rest>,
     pub connectors: Vec<String>,
     pub skills: Vec<String>,
     pub status: Status,
@@ -126,6 +137,14 @@ pub struct Bot {
     pub members: Vec<String>,
     /// Where the running turn talks: a chat (`None` = its own).
     pub working_chat: Option<String>,
+}
+
+/// An agent of a bot's chain that rests (`agent::fallback::resting`) until `until` (epoch ms).
+#[derive(Deserialize, Clone, Debug)]
+pub struct Rest {
+    pub agent: String,
+    pub until: i64,
+    pub reason: Reason,
 }
 
 fn strs(v: &Value) -> Vec<String> {
@@ -224,6 +243,10 @@ impl Bot {
             created_by: v["createdBy"].as_str().map(str::to_owned),
             created_at: v["createdAt"].as_i64().unwrap_or(0),
             harness_memory: v["harnessMemory"].as_bool(),
+            fallbacks: serde_json::from_value(v["fallbacks"].clone()).unwrap_or_default(),
+            self_fallbacks: v["selfFallbacks"].as_bool().unwrap_or(true),
+            agent_step: v["agentStep"]["agent"].as_str().map(str::to_owned),
+            resting: serde_json::from_value(v["resting"].clone()).unwrap_or_default(),
             connectors: strs(&v["connectors"]),
             skills: strs(&v["skills"]),
             status: match v["status"].as_str() {
@@ -241,6 +264,11 @@ impl Bot {
             members: strs(&v["members"]),
             working_chat: v["workingChat"].as_str().map(str::to_owned),
         })
+    }
+
+    /// Agent `agent`'s rest, while it lasts at `now`.
+    pub fn rests(&self, agent: &str, now: i64) -> Option<&Rest> {
+        self.resting.iter().find(|r| r.agent == agent && r.until > now)
     }
 
     /// Whether the running turn talks in this chat.
@@ -355,6 +383,16 @@ impl Entry {
     /// A line that folds away a longer text: a handoff (`o` shows it).
     pub fn unfolds(&self) -> bool {
         crate::tui::view::unfoldable(self).is_some()
+    }
+
+    /// A failure notice that offers adding a fallback agent (`A`).
+    pub fn adds_fallback(&self) -> bool {
+        self.kind == Kind::Notice && self.data["addFallback"] == true
+    }
+
+    /// A failed routine run's notice that offers running it again (`F`).
+    pub fn retries(&self) -> bool {
+        self.kind == Kind::Notice && self.data["retry"] == true && self.data["runId"].is_string()
     }
 
     /// A notice for a bot-to-bot message or request (`chat::team`).

@@ -82,12 +82,12 @@ impl Actor {
                     "locations": u["locations"].clone(),
                 });
                 merge_tool_content(&mut data, &u["content"]);
-                crate::chat::memory::files::touched(&self.hub.store, &self.cfg, &data);
+                crate::chat::memory::files::touched(&self.hub, &self.cfg, &data);
                 let title = data["title"].as_str().unwrap_or("Tool").to_owned();
                 if let Some(e) = self.add(EntryKind::Tool, turn, data) {
                     self.tools.insert(tool_id, e.id);
                 }
-                self.set_activity(super::activity(&title));
+                self.set_activity(activity(&title));
             }
             "tool_call_update" => {
                 let tool_id = u["toolCallId"].as_str().unwrap_or_default();
@@ -102,12 +102,12 @@ impl Actor {
                     e.data["locations"] = u["locations"].clone();
                 }
                 merge_tool_content(&mut e.data, &u["content"]);
-                crate::chat::memory::files::touched(&self.hub.store, &self.cfg, &e.data);
+                crate::chat::memory::files::touched(&self.hub, &self.cfg, &e.data);
                 let status = e.data["status"].as_str().unwrap_or_default().to_owned();
                 let title = e.data["title"].as_str().unwrap_or_default().to_owned();
                 self.hub.set_entry(&entry_id, &e.data);
                 if status == "in_progress" {
-                    self.set_activity(super::activity(&title));
+                    self.set_activity(activity(&title));
                 }
             }
             "compaction_update" => {
@@ -434,9 +434,29 @@ pub fn diff_summary(path: &str, old: &str, new: &str) -> Value {
     })
 }
 
+/// The working line for a tool call: composing a message reads as typing.
+fn activity(title: &str) -> &str {
+    if title.contains("send_message") {
+        "Typing…"
+    } else if ["memory__", "memory.", "bot-memory", "shared-memory"].iter().any(|m| title.contains(m)) {
+        // Memory stays out of the chat, its working line included: the memory settings show it.
+        "Thinking…"
+    } else {
+        title
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn memory_work_reads_as_thinking() {
+        assert_eq!(activity("mcp__chat__send_message"), "Typing…");
+        assert_eq!(activity("mcp__memory__edit_memory"), "Thinking…");
+        assert_eq!(activity("Write /Users/me/.codync/bots/b/bot-memory/trip.md"), "Thinking…");
+        assert_eq!(activity("Terminal"), "Terminal");
+    }
 
     #[test]
     fn diff_counts_changed_middle() {

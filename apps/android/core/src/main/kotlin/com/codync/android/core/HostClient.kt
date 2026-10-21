@@ -53,7 +53,18 @@ data class Bot(
     val unread: Int = 0,
     val rev: Long = 0,
     val deleted: Boolean = false,
+    /** Agents that carry on, in order, when its own can't answer (out of usage, rate limited, signed out…); null from an older host. */
+    val fallbacks: List<Fallback>? = null,
+    /** The bot may set its own fallbacks, for example when the user asks it to; null from an older host. */
+    val selfFallbacks: Boolean? = null,
+    /** The fallback it runs on right now; null on its own agent. */
+    val agentStep: AgentStep? = null,
+    /** Agents of its chain resting now. */
+    val resting: List<Resting> = emptyList(),
 ) {
+    /** [agent]'s rest, unless it's over. */
+    fun restOf(agent: String, now: Long = System.currentTimeMillis()): Resting? = resting.firstOrNull { it.agent == agent && it.until > now }
+
     /** An agent bot unless its agent said it has no Fast mode, or one that has it on (so it can be turned off). */
     val fastModeShown: Boolean get() = kind != "group" && (fastMode || fastModeSupport != "unsupported")
 

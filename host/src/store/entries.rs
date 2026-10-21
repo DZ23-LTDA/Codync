@@ -90,6 +90,13 @@ impl Store {
         Ok(c.query_row(&format!("SELECT {ENTRY_COLS} FROM entries WHERE id = ?1"), [id], row_entry).optional()?)
     }
 
+    /// Moves an entry back in time, for tests of what happens to old entries.
+    #[cfg(test)]
+    pub fn backdate_entry(&self, id: &str, created_at: i64) {
+        let c = self.db.locked();
+        c.execute("UPDATE entries SET created_at = ?2 WHERE id = ?1", params![id, created_at]).expect("backdate");
+    }
+
     pub fn entry(&self, id: &str) -> Option<Entry> {
         let c = self.db.locked();
         let row = c.query_row(&format!("SELECT {ENTRY_COLS} FROM entries WHERE id = ?1"), [id], row_entry);
@@ -112,6 +119,18 @@ impl Store {
         let c = self.db.locked();
         let n = c.query_row("SELECT COALESCE(MAX(turn), 0) FROM entries WHERE bot_id = ?1", [bot_id], |r| r.get(0));
         logged("max turn", n).unwrap_or(0)
+    }
+
+    /// Whether the agent used a tool in `turn` of `bot_id`'s chat that may have changed something:
+    /// reading, searching, fetching and thinking don't count (ACP tool kinds).
+    pub fn acted_in_turn(&self, bot_id: &str, turn: i64) -> Result<bool> {
+        let c = self.db.locked();
+        Ok(c.query_row(
+            "SELECT EXISTS(SELECT 1 FROM entries WHERE bot_id = ?1 AND turn = ?2 AND kind = 'tool'
+             AND COALESCE(json_extract(data, '$.toolKind'), 'other') NOT IN ('read', 'search', 'fetch', 'think'))",
+            params![bot_id, turn],
+            |r| r.get(0),
+        )?)
     }
 
     /// Entries changed after `since`. A fresh client (`since == 0`) only gets the
@@ -227,6 +246,19 @@ impl Store {
             st.query_map(params![lane.chat, after_seq, limit], row_entry)?.collect::<rusqlite::Result<_>>()?;
         rows.reverse();
         Ok(rows)
+    }
+
+    /// The newest `kind` entry in `lane` after `after_seq`.
+    pub fn last_of_kind(&self, lane: &Lane, kind: EntryKind, after_seq: i64) -> Option<Entry> {
+        let c = self.db.locked();
+        let row = c.query_row(
+            &format!(
+                "SELECT {ENTRY_COLS} FROM entries WHERE bot_id = ?1 AND kind = ?2 AND seq > ?3 ORDER BY seq DESC LIMIT 1"
+            ),
+            params![lane.chat, kind.as_str(), after_seq],
+            row_entry,
+        );
+        logged("last entry of kind", row.optional()).flatten()
     }
 
     /// The `seq` of `bot`'s last reply in `lane` (0 if it hasn't spoken there).

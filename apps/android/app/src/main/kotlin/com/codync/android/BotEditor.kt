@@ -9,6 +9,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
@@ -33,8 +35,11 @@ import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonPrimitive
 
-/** A bot's settings in a sheet, as iOS `BotEditorView`: the settings form plus Close and Save. New bots start in [NewBotView]. */
-@Composable fun BotEditor(state: AppState, initial: BotDraft, store: AppStore) {
+/**
+ * A bot's settings in a sheet, as iOS `BotEditorView`: the settings form plus Close and Save. New bots start in [NewBotView].
+ * [atFallbacks] scrolls to the Agent card's fallbacks (a chat's "Add a fallback").
+ */
+@Composable fun BotEditor(state: AppState, initial: BotDraft, store: AppStore, atFallbacks: Boolean = false) {
     var draft by remember(initial.id) { mutableStateOf(initial) }
     // A change made elsewhere (a bot that manages the team, another device) replaces each field not edited here.
     var base by remember(initial.id) { mutableStateOf(initial) }
@@ -42,6 +47,7 @@ import kotlinx.serialization.json.jsonPrimitive
     LaunchedEffect(saved) { if (saved != null && saved != base) { draft = draft.rebased(base, saved); base = saved } }
     var folders by remember { mutableStateOf(false) }
     var viewingSkill by remember { mutableStateOf<SkillRef?>(null) }
+    var addingFallback by remember { mutableStateOf(false) }
     val online = state.actualConnection is LinkState.Ready
     val saving = "editor" in state.busy
     val dismiss = LocalDismissModal.current
@@ -53,7 +59,7 @@ import kotlinx.serialization.json.jsonPrimitive
                 store.saveBot(draft) { dismiss() }
             }
         }
-        BotSettingsForm(state, store, draft, { draft = it }, { viewingSkill = it }) { folders = true }
+        BotSettingsForm(state, store, draft, { draft = it }, { viewingSkill = it }, { addingFallback = true }, atFallbacks) { folders = true }
     }
     CodyncSheet(folders, { folders = false }) {
         FolderPicker(draft.cwd.ifEmpty { state.hello?.get("home")?.jsonPrimitive?.contentOrNull }, online, store::listDirs) {
@@ -61,6 +67,9 @@ import kotlinx.serialization.json.jsonPrimitive
         }
     }
     CodyncSheet(viewingSkill, { viewingSkill = null }) { SkillSheet(it, state, store) }
+    CodyncSheet(addingFallback, { addingFallback = false }) {
+        AddFallbackSheet(state, store, draft.backend, draft.fallbacks.orEmpty()) { draft = draft.copy(fallbacks = draft.fallbacks.orEmpty() + it); addingFallback = false }
+    }
 }
 
 /** The computer's agents, as its hello lists them. */
@@ -70,9 +79,11 @@ internal val JsonObject.curated get() = this["curated"]?.jsonPrimitive?.booleanO
 
 /** Bot settings: a big avatar, then sections in the Settings style (`CardSection`). */
 @Composable private fun BotSettingsForm(state: AppState, store: AppStore, draft: BotDraft, change: (BotDraft) -> Unit, viewSkill: (SkillRef) -> Unit,
-    chooseFolder: () -> Unit) {
+    addFallback: () -> Unit, atFallbacks: Boolean, chooseFolder: () -> Unit) {
     val online = state.actualConnection is LinkState.Ready
     val screen = state.screen
+    val fallbacks = remember { BringIntoViewRequester() }
+    LaunchedEffect(Unit) { if (atFallbacks) fallbacks.bringIntoView() }
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp), verticalArrangement = Arrangement.spacedBy(30.dp)) {
         Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(16.dp)) {
             Box(Modifier.clip(RoundedRectangle(24.dp)).background(Palette.bubbleAgent).padding(18.dp)) {
@@ -94,6 +105,9 @@ internal val JsonObject.curated get() = this["curated"]?.jsonPrimitive?.booleanO
             }
         }
         CardSection("Agent") {
+            val bot = state.bots.firstOrNull { it.id == draft.id }
+            val step = bot?.agentStep
+            if (bot != null && step != null) row { FallbackBanner(state, store, bot, step) }
             row {
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     ValueRow("Computer", state.computers.firstOrNull()?.name ?: "Your computer")
@@ -102,13 +116,10 @@ internal val JsonObject.curated get() = this["curated"]?.jsonPrimitive?.booleanO
             }
             row {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    val agents = backends(state).map { info ->
-                        val id = info.text("id").orEmpty()
-                        id to ((info.text("name") ?: id) + if (!info.available) " (not installed)" else "")
-                    } + ("custom" to "Custom command")
-                    ValueRow("Agent") {
-                        ChoicePicker(draft.backend, agents, { if (it != draft.backend) change(draft.copy(backend = it, model = null, modelOptions = emptyMap())) },
-                            label = "Agent")
+                    val rest = bot?.restOf(draft.backend)
+                    ValueRow("Agent", detail = rest?.line(RelativeTime.clock(rest.until))) {
+                        ChoicePicker(draft.backend, agentChoices(state) + ("custom" to "Custom command"),
+                            { if (it != draft.backend) change(draft.withAgent(it)) }, label = "Agent")
                     }
                     backends(state).firstOrNull { it.text("id") == draft.backend && !it.available }?.text("installHint")?.takeIf(String::isNotBlank)?.let {
                         Text(it, style = Type.caption, color = Palette.warning)
@@ -118,9 +129,19 @@ internal val JsonObject.curated get() = this["curated"]?.jsonPrimitive?.booleanO
                 }
             }
             row {
-                val bot = state.bots.firstOrNull { it.id == draft.id }
                 AgentModelPicker(state, store::agentModels, draft.backend, draft.model, draft.modelOptions, draft.fastMode ?: false, bot,
                     { model, options -> change(draft.copy(model = model, modelOptions = options)) }, { change(draft.copy(fastMode = it)) })
+            }
+            // Only from a host that has fallbacks (its bots say).
+            val list = draft.fallbacks
+            if (list != null) {
+                row {
+                    FallbackList(state, draft.backend, list, bot, { change(draft.copy(fallbacks = it)) }, addFallback, Modifier.bringIntoViewRequester(fallbacks))
+                }
+                row {
+                    SwitchRow("Let the bot change its fallbacks", "It can set this list itself, for example when you ask it to.", draft.selfFallbacks != false,
+                        { change(draft.copy(selfFallbacks = it)) })
+                }
             }
             row {
                 ValueRow("Workspace", detail = if (draft.cwd.isEmpty()) "This bot has its own space for files. It can work in other folders when you ask."

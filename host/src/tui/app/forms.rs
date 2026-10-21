@@ -103,7 +103,14 @@ impl App {
     }
 
     pub(in crate::tui) fn edit_bot(&mut self) {
-        let Some(b) = self.bot().cloned() else { return };
+        if let Some(id) = self.selected.clone() {
+            self.edit_bot_of(&id);
+        }
+    }
+
+    /// Opens bot `id`'s settings (a group's: its name, about and members).
+    pub(in crate::tui) fn edit_bot_of(&mut self, id: &str) {
+        let Some(b) = self.bots.get(id).cloned() else { return };
         if b.group {
             self.overlays.push(Overlay::Group(GroupForm {
                 group_id: Some(b.id.clone()),
@@ -125,6 +132,8 @@ impl App {
             model: Editor::with(b.model.as_deref().unwrap_or_default()),
             model_options: (b.model.clone().unwrap_or_default(), b.model_options.clone()),
             fast: b.fast_mode,
+            fallbacks: b.fallbacks.clone(),
+            self_fallbacks: b.self_fallbacks,
             cwd: if b.managed_workspace { String::new() } else { b.cwd.clone() },
             auto: b.auto,
             notify: b.notify,
@@ -160,6 +169,9 @@ impl App {
         }
         let ctrl = k.modifiers.contains(KeyModifiers::CONTROL);
         let field = f.current();
+        if field == Field::Fallbacks && self.fallback_key(&mut f, k) {
+            return Some(Overlay::Form(f));
+        }
         match k.code {
             KeyCode::Esc => return None,
             KeyCode::Char('s') if ctrl => {
@@ -214,6 +226,7 @@ impl App {
                     field,
                     Field::Agent
                         | Field::Fast
+                        | Field::SelfFallbacks
                         | Field::Approvals
                         | Field::Notify
                         | Field::Computer
@@ -233,12 +246,15 @@ impl App {
                         if !ids.is_empty() {
                             let i = ids.iter().position(|x| *x == f.backend).unwrap_or(0);
                             f.backend.clone_from(&ids[cycle(i, d, ids.len())]);
-                            // Another agent's model ids mean nothing here.
+                            // Another agent's model ids mean nothing here, and it can't be its own fallback.
                             f.model.clear();
+                            let own = f.backend.clone();
+                            f.fallbacks.retain(|x| x.backend != own);
                             self.want_models(&f.backend);
                         }
                     }
                     Field::Fast => f.fast = !f.fast,
+                    Field::SelfFallbacks => f.self_fallbacks = !f.self_fallbacks,
                     Field::Approvals => f.auto = !f.auto,
                     Field::Notify => f.notify = !f.notify,
                     Field::Computer => f.computer = !f.computer,
@@ -310,7 +326,7 @@ impl App {
     }
 
     /// Agents a bot can switch to: runnable ones on this computer first.
-    fn agent_choices(&self) -> Vec<String> {
+    pub(super) fn agent_choices(&self) -> Vec<String> {
         let mut v: Vec<&Value> = self
             .backends
             .iter()
@@ -334,6 +350,8 @@ impl Form {
             "model": if model.is_empty() { Value::Null } else { model.into() },
             "modelOptions": self.model_options().cloned().unwrap_or_default(),
             "fastMode": self.fast,
+            "fallbacks": self.fallbacks,
+            "selfFallbacks": self.self_fallbacks,
             "notify": self.notify,
             "computer": self.computer,
             "manageTeam": self.manage_team.unwrap_or_default(),

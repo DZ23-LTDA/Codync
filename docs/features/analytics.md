@@ -38,7 +38,8 @@ UI: *About usage analytics…*) shows the same promise in the app, in one text p
 
 - **Host** (`host/src/analytics.rs`, `analytics/`): `api::dispatch` maps successful API calls to
   events (`analytics::observe_call`), so every client is covered once; a resent message (same
-  `clientNonce`) is not counted again. Bot actors report `turn_finished`, the phone channel
+  `clientNonce`) is not counted again. Bot actors report `turn_finished` and `agent_fell_back` (a turn moved on to the bot's next
+  agent: the agent and why, see [agent fallbacks](agent-fallback.md)), the phone channel
   reports pairing and daily phone connections, and the host reports its own start. Each event
   carries its own `timestamp` and `uuid` (a resent batch counts once) and the computer's key
   (`computer`, a hash of its id); batches go to `/batch/` every 30 s and once more when the

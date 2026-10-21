@@ -37,6 +37,14 @@ internal object RelativeTime {
         }
     }
 
+    /** When something ahead happens: 3:00 PM today, Tue 3:00 PM another day. */
+    fun clock(milliseconds: Long): String {
+        val day = date(milliseconds)
+        val at = day.format(time)
+        return if (day.toLocalDate() == LocalDate.now(ZoneId.systemDefault())) at
+        else day.format(DateTimeFormatter.ofPattern("EEE", Locale.getDefault())) + " " + at
+    }
+
     /** A calendar date, as iOS's abbreviated one: Oct 20, 2026. */
     fun calendarDay(milliseconds: Long): String =
         date(milliseconds).format(DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM).withLocale(Locale.getDefault()))

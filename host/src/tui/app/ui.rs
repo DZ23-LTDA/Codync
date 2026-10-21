@@ -89,21 +89,12 @@ pub struct Goto {
 pub enum ConfirmAct {
     Delete(String),
     NewSession(String),
-    /// A bot's own memory, or (`true`) the one all bots share.
-    ClearMemory(String, bool),
     /// Keeps a bot's harness's own memory on beside Codync's.
     KeepHarnessMemory(String),
     DeleteRoutine(String, String),
     RotateRoutineKey(String, String),
     RemoveConnector(String),
     RemoveSkill(String),
-    /// A long-form memory note, over the content with hash `base`.
-    DeleteMemoryFile {
-        bot: String,
-        shared: bool,
-        name: String,
-        base: Option<String>,
-    },
 }
 
 pub struct Confirm {
@@ -158,6 +149,8 @@ pub enum Field {
     Model,
     ModelOptions,
     Fast,
+    Fallbacks,
+    SelfFallbacks,
     Folder,
     Approvals,
     Notify,
@@ -169,13 +162,15 @@ pub enum Field {
     Skills,
 }
 
-pub const FIELDS: [Field; 15] = [
+pub const FIELDS: [Field; 17] = [
     Field::Name,
     Field::Instructions,
     Field::Agent,
     Field::Model,
     Field::ModelOptions,
     Field::Fast,
+    Field::Fallbacks,
+    Field::SelfFallbacks,
     Field::Folder,
     Field::Approvals,
     Field::Notify,
@@ -203,6 +198,9 @@ pub struct Form {
     /// Model settings (effort, fast…) and the model they were picked for.
     pub model_options: (String, BTreeMap<String, String>),
     pub fast: bool,
+    /// Agents that carry on, in order, when the bot's own can't answer.
+    pub fallbacks: Vec<crate::store::Fallback>,
+    pub self_fallbacks: bool,
     pub cwd: String,
     pub auto: bool,
     pub notify: bool,
@@ -214,7 +212,7 @@ pub struct Form {
     pub connectors: Vec<Toggle>,
     pub skills: Vec<Toggle>,
     pub field: usize,
-    /// Cursor inside the connector / skill toggles.
+    /// Cursor inside the connector / skill toggles, the model options or the fallbacks.
     pub sub: usize,
     pub error: Option<String>,
     pub saving: bool,

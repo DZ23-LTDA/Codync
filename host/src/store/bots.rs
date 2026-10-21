@@ -69,6 +69,11 @@ impl Store {
         c.execute("DELETE FROM kv WHERE k GLOB ?1", [format!("memory.*{id}*")])?;
         // Its routine runs' sessions (see `run_session_key`).
         c.execute("DELETE FROM kv WHERE k GLOB ?1", [format!("lane.session.{id}@*")])?;
+        // Its fallback chain's place and each agent's parked session (`agent::bot::fallback::park`).
+        c.execute(
+            "DELETE FROM kv WHERE k GLOB ?1 OR k GLOB ?2",
+            [format!("fallback.*.{id}"), format!("fallback.*.{id}.*")],
+        )?;
         // ponytail: snapshots of replaced sessions stay until the bot goes; prune by session if kv grows.
         c.execute(
             "DELETE FROM kv WHERE k GLOB ?1 OR k GLOB ?2",
@@ -157,6 +162,8 @@ mod tests {
             model: None,
             model_options: std::collections::BTreeMap::new(),
             fast_mode: false,
+            fallbacks: vec![],
+            self_fallbacks: true,
             pinned: false,
             position: 0,
             hidden: false,
@@ -191,7 +198,12 @@ mod tests {
 
         let reply = serde_json::json!({"text": "done", "final": true});
         // A deleted bot stays deleted, and its winding-down actor leaves no lines behind.
+        s.kv_set("fallback.session.b1.codex", "s1").unwrap();
+        s.kv_set("fallback.on.b1", "codex").unwrap();
+        s.kv_set("fallback.on.b10", "codex").unwrap();
         s.delete_bot("b1").unwrap();
+        assert_eq!((s.kv_get("fallback.session.b1.codex"), s.kv_get("fallback.on.b1")), (None, None));
+        assert!(s.kv_get("fallback.on.b10").is_some(), "another bot's");
         assert!(s.insert_entry(&Lane::main("b1"), EntryKind::Notice, 3, &reply).is_err());
         s.save_bot(&cfg).unwrap();
         assert!(s.bot("b1").unwrap().unwrap().deleted);

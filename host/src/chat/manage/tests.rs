@@ -91,6 +91,10 @@ async fn a_manager_creates_and_changes_bots_that_record_who_made_them() {
     let no_time = json!({"botId": "dev", "routines": [{"name": "r", "instruction": "i", "timeoutSeconds": 0,
         "triggers": [{"type": "interval", "seconds": 1800}]}]});
     assert!(refused("lead", "update_bot", no_time).await.contains("timeoutSeconds"));
+    // A manager's own fallbacks are the user's once they turned that off, also through update_bot.
+    hub.update_bot(&json!({"id": "lead", "selfFallbacks": false})).unwrap();
+    let own = json!({"botId": "lead", "fallbacks": [{"agent": "codex"}]});
+    assert!(refused("lead", "update_bot", own).await.contains("turned off setting your own fallbacks"));
     // Under Ask, a change too long for its card to show in full never reaches the card.
     hub.update_bot(&json!({"id": "lead", "permission": "ask"})).unwrap();
     let long = json!({"name": "x", "instructions": "a".repeat(MAX_INSTRUCTIONS_CHARS)});
@@ -111,7 +115,7 @@ async fn a_manager_creates_and_changes_bots_that_record_who_made_them() {
 
 #[test]
 fn a_card_lists_the_routines_before_the_instructions() {
-    let fields = setup_patch(&json!({"name": "Scout", "instructions": "Watches the repo."})).unwrap();
+    let fields = setup_patch(&json!({"name": "Scout", "instructions": "Watches the repo."}), &[]).unwrap();
     assert_eq!(
         describe(&fields, &["• Scan (Every 30 minutes): Scan it".into()]),
         "Name: Scout\nRoutines:\n• Scan (Every 30 minutes): Scan it\nInstructions:\nWatches the repo."

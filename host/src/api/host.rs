@@ -79,7 +79,7 @@ pub(super) async fn call(hub: &Arc<Hub>, caller: &Caller, method: &str, b: Value
         }
         "refreshBackends" => {
             tokio::task::spawn_blocking(backends::hydrate_path).await?;
-            backends::refresh_sign_in().await;
+            crate::market::agent_sign_in::refresh(hub).await;
             json!({"backends": backends::list()})
         }
         "usage" => {
@@ -115,7 +115,7 @@ pub(super) async fn call(hub: &Arc<Hub>, caller: &Caller, method: &str, b: Value
             };
             // Chats that asked the user to sign in get their messages answered now.
             if status["signedIn"] == true {
-                crate::market::requests::agent_signed_in(hub, backend)?;
+                crate::market::agent_sign_in::agent_signed_in(hub, backend)?;
             }
             status
         }

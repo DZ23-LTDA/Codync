@@ -17,6 +17,21 @@ function Line({ icon, text }: { icon: string; text?: string }) {
   )
 }
 
+/** Another agent of the bot's chain carried on, or its own is back: one line that unfolds to what the agent was told. */
+export function AgentSwitchNotice({ entry, carried }: { entry: Entry; carried: string | null }) {
+  const [expanded, setExpanded] = useState(false)
+  const line = <Line icon="arrow.turn.down.right" text={entry.data.text} />
+  return (
+    <div className="handoff-folded">
+      {carried ? (
+        <Disclosure expanded={expanded} onToggle={() => setExpanded(!expanded)} label={line}>
+          <pre className="handoff-text agent-switch-carried fade-in">{carried}</pre>
+        </Disclosure>
+      ) : line}
+    </div>
+  )
+}
+
 /** The bot's chat starts over: what the new conversation carries, which the user can edit, or turn down to carry on. */
 export function HandoffNotice({ entry, card }: { entry: Entry; card: HandoffCard }) {
   const store = useLiveStore()

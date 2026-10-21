@@ -40,12 +40,32 @@ pub struct Runtime {
     pub started_at: Option<i64>,
     /// Where the running turn talks: its own chat or a group.
     pub lane: Option<Lane>,
-    /// The user's message that started the running turn; `None` for a turn a routine, a room or another bot
-    /// started. Memory cites it as where a fact was learned.
+    /// The user's message that started the running turn, typed in the bot's own chat; `None` for a turn a routine,
+    /// a room, another bot or the host started. Memory cites it as where a fact was learned, and only such a turn
+    /// may change or take out what memory says.
     pub message: Option<String>,
     /// The ACP session the running turn prompts. A memory write made there is one that session already knows.
     pub session: Option<String>,
     pub fast_mode: crate::agent::config::FastModeSupport,
+    /// The fallback the bot is on; `None` on its own agent (see `agent::fallback`).
+    pub agent_step: Option<AgentStep>,
+}
+
+/// The bot runs on one of its fallbacks: which, since when, and why it left the agent before.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AgentStep {
+    pub step: usize,
+    pub agent: String,
+    pub model: Option<String>,
+    pub since: i64,
+    pub reason: Option<crate::agent::fallback::Reason>,
+}
+
+impl AgentStep {
+    pub fn new(cfg: &BotConfig, step: usize, reason: Option<crate::agent::fallback::Reason>) -> Self {
+        Self { step, agent: cfg.backend.clone(), model: cfg.model.clone(), since: crate::store::now_ms(), reason }
+    }
 }
 
 pub struct Hub {
@@ -204,6 +224,7 @@ impl Hub {
                 return Ok(self.bot_value(&existing).unwrap_or(Value::Null));
             }
         }
+        crate::agent::fallback::tidy(&mut cfg);
         validate(&cfg)?;
         crate::agent::workspace::prepare(&mut cfg)?;
         {
@@ -212,6 +233,7 @@ impl Hub {
         }
         if !cfg.is_group() {
             self.spawn_bot(cfg.clone());
+            crate::market::agent_sign_in::ask_before_first_message(self, &cfg);
         }
         self.emit_bot(&cfg.id);
         Ok(self.bot_value(&cfg.id).unwrap_or(Value::Null))
@@ -244,6 +266,7 @@ impl Hub {
         if cfg.is_group() {
             cfg.members = crate::chat::group::valid_members(&self.store, &cfg.id, &cfg.members)?;
         }
+        crate::agent::fallback::tidy(&mut cfg);
         validate(&cfg)?;
         crate::agent::workspace::prepare(&mut cfg)?;
         crate::agent::own_memory::settle(&mut cfg, &row.config, patch);
@@ -346,6 +369,7 @@ impl Hub {
             || before.activity != after.activity
             || before.lane != after.lane
             || before.fast_mode != after.fast_mode
+            || before.agent_step != after.agent_step
         {
             self.emit_bot(id);
             // A group shows what its busy member is doing.
@@ -474,5 +498,5 @@ pub(crate) fn validate(cfg: &BotConfig) -> Result<()> {
     {
         bail!("unknown backend {}", cfg.backend);
     }
-    Ok(())
+    crate::agent::fallback::check(cfg)
 }

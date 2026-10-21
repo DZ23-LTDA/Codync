@@ -69,15 +69,8 @@ impl App {
                     match &c.act {
                         ConfirmAct::Delete(id) => self.call("deleteBot", json!({"botId": id}), After::Nothing),
                         ConfirmAct::NewSession(id) => self.call("newSession", json!({"botId": id}), After::Nothing),
-                        ConfirmAct::ClearMemory(id, shared) => {
-                            self.call("clearMemory", json!({"botId": id, "shared": shared}), changed);
-                        }
                         ConfirmAct::KeepHarnessMemory(id) => {
                             self.call("updateBot", json!({"id": id, "harnessMemory": true}), changed);
-                        }
-                        ConfirmAct::DeleteMemoryFile { bot, shared, name, base } => {
-                            let body = json!({"botId": bot, "file": name, "shared": shared, "base": base});
-                            self.call("deleteMemoryFile", body, changed);
                         }
                         ConfirmAct::DeleteRoutine(bot, id) => {
                             self.call("deleteRoutine", json!({"botId": bot, "id": id}), changed);

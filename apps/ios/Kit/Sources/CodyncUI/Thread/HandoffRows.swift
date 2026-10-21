@@ -56,6 +56,39 @@ struct HandoffCardRow: View {
     }
 }
 
+/// The bot moved to another agent of its chain, or back to its own: one line, like a fresh conversation's, that
+/// unfolds to what the new agent was told.
+struct AgentSwitchRow: View {
+    let entry: Entry
+    let change: AgentSwitch
+    @State private var expanded = false
+
+    var body: some View {
+        if let carried = change.carried, !carried.isEmpty {
+            Disclosure(isExpanded: $expanded) {
+                Text(carried)
+                    .font(.footnote)
+                    .foregroundStyle(Palette.secondary)
+                    .textSelection(.enabled)
+                    .padding(12)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Palette.bubbleAgent, in: RoundedRectangle(cornerRadius: 12))
+                    .transition(.opacity)
+            } label: {
+                line
+            }
+        } else {
+            line.frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    private var line: some View {
+        Label(entry.data.text ?? "", systemImage: "arrow.turn.down.right")
+            .font(.footnote)
+            .foregroundStyle(Palette.secondary)
+    }
+}
+
 /// Edits what the next conversation starts with.
 struct HandoffEditorView: View {
     let entry: Entry

@@ -6,9 +6,12 @@ import { HStack, VStack } from '../../components/Stack'
 import { Text } from '../../components/Text'
 import './bots.css'
 
-/** Swift's `JSONEncoder` with `.prettyPrinted, .sortedKeys, .withoutEscapingSlashes`; nil fields are left out. */
+/**
+ * Swift's `JSONEncoder` with `.prettyPrinted, .sortedKeys, .withoutEscapingSlashes`; nil fields are left out, and so
+ * are fallbacks (they depend on the agents a computer has).
+ */
 export function encodeTemplate(draft: BotDraft): string {
-  const { id: _id, pinned: _pinned, hidden: _hidden, ...rest } = draft
+  const { id: _id, pinned: _pinned, hidden: _hidden, fallbacks: _fallbacks, selfFallbacks: _selfFallbacks, ...rest } = draft
   const sorted = Object.fromEntries(
     Object.entries(rest)
       .filter(([, v]) => v !== null && v !== undefined)

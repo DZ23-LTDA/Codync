@@ -115,6 +115,11 @@ export class BotMirror extends Observable {
     return this.hello?.backends.find((b) => b.id === id)?.name ?? builtInBackendName(id)
   }
 
+  /** The ACP registry id an agent's logo is under (`AgentIcon`). */
+  agentRegistry(id: string) {
+    return this.hello?.backends.find((b) => b.id === id)?.registry ?? id
+  }
+
   /** A bot's or group's chat, trace entries included. */
   allEntries(botId: string) {
     return this.entries.get(botId) ?? []

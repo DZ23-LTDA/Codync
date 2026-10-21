@@ -24,7 +24,7 @@ mod turns;
 pub use lifecycle::{KV_STARTED, Via, device_paired, host_started, phone_connected};
 pub use observe::{answered, observe_call};
 pub use reported::track;
-pub use turns::{TurnOutcome, TurnSource, turn_finished};
+pub use turns::{TurnOutcome, TurnSource, agent_fell_back, turn_finished};
 
 const KV_ENABLED: &str = "analytics_enabled";
 /// The account the install id was last merged into (one `$identify` per account).
@@ -65,15 +65,17 @@ pub enum Event {
     MessageSent,
     TurnStopped,
     TurnFinished,
+    /// A turn moved on to the bot's next agent (`agent::fallback`).
+    AgentFellBack,
     SessionReset,
     PermissionAnswered,
     ReactionAdded,
     HandoffAnswered,
-    MemoryEdited,
     RoutineSaved,
     RoutineToggled,
     RoutineDeleted,
     RoutineRun,
+    RoutineRetried,
     VoiceCallStarted,
     VoiceCallFinished,
     RemoteScreenOpened,
@@ -84,6 +86,7 @@ pub enum Event {
     ConnectorSigninStarted,
     SkillInstalled,
     SkillRemoved,
+    SkillWritten,
     CredentialSaved,
     AgentSetupStarted,
     AgentSignedIn,
@@ -120,15 +123,16 @@ impl Event {
             Self::MessageSent => "message_sent",
             Self::TurnStopped => "turn_stopped",
             Self::TurnFinished => "turn_finished",
+            Self::AgentFellBack => "agent_fell_back",
             Self::SessionReset => "session_reset",
             Self::PermissionAnswered => "permission_answered",
             Self::ReactionAdded => "reaction_added",
             Self::HandoffAnswered => "handoff_answered",
-            Self::MemoryEdited => "memory_edited",
             Self::RoutineSaved => "routine_saved",
             Self::RoutineToggled => "routine_toggled",
             Self::RoutineDeleted => "routine_deleted",
             Self::RoutineRun => "routine_run",
+            Self::RoutineRetried => "routine_retried",
             Self::VoiceCallStarted => "voice_call_started",
             Self::VoiceCallFinished => "voice_call_finished",
             Self::RemoteScreenOpened => "remote_screen_opened",
@@ -139,6 +143,7 @@ impl Event {
             Self::ConnectorSigninStarted => "connector_signin_started",
             Self::SkillInstalled => "skill_installed",
             Self::SkillRemoved => "skill_removed",
+            Self::SkillWritten => "skill_written",
             Self::CredentialSaved => "credential_saved",
             Self::AgentSetupStarted => "agent_setup_started",
             Self::AgentSignedIn => "agent_signed_in",

@@ -35,9 +35,32 @@ export interface RoutineRun {
   createdAt: number
   finishedAt?: number | null
   detail?: string | null
+  /** A retry of a run that failed before acting waits until then. */
+  notBefore?: number | null
 }
 
 export const isActiveRun = (run: RoutineRun) => ['pending', 'starting', 'running', 'recovering'].includes(run.status)
+
+/** A run's status in the routines list; a waiting retry says when it goes. */
+export function runLabel(run: RoutineRun, now = Date.now()) {
+  switch (run.status) {
+    case 'pending':
+      if (run.notBefore && run.notBefore > now) return `Retrying at ${new Date(run.notBefore).toLocaleTimeString(undefined, { timeStyle: 'short' })}`
+      return run.notBefore ? 'Retrying' : 'Queued'
+    case 'starting':
+      return 'Starting'
+    case 'running':
+      return 'Running'
+    case 'recovering':
+      return 'Resuming after restart'
+    case 'failed':
+      return 'Failed'
+    case 'interrupted':
+      return 'Interrupted'
+    default:
+      return run.status.charAt(0).toUpperCase() + run.status.slice(1)
+  }
+}
 
 export interface RoutineListing {
   routines: Routine[]

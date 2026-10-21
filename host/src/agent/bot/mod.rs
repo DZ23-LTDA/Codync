@@ -16,6 +16,7 @@
 //! from a session of its own (see `session`).
 
 mod compaction;
+mod fallback;
 mod fast_mode;
 mod files;
 mod launch;
@@ -100,6 +101,8 @@ pub enum Cmd {
     },
     NewSession,
     Reconfigure(Box<BotConfig>),
+    /// The user wants the bot's own agent again (`switchBack`).
+    SwitchBack,
     Shutdown,
 }
 
@@ -124,9 +127,11 @@ pub struct BotHandle {
     pub task: tokio::task::JoinHandle<()>,
 }
 
-pub fn spawn(hub: Arc<Hub>, cfg: BotConfig) -> BotHandle {
+pub fn spawn(hub: Arc<Hub>, base: BotConfig) -> BotHandle {
     let (tx, rx) = mpsc::unbounded_channel();
-    let session_id = hub.store.bot(&cfg.id).ok().flatten().and_then(|b| b.session_id);
+    let session_id = hub.store.bot(&base.id).ok().flatten().and_then(|b| b.session_id);
+    // The agent its main session runs on: one of its fallbacks, if it was on one when the host stopped.
+    let cfg = fallback::resume_step(&hub, &base);
     // A turn the previous host process never finished (crash, update, restart), unless
     // it's stale: an hour-old task is more likely unwanted than awaited (gawkbot's rule).
     let interrupted = hub.store.kv_get(&inflight_key(&cfg.id)).and_then(|v| {
@@ -140,6 +145,7 @@ pub fn spawn(hub: Arc<Hub>, cfg: BotConfig) -> BotHandle {
     hub.set_runtime(&cfg.id, |r| r.fast_mode = support);
     let actor = Actor {
         hub,
+        base,
         cfg,
         conn: None,
         session_id,
@@ -181,21 +187,10 @@ pub fn spawn(hub: Arc<Hub>, cfg: BotConfig) -> BotHandle {
         restart_after_turn: false,
         fast_support,
         idle_checked: Instant::now(),
+        relay: fallback::Relay::default(),
     };
     let task = tokio::spawn(actor.run(rx, interrupted));
     BotHandle { tx, task }
-}
-
-/// The working line for a tool call: composing a message reads as typing.
-fn activity(title: &str) -> &str {
-    if title.contains("send_message") {
-        "Typing…"
-    } else if ["memory__", "memory.", "bot-memory", "shared-memory"].iter().any(|m| title.contains(m)) {
-        // Memory stays out of the chat, its working line included: the memory settings show it.
-        "Thinking…"
-    } else {
-        title
-    }
 }
 
 /// What the agent can do with sessions besides creating them.
@@ -289,6 +284,9 @@ enum Seg {
 #[allow(clippy::struct_excessive_bools)]
 struct Actor {
     hub: Arc<Hub>,
+    /// The bot as the user set it up.
+    base: BotConfig,
+    /// The bot as the agent it runs on now sees it: `base`, or one of its fallbacks (`agent::fallback::effective`).
     cfg: BotConfig,
     conn: Option<Conn>,
     /// The main session: the bot's own chat and its group turns.
@@ -356,6 +354,8 @@ struct Actor {
     fast_support: FastModeSupport,
     /// When idle sessions and agents were last looked for.
     idle_checked: Instant,
+    /// The running turn's place in the fallback chain (see `fallback`).
+    relay: fallback::Relay,
 }
 
 struct RoutineCompletion {
@@ -363,6 +363,8 @@ struct RoutineCompletion {
     status: crate::routines::Status,
     detail: Option<String>,
     text: Option<String>,
+    /// It hit its time limit, so it isn't tried again on its own.
+    timed_out: bool,
 }
 
 type Done = Result<Value>;
@@ -391,6 +393,9 @@ impl Actor {
                     // Updates sent before the prompt response are already queued; apply them first.
                     while let Some(inc) = self.conn.as_mut().and_then(|c| c.rx.try_recv().ok()) {
                         self.on_incoming(Some(inc)).await;
+                    }
+                    if let Err(error) = &done && self.fall_back(error, &done_tx).await {
+                        continue;
                     }
                     let (session, routine) = (self.turn_session.clone(), self.active_routine.is_some());
                     let failed = done.as_ref().is_err_and(acp::may_end_session);
@@ -486,16 +491,5 @@ async fn recv_incoming(conn: &mut Option<Conn>) -> Option<Incoming> {
     match conn {
         Some(c) => c.rx.recv().await,
         None => std::future::pending().await,
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn memory_work_reads_as_thinking() {
-        assert_eq!(super::activity("mcp__chat__send_message"), "Typing…");
-        assert_eq!(super::activity("mcp__memory__remember"), "Thinking…");
-        assert_eq!(super::activity("Write /Users/me/.codync/bots/b/bot-memory/trip.md"), "Thinking…");
-        assert_eq!(super::activity("Terminal"), "Terminal");
     }
 }

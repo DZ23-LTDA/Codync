@@ -134,7 +134,9 @@ impl App {
         let picks: Vec<(String, bool)> = group(&id, &lane)
             .into_iter()
             .filter_map(|item| match item {
-                Item::Entry(e) if e.is_message() || e.is_bot_message() || e.unfolds() => {
+                Item::Entry(e)
+                    if e.is_message() || e.is_bot_message() || e.unfolds() || e.retries() || e.adds_fallback() =>
+                {
                     Some((e.id.clone(), e.is_message()))
                 }
                 Item::Group(g) => Some((g.first.id.clone(), false)),
@@ -161,6 +163,12 @@ impl App {
             KeyCode::Char('j') | KeyCode::Down => self.step_pick(1),
             KeyCode::Char('k') | KeyCode::Up => self.step_pick(-1),
             KeyCode::Char('C') => self.open_connection(),
+            KeyCode::Char('F') => self.retry_failed_run(),
+            KeyCode::Char('A') if picked.as_ref().is_some_and(|e| self.fallback_owner(&id, e).is_some()) => {
+                if let Some(e) = picked {
+                    self.add_fallback(&id, &e);
+                }
+            }
             KeyCode::Enter if picked.as_ref().is_some_and(super::Entry::is_bot_message) => {
                 if let Some(e) = picked {
                     self.open_bot_chat(&e.id);

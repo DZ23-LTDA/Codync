@@ -1,4 +1,4 @@
-"""Self-check for asc-submit.py's What's New parsing: python3 tools/asc-submit-test.py"""
+"""Self-check for asc-submit.py: python3 tools/asc-submit-test.py"""
 
 import importlib.util
 import pathlib
@@ -54,4 +54,19 @@ assert asc.last_sent(store(("2.19.3", "PREPARE_FOR_SUBMISSION"), ("2.19.2", "REA
 assert asc.last_sent(store(("2.19.3", "WAITING_FOR_REVIEW"), ("2.19.2", "READY_FOR_DISTRIBUTION")), "2.19.3") == "2.19.2"
 assert asc.last_sent(store(("2.20.0", "REJECTED"), ("2.19.2", "READY_FOR_DISTRIBUTION")), "2.20.1") == "2.20.0"
 assert asc.last_sent(store(("2.19.3", "DEVELOPER_REJECTED")), "2.19.4") is None
+print("ok")
+
+# Xcode Cloud never heard of v2.20.4's tag (tagged commit abc): main on that commit builds the same source.
+def git_with_main_at(sha):
+    return lambda cmd, *args: {"rev-list": "abc", "ls-remote": f"{sha}\trefs/heads/main"}[cmd]
+
+
+refs = {"refs/heads/main": "m", "refs/tags/v2.20.3": "t"}
+asc.git = git_with_main_at("abc")
+assert asc.archive_ref("v2.20.3", refs) == "refs/tags/v2.20.3"
+assert asc.archive_ref("v2.20.4", refs) == "refs/heads/main"
+asc.git = git_with_main_at("def")
+assert asc.archive_ref("v2.20.4", refs) is None  # main moved on: wait for the tag
+asc.git = lambda *args: ""
+assert asc.archive_ref("v2.20.4", refs) is None  # tag or main unknown: never guess main
 print("ok")

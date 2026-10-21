@@ -13,7 +13,10 @@ use serde_json::{Value, json};
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
-use std::time::Duration;
+
+mod sign_in;
+pub use sign_in::{SignInCheck, cli_signed_in, refresh_sign_in, set_signed_in, signed_in};
+use sign_in::{claude_signed_in, exit_ok, qoder_signed_in, says_logged_in};
 
 pub struct Harness {
     pub id: &'static str,
@@ -56,30 +59,6 @@ impl Install {
                 .map(|exe| format!("{} npm install -g {pkg}", shell::quote(&exe.to_string_lossy()))),
         }
     }
-}
-
-/// `<bin> <args>`, judged by exit code and stdout.
-#[derive(Clone, Copy)]
-pub struct SignInCheck {
-    pub args: &'static str,
-    pub ok: fn(bool, &str) -> bool,
-}
-
-fn exit_ok(success: bool, _: &str) -> bool {
-    success
-}
-
-fn claude_signed_in(_: bool, out: &str) -> bool {
-    serde_json::from_str::<Value>(out).is_ok_and(|v| v["loggedIn"] == true)
-}
-
-fn qoder_signed_in(_: bool, out: &str) -> bool {
-    serde_json::from_str::<Value>(out).is_ok_and(|v| v["logged_in"] == true)
-}
-
-fn says_logged_in(_: bool, out: &str) -> bool {
-    let out = out.to_lowercase();
-    out.contains("logged in") && !out.contains("not logged in")
 }
 
 pub const HARNESSES: &[Harness] = &[
@@ -611,53 +590,6 @@ pub fn list() -> Vec<Value> {
     }
     out.sort_by_key(|v| (!v["installed"].as_bool().unwrap_or(false), !v["curated"].as_bool().unwrap_or(false)));
     out
-}
-
-// MARK: sign-in
-
-/// Last sign-in check per harness id; missing = can't tell.
-static SIGNED_IN: Mutex<Vec<(String, bool)>> = Mutex::new(Vec::new());
-
-pub fn signed_in(id: &str) -> Option<bool> {
-    SIGNED_IN.locked().iter().find(|(h, _)| h == id).map(|(_, ok)| *ok)
-}
-
-/// Records what a check found (`None`: can't tell).
-pub fn set_signed_in(id: &str, state: Option<bool>) {
-    let mut map = SIGNED_IN.locked();
-    map.retain(|(h, _)| h != id);
-    if let Some(ok) = state {
-        map.push((id.to_owned(), ok));
-    }
-}
-
-/// Re-checks every installed harness that can report its sign-in state.
-pub async fn refresh_sign_in() {
-    let checks = HARNESSES.iter().filter_map(|h| {
-        let check = h.signed_in?;
-        let bin = h.bins.iter().find_map(|b| which(b))?;
-        Some(async move {
-            let run = tokio::process::Command::new(bin)
-                .args(check.args.split_whitespace())
-                .stdin(std::process::Stdio::null())
-                .stderr(std::process::Stdio::null())
-                .kill_on_drop(true)
-                .output();
-            let ok = match tokio::time::timeout(Duration::from_secs(15), run).await {
-                Ok(Ok(out)) => Some((check.ok)(out.status.success(), &String::from_utf8_lossy(&out.stdout))),
-                Ok(Err(e)) => {
-                    tracing::info!(backend = h.id, error = %e, "sign-in check failed");
-                    None
-                }
-                Err(_) => None,
-            };
-            (h.id, ok)
-        })
-    });
-    let results = futures::future::join_all(checks).await;
-    for (id, ok) in results {
-        set_signed_in(id, ok);
-    }
 }
 
 /// `program` is some other harness's CLI (not `backend`'s own).

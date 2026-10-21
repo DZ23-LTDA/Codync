@@ -81,6 +81,27 @@ textarea.field-box {
   user-select: text;
 }
 
+/* Fallbacks in the Agent card (Fallbacks.tsx). */
+.fallback-switch-back {
+  flex: none;
+  white-space: nowrap;
+}
+/* The step the bot is on: the chosen-chip capsule. */
+.fallback-chip {
+  flex: none;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  background: var(--chip-on);
+  box-shadow: var(--chip-shadow);
+  white-space: nowrap;
+}
+.fallback-menu {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-s);
+}
+
 /* Folder picker (FolderPicker). */
 .folder-back {
   padding-left: 10px;

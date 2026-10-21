@@ -29,6 +29,10 @@ public struct Bot: Codable, Identifiable, Hashable, Sendable {
     /// or `refused` (it turned it off; `fastModeIssue` says why).
     public var fastModeSupport: String = "unknown"
     public var fastModeIssue: String?
+    /// Agents that carry on, in order, when the bot's own can't answer (`AgentFallback.swift`). Nil from an older host.
+    public var fallbacks: [BotFallback]?
+    /// The bot may set its own fallbacks. Nil from an older host.
+    public var selfFallbacks: Bool?
     public var pinned: Bool
     /// Where the user dragged it, lowest first (after pinned bots); ties sort by recent activity.
     public var position: Int = 0
@@ -61,6 +65,10 @@ public struct Bot: Codable, Identifiable, Hashable, Sendable {
     public var startedAt: Int64?
     /// Where the running turn talks: the bot's own chat, or a group.
     public var workingChat: String?
+    /// The fallback it runs on; nil on its own agent.
+    public var agentStep: AgentStep?
+    /// Agents of its chain resting now.
+    public var resting: [AgentRest] = []
     public var unread: Int
     public var lastMessage: String?
     public var lastAt: Int64
@@ -361,6 +369,9 @@ public struct BotDraft: Codable, Hashable, Sendable {
     public var model: String?
     public var modelOptions: [String: String] = [:]
     public var fastMode: Bool?
+    /// Nil where the host has none (an older one), so it isn't sent.
+    public var fallbacks: [BotFallback]?
+    public var selfFallbacks: Bool?
     public var pinned: Bool?
     public var hidden: Bool?
     public var notify: Bool?
@@ -398,6 +409,8 @@ public struct BotDraft: Codable, Hashable, Sendable {
         model = bot.model
         modelOptions = bot.modelOptions
         fastMode = bot.fastMode
+        fallbacks = bot.fallbacks
+        selfFallbacks = bot.selfFallbacks
         pinned = bot.pinned
         hidden = bot.hidden
         notify = bot.notify
@@ -417,8 +430,9 @@ public struct BotDraft: Codable, Hashable, Sendable {
         }
         follow(\.name); follow(\.description); follow(\.avatarColor); follow(\.avatarShape); follow(\.backend)
         follow(\.command); follow(\.cwd); follow(\.permission); follow(\.model); follow(\.modelOptions)
-        follow(\.fastMode); follow(\.pinned); follow(\.hidden); follow(\.notify); follow(\.connectors)
-        follow(\.skills); follow(\.computer); follow(\.manageTeam); follow(\.sharedMemory); follow(\.harnessMemory)
+        follow(\.fastMode); follow(\.fallbacks); follow(\.selfFallbacks); follow(\.pinned); follow(\.hidden)
+        follow(\.notify); follow(\.connectors); follow(\.skills); follow(\.computer); follow(\.manageTeam)
+        follow(\.sharedMemory); follow(\.harnessMemory)
         return draft
     }
 }
@@ -448,6 +462,9 @@ extension Bot {
         fastMode = try c.decodeIfPresent(Bool.self, forKey: .fastMode) ?? false
         fastModeSupport = try c.decodeIfPresent(String.self, forKey: .fastModeSupport) ?? "unknown"
         fastModeIssue = try c.decodeIfPresent(String.self, forKey: .fastModeIssue)
+        // A chain that doesn't decode stays unknown (nil), so saving the settings never sends an empty one.
+        fallbacks = try? c.decodeIfPresent([BotFallback].self, forKey: .fallbacks)
+        selfFallbacks = try? c.decodeIfPresent(Bool.self, forKey: .selfFallbacks)
         pinned = try c.decodeIfPresent(Bool.self, forKey: .pinned) ?? false
         position = try c.decodeIfPresent(Int.self, forKey: .position) ?? 0
         hidden = try c.decodeIfPresent(Bool.self, forKey: .hidden) ?? false
@@ -467,6 +484,8 @@ extension Bot {
         activity = try c.decodeIfPresent(String.self, forKey: .activity) ?? ""
         startedAt = try c.decodeIfPresent(Int64.self, forKey: .startedAt)
         workingChat = try c.decodeIfPresent(String.self, forKey: .workingChat)
+        agentStep = try? c.decodeIfPresent(AgentStep.self, forKey: .agentStep)
+        resting = (try? c.decodeIfPresent([AgentRest].self, forKey: .resting)) ?? []
         unread = try c.decodeIfPresent(Int.self, forKey: .unread) ?? 0
         lastMessage = try c.decodeIfPresent(String.self, forKey: .lastMessage)
         lastAt = try c.decodeIfPresent(Int64.self, forKey: .lastAt) ?? createdAt

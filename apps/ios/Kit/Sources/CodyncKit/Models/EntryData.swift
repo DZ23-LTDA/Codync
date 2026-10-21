@@ -11,6 +11,12 @@ public struct EntryData: Codable, Hashable, Sendable {
     public var handoff: HandoffCard?
     public var routineId: String?
     public var runId: String?
+    /// notice: a failed routine run the user can run again (`retryRoutineRun`).
+    public var retry: Bool?
+    /// notice: the bot moved to another agent of its chain, or back to its own.
+    public var agentSwitch: AgentSwitch?
+    /// notice (error): the bot has no fallbacks and its agent ran out of usage or was rate limited: offer to add one.
+    public var addFallback: Bool?
     public var text: String?
     public var final: Bool?
     /// user: queued | sent | cancelled | failed · tool: pending | in_progress | completed | failed · permission: pending | answered | cancelled | expired

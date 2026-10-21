@@ -51,7 +51,6 @@ impl App {
             },
             Overlay::Market(m) => Some(&mut m.query),
             Overlay::Fields(f) => f.current().map(|i| &mut i.ed),
-            Overlay::Memory(m) => m.editor(),
             Overlay::Routine(f) => Some(match f.field {
                 super::super::manage::RoutineField::Name => &mut f.name,
                 super::super::manage::RoutineField::Instruction => &mut f.instruction,
@@ -193,6 +192,7 @@ impl App {
             KeyCode::Char('u') if ctrl => self.scroll_focused(half),
             KeyCode::Char('q') => self.quit = true,
             KeyCode::Char('C') => self.open_connection(),
+            KeyCode::Char('F') => self.retry_failed_run(),
             KeyCode::Char('I') if self.error.is_some() && self.bots.is_empty() => self.install_host(),
             KeyCode::Char('?') => self.overlays.push(Overlay::Help(Editor::default())),
             KeyCode::Char('!') => self.jump(Mark::Need),
