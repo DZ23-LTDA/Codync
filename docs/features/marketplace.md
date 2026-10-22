@@ -11,6 +11,16 @@ The desktop and iPhone installed count is labeled **Connectors & skills**, and o
 | Connected apps | `host/src/market/composio.rs` | Expose connected Composio apps as connectors |
 | Skills | `host/src/market/skills.rs` | Instruction folders containing `SKILL.md`, stored under `~/.codync/skills/<id>`; on for every bot unless a bot turns it off |
 
+Composio Connect is featured in Connectors through the official MCP Registry
+(`io.github.ComposioHQ/composio`, `https://connect.composio.dev/mcp`). Install it
+and sign in with the shared MCP OAuth flow; no Platform API key is needed.
+The agent discovers and connects apps through Composio's hosted tools. For
+manual header authentication, add the endpoint as a custom connector with
+`x-consumer-api-key: ck_…`. Consumer keys are not interchangeable with Platform
+project keys (`ak_…`, sent as `x-api-key`), which the separate Apps shelf uses.
+All clients render the host's connector catalog and use its existing sign-in
+flow; this integration needs no client-specific controls.
+
 Install runs the CLI's own native installer where it has one, on Windows too (Claude Code, Codex, Grok, Qwen, Droid, Qoder, Cursor…, `Install` in `backends.rs`); CLIs published only on npm (Gemini, Cline, Auggie, Kilo…) install with `codync-host npm install -g <package>`, npm on the computer's own Node or else on Codync's. A CLI with its own ACP mode then runs as installed, without Node.js. Refreshing the agents re-reads the PATH a fresh login would get (the login shell's; on Windows the user's and machine's PATH from the registry), so a CLI found by an installer that just ran shows up without restarting the host. Many agents' ACP adapters run through `npx` (Claude, Codex, Gemini, Qwen…). On a computer without Node.js, the agent list marks each of them `node: "missing"` (only then is the field there; `added` once Codync's copy is in place) and they aren't available; Extensions shows one *Add Node.js* notice above the agents, each such agent reads *Needs Node.js*, and its setup sheet gets a Node.js step between Install and Sign in. Adding it (`agentSetup {step: "node"}`, a setup terminal running `codync-host node`) downloads the official Node.js of a pinned version (`VERSION` and SHA-256s in `node.rs`) once into `~/.codync/node/<version>`; npm installs with it go to `~/.codync/node/global`. Both folders come last on the agent search path, so the computer's own Node and CLIs always win, and nothing outside `~/.codync` changes. Linux builds of Node need glibc: on musl distros (Alpine) install Node.js yourself.
 
 The Connectors shelf opens with a short featured list, then pages through the whole MCP Registry (`marketConnectors {search, cursor}` → `{items, nextCursor}`, 60 metadata records per API page; the UI initially shows 12 and reveals another 12 only when *Load more connectors* is pressed). Apps through Composio use the same 12-at-a-time display with *Load more apps*. Searching resets the visible batch; late responses from an older search are ignored. Scrolling never triggers another catalog fetch. Listed: stdio npm/PyPI/OCI/NuGet packages (the registry's runtime and package arguments become inputs) and streamable-HTTP or SSE remotes (URL `{variables}` become inputs). Not listed: MCPB bundles and packages that serve HTTP locally; add those as a custom connector.
