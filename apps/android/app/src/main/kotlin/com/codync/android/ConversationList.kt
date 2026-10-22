@@ -6,6 +6,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.foundation.interaction.DragInteraction
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
@@ -58,14 +59,15 @@ import kotlinx.coroutines.launch
 }
 
 /** Stays on the newest message until the reader scrolls away; scrolling back down follows again. */
-@Composable private fun rememberFollowing(list: LazyListState, last: String?, rev: Long?, working: Boolean, bottom: Dp): MutableState<Boolean> {
+@Composable internal fun rememberFollowing(list: LazyListState, last: String?, rev: Long?, working: Boolean, bottom: Dp): MutableState<Boolean> {
     val following = remember { mutableStateOf(true) }
+    // The reader's drag and its fling, until it settles: a new step never pulls it back down meanwhile.
+    val touched = remember { mutableStateOf(false) }
     LaunchedEffect(list) {
         // Only the reader's own scroll decides: new content arriving (even while Codync is in the background) keeps the follow.
-        var touched = false
-        launch { list.interactionSource.interactions.collect { if (it is DragInteraction.Start) touched = true } }
+        launch { list.interactionSource.interactions.collect { if (it is DragInteraction.Start) touched.value = true } }
         snapshotFlow { list.isScrollInProgress }.collect { scrolling ->
-            if (!scrolling && touched) { touched = false; following.value = !list.canScrollForward }
+            if (!scrolling && touched.value) { touched.value = false; following.value = !list.canScrollForward }
         }
     }
     LaunchedEffect(Unit) {
@@ -74,7 +76,7 @@ import kotlinx.coroutines.launch
     }
     // A new message, or the box growing (keyboard, more lines): stay on the newest.
     LaunchedEffect(last, rev, working, bottom) {
-        if (following.value && list.layoutInfo.totalItemsCount > 0) list.scrollToEnd(animated = true)
+        if (following.value && !touched.value && list.layoutInfo.totalItemsCount > 0) list.scrollToEnd(animated = true)
     }
     return following
 }
@@ -82,7 +84,12 @@ import kotlinx.coroutines.launch
 private suspend fun LazyListState.scrollToEnd(animated: Boolean) {
     val count = layoutInfo.totalItemsCount
     if (count == 0) return
-    if (animated) animateScrollToItem(count - 1)
+    if (animated) {
+        // Glide the rest of the way down: a last item taller than the viewport would otherwise scroll back up to its top.
+        val end = layoutInfo.visibleItemsInfo.lastOrNull()?.takeIf { it.index == count - 1 }
+        if (end == null) animateScrollToItem(count - 1)
+        else animateScrollBy((end.offset + end.size + layoutInfo.afterContentPadding - layoutInfo.viewportEndOffset).coerceAtLeast(0).toFloat())
+    }
     scrollToItem(count - 1, Int.MAX_VALUE)
 }
 

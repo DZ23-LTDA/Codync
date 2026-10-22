@@ -365,7 +365,7 @@ const Transcript = memo(function Transcript({ botId, openTrace, onReply, openRou
           ))}
           {bot && live ? (
             <div className={arrivals.has('working') ? 'chat-working row-in' : 'chat-working'}>
-              <WorkingIndicator bot={bot} thinking={store.currentThinking(botId)} />
+              <WorkingIndicator bot={bot} openTrace={openTrace} />
             </div>
           ) : null}
           <div className="chat-end" />

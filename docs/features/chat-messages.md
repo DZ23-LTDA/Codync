@@ -64,7 +64,10 @@ it has no pointer tooltip or link-opening action.
 
 The working line under the last message shows the bot's activity; composing a `send_message`
 reads as **Typing…** (`activity()` in `agent/bot.rs`). Thoughts and tool calls stay in the
-Full conversation sheet.
+Full conversation sheet. The working line ends in a `chevron.right` and opens that sheet, which
+follows the run: it stays at the end while new steps arrive (until the reader scrolls up), and
+the running turn's thoughts start unfolded (finished turns' stay folded). The terminal UI says
+"N steps so far · t shows them live" under its working line instead.
 
 ## Motion and scrolling
 

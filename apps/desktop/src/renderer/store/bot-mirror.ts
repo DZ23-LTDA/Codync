@@ -137,17 +137,6 @@ export class BotMirror extends Observable {
     return (id && this.bots.get(id)?.name) || 'A deleted bot'
   }
 
-  /** The latest thinking of the turn running in a chat. */
-  currentThinking(botId: string) {
-    const list = this.allEntries(botId)
-    for (let i = list.length - 1; i >= 0; i--) {
-      const e = list[i]!
-      if (e.kind === 'user' || (e.kind === 'agent' && e.data.final === true)) return null
-      if (e.kind === 'thought' && e.data.text) return e.data.text
-    }
-    return null
-  }
-
   get connectionLabel() {
     switch (this.shownConnection.kind) {
       case 'online':

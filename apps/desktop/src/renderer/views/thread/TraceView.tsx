@@ -1,5 +1,5 @@
 import { useLayoutEffect, useRef, useState } from 'react'
-import type { Entry, EntryData } from '@shared/models'
+import { isWorkingIn, type Entry, type EntryData } from '@shared/models'
 import { CardSection, Disclosure } from '../../components/Controls'
 import { Icon } from '../../components/Icon'
 import { ModalHeader, SheetPage } from '../../components/Overlay'
@@ -20,20 +20,32 @@ import './trace.css'
 export function TraceView({ botId }: { botId: string }) {
   const store = useStore()
   useScreenViewed('trace')
+  const all = store.allEntries(botId)
   const turns = new Map<number, Entry[]>()
-  for (const e of store.allEntries(botId)) {
+  for (const e of all) {
     turns.set(e.turn, [...(turns.get(e.turn) ?? []), e])
   }
   const sorted = [...turns.entries()].sort((a, b) => a[0] - b[0])
+  // The turn running now (a queued message already holds the next one): its thoughts start unfolded.
+  const bot = store.bots.get(botId)
+  const running = bot && isWorkingIn(bot, botId)
+    ? all.reduce((t, e) => (e.data.status === 'queued' ? t : Math.max(t, e.turn)), -1)
+    : undefined
   const scroller = useRef<HTMLDivElement>(null)
+  // Opens at the end and follows new steps there until the reader scrolls up.
+  const atEnd = useRef(true)
   useLayoutEffect(() => {
     const el = scroller.current
-    if (el) el.scrollTop = el.scrollHeight
-  }, [])
+    if (el && atEnd.current) el.scrollTop = el.scrollHeight
+  })
+  const onScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const el = e.currentTarget
+    atEnd.current = el.scrollHeight - el.scrollTop - el.clientHeight < 8
+  }
   return (
     <SheetPage>
       <ModalHeader title="Full conversation" />
-      <div ref={scroller} className="thread-scroll">
+      <div ref={scroller} className="thread-scroll" onScroll={onScroll}>
         <VStack gap={14} className="trace-content">
           {sorted.length === 0 ? <Text tone="tertiary">Nothing yet.</Text> : null}
           {sorted.map(([turn, entries]) => (
@@ -43,7 +55,7 @@ export function TraceView({ botId }: { botId: string }) {
               </Text>
               <CardSection>
                 {entries.map((e) => (
-                  <TraceRow key={e.id} entry={e} />
+                  <TraceRow key={e.id} entry={e} unfolded={turn === running} />
                 ))}
               </CardSection>
             </VStack>
@@ -64,8 +76,9 @@ function Label({ icon, weight, tone, children }: { icon: React.ReactNode; weight
   )
 }
 
-function TraceRow({ entry }: { entry: Entry }) {
-  const [expanded, setExpanded] = useState(false)
+/** The running turn's thoughts start `unfolded`, so its reasoning reads as it comes in. */
+function TraceRow({ entry, unfolded }: { entry: Entry; unfolded: boolean }) {
+  const [expanded, setExpanded] = useState(unfolded)
   const d = entry.data
   switch (entry.kind) {
     case 'user':

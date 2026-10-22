@@ -3,7 +3,6 @@ package com.codync.android
 import android.content.ClipData
 import android.content.ClipboardManager
 import androidx.compose.animation.animateContentSize
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -13,14 +12,11 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.selection.SelectionContainer
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -32,7 +28,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
@@ -361,26 +356,20 @@ internal val Entry.botReactions: Map<String, List<String>> get() =
 
 /**
  * The bot's live activity line: a turning orb, what it's doing and for how long. Tapping it
- * unfolds what the bot is thinking right now.
+ * opens Full conversation, where its thinking and steps come in as it works.
  */
-@Composable internal fun WorkingIndicator(bot: Bot, thinking: String?) {
-    var expanded by remember { mutableStateOf(false) }
+@Composable internal fun WorkingIndicator(bot: Bot, openTrace: () -> Unit) {
     val needs = bot.status == "needsInput"
-    val turn by animateFloatAsState(if (expanded) 180f else 0f, Motion.layout(), label = "Thinking")
     Row(Modifier.fillMaxWidth().padding(top = 6.dp, end = 40.dp)) {
-        Column(Modifier.clip(RoundedRectangle(18.dp)).background(Palette.bubbleAgent)
-            .clickable(enabled = thinking != null, role = Role.Button) { expanded = !expanded }
-            .animateContentSize(Motion.layoutSize).padding(horizontal = 16.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                ThinkingOrb(if (needs) ThinkingOrbState.Listening else ThinkingOrbState.Working, 16.dp, if (needs) Palette.warning else Palette.secondary)
-                Text(bot.activity.ifEmpty { "Working…" }, Modifier.weight(1f, fill = false), style = Type.subheadline,
-                    color = if (needs) Palette.warning else Palette.secondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                bot.startedAt?.let { Elapsed(it) }
-                if (thinking != null) Symbol("chevron.down", Modifier.rotate(turn), size = 12.dp, tint = Palette.tertiary)
-            }
-            if (expanded && thinking != null) Box(Modifier.heightIn(max = 180.dp).verticalScroll(rememberScrollState(Int.MAX_VALUE))) {
-                SelectionContainer { Text(thinking, style = Type.footnote, color = Palette.secondary) }
-            }
+        Row(Modifier.clip(RoundedRectangle(18.dp)).background(Palette.bubbleAgent)
+            .clickable(role = Role.Button, onClickLabel = "Show what it's doing", onClick = openTrace)
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            ThinkingOrb(if (needs) ThinkingOrbState.Listening else ThinkingOrbState.Working, 16.dp, if (needs) Palette.warning else Palette.secondary)
+            Text(bot.activity.ifEmpty { "Working…" }, Modifier.weight(1f, fill = false), style = Type.subheadline,
+                color = if (needs) Palette.warning else Palette.secondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            bot.startedAt?.let { Elapsed(it) }
+            Symbol("chevron.right", size = 12.dp, tint = Palette.tertiary)
         }
     }
 }
@@ -392,16 +381,6 @@ internal val Entry.botReactions: Map<String, List<String>> get() =
     val seconds = maxOf(0, (now - startedAt) / 1000)
     Text(if (seconds >= 3600) "%d:%02d:%02d".format(seconds / 3600, seconds / 60 % 60, seconds % 60) else "%d:%02d".format(seconds / 60, seconds % 60),
         style = Type.footnote.monospacedDigit, color = Palette.tertiary)
-}
-
-/** The latest thinking of the turn running in a chat. */
-internal fun currentThinking(entries: List<Entry>, botId: String): String? {
-    for (e in entries.asReversed()) {
-        if (e.botId != botId) continue
-        if (e.kind == "user" || (e.kind == "agent" && e.data["final"]?.jsonPrimitive?.booleanOrNull == true)) return null
-        if (e.kind == "thought" && e.text.isNotEmpty()) return e.text
-    }
-    return null
 }
 
 /** The start of an empty chat: who the bot is and how it works. */

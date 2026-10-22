@@ -326,27 +326,13 @@
 }
 .working {
   display: flex;
+  /* A column stretches the row to the pill's width, so a long activity truncates. */
   flex-direction: column;
-  gap: 8px;
   padding: 12px;
   border-radius: var(--radius-xl);
   background: var(--bubble-agent);
   text-align: left;
   min-width: 0;
-}
-.working-chevron {
-  transition: transform var(--layout);
-}
-.working-chevron.expanded {
-  transform: rotate(180deg);
-}
-.thinking {
-  max-height: 180px;
-  overflow-y: auto;
-  white-space: pre-wrap;
-  text-align: left;
-  font-size: var(--text-caption);
-  color: var(--secondary);
 }
 
 .call-overlay {

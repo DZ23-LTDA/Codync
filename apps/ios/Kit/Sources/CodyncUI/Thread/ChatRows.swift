@@ -256,72 +256,37 @@ struct NoticeRow: View {
 }
 
 /// The bot's live activity line: a turning orb, what it's doing and for how long. Tapping it
-/// unfolds what the bot is thinking right now (the whole trace stays in "Full conversation").
+/// opens Full conversation, where its thinking and steps come in as it works.
 struct WorkingIndicator: View {
     let bot: Bot
-    /// The running turn's latest thinking, if the agent shares it.
-    var thinking: String?
-    @State private var expanded = false
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    let openTrace: () -> Void
 
     var body: some View {
         HStack(alignment: .center, spacing: 10) {
-            Button {
-                withAnimation(Motion.reduced(Motion.layout, reduceMotion)) { expanded.toggle() }
-            } label: {
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack(spacing: 8) {
-                        ThinkingOrb(state: bot.needsInput ? .listening : .working, size: 16, color: bot.needsInput ? Palette.warning : Palette.secondary)
-                        Text(bot.activity.isEmpty ? "Working…" : bot.activity)
-                            .font(.subheadline)
-                            .foregroundStyle(bot.needsInput ? Palette.warning : Palette.secondary)
-                            .lineLimit(1)
-                        if let started = bot.startedAt {
-                            Text(Date(milliseconds: started), style: .timer)
-                                .font(.footnote.monospacedDigit())
-                                .foregroundStyle(Palette.tertiary)
-                        }
-                        if thinking != nil {
-                            Image(systemName: "chevron.down")
-                                .font(.caption2.weight(.semibold))
-                                .foregroundStyle(Palette.tertiary)
-                                .rotationEffect(.degrees(expanded ? 180 : 0))
-                        }
+            Button(action: openTrace) {
+                HStack(spacing: 8) {
+                    ThinkingOrb(state: bot.needsInput ? .listening : .working, size: 16, color: bot.needsInput ? Palette.warning : Palette.secondary)
+                    Text(bot.activity.isEmpty ? "Working…" : bot.activity)
+                        .font(.subheadline)
+                        .foregroundStyle(bot.needsInput ? Palette.warning : Palette.secondary)
+                        .lineLimit(1)
+                    if let started = bot.startedAt {
+                        Text(Date(milliseconds: started), style: .timer)
+                            .font(.footnote.monospacedDigit())
+                            .foregroundStyle(Palette.tertiary)
                     }
-                    if expanded, let thinking {
-                        ScrollView {
-                            Text(thinking)
-                                .font(.footnote)
-                                .foregroundStyle(Palette.secondary)
-                                .textSelection(.enabled)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                        }
-                        .defaultScrollAnchor(.bottom)
-                        .frame(maxHeight: 180)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .transition(.opacity)
-                    }
+                    Image(systemName: "chevron.right")
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(Palette.tertiary)
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 12)
                 .background(Palette.bubbleAgent, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
             }
             .buttonStyle(.plain)
-            .disabled(thinking == nil)
-            .accessibilityHint(thinking == nil ? "" : expanded ? "Hides its thinking" : "Shows its thinking")
+            .accessibilityHint("Shows what it's doing")
             Spacer(minLength: 40)
         }
-    }
-}
-
-extension BotStore {
-    /// The latest thinking of the turn running in a chat: the newest thought since the last message.
-    func currentThinking(_ botId: String) -> String? {
-        for e in chat(botId).reversed() {
-            if e.kind == "user" || (e.kind == "agent" && e.data.final == true) { return nil }
-            if e.kind == "thought", let text = e.data.text, !text.isEmpty { return text }
-        }
-        return nil
     }
 }
 
