@@ -187,3 +187,28 @@ the held mascot worktree's development app remains available until its push.
   success. This is Android's queued context handoff; iOS awaits its own transition.
 - A memory-layer fullness finding from the pre-#194 comparison is being checked by
   the original memory owner before #195 merges. CI/review are not bypassed.
+
+## Final renewal review fix
+
+Adopted the memory owner's `019b4876` implementation, including per-layer prompt
+labels and codync-mem 0.3.1, instead of the equivalent local draft. Android's queued
+approval fix is pushed as `fb82a9d1`.
+
+Explicit renewal now cancels and joins any earlier negotiation before revoking this
+phone's grants and requesting replacement access. iOS also withdraws failed/cancelled
+nonce exchanges and logs cleanup failures while retaining the original error. Normal
+repeated requests still join or ignore the active negotiation.
+
+Three narrow reviews found no correctness/refactor defect. The completeness review's
+optional cleanup-completion coverage suggestion was verified as nonblocking. Android
+now has a NonCancellable cleanup barrier proving replacement waits for cleanup; its
+updated APK and targeted emulator test pass. iOS retains its passing endpoint-order
+regression (old request DELETE, own grant DELETE, replacement POST); a more elaborate
+URLProtocol completion barrier is not added. iOS tests pass 2/2, Android unit/build
+checks and two initial targeted emulator cases pass, and the hardened test passes
+1/1. A baseline iOS run failed until nonce cancellation cleanup was implemented.
+Test devices were stopped; the preexisting iPad was untouched.
+
+The speech/keyboard/module-size comments from the old pre-#194 comparison were
+independently verified to concern files identical to current main; they were resolved
+as outside this PR's current scope, not represented as fixed.

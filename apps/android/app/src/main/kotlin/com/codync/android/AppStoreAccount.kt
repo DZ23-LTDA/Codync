@@ -63,7 +63,17 @@ fun AppStore.refreshCloud() = action("cloud") {
 /** A pull to refresh: the account's computers, joining a refresh already under way. */
 suspend fun AppStore.refreshComputers() { refreshCloud(); actions["cloud"]?.join() }
 
-fun AppStore.requestAccess(target: CloudComputer, renew: Boolean = false) = action("access") {
+fun AppStore.requestAccess(target: CloudComputer, renew: Boolean = false) {
+    if (renew) {
+        action("renewAccess") {
+            // Await cancellation cleanup before replacing this phone's grant and request.
+            actions["access"]?.cancelAndJoin()
+            startAccess(target, renew = true)
+        }
+    } else startAccess(target, renew = false)
+}
+
+private fun AppStore.startAccess(target: CloudComputer, renew: Boolean) = action("access") {
     mutableState.update { it.copy(askingAccess = target.computerId) }
     try { askForAccess(target, renew) } finally { mutableState.update { it.copy(askingAccess = null) } }
 }

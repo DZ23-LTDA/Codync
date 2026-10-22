@@ -164,18 +164,23 @@ public final class AccountStore {
     /// Asks the computer for access; the code arrives in `pendingAccess`, where it must match the one
     /// the computer shows. The request runs here, not in the caller: it outlives a closed sheet, so the
     /// computer never waits on a request nobody reveals, and asking again while it runs joins it
-    /// instead of committing a second one.
+    /// instead of committing a second one. Explicit renewal cancels and joins that request first.
     /// Approval is then picked up in the background and the computer joins `stores`.
     public func requestAccess(_ id: ComputerID, renew: Bool = false) async throws {
-        if let ask = asks[id], !ask.isCancelled {
+        if !renew, let ask = asks[id], !ask.isCancelled {
             _ = try await ask.value
             return
         }
         guard let cloud, let target = cloudComputers.first(where: { $0.computerId == id }) else {
             throw CloudError(status: 404, code: "notFound", message: "That computer isn't in your account.")
         }
+        let previous = asks[id]
         accessPolls[id]?.cancel()
+        if renew { previous?.cancel() }
         let ask = Task {
+            // Finish cancellation cleanup before revoking and creating the replacement.
+            if renew, let previous { _ = await previous.result }
+            try Task.checkCancellation()
             if renew { try await cloud.revokeDeviceAccess(id) }
             return try await cloud.requestAccess(id, signKey: target.signKey)
         }

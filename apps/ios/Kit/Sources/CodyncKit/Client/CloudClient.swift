@@ -1,4 +1,5 @@
 import Foundation
+import os
 
 /// An error from the Codync cloud: `{"error":{"code","message"}}`.
 public struct CloudError: LocalizedError, Sendable, Equatable {
@@ -107,25 +108,37 @@ public struct CloudClient: Sendable {
         struct Created: Decodable { var requestId: String; var expiresAt: Int64 }
         let created: Created = try await request("POST", "v1/computers/\(id)/access-requests", body: ["commit": commit], signed: true)
 
-        var hostNonce: Data?
-        while hostNonce == nil {
-            let status = try await accessStatus(created.requestId)
-            guard status.status == .pending else {
-                throw CloudError(status: 0, code: status.status == .expired ? "requestExpired" : status.status.rawValue, message: "The computer didn't take the request.")
-            }
-            if let raw = status.hostNonce {
-                guard let n = Data(base64URL: raw), n.count == 32 else { throw CloudError(status: 0, code: "badNonce", message: nil) }
-                hostNonce = n
-            } else {
-                guard Int64(Date.now.timeIntervalSince1970 * 1000) < created.expiresAt else {
-                    throw CloudError(status: 410, code: "requestExpired", message: nil)
+        do {
+            var hostNonce: Data?
+            while hostNonce == nil {
+                let status = try await accessStatus(created.requestId)
+                guard status.status == .pending else {
+                    throw CloudError(status: 0, code: status.status == .expired ? "requestExpired" : status.status.rawValue, message: "The computer didn't take the request.")
                 }
-                try await Task.sleep(for: pollInterval)
+                if let raw = status.hostNonce {
+                    guard let n = Data(base64URL: raw), n.count == 32 else { throw CloudError(status: 0, code: "badNonce", message: nil) }
+                    hostNonce = n
+                } else {
+                    guard Int64(Date.now.timeIntervalSince1970 * 1000) < created.expiresAt else {
+                        throw CloudError(status: 410, code: "requestExpired", message: nil)
+                    }
+                    try await Task.sleep(for: pollInterval)
+                }
             }
+            try await send("POST", "v1/access-requests/\(created.requestId)/reveal", body: ["nonce": nD.base64URL], signed: true)
+            let code = RelayCrypto.sasCode(hostSignKey: hostKey, deviceKey: identity.deviceKey, deviceNonce: nD, hostNonce: hostNonce ?? Data())
+            return AccessTicket(requestId: created.requestId, expiresAt: created.expiresAt, code: code, computerId: id, signKey: signKey)
+        } catch {
+            // Cancellation must finish withdrawing the old nonce exchange before renewal starts.
+            await Task.detached {
+                do { try await self.cancelAccess(created.requestId) }
+                catch {
+                    Logger(subsystem: "com.pokai.Codync", category: "Cloud").warning(
+                        "Access request cleanup failed: \(error.localizedDescription, privacy: .public)")
+                }
+            }.value
+            throw error
         }
-        try await send("POST", "v1/access-requests/\(created.requestId)/reveal", body: ["nonce": nD.base64URL], signed: true)
-        let code = RelayCrypto.sasCode(hostSignKey: hostKey, deviceKey: identity.deviceKey, deviceNonce: nD, hostNonce: hostNonce ?? Data())
-        return AccessTicket(requestId: created.requestId, expiresAt: created.expiresAt, code: code, computerId: id, signKey: signKey)
     }
 
     public func accessStatus(_ requestId: String) async throws -> AccessStatus {

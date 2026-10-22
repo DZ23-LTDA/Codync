@@ -18,6 +18,9 @@ import org.junit.Rule
 import org.junit.Test
 import java.io.File
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.withContext
 
 /** The account sheet and Computers & settings. Read-only: no test confirms a sign-out, route, removal or reset. */
 class AccountScreenTest {
@@ -256,6 +259,44 @@ class AccountScreenTest {
             release.complete(Unit)
         }
         compose.waitUntil { "session" !in store.state.value.busy }
+    }
+
+    @Test fun explicitRenewalReplacesANegotiatingAccessAction() {
+        lateinit var store: AppStore
+        var cancelled = false
+        val cleanupStarted = CompletableDeferred<Unit>()
+        val releaseCleanup = CompletableDeferred<Unit>()
+        compose.setContent { store = viewModel() }
+        compose.waitUntil { !store.state.value.loading }
+        val target = CloudComputer(computer.id, computer.name, computer.signKey, online = true, access = "granted")
+        compose.runOnUiThread {
+            store.cloud = null
+            store.action("access") {
+                try { awaitCancellation() } finally {
+                    withContext(NonCancellable) {
+                        cleanupStarted.complete(Unit)
+                        releaseCleanup.await()
+                        cancelled = true
+                    }
+                }
+            }
+            store.requestAccess(target)
+        }
+        compose.runOnIdle { assertFalse(cancelled) } // Ordinary repeated asks don't replace it.
+        compose.runOnUiThread { store.requestAccess(target, renew = true) }
+        compose.waitUntil { cleanupStarted.isCompleted }
+        compose.runOnIdle {
+            assertFalse(cancelled)
+            assertTrue("renewAccess" in store.state.value.busy)
+            assertNull(store.state.value.error) // Replacement hasn't reached the missing-cloud check.
+        }
+        compose.runOnUiThread { releaseCleanup.complete(Unit) }
+        compose.waitUntil { cancelled && "access" !in store.state.value.busy && "renewAccess" !in store.state.value.busy }
+        compose.runOnIdle {
+            // The replacement actually ran; merely cancelling the old job cannot produce this error.
+            assertEquals("Sign in to reach your account.", store.state.value.error)
+            assertNull(store.state.value.askingAccess)
+        }
     }
 
     private fun snapshot(name: String) {
