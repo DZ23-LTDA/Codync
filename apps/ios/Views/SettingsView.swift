@@ -252,9 +252,9 @@ private struct ComputerRow: View {
     @State private var voiceSettings = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 12) {
-                ComputerBadge(store.computer, size: 40)
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 10) {
+                ComputerBadge(store.computer, size: 32)
                 Text(store.hostName).font(.body.weight(.semibold)).foregroundStyle(Palette.text)
                     .frame(maxWidth: .infinity, alignment: .leading)
                 if inAccount != nil {
@@ -263,37 +263,28 @@ private struct ComputerRow: View {
                         .accessibilityLabel("In your account")
                 }
             }
-            HStack(alignment: .top, spacing: 4) {
-                Text(detail).fixedSize(horizontal: false, vertical: true)
-                if store.connection == .online { RouteIcon(route: store.hostRoute) }
-            }
-            .font(.subheadline)
-            .foregroundStyle(store.isOffline ? Palette.warning : Palette.secondary)
-            HStack(spacing: 8) {
-                if store.isOffline, let ask {
-                    Button(accounts.pendingAccess[store.computer.id] == nil ? "Ask for access" : "Show code", action: ask)
-                        .buttonStyle(.secondary)
-                }
-                if store.connection == .online {
-                    IconButton("Extensions", systemImage: "square.grid.2x2", action: openMarketplace)
-                    if store.screen != nil { IconButton("Screen", systemImage: "display", action: openScreen) }
-                }
-                Spacer(minLength: 0)
-                DropdownMenu {
-                    ConnectionRoute.allCases.map { route in
-                        MenuItem(route.title, icon: route.icon, selected: route == preference) {
-                            accounts.setRoute(store.computer.id, route)
-                        }
+            if store.connection == .online {
+                ViewThatFits(in: .horizontal) {
+                    HStack(spacing: 8) {
+                        connectionDetail.fixedSize()
+                        Spacer(minLength: 0)
+                        controls
                     }
-                } label: {
-                    Image(systemName: preference.icon)
-                        .font(.system(size: 18, weight: .medium))
-                        .foregroundStyle(Palette.secondary)
-                        .frame(width: 36, height: 36)
-                        .contentShape(Rectangle())
+                    VStack(alignment: .leading, spacing: 4) {
+                        connectionDetail
+                        controls.frame(maxWidth: .infinity, alignment: .trailing)
+                    }
                 }
-                .accessibilityLabel("Connection")
-                if stale, inAccount == nil { IconButton("Remove", systemImage: "trash", action: remove) }
+            } else {
+                connectionDetail
+                HStack(spacing: 8) {
+                    if store.isOffline, let ask {
+                        Button(accounts.pendingAccess[store.computer.id] == nil ? "Ask for access" : "Show code", action: ask)
+                            .buttonStyle(.secondary)
+                    }
+                    Spacer(minLength: 0)
+                    controls
+                }
             }
         }
         .padding(.vertical, 2)
@@ -329,6 +320,36 @@ private struct ComputerRow: View {
                 .shadow(color: .black.opacity(0.25), radius: 24, y: 10)
             }
             .accessibilityAddTraits(.isModal)
+        }
+    }
+
+    private var connectionDetail: some View {
+        Text(detail).font(.footnote)
+            .foregroundStyle(store.isOffline ? Palette.warning : Palette.secondary)
+            .fixedSize(horizontal: false, vertical: true)
+    }
+
+    private var controls: some View {
+        HStack(spacing: 4) {
+            if store.connection == .online {
+                IconButton("Extensions", systemImage: "square.grid.2x2", action: openMarketplace)
+                if store.screen != nil { IconButton("Screen", systemImage: "display", action: openScreen) }
+            }
+            DropdownMenu {
+                ConnectionRoute.allCases.map { route in
+                    MenuItem(route.title, icon: route.icon, selected: route == preference) {
+                        accounts.setRoute(store.computer.id, route)
+                    }
+                }
+            } label: {
+                Image(systemName: preference.icon)
+                    .font(.system(size: 18, weight: .medium))
+                    .foregroundStyle(Palette.secondary)
+                    .frame(width: 36, height: 36)
+                    .contentShape(Rectangle())
+            }
+            .accessibilityLabel("Connection")
+            if stale, inAccount == nil { IconButton("Remove", systemImage: "trash", action: remove) }
         }
     }
 

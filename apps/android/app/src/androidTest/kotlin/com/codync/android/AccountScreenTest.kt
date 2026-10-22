@@ -114,6 +114,7 @@ class AccountScreenTest {
         compose.onNodeWithText("Computers & settings").assertIsDisplayed()
         compose.onNode(hasText(computer.name) and hasClickAction()).assertIsDisplayed()
         compose.onNodeWithText("1 bot · Wi-Fi/Tailscale").assertIsDisplayed()
+        snapshot("computer-card")
         compose.onNodeWithContentDescription("Extensions").performClick()
         assertEquals(1, extensions)
         compose.onNodeWithText("Pair a computer").performClick()

@@ -142,3 +142,26 @@ The mascot worktree and its Electron test process remain available because the
 coordinated release hold prevents merge/push. Production Codync remains untouched.
 
 Phone source committed as `effa2091`; pre-commit Android checks passed. Desktop and phone source commits remain local, not merged/pushed, under the existing #194 release hold. No version bump was made while 2.22.0 is still pending; bump to the next patch before these source changes reach main.
+
+## Computer-card polish (23:40)
+
+- iOS and Android online cards now use a compact two-row layout: full computer name,
+  then connection summary and adjacent action buttons. Removed the redundant route
+  glyph. iOS falls back to stacked content when the summary and actions do not fit;
+  Android allows the summary to wrap. Offline explanations and access recovery stay.
+- Desktop and TUI are unaffected: neither uses this phone paired-computer card.
+- Three read-only reviews found no defects. iOS device/simulator builds pass;
+  Android compilation, unit tests and lint pass.
+- iOS Device Hub: paired a dedicated test host, checked the rendered card and opened
+  the Connection menu successfully. Android emulator: card controls and unreachable
+  account recovery pass (2 instrumentation tests); captured the rendered card.
+  API 36.1 test runner failed in Espresso's InputManager initialization; the same
+  checks pass on API 36. Enlarged-text/narrow-screen visual checks remain not run.
+- Installed the new card on iPhone 18 Pro Max. Automatic launch was blocked by the
+  phone being locked; installation itself succeeded.
+- PR #194 regression coverage is pushed separately as 62672102. Latest dev removed
+  inline thought previews in 2b0cf291, so coverage follows the remaining behavior:
+  420 ms exit retention/removal and cancelling removal during a restart. All 215
+  desktop tests and typecheck pass. Live desktop E2E could observe onboarding but
+  CUA failed to operate that Electron window (noWindowsAvailable), so it is not
+  recorded as passed. Other agents' uncommitted files were preserved during rebase.

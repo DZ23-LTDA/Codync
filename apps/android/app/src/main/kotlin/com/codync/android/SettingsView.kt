@@ -184,7 +184,6 @@ private class ComputerActions(val extensions: () -> Unit, val screen: () -> Unit
     val link = state.connection
     val online = link is LinkState.Ready
     val viewable = online && state.screen != null
-    val stale = state.isStale
     val detail = if (link is LinkState.Ready) {
         val count = state.bots.count { !it.deleted && it.kind != "group" }
         "$count bot${if (count == 1) "" else "s"} · ${if (link.route == HostRoute.Direct) "Wi-Fi/Tailscale" else "Cloudflare"}"
@@ -198,31 +197,44 @@ private class ComputerActions(val extensions: () -> Unit, val screen: () -> Unit
             actions.revoke?.let { MenuItem("Revoke this phone's access", icon = "lock.slash", destructive = true, divider = true, action = it) },
             if (!inAccount) MenuItem("Remove", icon = "trash", destructive = true, divider = actions.revoke == null, action = actions.remove) else null,
         )
-    }), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            ComputerBadge(state.hello?.text("device"), 40.dp, computer.color)
+    }), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            ComputerBadge(state.hello?.text("device"), 32.dp, computer.color)
             Text(state.hello?.text("name") ?: computer.name, Modifier.weight(1f), style = Type.body.semibold, color = Palette.text)
             if (inAccount) Symbol("person.crop.circle.badge.checkmark", size = 20.dp, tint = Palette.tertiary, contentDescription = "In your account")
         }
-        Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        if (online) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(detail, Modifier.weight(1f), style = Type.footnote, color = Palette.secondary)
+                ComputerControls(state, store, inAccount, actions)
+            }
+        } else {
             val ink = if (link is LinkState.ComputerOffline || link is LinkState.Failed) Palette.warning else Palette.secondary
-            Text(detail, Modifier.weight(1f, fill = false), style = Type.subheadline, color = ink)
-            if (link is LinkState.Ready) Symbol(if (link.route == HostRoute.Direct) "wifi" else "cloud", size = 14.dp, tint = ink,
-                contentDescription = if (link.route == HostRoute.Direct) "Wi-Fi or Tailscale" else "Through Cloudflare")
-        }
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            if ((link is LinkState.Failed || link is LinkState.ComputerOffline) && actions.ask != null) {
-                SecondaryButton(if (state.access?.computerId == computer.id) "Show code" else "Ask for access", action = actions.ask)
+            Text(detail, style = Type.footnote, color = ink)
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                if ((link is LinkState.Failed || link is LinkState.ComputerOffline) && actions.ask != null) {
+                    SecondaryButton(if (state.access?.computerId == computer.id) "Show code" else "Ask for access", action = actions.ask)
+                }
+                Spacer(Modifier.weight(1f))
+                ComputerControls(state, store, inAccount, actions)
             }
-            if (online) IconButton("Extensions", "square.grid.2x2", action = actions.extensions)
-            if (viewable) IconButton("Screen", "display", action = actions.screen)
-            Spacer(Modifier.weight(1f))
-            DropdownMenu({ ConnectionRoute.entries.map { route -> MenuItem(route.title, icon = route.icon, selected = route == computer.route) { store.setRoute(route) } } },
-                Modifier.size(36.dp), label = "Connection") {
-                Symbol(computer.route.icon, size = 21.dp, tint = Palette.secondary)
-            }
-            if (stale && !inAccount) IconButton("Remove", "trash", action = actions.remove)
         }
+    }
+}
+
+/** Keep the computer's actions together beside its connection summary. */
+@Composable private fun ComputerControls(state: AppState, store: AppStore, inAccount: Boolean, actions: ComputerActions) {
+    val computer = state.computers.first()
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        if (state.connection is LinkState.Ready) {
+            IconButton("Extensions", "square.grid.2x2", action = actions.extensions)
+            if (state.screen != null) IconButton("Screen", "display", action = actions.screen)
+        }
+        DropdownMenu({ ConnectionRoute.entries.map { route -> MenuItem(route.title, icon = route.icon, selected = route == computer.route) { store.setRoute(route) } } },
+            Modifier.size(36.dp), label = "Connection") {
+            Symbol(computer.route.icon, size = 21.dp, tint = Palette.secondary)
+        }
+        if (state.isStale && !inAccount) IconButton("Remove", "trash", action = actions.remove)
     }
 }
 
