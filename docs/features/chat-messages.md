@@ -63,11 +63,15 @@ it has no pointer tooltip or link-opening action.
 ## While it works
 
 The working line under the last message shows the bot's activity; composing a `send_message`
-reads as **Typing…** (`activity()` in `agent/bot.rs`). Thoughts and tool calls stay in the
-Full conversation sheet. The working line ends in a `chevron.right` and opens that sheet, which
-follows the run: it stays at the end while new steps arrive (until the reader scrolls up), and
-the running turn's thoughts start unfolded (finished turns' stay folded). The terminal UI says
-"N steps so far · t shows them live" under its working line instead.
+reads as **Typing…** (`activity()` in `agent/bot.rs`). Its chevron expands or collapses a plain-text
+preview in the conversation: only the latest nonempty `thought` entry from the running turn.
+Queued messages do not advance that turn. Until the agent shares text, the preview says
+“No thinking text yet.” Each new turn starts collapsed.
+
+Full conversation remains available from the conversation menu. It contains narration, all
+thoughts, tools and previous turns, and follows new steps until the reader scrolls up.
+On the terminal, click the activity row or press `>` to toggle the inline preview; `t` still
+opens Full conversation, and the working line retains the count of steps so far.
 
 ## Motion and scrolling
 
@@ -82,3 +86,8 @@ the running turn's thoughts start unfolded (finished turns' stay folded). The te
   below the turning arrow, then eases back. A pull that isn't full refreshes nothing. The desktop
   reconnects from the computer menu instead.
 - The terminal UI lists the same messages; its steps line goes under the turn's last message.
+
+- Electron keeps the activity row mounted during its 0.42 s exit and animates its height,
+  opacity and a small scale change together. The transition honors Reduce Motion and reverses
+  when work restarts during an exit. iPhone conversation insertion, removal and scrolling
+  keep their existing animations.

@@ -17,3 +17,9 @@ export function runningTurn(entries: Entry[], working: boolean): number | undefi
 export function scrolledToEnd(el: { scrollHeight: number; scrollTop: number; clientHeight: number }) {
   return el.scrollHeight - el.scrollTop - el.clientHeight < 8
 }
+
+/** A compact live preview never leaks thoughts from a previous turn or a queued request. */
+export function latestThought(entries: Entry[]): string | undefined {
+  const turn = runningTurn(entries, true)
+  return entries.findLast((e) => e.turn === turn && e.kind === 'thought' && e.data.text?.trim())?.data.text
+}

@@ -349,7 +349,8 @@ extension ThreadView {
         // Offline, "working" is only what the computer last said; don't show it as live.
         if let bot, working {
             rows.append(ConversationRow("working") {
-                WorkingIndicator(bot: bot) { showTrace = true }
+                WorkingIndicator(bot: bot, thought: TraceView.latestThought(model.chat(botId)))
+                    .id(bot.startedAt)
                     .padding(.top, 6)
             })
         }

@@ -74,6 +74,17 @@ import kotlinx.coroutines.launch
         snapshotFlow { list.layoutInfo.totalItemsCount }.first { it > 0 }
         list.scrollToEnd(animated = false)
     }
+    // The thinking disclosure can grow without a new chat entry. Follow its measured size,
+    // not its offset (scrolling itself changes offsets), and always yield to the reader.
+    LaunchedEffect(list) {
+        snapshotFlow {
+            val layout = list.layoutInfo
+            layout.visibleItemsInfo.lastOrNull()?.takeIf { it.index == layout.totalItemsCount - 1 }
+                ?.let { Triple(it.key, it.size, layout.viewportEndOffset - layout.viewportStartOffset) }
+        }.collect { size ->
+            if (size != null && following.value && !touched.value) list.scrollToEnd(animated = false)
+        }
+    }
     // A new message, or the box growing (keyboard, more lines): stay on the newest.
     LaunchedEffect(last, rev, working, bottom) {
         if (following.value && !touched.value && list.layoutInfo.totalItemsCount > 0) list.scrollToEnd(animated = true)

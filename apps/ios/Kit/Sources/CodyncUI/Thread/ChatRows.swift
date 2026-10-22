@@ -255,15 +255,18 @@ struct NoticeRow: View {
     }
 }
 
-/// The bot's live activity line: a turning orb, what it's doing and for how long. Tapping it
-/// opens Full conversation, where its thinking and steps come in as it works.
+/// The live activity unfolds just the current thinking text, right in the conversation.
 struct WorkingIndicator: View {
     let bot: Bot
-    let openTrace: () -> Void
+    let thought: String?
+    @State private var expanded = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
-        HStack(alignment: .center, spacing: 10) {
-            Button(action: openTrace) {
+        VStack(alignment: .leading, spacing: 0) {
+            Button {
+                withAnimation(Motion.reduced(Motion.layout, reduceMotion)) { expanded.toggle() }
+            } label: {
                 HStack(spacing: 8) {
                     ThinkingOrb(state: bot.needsInput ? .listening : .working, size: 16, color: bot.needsInput ? Palette.warning : Palette.secondary)
                     Text(bot.activity.isEmpty ? "Working…" : bot.activity)
@@ -276,6 +279,7 @@ struct WorkingIndicator: View {
                             .foregroundStyle(Palette.tertiary)
                     }
                     Image(systemName: "chevron.right")
+                        .rotationEffect(.degrees(expanded ? 90 : 0))
                         .font(.caption2.weight(.semibold))
                         .foregroundStyle(Palette.tertiary)
                 }
@@ -284,9 +288,27 @@ struct WorkingIndicator: View {
                 .background(Palette.bubbleAgent, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
             }
             .buttonStyle(.plain)
-            .accessibilityHint("Shows what it's doing")
-            Spacer(minLength: 40)
+            .accessibilityHint(expanded ? "Hide thinking" : "Show thinking")
+            .accessibilityValue(expanded ? "Expanded" : "Collapsed")
+            // Clip only the disclosure, so collapsing text cannot cross the status bubble.
+            VStack(alignment: .leading, spacing: 0) {
+                if expanded {
+                    Text(thought ?? "No thinking text yet.")
+                        .font(.footnote)
+                        .foregroundStyle(Palette.secondary)
+                        .textSelection(.enabled)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .padding(.horizontal, 16)
+                        .padding(.top, 10)
+                        .padding(.bottom, 4)
+                        .transition(.opacity)
+                }
+            }
+            .clipped()
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.trailing, 40)
     }
 }
 

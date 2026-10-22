@@ -317,6 +317,7 @@ pub enum Click {
     },
     Filter(usize),
     Composer,
+    Thinking,
     /// A bot-message row (entry id): opens the conversation.
     BotChat(String),
 }
