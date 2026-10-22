@@ -321,14 +321,14 @@
 .agent-inset {
   padding-right: 40px;
 }
-.chat-working, .working-thought {
+.chat-working {
   --working-duration: 0.42s;
   display: grid;
   grid-template-rows: 0fr;
   opacity: 0;
   transition: grid-template-rows var(--working-duration) var(--spring), opacity var(--working-duration) var(--ease-out);
 }
-.chat-working.shown, .working-thought.shown {
+.chat-working.shown {
   grid-template-rows: 1fr;
   opacity: 1;
 }
@@ -410,21 +410,11 @@
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .chat-working, .chat-working-content, .working-thought {
+  .chat-working, .chat-working-content {
     transition: none;
     transform: none;
   }
   .row-in {
     animation: fade-in 0.12s both;
   }
-}
-
-.working-thought {
-  width: 100%;
-}
-.working-thought-text {
-  padding: 10px 16px 4px;
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-  line-height: 1.5;
 }

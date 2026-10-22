@@ -76,16 +76,3 @@ import Testing
     #expect(TraceView.runningTurn(entries, working: true) == 1)
     #expect(TraceView.runningTurn(entries, working: false) == nil)
 }
-
-@Test func thinkingPreviewUsesOnlyLatestNonemptyThoughtInRunningTurn() {
-    func entry(_ text: String, turn: Int64, kind: String, status: String? = nil) -> Entry {
-        Entry(id: text, seq: 0, botId: "b", rev: 0, kind: kind, turn: turn,
-              data: EntryData(text: text, status: status), createdAt: 0, updatedAt: 0)
-    }
-    let entries = [entry("old", turn: 1, kind: "thought"), entry("latest", turn: 2, kind: "thought"),
-                   entry("  ", turn: 2, kind: "thought"), entry("tool", turn: 2, kind: "tool"),
-                   entry("queued", turn: 3, kind: "user", status: "queued")]
-    #expect(TraceView.latestThought(entries) == "latest")
-    #expect(TraceView.latestThought(entries + [entry("new", turn: 3, kind: "user")]) == nil)
-    #expect(TraceView.latestThought([]) == nil)
-}

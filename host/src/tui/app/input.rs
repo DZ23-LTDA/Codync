@@ -270,7 +270,6 @@ impl App {
             }
             KeyCode::Char('{') => self.step_turn(-1),
             KeyCode::Char('}') => self.step_turn(1),
-            KeyCode::Char('>') => self.toggle_thinking(),
             KeyCode::Char('t') => {
                 self.trace = if self.trace == TraceMode::Pane { TraceMode::Off } else { TraceMode::Pane };
                 if self.trace == TraceMode::Off && self.focus == Focus::Trace {
@@ -409,7 +408,6 @@ impl App {
                     }
                     Some(Click::Composer) => self.start_typing(),
                     Some(Click::BotChat(entry)) => self.open_bot_chat(&entry),
-                    Some(Click::Thinking) => self.toggle_thinking(),
                     None => {
                         if self.overlays.is_empty() {
                             if self.hits.trace.contains(at) {

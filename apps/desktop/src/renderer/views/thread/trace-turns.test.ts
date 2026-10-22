@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { latestThought, runningTurn, scrolledToEnd, traceTurns } from './trace-turns.ts'
+import { runningTurn, scrolledToEnd, traceTurns } from './trace-turns.ts'
 import type { Entry } from '../../../shared/models.ts'
 
 const entry = (id: string, turn: number, kind = 'agent', status?: string): Entry => ({
@@ -22,12 +22,4 @@ test('the trace follows new steps only while scrolled to the end', () => {
   assert.equal(scrolledToEnd({ scrollHeight: 1000, scrollTop: 600, clientHeight: 400 }), true)
   assert.equal(scrolledToEnd({ scrollHeight: 1000, scrollTop: 595, clientHeight: 400 }), true)
   assert.equal(scrolledToEnd({ scrollHeight: 1000, scrollTop: 500, clientHeight: 400 }), false)
-})
-
-test('thinking preview uses the latest nonempty thought in the active turn', () => {
-  const entries = [entry('old', 1, 'thought'), entry('first', 2, 'thought'), entry('latest', 2, 'thought'),
-    entry('  ', 2, 'thought'), entry('tool output', 2, 'tool'), entry('queued', 3, 'user', 'queued')]
-  assert.equal(latestThought(entries), 'latest')
-  assert.equal(latestThought([...entries, entry('new turn', 3, 'user')]), undefined)
-  assert.equal(latestThought([]), undefined)
 })

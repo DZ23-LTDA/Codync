@@ -20,13 +20,13 @@ import org.junit.Assert.assertFalse
 import org.junit.Rule
 import org.junit.Test
 
-class ThinkingPreviewTest {
+class WorkingIndicatorTest {
     @get:Rule val compose = createComposeRule()
 
-    @Test fun thinkingExpansionAndStreamingFollowTheBottomButLeaveHistoryInPlace() {
+    @Test fun activityIsNotClickableAndUpdatesWithoutMovingHistory() {
         // The live orb runs a frame loop; advance motion explicitly instead of waiting for it to stop.
         compose.mainClock.autoAdvance = false
-        val thought = mutableStateOf("First thinking line")
+        val activity = mutableStateOf("Working…")
         lateinit var list: LazyListState
         compose.setContent {
             Hosted {
@@ -34,19 +34,22 @@ class ThinkingPreviewTest {
                 rememberFollowing(list, "message", 1, working = true, bottom = 0.dp)
                 LazyColumn(Modifier.size(320.dp).testTag("conversation"), state = list, contentPadding = PaddingValues(0.dp)) {
                     items(30) { Box(Modifier.height(48.dp)) { Text("Message $it") } }
-                    item("working") { WorkingIndicator(Bot("bot", "Bot", status = "working"), thought.value) }
+                    item("working") { WorkingIndicator(Bot("bot", "Bot", status = "working", activity = activity.value)) }
                 }
             }
         }
         compose.mainClock.advanceTimeBy(1000)
         compose.waitForIdle()
-        compose.onNodeWithText("Working…").performClick()
-        compose.mainClock.advanceTimeBy(1000)
-        compose.onNodeWithText("First thinking line").assertIsDisplayed()
-        compose.runOnIdle { assertFalse(list.canScrollForward) }
-        compose.runOnIdle { thought.value = (1..12).joinToString("\n") { "Thinking line $it" } }
+        compose.onNodeWithText("Working…").assertIsDisplayed().assertHasNoClickAction()
+        compose.onNodeWithContentDescription("Show thinking").assertDoesNotExist()
+        compose.onNodeWithText("No thinking text yet.").assertDoesNotExist()
+        compose.runOnIdle {
+            assertFalse(list.canScrollForward)
+            activity.value = "Searching files…"
+        }
         compose.mainClock.advanceTimeBy(1000)
         compose.waitForIdle()
+        compose.onNodeWithText("Searching files…").assertIsDisplayed().assertHasNoClickAction()
         compose.runOnIdle { assertFalse(list.canScrollForward) }
         compose.onNodeWithTag("conversation").performTouchInput { swipeDown() }
         compose.mainClock.advanceTimeBy(1000)
@@ -54,7 +57,7 @@ class ThinkingPreviewTest {
         var place = 0 to 0
         compose.runOnIdle {
             place = list.firstVisibleItemIndex to list.firstVisibleItemScrollOffset
-            thought.value += "\nAnother thinking line"
+            activity.value = "Writing a reply…"
         }
         compose.mainClock.advanceTimeBy(1000)
         compose.waitForIdle()

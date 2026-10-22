@@ -255,58 +255,26 @@ struct NoticeRow: View {
     }
 }
 
-/// The live activity unfolds just the current thinking text, right in the conversation.
+/// The bot's current activity and elapsed time.
 struct WorkingIndicator: View {
     let bot: Bot
-    let thought: String?
-    @State private var expanded = false
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            Button {
-                withAnimation(Motion.reduced(Motion.layout, reduceMotion)) { expanded.toggle() }
-            } label: {
-                HStack(spacing: 8) {
-                    ThinkingOrb(state: bot.needsInput ? .listening : .working, size: 16, color: bot.needsInput ? Palette.warning : Palette.secondary)
-                    Text(bot.activity.isEmpty ? "Working…" : bot.activity)
-                        .font(.subheadline)
-                        .foregroundStyle(bot.needsInput ? Palette.warning : Palette.secondary)
-                        .lineLimit(1)
-                    if let started = bot.startedAt {
-                        Text(Date(milliseconds: started), style: .timer)
-                            .font(.footnote.monospacedDigit())
-                            .foregroundStyle(Palette.tertiary)
-                    }
-                    Image(systemName: "chevron.right")
-                        .rotationEffect(.degrees(expanded ? 90 : 0))
-                        .font(.caption2.weight(.semibold))
-                        .foregroundStyle(Palette.tertiary)
-                }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 12)
-                .background(Palette.bubbleAgent, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        HStack(spacing: 8) {
+            ThinkingOrb(state: bot.needsInput ? .listening : .working, size: 16, color: bot.needsInput ? Palette.warning : Palette.secondary)
+            Text(bot.activity.isEmpty ? "Working…" : bot.activity)
+                .font(.subheadline)
+                .foregroundStyle(bot.needsInput ? Palette.warning : Palette.secondary)
+                .lineLimit(1)
+            if let started = bot.startedAt {
+                Text(Date(milliseconds: started), style: .timer)
+                    .font(.footnote.monospacedDigit())
+                    .foregroundStyle(Palette.tertiary)
             }
-            .buttonStyle(.plain)
-            .accessibilityHint(expanded ? "Hide thinking" : "Show thinking")
-            .accessibilityValue(expanded ? "Expanded" : "Collapsed")
-            // Clip only the disclosure, so collapsing text cannot cross the status bubble.
-            VStack(alignment: .leading, spacing: 0) {
-                if expanded {
-                    Text(thought ?? "No thinking text yet.")
-                        .font(.footnote)
-                        .foregroundStyle(Palette.secondary)
-                        .textSelection(.enabled)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .padding(.horizontal, 16)
-                        .padding(.top, 10)
-                        .padding(.bottom, 4)
-                        .transition(.opacity)
-                }
-            }
-            .clipped()
         }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .background(Palette.bubbleAgent, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.trailing, 40)
     }

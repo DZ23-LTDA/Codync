@@ -63,15 +63,13 @@ it has no pointer tooltip or link-opening action.
 ## While it works
 
 The working line under the last message shows the bot's activity; composing a `send_message`
-reads as **Typing…** (`activity()` in `agent/bot.rs`). Its chevron expands or collapses a plain-text
-preview in the conversation: only the latest nonempty `thought` entry from the running turn.
-Queued messages do not advance that turn. Until the agent shares text, the preview says
-“No thinking text yet.” Each new turn starts collapsed.
+reads as **Typing…** (`activity()` in `agent/bot.rs`). The activity indicator shows an animated orb,
+a short status and elapsed time. It is not interactive and does not expand thinking text.
+Replies arrive as complete messages.
 
 Full conversation remains available from the conversation menu. It contains narration, all
 thoughts, tools and previous turns, and follows new steps until the reader scrolls up.
-On the terminal, click the activity row or press `>` to toggle the inline preview; `t` still
-opens Full conversation, and the working line retains the count of steps so far.
+On the terminal, `t` opens Full conversation, and the working line retains the count of steps so far.
 
 ## Motion and scrolling
 

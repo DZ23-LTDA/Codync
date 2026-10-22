@@ -13,7 +13,6 @@ import { UpdateNeededCard } from '../UpdateNeededCard'
 import { buildChat, rowIn, useArrivals, type ChatItem } from './chat-items'
 import { BotConversationView, BotMessageRow } from './BotConversation'
 import { ChatRow, TimeSeparator } from './ChatRows'
-import { latestThought } from './trace-turns'
 import { WorkingTransition } from './WorkingTransition'
 import { RoutineNotice } from './RoutineNotice'
 import { Composer } from './Composer'
@@ -365,7 +364,7 @@ const Transcript = memo(function Transcript({ botId, openTrace, onReply, openRou
               <Row item={item} chat={bot} openTrace={openTrace} onReply={onReply} openRoutine={openRoutine} openAgent={openAgent} openBotChat={openBotChat} />
             </div>
           ))}
-          {bot ? <WorkingTransition bot={bot} visible={live} thought={latestThought(entries)} /> : null}
+          {bot ? <WorkingTransition bot={bot} visible={live} /> : null}
           <div className="chat-end" />
         </div>
       </div>

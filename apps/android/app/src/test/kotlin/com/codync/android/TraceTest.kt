@@ -16,11 +16,4 @@ class TraceTest {
         assertEquals(1L, runningTurn(entries, working = true))
         assertNull(runningTurn(entries, working = false))
     }
-    @Test fun `thinking preview shows only the latest nonempty thought in this turn`() {
-        val entries = listOf(entry("old", 1, kind = "thought"), entry("latest", 2, kind = "thought"),
-            entry("  ", 2, kind = "thought"), entry("tool", 2, kind = "tool"), entry("queued", 3, status = "queued"))
-        assertEquals("latest", latestThought(entries))
-        assertNull(latestThought(entries + entry("new", 3)))
-        assertNull(latestThought(emptyList()))
-    }
 }

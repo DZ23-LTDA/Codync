@@ -219,26 +219,17 @@ export function NoticeRow({ entry, addFallback }: { entry: Entry; addFallback?: 
   }
 }
 
-/** The live activity unfolds just the current thinking text, right in the conversation. */
-export function WorkingIndicator({ bot, thought }: { bot: Bot; thought?: string }) {
+/** The bot's current activity and elapsed time. */
+export function WorkingIndicator({ bot }: { bot: Bot }) {
   const waiting = needsInput(bot)
-  const [expanded, setExpanded] = useState(false)
   return (
     <VStack align="flex-start" className="agent-inset">
-      <button className="working" onClick={() => setExpanded((value) => !value)} aria-expanded={expanded} title={expanded ? 'Hide thinking' : 'Show thinking'}>
+      <div className="working">
         <HStack as="span" gap={8}>
           <ThinkingOrb state={waiting ? 'listening' : 'working'} size={16} color={waiting ? 'var(--warning)' : 'var(--secondary)'} />
           <Text size="subheadline" tone={waiting ? 'attention' : 'secondary'} truncate>{bot.activity || 'Working…'}</Text>
           {bot.startedAt ? <Timer since={bot.startedAt} /> : null}
-          <span className={`disclosure-chevron${expanded ? ' open' : ''}`}>
-            <Icon name="chevron.right" size={10} weight="semibold" color="var(--tertiary)" />
-          </span>
         </HStack>
-      </button>
-      <div className={`working-thought ${expanded ? 'shown' : ''}`} inert={!expanded} aria-hidden={!expanded}>
-        <div className="chat-working-clip">
-          <Text as="div" size="footnote" tone="secondary" className="working-thought-text selectable">{thought || 'No thinking text yet.'}</Text>
-        </div>
       </div>
     </VStack>
   )

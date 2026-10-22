@@ -12,14 +12,12 @@ mod navigate;
 mod new_bot;
 mod overlay_keys;
 mod slash;
-mod thinking;
 mod ui;
 
 pub use editor::Editor;
 pub use exchange::{ConversationRow, Exchange, Item, Outcome, conversation, group, rows};
 pub use model::{After, AgentModel, Bot, Entry, Kind, Mark, ModelOption, Msg, Status};
 pub use slash::SlashAction;
-pub(super) use thinking::{latest_thought, running_turn};
 pub use ui::{
     ACTIONS, Action, COLORS, Click, Confirm, ConfirmAct, Dir, FIELDS, FILTERS, Field, Focus, FolderPicker, Form, Goto,
     GotoItem, GroupField, GroupForm, Hits, NewBot, NewBotField, Overlay, PairCode, SHAPES, Toast, Toggle, TraceMode,
@@ -78,8 +76,6 @@ pub struct App {
     pub chat_scroll: usize,
     pub trace_scroll: usize,
     pub trace: TraceMode,
-    /// The bot and turn whose inline thinking preview is open.
-    pub thinking: Option<(String, i64)>,
     /// Turn shown in the trace; `None` follows the latest.
     pub trace_turn: Option<i64>,
     pub compact: bool,
@@ -155,7 +151,6 @@ impl App {
             chat_scroll: 0,
             trace_scroll: 0,
             trace: TraceMode::Off,
-            thinking: None,
             trace_turn: None,
             compact: false,
             overlays: vec![],

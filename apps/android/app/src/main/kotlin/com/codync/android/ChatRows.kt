@@ -2,13 +2,7 @@ package com.codync.android
 
 import android.content.ClipData
 import android.content.ClipboardManager
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -34,7 +28,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
@@ -360,31 +353,17 @@ internal val Entry.botReactions: Map<String, List<String>> get() =
     }
 }
 
-/**
- * The bot's live activity line: a turning orb, what it's doing and for how long. Tapping it
- * unfolds the current thinking text in place.
- */
-@Composable internal fun WorkingIndicator(bot: Bot, thought: String?) {
-    var expanded by remember(bot.startedAt) { mutableStateOf(false) }
+/** The bot's current activity and elapsed time. */
+@Composable internal fun WorkingIndicator(bot: Bot) {
     val needs = bot.status == "needsInput"
     Column(Modifier.fillMaxWidth().padding(top = 6.dp, end = 40.dp)) {
         Row(Modifier.clip(RoundedRectangle(18.dp)).background(Palette.bubbleAgent)
-            .clickable(role = Role.Button, onClickLabel = if (expanded) "Hide thinking" else "Show thinking", onClick = { expanded = !expanded })
             .padding(horizontal = 16.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             ThinkingOrb(if (needs) ThinkingOrbState.Listening else ThinkingOrbState.Working, 16.dp, if (needs) Palette.warning else Palette.secondary)
             Text(bot.activity.ifEmpty { "Working…" }, Modifier.weight(1f, fill = false), style = Type.subheadline,
                 color = if (needs) Palette.warning else Palette.secondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
             bot.startedAt?.let { Elapsed(it) }
-            val angle by animateFloatAsState(if (expanded) 90f else 0f, Motion.morph(), label = "Thinking disclosure")
-            Symbol("chevron.right", Modifier.rotate(angle), size = 12.dp, tint = Palette.tertiary)
-        }
-        AnimatedVisibility(expanded, enter = fadeIn(Motion.layout()) + expandVertically(Motion.layout(), expandFrom = Alignment.Top),
-            exit = fadeOut(Motion.layout()) + shrinkVertically(Motion.layout(), shrinkTowards = Alignment.Top)) {
-            SelectionContainer {
-                Text(thought ?: "No thinking text yet.", Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 10.dp, bottom = 4.dp),
-                    style = Type.footnote, color = Palette.secondary)
-            }
         }
     }
 }
