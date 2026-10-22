@@ -1,20 +1,20 @@
 //! Memory on disk ([design](../../../../docs/design/bot-memory.md#memory-is-files)): the folders, the scan that
-//! turns what changed in them into versions, and the host's own compare-and-swap writes. The rules (names, checks,
-//! who wrote each fact, what a bot may change, the index) are `codync_mem::files`.
+//! turns what changed in them into versions, and the host's own compare-and-swap writes. Which bot's turn a change
+//! is credited to is `turns`. The rules (names, checks, who wrote each fact, what a bot may change, the index) are
+//! `codync_mem::files`.
 
 use crate::LockExt;
 use crate::hub::Hub;
 use crate::store::{BotConfig, Store};
 use anyhow::{Context, Result, anyhow, bail};
 use codync_mem::files::{self as mf, Author, Cause, Change, Version};
-use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
-use std::sync::{Arc, Mutex};
+use std::sync::Mutex;
 use std::time::UNIX_EPOCH;
 
 /// A file changed more recently than this may still be mid-write: the next scan takes it.
-const SETTLE_MS: i64 = 2_000;
+pub(super) const SETTLE_MS: i64 = 2_000;
 /// How long a file's earlier versions are kept, and with them what a bot forgot.
 const KEEP_MS: i64 = 30 * 24 * 60 * 60 * 1000;
 
@@ -61,96 +61,6 @@ pub fn index(store: &Store, cfg: &BotConfig) -> String {
     }
 }
 
-/// A bot's turn, from its prompt until the scan after it: a change found meanwhile in a folder the bot sees is the
-/// bot's, even one no tool call of it named (a shell command, say), once the turn ran a tool that can write files.
-#[derive(Clone, Debug)]
-struct Turn {
-    bot: String,
-    /// When it began, Unix ms; also its id.
-    start: i64,
-    /// The session it runs in: what of its changes was put back is told there.
-    session: String,
-    /// As in `Runtime::message`: only then may the bot change or take out what memory says.
-    message: Option<String>,
-    /// When it ended, Unix ms; `None` while it runs.
-    ended: Option<i64>,
-    /// It ran a tool that can write files (an edit, delete, move or command).
-    wrote: bool,
-}
-
-// ponytail: in memory, so a host restart forgets turns; a change made just before one is then the computer's.
-static TURNS: Mutex<Vec<Turn>> = Mutex::new(Vec::new());
-
-/// A bot is about to prompt its agent. A turn of it that never ended (a fallback took over) is this one now.
-pub fn begin_turn(bot: &str, session: &str, message: Option<String>) {
-    let mut turns = TURNS.locked();
-    turns.retain(|t| t.bot != bot || t.ended.is_some());
-    turns.push(Turn {
-        bot: bot.to_owned(),
-        start: crate::store::now_ms(),
-        session: session.to_owned(),
-        message,
-        ended: None,
-        wrote: false,
-    });
-}
-
-/// A bot's turn didn't start after all: nothing of it is left to scan.
-pub fn drop_turn(bot: &str) {
-    TURNS.locked().retain(|t| t.bot != bot || t.ended.is_some());
-}
-
-/// Notes that the bot's running turn ran a tool that can write files; the turn's start.
-fn wrote(bot: &str) -> Option<i64> {
-    let mut turns = TURNS.locked();
-    let turn = turns.iter_mut().find(|t| t.bot == bot && t.ended.is_none())?;
-    turn.wrote = true;
-    Some(turn.start)
-}
-
-/// The tool call of a bot that last touched a memory file, and in which turn, so the scan credits the change to it.
-#[derive(Serialize, Deserialize)]
-struct Touch {
-    bot: String,
-    /// The [`Turn::start`] of the turn it was made in.
-    #[serde(default)]
-    turn: i64,
-}
-
-/// Notes the memory files a tool call names (its `locations` and diffs), so the scan knows which bot changed them,
-/// and that its turn ran a tool that can write files. Only calls that change files count: a read left behind
-/// would credit the next outside edit to the bot.
-pub fn touched(hub: &Hub, cfg: &BotConfig, tool: &serde_json::Value) {
-    let kind = tool["toolKind"].as_str();
-    let changes =
-        matches!(kind, Some("edit" | "delete" | "move")) || tool["diffs"].as_array().is_some_and(|d| !d.is_empty());
-    if !changes && kind != Some("execute") {
-        return;
-    }
-    let Some(turn) = wrote(&cfg.id).filter(|_| changes) else { return };
-    let paths = tool["locations"]
-        .as_array()
-        .into_iter()
-        .chain(tool["diffs"].as_array())
-        .flatten()
-        .filter_map(|item| item["path"].as_str());
-    let folders: Vec<PathBuf> = layers(cfg).iter().map(|layer| folder(layer.as_deref())).collect();
-    for path in paths {
-        let path = Path::new(path);
-        if path.parent().is_some_and(|dir| folders.iter().any(|f| f == dir)) {
-            let touch = Touch { bot: cfg.id.clone(), turn };
-            let value = serde_json::to_string(&touch).expect("a touch is plain data");
-            if let Err(error) = hub.store.kv_set(&touch_key(path), &value) {
-                tracing::warn!(error = format!("{error:#}"), "couldn't note a memory file edit");
-            }
-        }
-    }
-}
-
-fn touch_key(path: &Path) -> String {
-    format!("memory.touched.{}", path.display())
-}
-
 /// One scan or host write at a time, so two can't record the same change, nor two writes pass the same
 /// compare-and-swap.
 // ponytail: one lock for every folder; per-folder locks if scans ever queue behind each other.
@@ -185,25 +95,6 @@ fn prune(store: &Store) {
     }
 }
 
-/// At the end of a turn: the bot's edits usually come right before its reply, so a file still settling is taken
-/// once it has. The turn stays the bot's until then.
-pub fn scan_after_turn(hub: Arc<Hub>, cfg: BotConfig) {
-    let mut start = None;
-    for turn in TURNS.locked().iter_mut().filter(|t| t.bot == cfg.id && t.ended.is_none()) {
-        turn.ended = Some(crate::store::now_ms());
-        start = Some(turn.start);
-    }
-    tokio::spawn(async move {
-        let (h, c) = (hub.clone(), cfg.clone());
-        if tokio::task::spawn_blocking(move || scan(&h, &c)).await.unwrap_or(false) {
-            tokio::time::sleep(std::time::Duration::from_millis(u64::try_from(SETTLE_MS).unwrap_or(2_000) + 100)).await;
-            let c = cfg.clone();
-            let _ = tokio::task::spawn_blocking(move || scan(&hub, &c)).await;
-        }
-        TURNS.locked().retain(|t| t.bot != cfg.id || Some(t.start) != start);
-    });
-}
-
 /// What is on disk for one file.
 struct OnDisk {
     content: String,
@@ -213,16 +104,12 @@ struct OnDisk {
 
 /// Scans one folder; true when a file was too fresh to take yet.
 fn scan_layer(hub: &Hub, layer: Option<&str>) -> Result<bool> {
-    let dir = folder(layer);
-    // A folder that went missing is not every file deleted.
-    let Ok(listing) = std::fs::read_dir(&dir) else { return Ok(false) };
+    let (mut items, unread) = listing(&folder(layer));
     let mut deferred = false;
     let recorded: HashMap<String, mf::File> =
         hub.store.memory_read(|c| mf::layer(c, layer))?.into_iter().map(|f| (f.name.clone(), f)).collect();
     let now = crate::store::now_ms();
     let mut present = HashSet::new();
-    let mut items: Vec<(String, PathBuf)> =
-        listing.flatten().filter_map(|item| Some((item.file_name().to_str()?.to_owned(), item.path()))).collect();
     // MEMORY.md last: a fact moved from it into a new note is then found in the note, not taken as forgotten.
     items.sort_by_key(|(name, _)| name == mf::MAIN);
     for (name, path) in items {
@@ -250,10 +137,59 @@ fn scan_layer(hub: &Hub, layer: Option<&str>) -> Result<bool> {
         }
         found(hub, layer, &name, Some(&OnDisk { content, mtime, size }))?;
     }
-    for name in recorded.values().filter(|f| !f.deleted && !present.contains(&f.name)).map(|f| &f.name) {
+    let gone = |f: &&mf::File| {
+        !f.deleted && !present.contains(&f.name) && !unread.iter().any(|prefix| f.name.starts_with(prefix.as_str()))
+    };
+    for name in recorded.values().filter(gone).map(|f| &f.name) {
         found(hub, layer, name, None)?;
     }
     Ok(deferred)
+}
+
+/// Every entry of a layer's folder and its topic folders, named from the layer's folder (`health/allergies.md`),
+/// and the folders that couldn't be read whole (`health/`, or `""` for the layer's own): a folder that went missing
+/// or can't be read now is not every note in it deleted. Only folders a note may sit in are entered: never a link
+/// (a `DirEntry`'s type doesn't follow one), a hidden one or one too deep.
+fn listing(dir: &Path) -> (Vec<(String, PathBuf)>, Vec<String>) {
+    let (mut found, mut unread) = (Vec::new(), Vec::new());
+    let mut folders = vec![(String::new(), dir.to_path_buf())];
+    while let Some((prefix, dir)) = folders.pop() {
+        let read = std::fs::read_dir(&dir).and_then(|items| {
+            for item in items {
+                let item = item?;
+                let Some(name) = item.file_name().to_str().map(|n| format!("{prefix}{n}")) else { continue };
+                if item.file_type()?.is_dir() {
+                    if mf::valid_folder(&name) {
+                        folders.push((format!("{name}/"), item.path()));
+                    }
+                    continue;
+                }
+                found.push((name, item.path()));
+            }
+            Ok(())
+        });
+        if let Err(error) = read {
+            if error.kind() != std::io::ErrorKind::NotFound {
+                tracing::warn!(dir = %dir.display(), error = %error, "couldn't read a memory folder");
+            }
+            unread.push(prefix);
+        }
+    }
+    (found, unread)
+}
+
+/// A memory file's path, when each topic folder on the way is a real folder or not there yet: never a link, so
+/// nothing can make the host read or write a file outside the memory folders.
+fn path_of(layer: Option<&str>, name: &str) -> Result<PathBuf> {
+    let mut path = folder(layer);
+    let mut parts = name.split('/').peekable();
+    while let Some(part) = parts.next() {
+        path.push(part);
+        if parts.peek().is_some() && std::fs::symlink_metadata(&path).is_ok_and(|meta| !meta.is_dir()) {
+            bail!("a topic folder of {name} is a link");
+        }
+    }
+    Ok(path)
 }
 
 /// A regular `.md` file with a valid name: its modification time and size. Links, hidden files and folders are
@@ -267,42 +203,9 @@ fn regular(path: &Path, name: &str) -> Option<(i64, u64)> {
     Some((i64::try_from(mtime).ok()?, meta.len()))
 }
 
-/// The bot's turn a change found in a layer's folder is credited to: the one whose tool call named the file, else
-/// the turn of a bot that sees the folder and ran a tool that can write files, one the user didn't start first, so
-/// the stricter rules apply. A turn that ended before the file was last modified didn't make it, unless that time
-/// is in the future. Any other change is the computer's: the user's own, in an editor say.
-fn turn_of(hub: &Hub, layer: Option<&str>, touch: Option<&Touch>, mtime: Option<i64>) -> Option<(BotConfig, Turn)> {
-    let now = crate::store::now_ms();
-    let turns: Vec<Turn> = TURNS
-        .locked()
-        .iter()
-        .filter(|t| match (t.ended, mtime) {
-            (Some(ended), Some(at)) => at <= ended || at > now,
-            _ => true,
-        })
-        .cloned()
-        .collect();
-    let config = |bot: &str| hub.store.bot(bot).ok().flatten().filter(|row| !row.deleted).map(|row| row.config);
-    let named = touch.and_then(|touch| turns.iter().find(|t| t.bot == touch.bot && t.start == touch.turn));
-    if let Some(turn) = named
-        && let Some(cfg) = config(&turn.bot)
-    {
-        return Some((cfg, turn.clone()));
-    }
-    turns
-        .into_iter()
-        .filter(|turn| turn.wrote)
-        .filter_map(|turn| Some((config(&turn.bot)?, turn)))
-        .filter(|(cfg, _)| layers(cfg).iter().any(|l| l.as_deref() == layer))
-        .min_by_key(|(_, turn)| turn.message.is_some())
-}
-
 /// A change the scan found: made in a bot's turn, checked, and put back when it may not stand; otherwise just
 /// recorded as the computer's.
 fn found(hub: &Hub, layer: Option<&str>, name: &str, after: Option<&OnDisk>) -> Result<()> {
-    let path = folder(layer).join(name);
-    let touch: Option<Touch> = hub.store.kv_get(&touch_key(&path)).and_then(|v| serde_json::from_str(&v).ok());
-    hub.store.kv_delete(&touch_key(&path))?;
     let before = hub.store.memory_read(|c| mf::current(c, layer, name))?;
     let (mtime, size) = after.map_or((0, 0), |a| (a.mtime, a.size));
     let content = after.map(|a| a.content.as_str());
@@ -317,13 +220,14 @@ fn found(hub: &Hub, layer: Option<&str>, name: &str, after: Option<&OnDisk>) -> 
         mtime,
         size,
     };
-    let Some((cfg, turn)) = turn_of(hub, layer, touch.as_ref(), after.map(|a| a.mtime)) else {
+    let Some((cfg, turn)) = super::turns::turn_of(hub, layer, name, after.map(|a| a.mtime))? else {
         record(hub, &change)?;
         return Ok(());
     };
     let asked = turn.message.is_some();
     if let Err(error) = admit(hub, layer, name, before.as_deref(), content, asked) {
         // Put back what was there, as it was recorded, and tell the bot why.
+        let path = path_of(layer, name)?;
         put(&path, before.as_deref())?;
         let (mtime, size) = regular(&path, name).unwrap_or_default();
         if before.is_some() {
@@ -349,7 +253,7 @@ fn admit(
     asked: bool,
 ) -> Result<()> {
     if let Some(content) = after {
-        mf::check_change(layer, name, before, content)?;
+        mf::check_change(layer, name, before, content, asked)?;
     }
     hub.store.memory_read(|c| mf::admit(c, layer, before, after, asked))?;
     Ok(())
@@ -383,13 +287,11 @@ fn record_bot_change(
 pub fn read(layer: Option<&str>, name: &str) -> Result<Option<String>> {
     if !mf::valid_name(name) {
         bail!(
-            "Memory files are MEMORY.md, or notes named in lowercase letters, digits and dashes, ending in .md (like people.md)."
+            "Memory files are MEMORY.md, or notes named in lowercase letters, digits and dashes, ending in .md, in up to {} topic folders (like people.md or health/allergies.md).",
+            mf::DEPTH_MAX
         );
     }
-    let path = folder(layer).join(name);
-    if regular(&path, name).is_none() {
-        return Ok(None);
-    }
+    let Some(path) = path_of(layer, name).ok().filter(|path| regular(path, name).is_some()) else { return Ok(None) };
     std::fs::read_to_string(&path).map(Some).with_context(|| format!("reading {name}"))
 }
 
@@ -437,8 +339,7 @@ pub fn write(
             })
             .context("the file has no recorded version");
     }
-    let path = folder(layer).join(name);
-    std::fs::create_dir_all(folder(layer)).context("creating the memory folder")?;
+    let path = path_of(layer, name)?;
     put(&path, content)?;
     let (mtime, size) = regular(&path, name).unwrap_or_default();
     let change = Change {
@@ -468,7 +369,8 @@ fn record(hub: &Hub, change: &Change<'_>) -> Result<Version> {
     Ok(version)
 }
 
-/// Replaces or deletes a file on disk: a temporary sibling renamed over it, so a reader never sees half of it.
+/// Replaces or deletes a file on disk at a [`path_of`] path, its missing folders made first: a temporary sibling
+/// renamed over it, so a reader never sees half of it.
 fn put(path: &Path, content: Option<&str>) -> Result<()> {
     let Some(content) = content else {
         return match std::fs::remove_file(path) {
@@ -477,6 +379,7 @@ fn put(path: &Path, content: Option<&str>) -> Result<()> {
         };
     };
     let dir = path.parent().ok_or_else(|| anyhow!("a memory file has a folder"))?;
+    std::fs::create_dir_all(dir).context("creating the memory folder")?;
     let temp = dir.join(format!(".{}.tmp", uuid::Uuid::new_v4()));
     std::fs::write(&temp, content).context("writing the memory file")?;
     if let Err(error) = std::fs::rename(&temp, path) {

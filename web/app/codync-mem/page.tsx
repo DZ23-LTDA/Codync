@@ -26,7 +26,7 @@ const principles = [
   {
     icon: FileText,
     title: "Markdown files the bot keeps",
-    body: "Each layer is a folder: MEMORY.md, one short fact per line that every session opens with, and notes on one topic each, read when they come up. The bot edits them like any file.",
+    body: "Each layer is a folder: MEMORY.md, one short fact per line that every session opens with, and notes on one topic each in topic folders (health/allergies.md), read when they come up. The bot edits them like any file.",
   },
   {
     icon: ShieldCheck,
@@ -38,7 +38,7 @@ const principles = [
 const rights: [who: string, may: string][] = [
   ["A turn you started in the bot's own chat", "The bot may change or take out anything."],
   ["Routines, group rooms, other bots", "Lines are only added, never changed or taken out."],
-  ["Dreaming, between turns", "Adds and takes out lines, each quoting what you typed. It never takes out a line you wrote, and makes at most 10 changes a run, never more than a quarter of the lines."],
+  ["Dreaming, between turns", "Adds and takes out lines, each quoting what you typed. It never takes out or rewrites a line you wrote, and makes at most 10 changes a run, taking out at most a quarter of the lines. Once MEMORY.md is nearly full it moves detail, yours too, word for word into topic notes, keeping one line per topic that points to its note."],
   ["Something you had it forget", "Stays out, unless you ask for it again yourself."],
 ];
 

@@ -210,7 +210,7 @@ impl Actor {
             self.set_inflight(true);
         }
         // From here what changes in its memory folders is the bot's, however it changed them.
-        memory::files::begin_turn(&self.cfg.id, &sid, self.hub.runtime(&self.cfg.id).message);
+        memory::turns::begin_turn(&self.cfg.id, &sid, self.hub.runtime(&self.cfg.id).message);
         // Written before this returns, so a Stop right after is sent after the prompt.
         let answer = acp.send("session/prompt", params).await?;
         if !self.turn_memory_revision.is_empty()
@@ -231,7 +231,7 @@ impl Actor {
         }
         self.after_turn(done);
         // The bot's own edits to its memory files, checked and shown in the chat it made them from.
-        memory::files::scan_after_turn(self.hub.clone(), self.cfg.clone());
+        memory::turns::scan_after_turn(self.hub.clone(), self.cfg.clone());
         if let (Some(conn), Some(sid)) = (self.conn.as_mut(), &self.turn_session)
             && let Some(used) = conn.loaded.get_mut(sid)
         {

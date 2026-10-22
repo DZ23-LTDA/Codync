@@ -33,8 +33,8 @@ Built differently from the plan below, for now:
   don't feed dreaming.
 - Facts show who wrote them, not a link to the message they were learned from. The bot can follow it:
   `search_memory` returns a `MEMORY.md` line's source message, and `search_history` reads back from a message id.
-- A memory notice carries the whole memory (at most 1,600 tokens) rather than a delta: a whole copy also replaces
-  whatever an earlier notice said.
+- A memory notice carries the whole memory (1,600 tokens within the caps, up to twice that after the user's own
+  turns until dreaming tidies it) rather than a delta: a whole copy also replaces whatever an earlier notice said.
 - The cache's lifetime is learned from turns that come after a pause (most of the input read from cache, or
   not); until a bot has one, Claude on a subscription counts as an hour and everything else as five minutes.
 - The host compacts only Claude and Codex ahead of time; other harnesses keep their own timing. Codex's
@@ -191,18 +191,25 @@ per CJK character, one per four Latin characters.
 | | `MEMORY.md` | Notes |
 |---|---|---|
 | Holds | One short fact per line: name, time zone, people, "don't …", commitments | One topic's detail: people, health, plans, trips |
-| Cap | 400 tokens for "yours", 1,200 per bot; 150 a line | 2,000 tokens a note, 20 notes a folder |
+| Cap | 400 tokens for "yours", 1,200 per bot; 150 a line | 2,000 tokens a note, 20 notes a layer |
 | In the opening | In full | An index: path, description, size |
-| Names | `MEMORY.md` | `lowercase-with-dashes.md`, frontmatter `description:` first |
+| Names | `MEMORY.md` | `lowercase-with-dashes.md` in up to three topic folders (`health/allergies.md`), frontmatter `description:` first |
 
 | Layer | Folder | Default | Scope |
 |---|---|---|---|
 | **Yours** | `<data>/shared-memory/` | On for personal bots, off for project bots | Shared by all bots |
 | **This bot** | `<data>/bots/<id>/bot-memory/` | Always on | One bot; wins over "yours" when they conflict |
 
-Active total: at most 1,600 tokens per opening (Hermes about 800 + 500, Claude Code's `MEMORY.md` index 200
-lines, Letta blocks 5,000 characters). A file past a cap is marked in the opening and the apps, never cut.
+Active total: 1,600 tokens per opening within the caps, up to twice that after the user's own turns until dreaming
+tidies it (Hermes about 800 + 500, Claude Code's `MEMORY.md` index 200 lines, Letta blocks 5,000 characters). A file past a cap is marked in the opening and the apps, never cut.
 Project knowledge stays in the harness's files (`AGENTS.md`, `CLAUDE.md`) or a note on the project.
+
+**Memory is never full.** `MEMORY.md` relates to the notes the way a project's `CLAUDE.md` relates to its `docs/`:
+the short version in every session, with one line per topic that sums it up and points to its note
+(`Allergic to peanuts → health/allergies.md`), and the detail by topic in folders. Dreaming keeps it that way: once
+a `MEMORY.md` is nine-tenths full it moves detail out into topic notes and leaves the pointing line (see Dreaming). What the user asks a bot to remember in
+their own chat is never turned away for space: there `MEMORY.md` may grow to twice its cap until dreaming tidies
+it. Other turns stay within the cap and write what doesn't fit in a note.
 
 **The file is the live copy.** The bot reads it from disk (its own tools or `read_memory`); the opening renders
 from the last recorded version, which a scan keeps current. SQLite keeps the history beside it:
@@ -239,7 +246,8 @@ model's judgment.
 
 - **What memory may say**, on what every change brings in: no hidden characters, prompt-carrying links, planted
   instructions (`ignore previous`, `system prompt`, `you are now`, 忽略之前, 系統提示, …), passwords, keys, ID,
-  card or account numbers; the caps; a note's description. Lines the file already had aren't checked again, and a
+  card or account numbers; the caps (`MEMORY.md`'s doubled in the user's own turn); a note's description. Lines
+  the file already had aren't checked again, and a
   file over its cap may still shrink, so a line the user wrote that the checks withhold never blocks the bot's
   changes around it. The list catches known attack wording only; a planted fact in plain words passes, bounded by
   the turn rule below, the provenance the bot can't set, and dreaming's review.
@@ -267,7 +275,9 @@ Source policy for dreaming:
 **Schedule.**
 
 - It runs after five idle minutes or eight queued user messages.
-- It also runs before any host-initiated compaction or rollover.
+- It also runs before any host-initiated compaction or rollover, and when a `MEMORY.md` the bot sees is
+  nine-tenths full, with or without new conversation, until there is room or a run moves nothing. Runs of bots
+  that share a layer take turns, so one run tidies it.
 - It is skipped while subscription usage is above 75% of the window. Codex keeps the same 25% headroom with
   `min_rate_limit_remaining_percent`.
 
@@ -286,12 +296,15 @@ the next run.
 **Rules:**
 
 - **The user's lines are fixed.** A line the user wrote (moved from the old memory, or edited on the computer) is
-  never taken out by dreaming.
+  never taken out or rewritten by dreaming; tidying may only move it word for word into a note.
 - **Adds, takes out, appends.** Each add and removal quotes the user's own words from one message. Notes only get
   lines appended; dreaming never rewrites a note.
 - **Limits.** At most 10 changes per run. A run that would take out more than a quarter of the lines is dropped
-  whole (OpenClaw's default is also 0.25).
-- **Full memory.** When a `MEMORY.md` is nine-tenths full, it may move a line the user didn't write into a note.
+  whole (OpenClaw's default is also 0.25); a move keeps its line, in a note, so it doesn't count.
+- **Tidying.** When a `MEMORY.md` is nine-tenths full, dreaming moves its detail word for word into the notes of
+  their topics (`health/allergies.md`), a topic's lines together, and leaves one line per topic saying what every
+  reply needs and pointing to the note (`Allergic to peanuts → health/allergies.md`). A later tidy of the same
+  topic rewrites that line rather than adding another, unless the user wrote it.
 - **Time review, daily.** A line about a future event whose date has passed is rewritten in the past tense, once;
   its rewrite isn't reviewed again. Relative dates become absolute when written.
 - **Dream log.** Every run's added and taken-out lines and the notes it wrote, shown read-only in the apps.

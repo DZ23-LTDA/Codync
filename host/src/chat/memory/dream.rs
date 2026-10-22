@@ -47,6 +47,30 @@ fn reviewed_key(bot: &str) -> String {
     format!("memory.dream.reviewed.{bot}")
 }
 
+/// A layer's MEMORY.md (`None`: the shared one) as a run last saw it nearly full, by its hash: it is tidied again
+/// once it changed.
+fn tidied_key(layer: Option<&str>) -> String {
+    format!("memory.dream.tidied.{}", layer.unwrap_or("shared"))
+}
+
+/// Whether a layer's MEMORY.md (`content`) is nearly full and changed since a run last saw it so.
+fn untidied(store: &Store, layer: Option<&str>, content: &str) -> bool {
+    dream::full(content, layer) && store.kv_get(&tidied_key(layer)) != Some(mf::hash(content))
+}
+
+/// A run saw a layer's MEMORY.md (`content`): when it is nearly full, it isn't tidied again until it changes.
+fn mark_tidied(store: &Store, layer: Option<&str>, content: &str) -> Result<()> {
+    if dream::full(content, layer) {
+        store.kv_set(&tidied_key(layer), &mf::hash(content))?;
+    }
+    Ok(())
+}
+
+/// Runs of bots that see the shared layer take turns, from what they read to what they write, so two never tidy or
+/// change the shared MEMORY.md from the same copy.
+// ponytail: one lock for every such run; a lock per layer if runs ever queue for long.
+static SHARED: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
+
 /// Dreaming starts reading after `seq`.
 pub(super) fn set_bookmark(store: &Store, bot: &str, seq: i64) -> Result<()> {
     store.kv_set(&bookmark_key(bot), &seq.to_string())
@@ -57,8 +81,9 @@ fn bookmark(store: &Store, bot: &str) -> i64 {
 }
 
 /// Starts the bot's dreamer. It runs once the bot has been quiet for [`IDLE`] after the user's turns, or right
-/// away when [`BATCH`] of them are waiting, and once a day for the time review. It also names an unnamed bot. It
-/// stops when the bot actor drops the sender; what it hasn't read waits for the next one.
+/// away when [`BATCH`] of them are waiting, once a day for the time review, and when a MEMORY.md it sees is nearly
+/// full, until it has room again or a run moves nothing out. It also names an unnamed bot. It stops when the bot
+/// actor drops the sender; what it hasn't read waits for the next one.
 pub fn spawn_dreamer(hub: Arc<Hub>, bot_id: String) -> mpsc::UnboundedSender<DreamEvent> {
     let (tx, mut rx) = mpsc::unbounded_channel::<DreamEvent>();
     tokio::spawn(async move {
@@ -72,7 +97,7 @@ pub fn spawn_dreamer(hub: Arc<Hub>, bot_id: String) -> mpsc::UnboundedSender<Dre
             retry_at.map_or(after, |at| at.max(after))
         };
         loop {
-            let due = waiting > 0 || review_due(&hub.store, &bot_id);
+            let due = waiting > 0 || review_due(&hub.store, &bot_id) || tidy_due(&hub.store, &bot_id);
             let run = tokio::select! {
                 event = rx.recv() => match event {
                     None => break,
@@ -133,6 +158,16 @@ fn review_due(store: &Store, bot: &str) -> bool {
         .is_ok_and(|facts| facts.iter().any(|f| !f.author.is_users() && dated(&f.text)))
 }
 
+/// When a MEMORY.md the bot sees is nearly full, and changed since a run last saw it so.
+fn tidy_due(store: &Store, bot: &str) -> bool {
+    let Some(cfg) = store.bot(bot).ok().flatten().filter(|b| !b.deleted).map(|b| b.config) else { return false };
+    super::files::layers(&cfg).iter().any(|layer| {
+        let layer = layer.as_deref();
+        let content = store.memory_read(|c| mf::current(c, layer, MAIN)).ok().flatten().unwrap_or_default();
+        untidied(store, layer, &content)
+    })
+}
+
 /// Whether a memory names a date the time review may have to turn into the past: a year, a month or day in
 /// Chinese, or an English month next to a number. Other numbers (prices, counts) don't count.
 fn dated(text: &str) -> bool {
@@ -157,6 +192,8 @@ async fn run(hub: &Arc<Hub>, bot_id: &str) -> Result<Ran> {
     if near_limit(hub, &cfg) {
         return Ok(Ran::Later);
     }
+    let shared = super::shared(&cfg);
+    let _turn = if shared { Some(SHARED.lock().await) } else { None };
     let after = bookmark(&hub.store, bot_id);
     let entries = hub.store.conversation_since(bot_id, after, READ_LIMIT)?;
     let read = within_batch(&entries);
@@ -165,13 +202,13 @@ async fn run(hub: &Arc<Hub>, bot_id: &str) -> Result<Ran> {
     let messages: Vec<Message> = read.iter().filter_map(message).collect();
     let today = today();
     let review = review_due(&hub.store, bot_id);
+    let tidy = tidy_due(&hub.store, bot_id);
     let worth = messages.iter().any(|m| m.from_user && m.text.iter().any(|run| codync_mem::evidence::substantive(run)));
-    if !worth && !review {
+    if !worth && !review && !tidy {
         set_bookmark(&hub.store, bot_id, last_seq)?;
         return Ok(Ran::Done { more });
     }
 
-    let shared = super::shared(&cfg);
     let (h, c) = (hub.clone(), cfg.clone());
     tokio::task::spawn_blocking(move || super::files::scan(&h, &c)).await?;
     let snapshot = hub.store.memory_read(|c| dream::snapshot(c, bot_id, shared, &today))?;
@@ -193,6 +230,10 @@ async fn run(hub: &Arc<Hub>, bot_id: &str) -> Result<Ran> {
     set_bookmark(&hub.store, bot_id, last_seq)?;
     if review {
         hub.store.kv_set(&reviewed_key(bot_id), &today)?;
+    }
+    // A run that moved lines out changed MEMORY.md, so the next one tidies on; one that moved none waits for a change.
+    for layer in &snapshot.layers {
+        mark_tidied(&hub.store, snapshot.layer_bot(layer.shared), layer.content.as_deref().unwrap_or_default())?;
     }
     Ok(Ran::Done { more })
 }

@@ -121,8 +121,10 @@ fn author(app: &App, e: &Value) -> String {
 /// What dreaming did, read-only, under what it does (the other apps' info sheet, short).
 fn dreams(buf: &mut Buffer, body: Rect, memory: &MemorySheet) {
     let palette = theme();
-    let about = "Between chats the bot tidies its memory from what you typed, away from the chat: + added, − taken out. \
-                 Pasted text and its replies never count. A record: to change a memory, tell the bot.";
+    let about = "Between chats, and once memory is nearly full, the bot tidies its memory from what you typed, away \
+                 from the chat: + added, − taken out or moved word for word into a note, which keeps one line per \
+                 topic pointing to it. Pasted text and its replies never count. A record: to change a memory, tell \
+                 the bot.";
     let muted = palette.secondary.patch(palette.panel);
     let lines = wrap(&[Span::styled(about, muted)], usize::from(body.width), &[], &[]);
     let top = u(lines.len()).min(body.height) + 1;
@@ -151,6 +153,10 @@ fn dreams(buf: &mut Buffer, body: Rect, memory: &MemorySheet) {
                 let change = format!("{sign} {}  ", s(c, "text"));
                 x = put(buf, x, y + 1, body.right().saturating_sub(x), &change, style.patch(palette.panel));
             }
+        }
+        for f in d["files"].as_array().into_iter().flatten() {
+            let note = format!("Added to {}  ", s(f, "name"));
+            x = put(buf, x, y + 1, body.right().saturating_sub(x), &note, palette.secondary.patch(palette.panel));
         }
     }
 }
@@ -243,7 +249,7 @@ mod tests {
     #[test]
     fn dreams_paragraph_wraps_whole_and_the_log_starts_under_it() {
         // 80 and 60 columns leave the sheet's body 74 and 54 wide.
-        for (width, rows) in [(74, 3), (54, 4)] {
+        for (width, rows) in [(74, 5), (54, 6)] {
             let area = Rect::new(0, 0, width, 12);
             let mut buf = Buffer::empty(area);
             let memory = MemorySheet {

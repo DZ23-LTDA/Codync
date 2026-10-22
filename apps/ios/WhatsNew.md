@@ -14,6 +14,7 @@ a version without one gets a generic "Bug fixes and improvements" line. Delete o
 - 麥克風旁的向上箭頭可以選聽寫要用裝置內建語音，還是用你自己的 OpenAI 或 Gemini 金鑰
 - iPad 接實體鍵盤時，在輸入框按 Return 會換行，⌘↩ 送出
 - 群組裡被提及的 bot 若正在別的對話忙，群組會顯示它在忙，忙完就回來回答
+- 記憶不會再滿：快滿時，Dreaming 會把細節依主題整理進筆記資料夾，你要 bot 記住的事一定存得下
 
 ### en-US
 - While you dictate, the mic turns into a recording pill: a stop button, how long you've been talking, and dots that follow your voice
@@ -21,3 +22,4 @@ a version without one gets a generic "Bug fixes and improvements" line. Delete o
 - The arrow beside the mic picks how dictation hears you: on-device speech, or your own OpenAI or Gemini key
 - On iPad with a hardware keyboard, Return starts a new line in the message box and ⌘↩ sends
 - In a group, a bot you mention that's busy in another chat now says so, and answers once it's done
+- Memory no longer fills up: as it nears its limit, dreaming files the detail into notes by topic, so what you ask a bot to remember always fits
