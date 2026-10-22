@@ -57,10 +57,17 @@ quotes itself.
   react to someone's message (`react(emoji, to?)`), so it can agree with a reaction and pass.
   Room lines carry their reactions: `Ann: Shipped. (reactions: User 👍, Ben 🎉)`, and a reply
   its quote: `User: [Codync: this replies to Ann's message: "…"] text`.
-- A new message in the group, or Stop, ends a running room turn before its next speaker;
-  a member still busy elsewhere skips the old room turn's queued request.
+- A member busy with a turn outside the room isn't waited for: the room shows "<name> is busy
+  in another chat and will answer here when it's done.", moves on, and the member answers in
+  the room once its other turn ends (with its own "done" push), on a prompt built then, so it
+  sees what the room said meanwhile. It isn't asked again in later rounds of that room turn.
+  Newer messages in the group, and Stop in the member's own chat, don't drop that late answer;
+  the group's Stop or removing the member from the group does, and a newer room turn that asks
+  the member again replaces it.
+- A new message in the group, or Stop, ends a running room turn before its next speaker.
 - Tool calls, thoughts and permission cards of a member's group turn are written to the
-  group (with `author`), not to the member's own chat. One "done" push per room turn.
+  group (with `author`), not to the member's own chat. One "done" push per room turn, plus
+  one per late answer from a busy member.
 - Files sent to a group are kept in the group's data folder (`~/.codync/bots/<group>/uploads`);
   each member's prompt lists their paths under the user's line.
 - Voice calls work in a group: each final reply is read with its speaker's name, a member's

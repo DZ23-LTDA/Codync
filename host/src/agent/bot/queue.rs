@@ -30,6 +30,8 @@ impl Actor {
                 }
             }
             Cmd::Group(turn) => {
+                // The room asks again: this turn answers for any still waiting there.
+                self.queue.retain(|q| !matches!(q, Queued::Group(g) if g.lane == turn.lane));
                 self.queue.push_back(Queued::Group(turn));
                 if self.turn.is_none() {
                     self.next_in_queue(done_tx).await;
@@ -137,12 +139,18 @@ impl Actor {
         if self.active_routine.is_none() {
             self.hub.routines.release(&self.cfg.id);
         }
-        // Queued messages are dropped too: Stop means "stop everything".
-        for queued in self.queue.drain(..) {
-            let Queued::User { entry_id, .. } = queued else { continue };
-            if let Some(mut e) = self.hub.store.entry(&entry_id) {
-                e.data["status"] = "cancelled".into();
-                self.hub.set_entry(&entry_id, &e.data);
+        // Queued messages are dropped too: Stop means "stop everything". A room's late turn stays: the room was
+        // told this member answers there once free, and only the group's Stop drops it.
+        for queued in std::mem::take(&mut self.queue) {
+            match queued {
+                Queued::Group(turn) if turn.late => self.queue.push_back(Queued::Group(turn)),
+                Queued::User { entry_id, .. } => {
+                    if let Some(mut e) = self.hub.store.entry(&entry_id) {
+                        e.data["status"] = "cancelled".into();
+                        self.hub.set_entry(&entry_id, &e.data);
+                    }
+                }
+                _ => {}
             }
         }
         self.cancel_turn().await;
@@ -228,11 +236,18 @@ impl Actor {
                     continue;
                 }
                 Some(Queued::Group(_)) => {
-                    let Some(Queued::Group(turn)) = self.queue.pop_front() else {
+                    let Some(Queued::Group(mut turn)) = self.queue.pop_front() else {
                         unreachable!("front is a group turn")
                     };
-                    // A newer message in the room (or Stop) ended the room turn that queued this.
-                    if turn.reply.is_closed() || !self.hub.groups.current(&turn.lane, turn.epoch) {
+                    // A newer message in the room (or Stop) ended the room turn that queued this; a late turn
+                    // answers anyway (see `GroupTurn::late`).
+                    if turn.reply.is_closed() || !(turn.late || self.hub.groups.current(&turn.lane, turn.epoch)) {
+                        continue;
+                    }
+                    if turn.late
+                        && let Err(error) = crate::chat::group::refresh(&self.hub, &mut turn, &self.cfg)
+                    {
+                        tracing::warn!(bot = self.cfg.id, error = format!("{error:#}"), "late room turn dropped");
                         continue;
                     }
                     let (lane, prompt) = (turn.lane.clone(), turn.prompt.clone());
