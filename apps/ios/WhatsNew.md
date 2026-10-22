@@ -9,11 +9,13 @@ a version without one gets a generic "Bug fixes and improvements" line. Delete o
 ## 2.22.1
 
 ### zh-Hant
+- 擴充功能移除 Apps 區段，Composio 統一從 Connectors 登入使用
 - 已連線電腦的資訊與操作排列更緊湊，電腦名稱完整顯示
 - 手機連不上帳號內的電腦時，可直接要求存取權限；連線說明也更容易閱讀
 - 手機的裝置清單不再提供刪除同帳號電腦的操作，避免誤刪
 
 ### en-US
+- Extensions removes the Apps section; connect Composio from Connectors
 - Connected computer cards keep their full names visible with a more compact layout for connection details and actions
 - Ask for access directly when your phone cannot reach an account computer, with clearer connection details
 - Account computers can no longer be removed from the phone's device list, preventing accidental removal

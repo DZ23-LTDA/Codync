@@ -9,7 +9,6 @@ import { useStore } from '../../store/context'
 import { useScreenViewed } from '../../store/analytics'
 import { ComputerBadge } from '../ComputerBadge'
 import { AgentSheet, AgentTile, NodeNotice } from './AgentSheet'
-import { ComposioSection } from './ComposioViews'
 import { CredentialsView } from './CredentialsView'
 import { CustomConnectorSheet, InstallConnectorSheet, NewSkillSheet } from './ConnectorSheets'
 import { SetupTerminalView } from './SetupTerminal'
@@ -29,14 +28,12 @@ const connectorId = (c: MarketConnector) => c.name
  * computer; each bot turns connectors and skills on in its settings.
  * With more than one computer, the header switches between them (the caller swaps the store).
  */
-export function MarketplaceView({ computers, computer, onComputer, appsFirst = false }: { appsFirst?: boolean; computers: { id: string; name: string }[]; computer: string; onComputer: (id: string) => void }) {
+export function MarketplaceView({ computers, computer, onComputer }: { computers: { id: string; name: string }[]; computer: string; onComputer: (id: string) => void }) {
   const store = useStore()
   const plugins = usePlugins(store)
   const dismiss = useDismiss()
   useScreenViewed('marketplace')
   const [search, setSearch] = useState('')
-  /** Bumped on each submitted search, so every section searches again. */
-  const [searchToken, setSearchToken] = useState(0)
   const [connectors, setConnectors] = useState(emptyPage<MarketConnector>)
   /** The registry page after the ones shown; null at the end. */
   const [connectorCursor, setConnectorCursor] = useState<string | null>(null)
@@ -127,7 +124,6 @@ export function MarketplaceView({ computers, computer, onComputer, appsFirst = f
   }, [])
 
   const submit = (q: string) => {
-    setSearchToken((t) => t + 1)
     void loadConnectors(q)
   }
 
@@ -224,7 +220,6 @@ export function MarketplaceView({ computers, computer, onComputer, appsFirst = f
         <div className="market-page-content">
           {header}
           {searchField}
-          {appsFirst ? <ComposioSection query={query} searchToken={searchToken} /> : null}
           {agents.length > 0 ? (
             <MarketSection title={query ? `Agents matching “${query}”` : 'Agents'}>
               {allAgents.some((b) => b.node === 'missing') ? <NodeNotice onAdd={() => setAddingNode(true)} /> : null}
@@ -263,7 +258,6 @@ export function MarketplaceView({ computers, computer, onComputer, appsFirst = f
               </>
             )}
           </MarketSection>
-          {!appsFirst ? <ComposioSection query={query} searchToken={searchToken} /> : null}
           <MarketSection title="Skills">
             {loadingSkills ? (
               <SkeletonGrid />
@@ -306,7 +300,7 @@ export function MarketplaceView({ computers, computer, onComputer, appsFirst = f
           </MarketSection>
           {error ? <Text size="footnote" tone="danger">{error}</Text> : null}
           <Text size="footnote" tone="tertiary">
-            Connectors come from the official MCP Registry, apps through Composio, skills from Anthropic, agents from the ACP registry. Everything installs on {store.hostName}.
+            Connectors come from the official MCP Registry, skills from Anthropic, agents from the ACP registry. Everything installs on {store.hostName}.
           </Text>
         </div>
       </div>
