@@ -620,7 +620,9 @@ async fn pair(port: u16, as_json: bool) -> Result<()> {
     println!("Scan with the Codync iOS app within 10 minutes, or open this link on the phone:\n{url}\n");
     if hello["cloud"].is_null()
         && p["urls"].as_array().is_none_or(|u| {
-            !u.iter().any(|u| u.as_str().is_some_and(|u| u.contains("://100.") || u.contains(".ts.net")))
+            !u.iter().any(|u| {
+                u.as_str().is_some_and(|u| u.contains("://100.") || u.contains(".ts.net") || u.starts_with("https://"))
+            })
         })
     {
         println!(

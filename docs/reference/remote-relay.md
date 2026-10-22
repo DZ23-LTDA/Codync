@@ -134,7 +134,7 @@ codync://pair?v=3&name=<pct>&id=<computerId>&sk=<signPub>&bk=<boxPub>&code=<pair
 | `id` | 是 | 必須等於 `computerId(sk)`，否則拒絕 |
 | `sk`, `bk` | 是 | host 公鑰 |
 | `code` | 是 | 16 random bytes，b64url；一次性、10 分鐘；host 最多同時 5 組（新的擠掉最舊的） |
-| `urls` | 否 | 直連候選（既有 `service::addresses`，`http://ip:port` 形式），可為空 |
+| `urls` | 否 | 直連候選（`service::addresses`）：先 `CODYNC_EXTERNAL_URL` 設的網址（`https://host` 等，只能是 host 根路徑），再 Tailscale，再 LAN（`http://ip:port`）；可為空 |
 | `cloud` | 否 | host 使用的 cloud base URL（`https://…`；DEBUG build 另允許 `http://127.0.0.1:*`／`http://localhost:*`）；缺 = host 關閉雲端 |
 | `name` | 否 | 顯示名稱 |
 
@@ -417,7 +417,7 @@ Channel 訊息與 DO 訊息的 `t` 值不重疊：channel 只有 `hello`/`welcom
 
 ### 7.5 Client 連線策略（Apple 與整合測試共通）
 
-1. 平行對所有 `urls`（`http://h:p` → `ws://h:p/channel?v=1`）開 WebSocket 並握手；**1.5 秒**內第一個完成握手的勝出。
+1. 平行對所有 `urls`（`http://h:p` → `ws://h:p/channel?v=1`，`https://h` → `wss://h/channel?v=1`）開 WebSocket 並握手；**1.5 秒**內第一個完成握手的勝出。
 2. 都失敗且有 `cloud` → 連 `{cloud}/v1/relay/device/{computerId}`。每次收到 `presence online:true` 就（重新）送 `hello`；`online:false` → 狀態 `computerOffline(lastSeen)`，保持 socket（可用 mailbox），等下一個 `online:true`。
 3. 兩者都不可用 → `offline("Can't reach …")`，退避重試。
 4. App 回前景、網路路徑改變（`NWPathMonitor`）→ 重新跑 1–3（可能從中繼換回直連）；events 以當前 `rev` 重新訂閱。
