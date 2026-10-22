@@ -25,24 +25,26 @@
 .empty-state-action {
   margin-top: 4px;
 }
-/* The bot while the host starts pops in, then bobs (as the phones' launch splash). */
-.starting-bot {
+/* Host recovery uses the app character; only a starting host bobs. */
+.host-state-bot {
+  position: relative;
   margin-bottom: 6px;
-  animation: starting-bot-in 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  animation: host-state-bot-in 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both;
 }
-.starting-bot > canvas {
-  animation: starting-bot-bob 2.6s ease-in-out infinite;
+.host-state-bot.is-working > canvas {
+  animation: host-state-bot-bob 2.6s ease-in-out infinite;
 }
-.local-recovery .starting-bot {
+.local-recovery .host-state-bot {
+  position: relative;
   margin-bottom: 0;
 }
-@keyframes starting-bot-in {
+@keyframes host-state-bot-in {
   from {
     opacity: 0;
     transform: scale(0.6);
   }
 }
-@keyframes starting-bot-bob {
+@keyframes host-state-bot-bob {
   0%,
   100% {
     transform: translateY(-4px);
@@ -52,8 +54,8 @@
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .starting-bot,
-  .starting-bot > canvas {
+  .host-state-bot,
+  .host-state-bot > canvas {
     animation: none;
   }
 }

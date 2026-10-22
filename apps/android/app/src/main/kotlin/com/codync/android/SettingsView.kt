@@ -15,6 +15,7 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -65,7 +66,6 @@ import kotlinx.serialization.json.put
     val paired = state.computers.firstOrNull()
     var confirmForget by remember { mutableStateOf(false) }
     var confirmRevoke by remember { mutableStateOf<CloudComputer?>(null) }
-    var confirmRemoveCopy by remember { mutableStateOf<CloudComputer?>(null) }
     var coloring by remember { mutableStateOf(false) }
     var confirmStartOver by remember { mutableStateOf(false) }
     var voice by remember { mutableStateOf(false) }
@@ -79,11 +79,12 @@ import kotlinx.serialization.json.put
                 if (paired != null) row {
                     val inAccount = state.cloudComputers.firstOrNull { it.computerId == paired.id }
                     ComputerRow(state, store, inAccount != null, ComputerActions(extensions, store::openScreen, voice = { voice = true }, color = { coloring = true },
+                        ask = inAccount?.let { c -> { ask(c) } },
                         revoke = inAccount?.takeIf { it.isGranted }?.let { c -> { confirmRevoke = c } }) { confirmForget = true })
                 }
                 for (computer in state.cloudComputers.filter { it.computerId != paired?.id }) row {
-                    if (state.isOlderCopy(computer)) OlderCopyRow(computer) { confirmRemoveCopy = computer }
-                    else AccountComputerRow(computer, state.access?.takeIf { it.computerId == computer.computerId }?.code, canAsk = paired == null,
+                    if (state.isOlderCopy(computer)) OlderCopyRow(computer)
+                    else AccountComputerRow(computer, state.access?.takeIf { it.computerId == computer.computerId }?.code,
                         askingAnother = state.askingAccess.let { it != null && it != computer.computerId },
                         ask = { ask(computer) }, revoke = { confirmRevoke = computer })
                 }
@@ -138,10 +139,6 @@ import kotlinx.serialization.json.put
     }
     CodyncSheet(voice, { voice = false }) { VoiceChatSettings(state, store) }
     SwatchPanel(coloring, paired?.color, { coloring = false }, store::setColor)
-    CodyncDialog("Remove the older ${confirmRemoveCopy?.name ?: "computer"}?", confirmRemoveCopy != null, { confirmRemoveCopy = null },
-        "It's this computer under an earlier identity and can't be reached anymore. Removing it only cleans up your account.") {
-        listOfNotNull(confirmRemoveCopy?.let { copy -> DialogAction("Remove", destructive = true) { store.removeFromAccount(copy.computerId) } })
-    }
     CodyncSheet(aboutAnalytics, { aboutAnalytics = false }) { AnalyticsSheet() }
     CodyncDialog("Start over?", confirmStartOver, { confirmStartOver = false },
         "Signs out of every account and forgets every computer on this phone, then shows the welcome again. Your computers keep their bots and chats; pair again to use them.") {
@@ -179,7 +176,7 @@ import kotlinx.serialization.json.put
 
 /** What the paired computer's row and its menu open; `revoke` is set when this phone's account access can be revoked. */
 private class ComputerActions(val extensions: () -> Unit, val screen: () -> Unit, val voice: () -> Unit, val color: () -> Unit,
-    val revoke: (() -> Unit)?, val remove: () -> Unit)
+    val ask: (() -> Unit)?, val revoke: (() -> Unit)?, val remove: () -> Unit)
 
 /** The paired computer: its connection, how it's reached, and whether it's in the account. */
 @Composable private fun ComputerRow(state: AppState, store: AppStore, inAccount: Boolean, actions: ComputerActions) {
@@ -187,55 +184,69 @@ private class ComputerActions(val extensions: () -> Unit, val screen: () -> Unit
     val link = state.connection
     val online = link is LinkState.Ready
     val viewable = online && state.screen != null
-    val stale = state.isStale
     val detail = if (link is LinkState.Ready) {
         val count = state.bots.count { !it.deleted && it.kind != "group" }
         "$count bot${if (count == 1) "" else "s"} · ${if (link.route == HostRoute.Direct) "Wi-Fi/Tailscale" else "Cloudflare"}"
     } else computerStatusText(state)
-    Row(Modifier.fillMaxWidth().contextActions(items = {
+    Column(Modifier.fillMaxWidth().contextActions(items = {
         listOfNotNull(
             MenuItem("Color", icon = "paintpalette", action = actions.color),
             if (online) MenuItem("Extensions", icon = "square.grid.2x2", action = actions.extensions) else null,
             if (online) MenuItem("Voice chat", icon = "waveform", action = actions.voice) else null,
             if (viewable) MenuItem("Screen", icon = "display", action = actions.screen) else null,
             actions.revoke?.let { MenuItem("Revoke this phone's access", icon = "lock.slash", destructive = true, divider = true, action = it) },
-            MenuItem("Remove", icon = "trash", destructive = true, divider = actions.revoke == null, action = actions.remove),
+            if (!inAccount) MenuItem("Remove", icon = "trash", destructive = true, divider = actions.revoke == null, action = actions.remove) else null,
         )
-    }), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        ComputerBadge(state.hello?.text("device"), 40.dp, computer.color)
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text(state.hello?.text("name") ?: computer.name, style = Type.body.semibold, color = Palette.text, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                val ink = if (link is LinkState.ComputerOffline || link is LinkState.Failed) Palette.warning else Palette.secondary
-                Text(detail, style = Type.subheadline, color = ink, maxLines = if (stale) 2 else 1, overflow = TextOverflow.Ellipsis)
-                if (link is LinkState.Ready) Symbol(if (link.route == HostRoute.Direct) "wifi" else "cloud", size = 14.dp, tint = ink,
-                    contentDescription = if (link.route == HostRoute.Direct) "Wi-Fi or Tailscale" else "Through Cloudflare")
+    }), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            ComputerBadge(state.hello?.text("device"), 32.dp, computer.color)
+            Text(state.hello?.text("name") ?: computer.name, Modifier.weight(1f), style = Type.body.semibold, color = Palette.text)
+            if (inAccount) Symbol("person.crop.circle.badge.checkmark", size = 20.dp, tint = Palette.tertiary, contentDescription = "In your account")
+        }
+        if (online) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(detail, Modifier.weight(1f), style = Type.footnote, color = Palette.secondary)
+                ComputerControls(state, store, inAccount, actions)
+            }
+        } else {
+            val ink = if (link is LinkState.ComputerOffline || link is LinkState.Failed) Palette.warning else Palette.secondary
+            Text(detail, style = Type.footnote, color = ink)
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                if ((link is LinkState.Failed || link is LinkState.ComputerOffline) && actions.ask != null) {
+                    SecondaryButton(if (state.access?.computerId == computer.id) "Show code" else "Ask for access", action = actions.ask)
+                }
+                Spacer(Modifier.weight(1f))
+                ComputerControls(state, store, inAccount, actions)
             }
         }
-        if (online) IconButton("Extensions", "square.grid.2x2", action = actions.extensions)
-        if (viewable) IconButton("Screen", "display", action = actions.screen)
-        // Revoked, or this computer under an earlier identity: nothing to do but remove it.
-        if (stale) IconButton("Remove", "trash", action = actions.remove)
-        // Which route goes first, and whether Cloudflare is a fallback at all.
-        else DropdownMenu({ ConnectionRoute.entries.map { route -> MenuItem(route.title, icon = route.icon, selected = route == computer.route) { store.setRoute(route) } } },
+    }
+}
+
+/** Keep the computer's actions together beside its connection summary. */
+@Composable private fun ComputerControls(state: AppState, store: AppStore, inAccount: Boolean, actions: ComputerActions) {
+    val computer = state.computers.first()
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        if (state.connection is LinkState.Ready) {
+            IconButton("Extensions", "square.grid.2x2", action = actions.extensions)
+            if (state.screen != null) IconButton("Screen", "display", action = actions.screen)
+        }
+        DropdownMenu({ ConnectionRoute.entries.map { route -> MenuItem(route.title, icon = route.icon, selected = route == computer.route) { store.setRoute(route) } } },
             Modifier.size(36.dp), label = "Connection") {
             Symbol(computer.route.icon, size = 21.dp, tint = Palette.secondary)
         }
-        if (inAccount) Symbol("person.crop.circle.badge.checkmark", size = 20.dp, tint = Palette.tertiary, contentDescription = "In your account")
+        if (state.isStale && !inAccount) IconButton("Remove", "trash", action = actions.remove)
     }
 }
 
 /** A computer in the account that this phone can't use yet; `askingAnother` while this phone asks a different one. */
-@Composable private fun AccountComputerRow(computer: CloudComputer, code: String?, canAsk: Boolean, askingAnother: Boolean, ask: () -> Unit,
+@Composable private fun AccountComputerRow(computer: CloudComputer, code: String?, askingAnother: Boolean, ask: () -> Unit,
     revoke: () -> Unit) {
     val online = if (computer.online == true) "Online" else "Offline"
     val detail = when {
         code != null -> "Waiting for your OK on the computer · $code"
         computer.isGranted -> "Approved for an earlier install of Codync. Revoke it, then ask again."
         computer.access == "pending" -> "$online · A request is waiting"
-        canAsk -> "$online · In your account"
-        // One computer per phone for now: the paired one goes first.
-        else -> "$online · Remove this phone's computer to use this one"
+        else -> "$online · In your account"
     }
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         Box(Modifier.graphicsLayer { alpha = 0.5f }) { ComputerBadge(computer.device, 40.dp) }
@@ -246,13 +257,13 @@ private class ComputerActions(val extensions: () -> Unit, val screen: () -> Unit
         when {
             code != null -> SecondaryButton("Code", action = ask)
             computer.isGranted -> SecondaryButton("Revoke", action = revoke)
-            else -> SecondaryButton("Ask for access", enabled = canAsk && !askingAnother, action = ask)
+            else -> SecondaryButton("Ask for access", enabled = !askingAnother, action = ask)
         }
     }
 }
 
-/** The same machine under an earlier identity: one tap cleans it out of the account. */
-@Composable private fun OlderCopyRow(computer: CloudComputer, remove: () -> Unit) {
+/** An older account identity stays visible; only account management can remove it. */
+@Composable private fun OlderCopyRow(computer: CloudComputer) {
     val seen = computer.lastSeenAt?.let { " · last seen ${RelativeTime.day(it)}" }.orEmpty()
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         Box(Modifier.graphicsLayer { alpha = 0.35f }) { ComputerBadge(computer.device, 40.dp) }
@@ -260,7 +271,6 @@ private class ComputerActions(val extensions: () -> Unit, val screen: () -> Unit
             Text(computer.name, style = Type.body.semibold, color = Palette.secondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text("Older copy of this computer$seen", style = Type.subheadline, color = Palette.tertiary, maxLines = 2, overflow = TextOverflow.Ellipsis)
         }
-        IconButton("Remove from account", "trash", action = remove)
     }
 }
 

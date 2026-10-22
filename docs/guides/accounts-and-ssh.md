@@ -4,6 +4,26 @@ The iOS app uses the official ClerkKit SDK (1.5.6). The desktop app talks to Cle
 Frontend API directly, the way ClerkKit does on native apps (`apps/desktop/src/main/account.ts`):
 a device token kept encrypted with Electron `safeStorage`, OAuth in the system browser.
 
+## Recovering phone access
+
+On iOS and Android, an unreachable paired account computer shows **Ask for access**
+next to its connection error. A pending request reopens its code. If this phone
+already has account approval, **Request new approval** explicitly replaces only
+this phone's grants, then starts the normal matching-code approval flow. Opening
+the sheet alone does not revoke anything. The computer must be online to answer;
+requesting access cannot repair an offline host. Existing pairing data and local
+addresses and color/route preferences survive renewal, and a saved pairing never counts as
+approval of a new request.
+
+Phone device lists do not offer **Remove** for computers in the signed-in account,
+including older identities. Independently paired computers can still be removed
+locally, and **Revoke this phone's access** remains available for account grants.
+Android keeps the current pairing while another computer is being approved, then
+switches its local connection only after approval; both account records remain.
+Desktop account management remains the place to remove an account computer.
+This is a phone recovery flow: the desktop manages the host/account and the TUI
+connects to its local host; neither has this phone access-request screen.
+
 ## Configuration
 
 The iOS app uses `apps/ios/App/AccountSession.swift`. Public keys and cloud URLs come from `apps/shared/Config/<env>.plist`, copied into the bundle as `AccountConfig.plist` by `project.yml`; `iOS Dev` (`DevDebug` / `DevRelease`) selects dev and `iOS` (`Debug` / `Release`) selects main. The desktop app reads the same plist through `node apps/desktop/tools/account-config.mjs <env>` (run by `npm run dev` and `npm run dist:*:<env>`), which writes `resources/account-config.json` (`CODYNC_CLERK_PUBLISHABLE_KEY` / `CODYNC_CLOUD_URL` override it). See [environments](environments-and-deployment.md).

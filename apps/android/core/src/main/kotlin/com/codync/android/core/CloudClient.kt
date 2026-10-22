@@ -108,9 +108,6 @@ class CloudClient private constructor(base: String, private val identity: Device
         }
     }
 
-    /** Takes a computer out of the account; its grants and pending requests go with it. */
-    suspend fun removeComputer(id: String) { request("DELETE", listOf("v1", "computers", id)) }
-
     suspend fun accessStatus(id: String): AccessStatus {
         val result = request("GET", listOf("v1", "access-requests", id))
         return json.decodeFromJsonElement(result)

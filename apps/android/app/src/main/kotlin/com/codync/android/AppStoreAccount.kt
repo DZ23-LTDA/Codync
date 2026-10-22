@@ -48,13 +48,7 @@ fun AppStore.refreshCloud() = action("cloud") {
     val client = cloud ?: return@action
     try {
         client.registerDevice(Build.MODEL.take(100))
-        // The list changed here while one was on its way (a removal): it's out of date, so it's asked
-        // for again. A removal's own refresh, asked for while this one ran, is this one.
-        var computers: List<CloudComputer>
-        do {
-            val version = cloudListVersion
-            computers = client.computers()
-        } while (version != cloudListVersion)
+        val computers = client.computers()
         mutableState.update { it.copy(cloudComputers = computers) }
         // Signed in to an account with computers, before pairing any (iOS: the same moment).
         if (computers.isNotEmpty() && state.value.computers.isEmpty()) Analytics.completeOnboarding(OnboardingVia.Account)
@@ -69,14 +63,24 @@ fun AppStore.refreshCloud() = action("cloud") {
 /** A pull to refresh: the account's computers, joining a refresh already under way. */
 suspend fun AppStore.refreshComputers() { refreshCloud(); actions["cloud"]?.join() }
 
-fun AppStore.requestAccess(target: CloudComputer) = action("access") {
-    mutableState.update { it.copy(askingAccess = target.computerId) }
-    try { askForAccess(target) } finally { mutableState.update { it.copy(askingAccess = null) } }
+fun AppStore.requestAccess(target: CloudComputer, renew: Boolean = false) {
+    if (renew) {
+        action("renewAccess") {
+            // Await cancellation cleanup before replacing this phone's grant and request.
+            actions["access"]?.cancelAndJoin()
+            startAccess(target, renew = true)
+        }
+    } else startAccess(target, renew = false)
 }
 
-private suspend fun AppStore.askForAccess(target: CloudComputer) {
+private fun AppStore.startAccess(target: CloudComputer, renew: Boolean) = action("access") {
+    mutableState.update { it.copy(askingAccess = target.computerId) }
+    try { askForAccess(target, renew) } finally { mutableState.update { it.copy(askingAccess = null) } }
+}
+
+private suspend fun AppStore.askForAccess(target: CloudComputer, renew: Boolean) {
     val client = requireNotNull(cloud) { "Sign in to reach your account." }
-    require(state.value.computers.isEmpty() || state.value.computers.first().id == target.computerId) { "Forget the current computer before connecting a different one." }
+    if (renew) client.revokeAccess(target.computerId)
     val ticket = client.requestAccess(target.computerId, target.signKey)
     Analytics.capture(AnalyticsEvent.AccessRequested)
     mutableState.update { it.copy(access = ticket) }
@@ -91,14 +95,13 @@ private suspend fun AppStore.askForAccess(target: CloudComputer) {
                 "pending" -> continue
                 "approved" -> {
                     // Pin only the key used in the SAS. The first authenticated hello supplies addresses and box key.
+                    val previous = state.value.computers.firstOrNull { it.id == ticket.computerId && it.signKey == ticket.signKey }
                     val computer = Computer(ticket.computerId, target.name, ticket.signKey, cloud = BuildConfig.CLOUD_URL)
+                        .copy(urls = previous?.urls.orEmpty(), boxKey = previous?.boxKey,
+                            color = previous?.color, route = previous?.route ?: ConnectionRoute.Automatic)
                     computer.validate()
-                    withContext(Dispatchers.IO) { local.saveComputers(listOf(computer)); local.completeSetup() }
-                    mutableState.update { it.copy(computers = listOf(computer), setupComplete = true) }
                     Analytics.capture(AnalyticsEvent.ComputerPaired(PairedVia.Account, computer.id))
-                    openMirror(); connect()
-                    // Its account entry now says granted, which offers Revoke.
-                    refreshCloud()
+                    useApprovedComputer(computer, ticket.requestId)
                     return
                 }
                 "denied" -> {
@@ -120,6 +123,27 @@ private suspend fun AppStore.askForAccess(target: CloudComputer) {
     } finally { mutableState.update { it.copy(access = null) } }
 }
 
+/** Switch only after approval, retiring the old channel and its writers before replacing its mirror. */
+internal fun AppStore.useApprovedComputer(computer: Computer, requestId: String) {
+    // Approval is already confirmed by the cloud, even when switching must wait.
+    mutableState.update { it.copy(approvedAccess = it.approvedAccess + (computer.id to requestId)) }
+    val contextId = state.value.contextId
+    val generation = state.value.generation
+    sessionAction(wait = true) {
+        transitions.withLock {
+            if (state.value.contextId != contextId || state.value.generation != generation) return@withLock
+            val userId = state.value.account.userId
+            retireContext()
+            try {
+                withContext(Dispatchers.IO) { local.saveComputers(listOf(computer)); local.completeSetup() }
+            } finally {
+                loadContext(userId)
+            }
+            mutableState.update { it.copy(approvedAccess = it.approvedAccess + (computer.id to requestId)) }
+        }
+    }
+}
+
 fun AppStore.cancelAccess() {
     val ticket = state.value.access
     val client = cloud
@@ -138,30 +162,6 @@ fun AppStore.cancelAccess() {
 fun AppStore.revokeAccess(computerId: String) = action("revoke") {
     requireNotNull(cloud) { "Sign in to reach your account." }.revokeAccess(computerId)
     if (state.value.computers.firstOrNull()?.id == computerId) forgetComputer() else refreshCloud()
-}
-
-/**
- * Takes an older copy of a computer out of the account (its grants and pending requests go with it).
- * Its row goes at once, and a list asked for before the removal finished can't bring it back (iOS
- * `AccountStore.removeFromAccount`); a failed removal puts it back.
- */
-fun AppStore.removeFromAccount(computerId: String) = action("removeFromAccount") {
-    val client = requireNotNull(cloud) { "Sign in to reach your account." }
-    val index = state.value.cloudComputers.indexOfFirst { it.computerId == computerId }
-    if (index < 0) return@action
-    val removed = state.value.cloudComputers[index]
-    cloudListVersion++
-    mutableState.update { s -> s.copy(cloudComputers = s.cloudComputers.filter { it.computerId != computerId }) }
-    try { client.removeComputer(computerId) }
-    catch (error: CancellationException) { throw error }
-    catch (error: Exception) {
-        mutableState.update { s ->
-            if (s.cloudComputers.any { it.computerId == computerId }) s
-            else s.copy(cloudComputers = s.cloudComputers.toMutableList().apply { add(minOf(index, size), removed) })
-        }
-        throw error
-    } finally { cloudListVersion++ }
-    refreshCloud()
 }
 
 /** The computer's badge color, picked on this phone (an `AvatarPalette` id). */

@@ -19,7 +19,6 @@ struct SettingsView: View {
     @State private var confirmRevoke: CloudComputer?
     @State private var access: AccessTarget?
     @State private var confirmStartOver = false
-    @State private var confirmRemoveCopy: CloudComputer?
     @State private var voice: VoiceTarget?
     @State private var aboutAnalytics = false
 
@@ -33,13 +32,14 @@ struct SettingsView: View {
                         ComputerRow(store: store, inAccount: cloudComputer(computer.id),
                                     openScreen: { openScreen(store) },
                                     openMarketplace: { closeSheets { app.marketplace = store.computer.id } },
+                                    ask: cloudComputer(computer.id).map { c in { access = AccessTarget(computer: c) } },
                                     revoke: cloudComputer(computer.id).flatMap { c in c.isGranted ? { confirmRevoke = c } : nil },
                                     remove: { confirmForget = computer })
                     }
                 }
                 ForEach(accountOnly) { computer in
                     if accounts.isOlderCopy(computer) {
-                        OlderCopyRow(computer: computer) { confirmRemoveCopy = computer }
+                        OlderCopyRow(computer: computer)
                     } else {
                         AccountComputerRow(computer: computer, ticket: accounts.pendingAccess[computer.computerId],
                                            ask: { access = AccessTarget(computer: computer) },
@@ -130,12 +130,6 @@ struct SettingsView: View {
                 .buttonStyle(.plain)
             }
         }
-        .codyncDialog("Remove the older \(confirmRemoveCopy?.name ?? "computer")?", isPresented: Binding(
-            get: { confirmRemoveCopy != nil }, set: { if !$0 { confirmRemoveCopy = nil } }
-        ), message: "It's this computer under an earlier identity and can't be reached anymore. Removing it only cleans up your account.") {
-            guard let copy = confirmRemoveCopy else { return [] }
-            return [DialogAction("Remove", destructive: true) { Task { await accounts.removeFromAccount(copy.computerId) } }]
-        }
         .codyncDialog("Start over?", isPresented: $confirmStartOver,
                       message: "Signs out of every account and forgets every computer on this iPhone, then shows the welcome again. Your computers keep their bots and chats; pair again to use them.") {
             [DialogAction("Start over", destructive: true) { Task { await app.startOver() } }]
@@ -151,7 +145,7 @@ struct SettingsView: View {
         .codyncSheet(item: $voice) { target in VoiceChatSettingsView().environment(target.store) }
         .codyncSheet(isPresented: $aboutAnalytics) { AnalyticsSheet() }
         .codyncSheet(item: $access) { target in
-            AccessRequestView(computer: target.computer, pending: accounts.pendingAccess[target.id] != nil)
+            AccessRequestView(computer: target.computer, pending: accounts.pendingAccess[target.id])
         }
         .codyncDialog("Remove \(confirmForget?.name ?? "computer")?",
                       isPresented: Binding(get: { confirmForget != nil }, set: { if !$0 { confirmForget = nil } }),
@@ -249,6 +243,7 @@ private struct ComputerRow: View {
     let openScreen: () -> Void
     /// Agents, connectors and skills installed on this computer.
     let openMarketplace: () -> Void
+    let ask: (() -> Void)?
     /// Set when this iPhone's access to the computer can be revoked.
     let revoke: (() -> Void)?
     let remove: () -> Void
@@ -257,48 +252,39 @@ private struct ComputerRow: View {
     @State private var voiceSettings = false
 
     var body: some View {
-        HStack(spacing: 12) {
-            ComputerBadge(store.computer, size: 40)
-            VStack(alignment: .leading, spacing: 2) {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 10) {
+                ComputerBadge(store.computer, size: 32)
                 Text(store.hostName).font(.body.weight(.semibold)).foregroundStyle(Palette.text)
-                HStack(spacing: 4) {
-                    Text(detail).lineLimit(stale ? 2 : 1)
-                    if store.connection == .online { RouteIcon(route: store.hostRoute) }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                if inAccount != nil {
+                    Image(systemName: "person.crop.circle.badge.checkmark")
+                        .foregroundStyle(Palette.tertiary)
+                        .accessibilityLabel("In your account")
                 }
-                .font(.subheadline)
-                .foregroundStyle(store.isOffline ? Palette.warning : Palette.secondary)
             }
-            Spacer()
             if store.connection == .online {
-                IconButton("Extensions", systemImage: "square.grid.2x2", action: openMarketplace)
-            }
-            if store.screen != nil, store.connection == .online {
-                IconButton("Screen", systemImage: "display", action: openScreen)
-            }
-            if stale {
-                // Revoked, or this computer under an earlier identity: nothing to do but remove it.
-                IconButton("Remove", systemImage: "trash", action: remove)
-            } else {
-                // Which route goes first, and whether Cloudflare is a fallback at all.
-                DropdownMenu {
-                    ConnectionRoute.allCases.map { route in
-                        MenuItem(route.title, icon: route.icon, selected: route == preference) {
-                            accounts.setRoute(store.computer.id, route)
-                        }
+                ViewThatFits(in: .horizontal) {
+                    HStack(spacing: 8) {
+                        connectionDetail.fixedSize()
+                        Spacer(minLength: 0)
+                        controls
                     }
-                } label: {
-                    Image(systemName: preference.icon)
-                        .font(.system(size: 18, weight: .medium))
-                        .foregroundStyle(Palette.secondary)
-                        .frame(width: 36, height: 36)
-                        .contentShape(Rectangle())
+                    VStack(alignment: .leading, spacing: 4) {
+                        connectionDetail
+                        controls.frame(maxWidth: .infinity, alignment: .trailing)
+                    }
                 }
-                .accessibilityLabel("Connection")
-            }
-            if inAccount != nil {
-                Image(systemName: "person.crop.circle.badge.checkmark")
-                    .foregroundStyle(Palette.tertiary)
-                    .accessibilityLabel("In your account")
+            } else {
+                connectionDetail
+                HStack(spacing: 8) {
+                    if store.isOffline, let ask {
+                        Button(accounts.pendingAccess[store.computer.id] == nil ? "Ask for access" : "Show code", action: ask)
+                            .buttonStyle(.secondary)
+                    }
+                    Spacer(minLength: 0)
+                    controls
+                }
             }
         }
         .padding(.vertical, 2)
@@ -317,7 +303,9 @@ private struct ComputerRow: View {
             if let revoke {
                 items.append(MenuItem("Revoke this iPhone's access", icon: "lock.slash", destructive: true, divider: true, action: revoke))
             }
-            items.append(MenuItem("Remove", icon: "trash", destructive: true, divider: revoke == nil, action: remove))
+            if inAccount == nil {
+                items.append(MenuItem("Remove", icon: "trash", destructive: true, divider: revoke == nil, action: remove))
+            }
             return items
         }
         .codyncSheet(isPresented: $voiceSettings) { VoiceChatSettingsView().environment(store) }
@@ -332,6 +320,36 @@ private struct ComputerRow: View {
                 .shadow(color: .black.opacity(0.25), radius: 24, y: 10)
             }
             .accessibilityAddTraits(.isModal)
+        }
+    }
+
+    private var connectionDetail: some View {
+        Text(detail).font(.footnote)
+            .foregroundStyle(store.isOffline ? Palette.warning : Palette.secondary)
+            .fixedSize(horizontal: false, vertical: true)
+    }
+
+    private var controls: some View {
+        HStack(spacing: 4) {
+            if store.connection == .online {
+                IconButton("Extensions", systemImage: "square.grid.2x2", action: openMarketplace)
+                if store.screen != nil { IconButton("Screen", systemImage: "display", action: openScreen) }
+            }
+            DropdownMenu {
+                ConnectionRoute.allCases.map { route in
+                    MenuItem(route.title, icon: route.icon, selected: route == preference) {
+                        accounts.setRoute(store.computer.id, route)
+                    }
+                }
+            } label: {
+                Image(systemName: preference.icon)
+                    .font(.system(size: 18, weight: .medium))
+                    .foregroundStyle(Palette.secondary)
+                    .frame(width: 36, height: 36)
+                    .contentShape(Rectangle())
+            }
+            .accessibilityLabel("Connection")
+            if stale, inAccount == nil { IconButton("Remove", systemImage: "trash", action: remove) }
         }
     }
 
@@ -389,10 +407,9 @@ private struct AccountComputerRow: View {
     }
 }
 
-/// The same machine under an earlier identity: one tap cleans it out of the account.
+/// An older account identity stays visible; only account management can remove it.
 private struct OlderCopyRow: View {
     let computer: CloudComputer
-    let remove: () -> Void
 
     var body: some View {
         HStack(spacing: 12) {
@@ -403,7 +420,6 @@ private struct OlderCopyRow: View {
                 Text(detail).font(.subheadline).foregroundStyle(Palette.tertiary).lineLimit(2)
             }
             Spacer()
-            IconButton("Remove from account", systemImage: "trash", action: remove)
         }
         .padding(.vertical, 2)
     }

@@ -5,7 +5,7 @@ import { avatarColor, palette, useDark, usePixelRatio, useReduceMotion } from '.
 import { Icon } from './Icon'
 import './avatar.css'
 
-export type Mood = 'idle' | 'working' | 'needsInput'
+export type Mood = 'idle' | 'working' | 'needsInput' | 'failed'
 
 /** The eight Grok Bot character silhouettes, in a w×h box. */
 export function characterPath(kind: string, w: number, h: number) {
@@ -131,7 +131,7 @@ export const CharacterAvatar = memo(function CharacterAvatar({ shape, color, tin
     el.height = pixels
     const scale = pixels / size
     const ctx = el.getContext('2d')!
-    const still = mood === 'idle' || reduce
+    const still = mood === 'idle' || mood === 'failed' || reduce
     // A moving character draws at 30 fps (its light turns slowly), and only while on screen.
     let frame = 0
     let drawn = -Infinity
@@ -186,8 +186,18 @@ export function drawCharacter(
   const ly = 0.55
   const lz = Math.cos(yaw) * 0.5 + 0.6 // never fully behind
   const ll = Math.hypot(lx, ly, lz)
+  const mouthCenter = Math.floor(cells / 2)
+  const closedEyeRow = eyeRowsAll[eyeRowsAll.length - 1]!
   for (const d of dots) {
-    if (eyeCols.includes(d.col) && eyeRows.includes(d.row)) continue
+    // Closed eyes droop away from the nose, like a disappointed face.
+    const isEye = mood === 'failed'
+      ? eyeColumns.some((col) => Math.abs(d.col - col) <= 1
+        && d.row === closedEyeRow - (Math.abs(d.col - mouthCenter) < Math.abs(col - mouthCenter) ? 1 : 0))
+      : eyeCols.includes(d.col) && eyeRows.includes(d.row)
+    if (isEye) continue
+    // A downturned mouth, cut out of the same dot grid as the eyes.
+    const mouthOffset = Math.abs(d.col - mouthCenter)
+    if (mood === 'failed' && mouthOffset <= 1 && d.row === Math.floor(cells * 0.65) + mouthOffset) continue
     const u = (d.x - half) / half
     const v = (half - d.y) / half
     const z = Math.sqrt(Math.max(0.2, 1 - u * u - v * v))
