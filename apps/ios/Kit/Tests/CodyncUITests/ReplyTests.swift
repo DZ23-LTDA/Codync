@@ -35,22 +35,13 @@ private func message(_ id: String, kind: String, final: Bool? = nil, text: Strin
     let store = BotStore(computer: Computer(id: "reply", name: "Mac", signKey: ""), storage: storage) { _ in fake }
     defer { store.retire() }
     store.setActive(true)
-    #expect(await eventually { await fake.subscribed })
+    #expect(await until { await fake.subscribed })
     await fake.emit(#"{"type":"bot","bot":{"id":"b1","name":"Bot","rev":1,"lastAt":1}}"#)
-    #expect(await eventually { store.connection == .online })
+    #expect(await until { store.connection == .online })
 
     store.setComposerDraft("Why?", for: "b1")
     #expect(store.sendComposerDraft(to: "b1", replyTo: message("a", kind: "agent", final: true)))
     #expect(store.chat("b1").last?.data.replyTo?.id == "a")
     #expect(store.composerDraft(for: "b1").isEmpty)
-    #expect(await eventually { await fake.replyTos == ["a"] })
-}
-
-/// Polls until `condition` holds (2 s at most).
-@MainActor private func eventually(_ condition: @MainActor () async -> Bool) async -> Bool {
-    for _ in 0..<200 {
-        if await condition() { return true }
-        try? await Task.sleep(for: .milliseconds(10))
-    }
-    return false
+    #expect(await until { await fake.replyTos == ["a"] })
 }

@@ -3,6 +3,36 @@ import CodyncKit
 import Speech
 import SwiftUI
 
+/// What dictating with a provider needs from outside `Dictation`: the provider picked beside the
+/// mic, whether the computer has the user's key for it, the microphone, and a recording's transcript.
+struct DictationService {
+    var picked: @MainActor () -> VoiceProvider?
+    var hasKey: @MainActor (VoiceProvider, BotStore) async throws -> Bool
+    /// Whether the user lets the app record.
+    var allowMic: @MainActor () async -> Bool
+    /// Starts `engine`'s microphone, handing `heard` 16 kHz mono PCM16 and its level, 0…1; false when it can't be used.
+    var openMic: @MainActor (_ engine: AVAudioEngine, _ heard: @escaping @Sendable (Data, Float) -> Void) -> Bool
+    var transcribe: @MainActor (Data, VoiceProvider, BotStore) async throws -> String
+
+    /// The user's setting, this phone's microphone, and their computer on their own key.
+    static var live: DictationService {
+        DictationService(
+            picked: { VoiceSettings.dictationProvider },
+            hasKey: { provider, model in
+                let status = try await model.ready().voiceStatus()
+                VoiceSettings.remember(status)
+                return status.configured(provider)
+            },
+            allowMic: { await AVAudioApplication.requestRecordPermission() },
+            openMic: { engine, heard in Dictation.openMic(engine, bufferSize: 2048) { MicTap.pcm16k(from: $0, out: heard) } },
+            transcribe: { pcm, provider, model in
+                let said = try await Dictation.transcribe(pcm, provider: provider, on: model)
+                VoiceUsage.add(seconds: pcm.count / MicTap.bytesPerSecond, for: provider)
+                return said
+            })
+    }
+}
+
 /// Dictation into the message box. With on-device speech the words appear as they're recognized,
 /// after what was already typed, and the recording pill's stop, or the recognizer finishing on a
 /// pause, stops it; it uses the call's language setting. With a provider picked beside the mic, it
@@ -33,12 +63,17 @@ final class Dictation {
     /// Bumped per start and stop, so a start still waiting (key check, permission) or a late
     /// result from an earlier recognition is dropped.
     @ObservationIgnored private var generation = 0
+    @ObservationIgnored private let service: DictationService
+
+    init(service: DictationService = .live) {
+        self.service = service
+    }
 
     /// A transcription request has to fit one channel message once base64-encoded: 20 s of audio
     /// (20.5 s with a short tail still fits).
-    static let pieceBytes = 16000 * 2 * 20
+    static let pieceBytes = MicTap.bytesPerSecond * 20
     /// Under half a second is a tap of the mic, not speech (and speech-to-text models invent words for silence).
-    static let minBytes = 16000 * 2 / 2
+    static let minBytes = MicTap.bytesPerSecond / 2
     /// Transcription requests in flight at once, under the channel's and the providers' limits.
     private static let inFlight = 3
 
@@ -56,7 +91,7 @@ final class Dictation {
         failure = nil
         generation += 1
         before = draft
-        if let provider = VoiceSettings.dictationProvider {
+        if let provider = service.picked() {
             await record(provider, model: model, generation: generation, edit: edit)
         } else {
             await recognize(generation: generation, edit: edit)
@@ -73,8 +108,7 @@ final class Dictation {
         transcribing = true
         transcription = Task {
             do {
-                let said = try await Self.transcribe(recording.pcm, provider: recording.provider, on: recording.model)
-                VoiceUsage.add(seconds: recording.pcm.count / (16000 * 2), for: recording.provider)
+                let said = try await service.transcribe(recording.pcm, recording.provider, recording.model)
                 guard generation == self.generation else { return }
                 edit? { Self.join($0, said) }
             } catch {
@@ -113,7 +147,7 @@ final class Dictation {
         request.shouldReportPartialResults = true
         request.addsPunctuation = true
         if recognizer.supportsOnDeviceRecognition { request.requiresOnDeviceRecognition = true }
-        guard openMic(bufferSize: 1024, tap: { _ in OnDeviceEngine.tap(request) { [weak self] level in
+        guard Self.openMic(engine, bufferSize: 1024, tap: { _ in OnDeviceEngine.tap(request) { [weak self] level in
             Task { @MainActor in if self?.listening == true { self?.level = level } }
         } }) else { return }
         self.edit = edit
@@ -126,10 +160,9 @@ final class Dictation {
     /// Records for `provider` once the computer has its key, so nothing said is lost to a missing one.
     private func record(_ provider: VoiceProvider, model: BotStore, generation: Int, edit: @escaping ((String) -> String) -> Void) async {
         do {
-            let status = try await model.ready().voiceStatus()
-            VoiceSettings.remember(status)
+            let hasKey = try await service.hasKey(provider, model)
             guard generation == self.generation else { return }
-            guard status.configured(provider) else {
+            guard hasKey else {
                 failure = "Add your \(provider.name) key in Voice chat settings to dictate with it."
                 return
             }
@@ -137,15 +170,15 @@ final class Dictation {
             if generation == self.generation { failure = error.localizedDescription }
             return
         }
-        let allowed = await AVAudioApplication.requestRecordPermission()
+        let allowed = await service.allowMic()
         guard generation == self.generation else { return }
         guard allowed else {
             failure = "Allow microphone access in Settings to dictate."
             return
         }
-        guard openMic(bufferSize: 2048, tap: { format in MicTap.pcm16k(from: format) { [weak self] pcm, level in
+        guard service.openMic(engine, { [weak self] pcm, level in
             Task { @MainActor in self?.recorded(pcm, level: level, generation: generation) }
-        } }) else {
+        }) else {
             failure = "The microphone isn't available."
             return
         }
@@ -162,8 +195,8 @@ final class Dictation {
     }
 
     /// The call's audio session (a recording tap on a `.record` session fails on some routes) and
-    /// `tap` on the microphone. False, with everything let go, when the microphone can't be used.
-    private func openMic(bufferSize: AVAudioFrameCount, tap: (AVAudioFormat) -> AVAudioNodeTapBlock) -> Bool {
+    /// `tap` on `engine`'s microphone. False, with everything let go, when the microphone can't be used.
+    fileprivate static func openMic(_ engine: AVAudioEngine, bufferSize: AVAudioFrameCount, tap: (AVAudioFormat) -> AVAudioNodeTapBlock) -> Bool {
         let audio = AVAudioSession.sharedInstance()
         do {
             try audio.setCategory(.playAndRecord, mode: .default, options: [.defaultToSpeaker, .allowBluetoothHFP, .duckOthers])
@@ -191,7 +224,7 @@ final class Dictation {
     }
 
     /// The recording in pieces, a few transcribed at a time and joined in order.
-    private static func transcribe(_ pcm: Data, provider: VoiceProvider, on store: BotStore) async throws -> String {
+    fileprivate static func transcribe(_ pcm: Data, provider: VoiceProvider, on store: BotStore) async throws -> String {
         // Asked for now, not at the start: a reconnect while recording replaces the client.
         let client = try await store.ready()
         let model = VoiceSettings.transcribeModel(provider)

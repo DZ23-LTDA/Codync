@@ -139,6 +139,9 @@ enum VoiceSettings {
 }
 
 enum MicTap {
+    /// Bytes per second of what `pcm16k` hands out: 16 kHz mono PCM16.
+    static let bytesPerSecond = 16000 * 2
+
     struct Unavailable: LocalizedError {
         var errorDescription: String? { "no microphone is available right now" }
     }
