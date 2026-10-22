@@ -51,8 +51,6 @@ class AppStore(application: Application) : AndroidViewModel(application) {
     internal val sends = mutableSetOf<String>()
     internal val actions = mutableMapOf<String, Job>()
     internal var pluginsRefreshAgain = false
-    /** Bumped by each local change to the account's computers: a list asked for before one is out of date. */
-    internal var cloudListVersion = 0
     internal var widgetOwner: WidgetOwner? = null
     /** The host version an undecodable event already made the mirror fetch everything again for. */
     internal var rewoundFor: String? = null
@@ -143,9 +141,11 @@ class AppStore(application: Application) : AndroidViewModel(application) {
         contextScope = CoroutineScope(contextJob + Dispatchers.Main.immediate)
     }
 
-    internal fun sessionAction(operation: suspend () -> Unit) {
-        if (sessionJob?.isActive == true) return
+    internal fun sessionAction(wait: Boolean = false, operation: suspend () -> Unit) {
+        val previous = sessionJob
+        if (previous?.isActive == true && !wait) return
         sessionJob = viewModelScope.launch {
+            previous?.join()
             mutableState.update { it.copy(busy = it.busy + "session", error = null) }
             try { operation() }
             catch (error: CancellationException) { throw error }

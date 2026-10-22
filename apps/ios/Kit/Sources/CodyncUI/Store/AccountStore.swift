@@ -31,6 +31,8 @@ public final class AccountStore {
     public private(set) var cloudComputers: [CloudComputer] = []
     /// Access requests waiting for approval on the computer, with the SAS to show.
     public private(set) var pendingAccess: [ComputerID: AccessTicket] = [:]
+    /// The actual request approved most recently, distinct from a previously paired computer.
+    public private(set) var approvedAccess: [ComputerID: String] = [:]
     public var lastError: String?
     public var selection: BotReference? {
         didSet { if let id = selection?.computerId, !retired { storage.lastComputerId = id } }
@@ -48,11 +50,8 @@ public final class AccountStore {
     /// Persisted in the context (channel route).
     private var saved: [Computer]
     private var accessPolls: [ComputerID: Task<Void, Never>] = [:]
-    /// Bumped by each account list request and each local change to the list: a list that comes back
-    /// after a newer one was asked for (or the list changed here) is out of date.
+    /// A list that comes back after a newer request was started is out of date.
     private var cloudListVersion = 0
-    /// Computers being taken out of the account: a list that comes back meanwhile leaves them out.
-    private var removing: Set<ComputerID> = []
     /// Access requests still waiting for their code, joined by a second ask.
     private var asks: [ComputerID: Task<AccessTicket, any Error>] = [:]
     private var isActive = true
@@ -150,7 +149,7 @@ public final class AccountStore {
         cloudListVersion += 1
         let version = cloudListVersion
         do {
-            let list = try await cloud.computers().filter { !removing.contains($0.computerId) }
+            let list = try await cloud.computers()
             guard !retired, version == cloudListVersion else { return }
             if list != cloudComputers { Motion.animate { cloudComputers = list } }
         } catch let error as CloudError where !error.isTransient {
@@ -167,7 +166,7 @@ public final class AccountStore {
     /// computer never waits on a request nobody reveals, and asking again while it runs joins it
     /// instead of committing a second one.
     /// Approval is then picked up in the background and the computer joins `stores`.
-    public func requestAccess(_ id: ComputerID) async throws {
+    public func requestAccess(_ id: ComputerID, renew: Bool = false) async throws {
         if let ask = asks[id], !ask.isCancelled {
             _ = try await ask.value
             return
@@ -176,7 +175,10 @@ public final class AccountStore {
             throw CloudError(status: 404, code: "notFound", message: "That computer isn't in your account.")
         }
         accessPolls[id]?.cancel()
-        let ask = Task { try await cloud.requestAccess(id, signKey: target.signKey) }
+        let ask = Task {
+            if renew { try await cloud.revokeDeviceAccess(id) }
+            return try await cloud.requestAccess(id, signKey: target.signKey)
+        }
         asks[id] = ask
         accessPolls[id] = Task { [weak self] in
             await withTaskCancellationHandler {
@@ -219,7 +221,7 @@ public final class AccountStore {
     /// A computer this device uses that won't come back as it is: it turned this device away (access
     /// revoked, or its identity changed after a reset or reinstall), or it's offline while a computer
     /// with its name is reachable that joined the account after it was last seen, the same machine
-    /// under a new identity. Removing it is the fix.
+    /// under a new identity. Account computers offer access recovery; only independently paired computers offer removal.
     public func isStale(_ id: ComputerID) -> Bool {
         guard let store = stores[id] else { return false }
         switch store.connection {
@@ -258,28 +260,6 @@ public final class AccountStore {
         Motion.animate { pendingAccess[id] = ticket }
     }
 
-    /// Takes a computer out of the account (its grants and pending requests go with it).
-    /// Its row goes at once, so a second tap finds nothing to remove; no list brings it back while the
-    /// removal runs, nor one asked for before it finished. A failed removal puts it back.
-    public func removeFromAccount(_ id: ComputerID) async {
-        guard let cloud, let index = cloudComputers.firstIndex(where: { $0.computerId == id }) else { return }
-        let removed = cloudComputers[index]
-        removing.insert(id)
-        Motion.animate { _ = cloudComputers.remove(at: index) }
-        do {
-            try await cloud.removeComputer(id)
-            setPending(id, nil)
-        } catch {
-            lastError = error.localizedDescription
-            if !cloudComputers.contains(where: { $0.computerId == id }) {
-                Motion.animate { cloudComputers.insert(removed, at: min(index, cloudComputers.count)) }
-            }
-        }
-        removing.remove(id)
-        cloudListVersion += 1
-        await refreshCloud()
-    }
-
     /// Withdraws a pending access request; the computer drops it from its approval list.
     public func cancelAccess(_ id: ComputerID) async {
         guard let ticket = pendingAccess[id] else { return }
@@ -303,10 +283,17 @@ public final class AccountStore {
             case .pending:
                 continue
             case .approved:
+                approvedAccess[ticket.computerId] = ticket.requestId
                 setPending(ticket.computerId, nil)
                 // Pin the key the SAS was computed with; the first hello brings its mailbox key and addresses.
-                let computer = Computer(id: ticket.computerId, name: target.name, signKey: ticket.signKey,
+                var computer = Computer(id: ticket.computerId, name: target.name, signKey: ticket.signKey,
                                         cloud: cloud.baseURL, device: target.device)
+                if let previous = saved.first(where: { $0.id == computer.id && $0.signKey == computer.signKey }) {
+                    computer.urls = previous.urls
+                    computer.boxKey = previous.boxKey
+                    computer.color = previous.color
+                    computer.route = previous.route
+                }
                 save(computer)
                 open(computer)
                 Analytics.shared.capture(.computerPaired(via: .account, computer: computer.id))

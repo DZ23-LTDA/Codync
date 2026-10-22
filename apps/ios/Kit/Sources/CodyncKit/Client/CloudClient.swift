@@ -72,11 +72,6 @@ public struct CloudClient: Sendable {
         return res.computers
     }
 
-    /// Removes the computer from the account; every device's access to it through the account ends.
-    public func removeComputer(_ id: ComputerID) async throws {
-        try await send("DELETE", "v1/computers/\(id)")
-    }
-
     public func grants(_ id: ComputerID) async throws -> [CloudGrant] {
         struct Res: Decodable { var grants: [CloudGrant] }
         let res: Res = try await request("GET", "v1/computers/\(id)/grants")
@@ -85,6 +80,17 @@ public struct CloudClient: Sendable {
 
     public func revokeGrant(_ id: ComputerID, grantId: String) async throws {
         try await send("DELETE", "v1/computers/\(id)/grants/\(grantId)")
+    }
+
+    /// Revokes only this phone's grants, so it can request a fresh approval without removing the computer.
+    public func revokeDeviceAccess(_ id: ComputerID) async throws {
+        guard let identity else { throw CloudError(status: 0, code: "noDeviceKey", message: "Sign in again on this device.") }
+        guard let device = try await devices().first(where: { $0.deviceKey == identity.publicKey }) else {
+            throw CloudError(status: 404, code: "notFound", message: "This phone isn't registered in your account. Sign in again.")
+        }
+        for grant in try await grants(id) where grant.deviceId == device.deviceId {
+            try await revokeGrant(id, grantId: grant.grantId)
+        }
     }
 
     // MARK: access requests (§4.2 B, commit-then-reveal SAS)

@@ -6,6 +6,16 @@ any left). tools/asc-submit.py reads the released version's section;
 a version without one gets a generic "Bug fixes and improvements" line. Delete old sections.
 -->
 
+## 2.22.1
+
+### zh-Hant
+- 手機連不上帳號內的電腦時，可直接要求存取權限；連線說明也更容易閱讀
+- 手機的裝置清單不再提供刪除同帳號電腦的操作，避免誤刪
+
+### en-US
+- Ask for access directly when your phone cannot reach an account computer, with clearer connection details
+- Account computers can no longer be removed from the phone's device list, preventing accidental removal
+
 ## 2.22.0
 
 ### zh-Hant

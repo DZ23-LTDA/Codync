@@ -17,6 +17,7 @@ import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import java.io.File
+import kotlinx.coroutines.CompletableDeferred
 
 /** The account sheet and Computers & settings. Read-only: no test confirms a sign-out, route, removal or reset. */
 class AccountScreenTest {
@@ -63,7 +64,10 @@ class AccountScreenTest {
         compose.onNodeWithText("Continue with Google").performScrollTo().assertIsDisplayed()
         compose.onNodeWithContentDescription("Add account").performScrollTo().performClick()
         compose.onNodeWithText("Continue with Google").assertDoesNotExist()
+        // The sign-in spinner intentionally keeps drawing; freeze it while checking disabled actions.
+        compose.mainClock.autoAdvance = false
         compose.runOnUiThread { state.value = state.value.copy(busy = setOf("session")) }
+        compose.mainClock.advanceTimeBy(300)
         compose.onNodeWithContentDescription("Signing in").assertIsDisplayed()
         compose.onNodeWithContentDescription(second.email).assertIsNotEnabled()
         compose.onNodeWithContentDescription("Add account").assertIsNotEnabled()
@@ -108,7 +112,7 @@ class AccountScreenTest {
         var paired = 0; var popped = 0; var extensions = 0
         compose.setContent { Hosted { SettingsView(state, viewModel(), { popped++ }, { paired++ }, {}) { extensions++ } } }
         compose.onNodeWithText("Computers & settings").assertIsDisplayed()
-        compose.onAllNodesWithText(computer.name).assertCountEquals(1)
+        compose.onNode(hasText(computer.name) and hasClickAction()).assertIsDisplayed()
         compose.onNodeWithText("1 bot · Wi-Fi/Tailscale").assertIsDisplayed()
         compose.onNodeWithContentDescription("Extensions").performClick()
         assertEquals(1, extensions)
@@ -124,7 +128,7 @@ class AccountScreenTest {
         compose.onNodeWithText("Start over?").assertIsDisplayed()
         compose.onNodeWithText("Cancel").performClick()
         compose.onNodeWithText("Start over?").assertDoesNotExist()
-        compose.onNodeWithText(computer.name).performScrollTo().performTouchInput { longClick() }
+        compose.onNode(hasText(computer.name) and hasClickAction()).performScrollTo().performTouchInput { longClick() }
         compose.onNodeWithText("Remove").performClick()
         compose.onNodeWithText("Remove ${computer.name}?").assertIsDisplayed()
         compose.onNodeWithText("Cancel").performClick()
@@ -164,6 +168,67 @@ class AccountScreenTest {
         compose.onNodeWithText("Code 123 456").assertIsDisplayed()
         compose.onNodeWithContentDescription("Cancel request").performClick()
         assertTrue(cancelled)
+    }
+
+    @Test fun anUnreachableAccountComputerOffersAccessInsteadOfRemoval() {
+        val cloud = CloudComputer(computer.id, computer.name, computer.signKey, online = true, access = "granted")
+        val state = fixture().copy(computers = listOf(computer), cloudComputers = listOf(cloud),
+            connection = LinkState.Failed("This phone cannot reach the computer.", 403))
+        var asked: CloudComputer? = null
+        compose.setContent { Hosted { SettingsView(state, viewModel(), null, {}, { asked = it }, {}) } }
+        compose.onNodeWithText("This phone cannot reach the computer.").assertIsDisplayed()
+        compose.onNodeWithText("Ask for access").performClick()
+        assertEquals(cloud, asked)
+        compose.onNodeWithContentDescription("Remove").assertDoesNotExist()
+        compose.onNodeWithText(computer.name).performTouchInput { longClick() }
+        compose.onNodeWithText("Remove").assertDoesNotExist()
+        compose.onNodeWithText("Revoke this phone's access").assertIsDisplayed()
+    }
+
+    @Test fun aRevokedSavedComputerDoesNotBlockAskingItsReplacement() {
+        val old = CloudComputer(computer.id, computer.name, computer.signKey, online = false)
+        val replacement = CloudComputer("replacement", "New computer", "new-key", online = true)
+        val state = fixture().copy(computers = listOf(computer), cloudComputers = listOf(old, replacement),
+            connection = LinkState.Failed("Access revoked.", 403))
+        var asked: CloudComputer? = null
+        compose.setContent { Hosted { SettingsView(state, viewModel(), null, {}, { asked = it }, {}) } }
+        compose.onAllNodesWithText("Ask for access")[1].assertIsEnabled().performClick()
+        assertEquals(replacement, asked)
+        compose.onNodeWithText("Remove this phone's computer to use this one", substring = true).assertDoesNotExist()
+    }
+
+    @Test fun anExistingPairingDoesNotPretendANewRequestWasApproved() {
+        val cloud = CloudComputer(computer.id, computer.name, computer.signKey, online = true, access = "granted")
+        val state = mutableStateOf(fixture().copy(computers = listOf(computer), cloudComputers = listOf(cloud),
+            access = AccessTicket("new-request", Long.MAX_VALUE, "123456", computer.id, computer.signKey), busy = setOf("access")))
+        compose.setContent { Hosted { AccessRequestView(state.value, viewModel(), cloud) } }
+        compose.onNodeWithText("123 456").assertIsDisplayed()
+        compose.onNodeWithText("${computer.name} approved this phone").assertDoesNotExist()
+        compose.runOnUiThread { state.value = state.value.copy(access = null, busy = emptySet(), approvedAccess = mapOf(computer.id to "new-request")) }
+        compose.onNodeWithText("${computer.name} approved this phone").assertIsDisplayed()
+    }
+
+    @Test fun existingApprovalRequiresAnExplicitRenewal() {
+        val cloud = CloudComputer(computer.id, computer.name, computer.signKey, online = true, access = "granted")
+        compose.setContent { Hosted { AccessRequestView(fixture().copy(computers = listOf(computer)), viewModel(), cloud) } }
+        compose.onNodeWithText("Request new approval").assertIsDisplayed()
+        compose.onNodeWithText("${computer.name} approved this phone").assertDoesNotExist()
+        compose.onNodeWithText("Waiting for approval…").assertDoesNotExist()
+    }
+
+    @Test fun anApprovedHandoffWaitsForAnActiveSessionOperation() {
+        lateinit var store: AppStore
+        val release = CompletableDeferred<Unit>()
+        val calls = mutableListOf<String>()
+        compose.setContent { store = viewModel() }
+        compose.runOnUiThread {
+            store.sessionAction { calls.add("first"); release.await(); calls.add("finished") }
+            store.sessionAction(wait = true) { calls.add("approved") }
+        }
+        compose.runOnIdle { assertEquals(listOf("first"), calls) }
+        compose.runOnUiThread { release.complete(Unit) }
+        compose.waitUntil { calls.size == 3 }
+        compose.runOnIdle { assertEquals(listOf("first", "finished", "approved"), calls) }
     }
 
     private fun snapshot(name: String) {

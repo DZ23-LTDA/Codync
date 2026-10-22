@@ -297,12 +297,7 @@ final class AppStore {
         guard let cloud else { return }
         let accounts = accounts
         do {
-            let identity = try DeviceIdentity.load(context: accounts.storage)
-            if let device = try await cloud.devices().first(where: { $0.deviceKey == identity.publicKey }) {
-                for grant in try await cloud.grants(id) where grant.deviceId == device.deviceId {
-                    try await cloud.revokeGrant(id, grantId: grant.grantId)
-                }
-            }
+            try await cloud.revokeDeviceAccess(id)
             accounts.forget(id)
             await accounts.refreshCloud()
         } catch {

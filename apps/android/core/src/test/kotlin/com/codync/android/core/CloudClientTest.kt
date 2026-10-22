@@ -122,19 +122,14 @@ class CloudClientTest {
         } finally { server.shutdown() }
     }
 
-    @Test fun `an unknown device has no grants to revoke and removing a computer deletes it from the account`() = runBlocking {
+    @Test fun `an unknown device has no grants to revoke`() = runBlocking {
         val server = MockWebServer()
         server.start()
         try {
             server.enqueue(MockResponse().setBody("""{"devices":[]}"""))
-            server.enqueue(MockResponse().setBody("{}"))
             val client = CloudClient(server.url("/").toString(), identity, { "session" }, OkHttpClient(), 1, Unit)
             client.revokeAccess(id)
-            client.removeComputer(id)
             assertEquals("/v1/devices", server.takeRequest().path)
-            val remove = server.takeRequest()
-            assertEquals("DELETE", remove.method)
-            assertEquals("/v1/computers/$id", remove.path)
         } finally { server.shutdown() }
     }
 }

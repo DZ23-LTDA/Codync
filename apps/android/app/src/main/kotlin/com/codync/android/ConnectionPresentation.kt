@@ -56,7 +56,7 @@ internal fun connectionSummary(state: AppState): String = when {
 /**
  * The computer this phone uses won't come back as it is: it turned this phone away, or it's offline
  * while an account computer with its name that joined after it was last seen is online, the same
- * machine under a new identity (iOS `AccountStore.isStale`). Removing it is the fix.
+ * machine under a new identity (iOS `AccountStore.isStale`). Account computers offer access recovery; only independently paired computers offer removal.
  */
 internal val AppState.isStale: Boolean get() {
     val computer = computers.firstOrNull() ?: return false
