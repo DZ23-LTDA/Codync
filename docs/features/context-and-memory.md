@@ -18,7 +18,8 @@ its own context and compacts it itself.
 ## Instruction snapshot (`host/src/chat/context.rs`)
 
 - The bot's instructions are rendered once, in English and kept general: profile (name, description), how to
-  message the user, other conversations, workspace, skills, plus the memory section. How to use each tool
+  message the user, where the user is (Codync's apps, not the engine's own CLI; New session to start over),
+  other conversations, workspace, skills, plus the memory section. How to use each tool
   lives with the tool (MCP server instructions, tool descriptions), not here. They're stored as a snapshot in `kv` under `context.<bot>`, keyed by **session + compaction
   epoch**, and don't change until one of those changes. This keeps the prompt byte-identical so the prompt
   cache stays warm.
