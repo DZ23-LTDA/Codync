@@ -1,5 +1,5 @@
 import type { ReactElement } from 'react'
-import { CharacterAvatar } from '../components/Avatar'
+import { CharacterAvatar, type Mood } from '../components/Avatar'
 import { Button } from '../components/Controls'
 import { Icon } from '../components/Icon'
 import { Text } from '../components/Text'
@@ -14,21 +14,24 @@ export function HostStateView({ compact = false }: { compact?: boolean }) {
   const state = app.host.state
   switch (state.kind) {
     case 'notInstalled':
-      return <EmptyState compact={compact} icon="desktopcomputer" title={`Set up this ${isMac ? 'Mac' : 'computer'}`} message={`Codync runs your coding agents through the host, a small background service on this ${isMac ? 'Mac' : 'computer'}.`} action={['Install host', () => window.codync.host.install()]} />
+      return <EmptyState compact={compact} icon={<HostBot compact={compact} mood="idle" />} title={`Set up this ${isMac ? 'Mac' : 'computer'}`} message={`Codync runs your coding agents through the host, a small background service on this ${isMac ? 'Mac' : 'computer'}.`} action={['Install host', () => window.codync.host.install()]} />
     case 'missingBinary':
-      return <EmptyState compact={compact} icon="desktopcomputer.trianglebadge.exclamationmark" title="The host is missing" message={window.codync.appScheme === 'codync-dev' ? 'Rebuild Codync Dev with its development host, then open it again.' : "This copy of Codync doesn't include codync-host. Download Codync again from codync.dev or GitHub."} />
+      return <EmptyState compact={compact} icon={<HostBot compact={compact} mood="failed" />} title="The host is missing" message={window.codync.appScheme === 'codync-dev' ? 'Rebuild Codync Dev with its development host, then open it again.' : "This copy of Codync doesn't include codync-host. Download Codync again from codync.dev or GitHub."} />
     case 'failed':
-      return <EmptyState compact={compact} icon="desktopcomputer.trianglebadge.exclamationmark" title="The host isn't running" message={state.message} action={['Try again', () => window.codync.host.restart()]} />
+      return <EmptyState compact={compact} icon={<HostBot compact={compact} mood="failed" />} title="The host isn't running" message={state.message} action={['Try again', () => window.codync.host.restart()]} />
     default:
-      return <EmptyState compact={compact} icon={<StartingBot size={compact ? 32 : 112} />} title="Starting the host…" message="This takes a few seconds." />
+      return <EmptyState compact={compact} icon={<HostBot compact={compact} mood="working" />} title="Starting the host…" message="This takes a few seconds." />
   }
 }
 
-/** The app-icon bot looking around while the host starts, like the phones' launch splash. */
-function StartingBot({ size }: { size: number }) {
+/** The app-icon bot expresses progress or failure without replacing the recovery instructions. */
+function HostBot({ compact, mood }: { compact: boolean; mood: Mood }) {
   return (
-    <div className="starting-bot">
-      <CharacterAvatar shape="squircle" color="" tint={rgbHex(palette(useDark()).text)} size={size} mood="working" />
+    <div className={`host-state-bot is-${mood}`} aria-hidden>
+      <CharacterAvatar shape="squircle" color="" tint={rgbHex(palette(useDark()).text)} size={compact ? 32 : 112} mood={mood} />
+      {mood === 'failed' ? (
+        <span className="host-state-badge">😞</span>
+      ) : null}
     </div>
   )
 }
