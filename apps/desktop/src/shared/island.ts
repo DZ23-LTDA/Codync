@@ -109,6 +109,8 @@ const BAR = 26
 
 export const isActive = (b: Pick<IslandBot, 'status'>) => b.status === 'working' || b.status === 'needsInput'
 export const isOpenMode = (mode: IslandMode) => mode !== 'hidden' && mode !== 'peek' && mode !== 'compact'
+/** Leaving the message tab hides its recording pill, so dictation still going there stops (keeping the words). */
+export const stopsDictation = (from: IslandTab, to: IslandTab, dictating: boolean) => dictating && from === 'message' && to !== 'message'
 
 export function islandMode(
   summary: IslandSummary,

@@ -52,6 +52,7 @@ const settle = () => new Promise((done) => setTimeout(done, 0))
 test('on-device words go after the draft, and finish waits for the last of them', () => {
   const s = setup()
   s.dictation.start(s.box())
+  assert.equal(s.dictation.listening, true)
   s.say({ type: 'partial', text: 'in the' })
   assert.equal(s.box(), 'Fix the bug in the')
   s.say({ type: 'final', text: 'in the parser' })
@@ -60,6 +61,7 @@ test('on-device words go after the draft, and finish waits for the last of them'
   assert.equal(sent, false)
   s.say({ type: 'final', text: 'today' })
   s.say({ type: 'stopped' })
+  assert.equal(s.dictation.listening, false)
   assert.equal(s.box(), 'Fix the bug in the parser today')
   assert.equal(sent, true)
   assert.equal(s.dictation.busy, false)
@@ -102,6 +104,37 @@ test('a provider without a key never opens the microphone', async () => {
   assert.equal(s.dictation.error, 'Add your OpenAI key.')
   assert.ok(!s.log.includes('mic.open'))
   assert.equal(s.dictation.busy, false)
+})
+
+test('with a provider it shows listening only once the microphone is open', async () => {
+  let open: (stop: () => void) => void = () => {}
+  const s = setup({ provider: () => 'openai', microphone: () => new Promise((done) => (open = done)) })
+  s.dictation.start(s.box())
+  await settle()
+  assert.equal(s.dictation.listening, false)
+  assert.equal(s.dictation.startedAt, 0)
+  assert.equal(s.dictation.busy, true)
+  open(() => {})
+  await settle()
+  assert.equal(s.dictation.listening, true)
+  assert.ok(s.dictation.startedAt > 0)
+})
+
+test('stopped or cancelled while the microphone opens, it lets the microphone go and never listens', async () => {
+  for (const end of ['finish', 'cancel'] as const) {
+    let open: (stop: () => void) => void = () => {}
+    let closed = false
+    const s = setup({ provider: () => 'openai', microphone: () => new Promise((done) => (open = done)) })
+    s.dictation.start(s.box())
+    await settle()
+    s.dictation[end]()
+    open(() => (closed = true))
+    await settle()
+    assert.equal(closed, true, end)
+    assert.equal(s.dictation.listening, false, end)
+    assert.equal(s.dictation.busy, false, end)
+    assert.equal(s.pending.length, 0, end)
+  }
 })
 
 test("a provider's transcript lands after what's in the box by then, in order, then done runs", async () => {

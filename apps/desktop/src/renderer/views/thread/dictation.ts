@@ -101,16 +101,12 @@ export class Dictation extends Observable {
     const provider = this.platform.host ? this.platform.provider() : null
     if (provider) {
       this.recording = { provider, pcm: [], stopMic: null }
-      void this.record(this.recording, ++this.generation)
-    } else if (speech) {
-      this.off = speech.onEvent((e) => this.event(e))
-      speech.start(this.platform.language())
-    } else {
-      return this.fail(`${this.platform.noSpeech} Pick OpenAI or Gemini beside the mic.`)
+      return void this.record(this.recording, ++this.generation)
     }
-    this.startedAt = Date.now()
-    this.listening = true
-    this.changed()
+    if (!speech) return this.fail(`${this.platform.noSpeech} Pick OpenAI or Gemini beside the mic.`)
+    this.off = speech.onEvent((e) => this.event(e))
+    speech.start(this.platform.language())
+    this.listen()
   }
 
   /** Stops listening; `done` runs once the last words are in the box (recognized, or transcribed for a provider). */
@@ -160,7 +156,10 @@ export class Dictation extends Observable {
     if (e.type === 'stopped' || e.type === 'error') this.end()?.()
   }
 
-  /** Opens the microphone once the host has the provider's key, so nothing said is lost to a missing one. */
+  /**
+   * Opens the microphone once the host has the provider's key, so nothing said is lost to a missing
+   * one, and only then listens (the pill shows), so nothing said before the microphone is open is lost.
+   */
   private async record(recording: Recording, generation: number) {
     try {
       await this.platform.checkKey(recording.provider)
@@ -171,6 +170,7 @@ export class Dictation extends Observable {
       })
       if (generation !== this.generation) return stop()
       recording.stopMic = stop
+      this.listen()
     } catch (e) {
       if (generation === this.generation) this.fail(messageOf(e))
     }
@@ -205,6 +205,13 @@ export class Dictation extends Observable {
     } catch (e) {
       if (generation === this.generation) this.fail(messageOf(e))
     }
+  }
+
+  /** Shows it listening, timed from now. */
+  private listen() {
+    this.startedAt = Date.now()
+    this.listening = true
+    this.changed()
   }
 
   /** Ends with `message` and nothing to send. */

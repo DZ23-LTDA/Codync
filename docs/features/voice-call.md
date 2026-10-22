@@ -54,7 +54,8 @@ was recognized so far. The desktop island's message field has the same mic and p
 A `chevron.up` beside the composer's mic picks dictation's engine, kept on the device apart from the
 call engine (`dictationEngine`): **On device** (the above), or **OpenAI** / **Gemini** on the user's
 own key. With a provider, the mic first checks that the computer holds its key (`voiceStatus`; no key
-means an error before anything is recorded), then records; nothing is typed while recording. The
+means an error before anything is recorded), then records; the pill (and its time) appears only once
+the microphone is open, so nothing said before it is lost; nothing is typed while recording. The
 pill's stop turns the pill into "Transcribing…" and the whole recording goes through
 `voiceTranscribe` with the call settings' speech-to-text model; the text lands after what's in the
 box when it arrives (typing goes on while it records). The recording goes in 20 s pieces (one

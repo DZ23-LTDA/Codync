@@ -1,5 +1,5 @@
 import {
-  FINISHED_MS, focusOf, isActive, islandFrame, islandMode, islandRect, othersOf, transitions,
+  FINISHED_MS, focusOf, isActive, islandFrame, islandMode, islandRect, othersOf, stopsDictation, transitions,
   type IslandBot, type IslandNotice, type IslandPermission, type IslandScreen, type IslandSummary, type IslandTab,
 } from '@shared/island'
 import { VOICE_SHORTCUT_KEYS, type VoiceKey, type VoiceShortcut } from '@shared/voice-shortcut'
@@ -127,8 +127,7 @@ export class IslandModel extends Observable {
 
   /** The header's tabs. Bots puts the approvals on screen off until another arrives. */
   setTab(tab: IslandTab) {
-    // Leaving the message field hides the recording pill: stop there, keeping the words.
-    if (this.tab === 'message' && tab !== 'message' && this.dictation.busy) this.dictation.finish()
+    if (stopsDictation(this.tab, tab, this.dictation.busy)) this.dictation.finish()
     this.update(() => {
       if (tab === 'bots') for (const p of this.summary.permissions) this.deferred.add(p.entryId)
       if (tab === 'message' && !this.messageRef) this.messageRef = this.focus?.ref ?? null
