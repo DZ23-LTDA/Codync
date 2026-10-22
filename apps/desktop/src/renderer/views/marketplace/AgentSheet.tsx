@@ -223,7 +223,7 @@ export function AgentSheet({ initial, recheck = false }: { initial: Backend; rec
         >
           <HStack>
             <VStack grow>
-              <SetupStepRow number={1 + Number(curated) + Number(backend.node !== undefined)} title="Sign in" detail={statusText} done={signedIn === true} action={null} />
+              <SetupStepRow number={1 + Number(curated) + Number(Boolean(backend.node))} title="Sign in" detail={statusText} done={signedIn === true} action={null} />
             </VStack>
             {checking ? (
               <ThinkingOrb state="connecting" size={16} color="var(--secondary)" />

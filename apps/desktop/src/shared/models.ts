@@ -376,7 +376,7 @@ export interface Backend {
   signedIn?: boolean
   canInstall?: boolean
   /** Only for an agent that runs on Node.js, on a computer without its own: Codync's copy is missing or added. */
-  node?: 'missing' | 'added'
+  node?: 'missing' | 'added' | null
 }
 
 export interface ScreenDisplay {
