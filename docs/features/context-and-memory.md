@@ -101,7 +101,8 @@ Claude Code's own memory; the rules live in the `codync-mem` crate, and `chat/me
   add to and take out of `MEMORY.md` and lines to append to notes. Each change must quote what the user typed:
   pasted text (the apps send `pasted`), fenced code, quoted lines and forwarded messages don't count, nor do bare
   acknowledgements. At most 10 changes and never more than a quarter of the lines taken out; it never takes out a
-  line the user wrote, never adds one the user had forgotten, and never rewrites a note.
+  line the user wrote, never writes one the user had forgotten (an add, a review's rewrite, a pointer below), and
+  never rewrites a note.
   **Tidying:** when a `MEMORY.md` the bot sees is nine-tenths full (`codync_mem::dream::full`), a run moves its
   detail word for word into the notes of their topics (`moveOut`), a topic's lines together, the user's lines too,
   and leaves one line per topic that sums it up and points to its note, the way `CLAUDE.md` points into `docs/`
