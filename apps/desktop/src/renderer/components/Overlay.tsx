@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useId, useLayoutEffect, useRef, useState, type ReactElement, type ReactNode, type RefObject } from 'react'
 import { createPortal } from 'react-dom'
 import { reduceMotion } from '../lib/theme'
+import { afterExit } from '../lib/exit-delay'
 import { Icon } from './Icon'
 import { HStack, VStack } from './Stack'
 import { Text } from './Text'
@@ -26,8 +27,7 @@ export function usePresence(open: boolean, exitMs = 300, animateOnMount = true) 
       }
     }
     setShown(false)
-    const timer = setTimeout(() => setMounted(false), reduceMotion() ? 0 : exitMs)
-    return () => clearTimeout(timer)
+    return afterExit(exitMs, () => setMounted(false))
   }, [open, exitMs])
   return { mounted, shown }
 }
