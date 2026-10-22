@@ -19,6 +19,8 @@ struct Composer: View {
     /// The field owns its text; the store only keeps a copy. A field bound straight to the
     /// store loses a hardware keyboard's IME composition (Zhuyin, Pinyin, Kana) on iPad.
     @State private var draft = ""
+    /// The cursor, so a hardware keyboard's Return starts a new line where it is.
+    @State private var selection: TextSelection?
     /// Files going out with the next message.
     @State private var files: [OutgoingFile] = []
     @State private var pickingFiles = false
@@ -199,6 +201,7 @@ struct Composer: View {
         }
         .buttonStyle(PressScale())
         .disabled(!enabled)
+        .keyboardShortcut(state == .send ? KeyboardShortcut(.return, modifiers: .command) : nil)
         .accessibilityLabel(label)
         .help(label)
         .animation(Motion.reduced(Motion.morph, reduceMotion), value: state)
@@ -242,11 +245,13 @@ struct Composer: View {
 
     private var box: some View {
         HStack(alignment: .bottom, spacing: 8) {
-            TextField(placeholder, text: $draft, axis: .vertical)
+            TextField(placeholder, text: $draft, selection: $selection, axis: .vertical)
                 .lineLimit(1...8)
                 .font(.body)
                 .textFieldStyle(.plain)
                 .focused($focused)
+                // A hardware keyboard's Return (⌘↩ too) submits the field and ends editing.
+                .onSubmit(newline)
                 .padding(.vertical, fieldPadding)
             micButton
                 .padding(.bottom, max(0, (textLineHeight + 2 * fieldPadding - buttonSize) / 2))
@@ -381,6 +386,19 @@ struct Composer: View {
             draft = "/\(id) "
         }
         focused = true
+    }
+
+    /// Return on a hardware keyboard: a new line at the cursor, and the field keeps the keyboard.
+    /// An empty box gets none, also right after ⌘↩ sent it (the field submits after the shortcut).
+    private func newline() {
+        focused = true
+        guard !draft.isEmpty else { return }
+        // A selection left from text that has since changed (dictation, a mention) means the end.
+        let range = if case .selection(let r) = selection?.indices, r.upperBound <= draft.endIndex { r } else { draft.endIndex..<draft.endIndex }
+        // Counted in scalars: a "\n" after a lone "\r" joins it into one Character.
+        let offset = draft.unicodeScalars.distance(from: draft.startIndex, to: range.lowerBound)
+        draft.replaceSubrange(range, with: "\n")
+        selection = TextSelection(insertionPoint: draft.unicodeScalars.index(draft.startIndex, offsetBy: offset + 1))
     }
 
     private func submit() {
