@@ -55,7 +55,7 @@ The TUI connects to one host at a time, so it keeps its single roster.
 ## Platform notes
 
 - **Local host recovery** uses the Codync character: looking around and bobbing while starting,
-  resting for setup, and a still frown with a disappointed-face emoji badge if the host is missing or
+  resting for setup, and a still disappointed expression with lowered eyelids and a downturned mouth if the host is missing or
   failed. Error text and install/retry actions remain available in both full-window and compact
   recovery layouts. Reduced motion removes the animation. This screen belongs to the desktop
   service manager; iOS, Android and the TUI connect to hosts but do not install or start that service.

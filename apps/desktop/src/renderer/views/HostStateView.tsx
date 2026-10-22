@@ -29,9 +29,6 @@ function HostBot({ compact, mood }: { compact: boolean; mood: Mood }) {
   return (
     <div className={`host-state-bot is-${mood}`} aria-hidden>
       <CharacterAvatar shape="squircle" color="" tint={rgbHex(palette(useDark()).text)} size={compact ? 32 : 112} mood={mood} />
-      {mood === 'failed' ? (
-        <span className="host-state-badge">😞</span>
-      ) : null}
     </div>
   )
 }

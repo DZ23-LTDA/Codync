@@ -186,10 +186,16 @@ export function drawCharacter(
   const ly = 0.55
   const lz = Math.cos(yaw) * 0.5 + 0.6 // never fully behind
   const ll = Math.hypot(lx, ly, lz)
+  const mouthCenter = Math.floor(cells / 2)
+  const closedEyeRow = eyeRowsAll[eyeRowsAll.length - 1]!
   for (const d of dots) {
-    if (eyeCols.includes(d.col) && eyeRows.includes(d.row)) continue
+    // Closed eyes droop away from the nose, like a disappointed face.
+    const isEye = mood === 'failed'
+      ? eyeColumns.some((col) => Math.abs(d.col - col) <= 1
+        && d.row === closedEyeRow - (Math.abs(d.col - mouthCenter) < Math.abs(col - mouthCenter) ? 1 : 0))
+      : eyeCols.includes(d.col) && eyeRows.includes(d.row)
+    if (isEye) continue
     // A downturned mouth, cut out of the same dot grid as the eyes.
-    const mouthCenter = Math.floor(cells / 2)
     const mouthOffset = Math.abs(d.col - mouthCenter)
     if (mood === 'failed' && mouthOffset <= 1 && d.row === Math.floor(cells * 0.65) + mouthOffset) continue
     const u = (d.x - half) / half
