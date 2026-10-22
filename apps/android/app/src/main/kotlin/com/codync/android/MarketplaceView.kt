@@ -70,7 +70,6 @@ import kotlinx.coroutines.launch
     val scope = rememberCoroutineScope()
     var search by remember { mutableStateOf("") }
     // Bumped on each submitted search, so every section searches again.
-    var searchToken by remember { mutableIntStateOf(0) }
     var connectors by remember { mutableStateOf(CatalogPage<MarketConnector>()) }
     var connectorRequest by remember { mutableStateOf("") }
     var connectorQuery by remember { mutableStateOf("") }
@@ -122,7 +121,7 @@ import kotlinx.coroutines.launch
             finally { if (connectorRequest == request) loadingMore = false }
         }
     }
-    fun submit() { searchToken++; agentLimit = 10; scope.launch { loadConnectors() } }
+    fun submit() { agentLimit = 10; scope.launch { loadConnectors() } }
     LaunchedEffect(Unit) { store.refreshPlugins(); store.refreshBackends() }
     LaunchedEffect(Unit) { loadConnectors() }
     LaunchedEffect(Unit) {
@@ -168,7 +167,6 @@ import kotlinx.coroutines.launch
                     }
                 }
             }
-            Box(inset) { ComposioSection(query, searchToken, state, store) }
             Box(inset) {
                 MarketSection("Skills") {
                     if (loadingSkills) SkeletonRows()
@@ -208,7 +206,7 @@ import kotlinx.coroutines.launch
                 }
             }
             error?.let { Text(it, inset, style = Type.footnote, color = Palette.danger) }
-            Text("Connectors come from the official MCP Registry, apps through Composio, skills from Anthropic, agents from the ACP registry. Everything installs on ${state.hostName}.",
+            Text("Connectors come from the official MCP Registry, skills from Anthropic, agents from the ACP registry. Everything installs on ${state.hostName}.",
                 inset, style = Type.footnote, color = Palette.tertiary)
         }
         // The sheet's own close, over the page.

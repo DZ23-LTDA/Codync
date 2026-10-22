@@ -24,6 +24,32 @@ pkill -x "Codync Dev"
 
 `pkill` can return nonzero when no process exists.
 
+### Replace an installed macOS build completely
+
+For a requested **build and install**, replace the whole app and its running
+host, then verify the installed result. Building or copying the app alone does
+not finish the task.
+
+1. Quit the selected variant and stop its old host before rebuilding. Preserve
+   its data directory and leave production, other variants and sandboxes alone.
+2. Run `npm run dist:mac:dev` for Codync Dev (`dist:mac:main` for production).
+3. Remove the previous installed app bundle, then copy the complete new bundle
+   into `/Applications`; do not merge files into the previous bundle.
+4. Explicitly run the **new installed bundled host's** installer, even if its
+   launch-agent plist already exists. For Dev:
+   `"/Applications/Codync Dev.app/Contents/Resources/codync-host" install --port 19223`.
+   A plist left after `launchctl bootout` does not mean the service is loaded;
+   opening the app alone can leave it showing **The host isn't running**.
+5. Open the installed app. Verify `/health` on the variant's port reports the
+   expected environment, version, installed binary path and hash, and verify
+   the app reaches its connected main screen. Retry its connection if it opened
+   before the host was ready. Do not report installation complete before both
+   checks pass.
+
+This sequence records the Dev installation failure on 2026-10-23: the old host
+was booted out, the app bundle was replaced, but the service was not reloaded
+until the new bundled host's `install` command was run explicitly.
+
 The desktop app (`apps/desktop/src/main/host-controller.ts`) compares the running
 host's executable path and SHA-256 fingerprint with the host it would install (the
 bundled one in a packaged Mac app, else `CODYNC_HOST_BIN` or an installed

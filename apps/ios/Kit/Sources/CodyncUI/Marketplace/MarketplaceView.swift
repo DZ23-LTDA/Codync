@@ -7,8 +7,6 @@ import SwiftUI
 public struct MarketplaceView: View {
     @Environment(BotStore.self) private var model
     @State private var search = ""
-    /// Bumped on each submitted search, so every section searches again.
-    @State private var searchToken = 0
     @State private var connectors = MarketplacePage<MarketConnector>()
     @State private var connectorRequest = UUID()
     @State private var connectorQuery = ""
@@ -137,7 +135,6 @@ public struct MarketplaceView: View {
                         }
                     }
                 }
-                ComposioSection(query: query, searchToken: searchToken)
                 MarketSection(title: "Skills") {
                     if loadingSkills {
                         SkeletonGrid()
@@ -180,7 +177,7 @@ public struct MarketplaceView: View {
                 if let error {
                     Text(error).font(.footnote).foregroundStyle(Palette.danger)
                 }
-                Text("Connectors come from the official MCP Registry, apps through Composio, skills from Anthropic, agents from the ACP registry. Everything installs on \(model.hostName).")
+                Text("Connectors come from the official MCP Registry, skills from Anthropic, agents from the ACP registry. Everything installs on \(model.hostName).")
                     .font(.footnote)
                     .foregroundStyle(Palette.tertiary)
             }
@@ -262,10 +259,10 @@ public struct MarketplaceView: View {
             TextField("Search agents, connectors and skills", text: $search)
                 .textFieldStyle(.plain)
                 .plainTextInput()
-                .onSubmit { searchToken += 1; Task { await loadConnectors() } }
+                .onSubmit { Task { await loadConnectors() } }
                 .onChange(of: search) { agentLimit = 10 }
             if !search.isEmpty {
-                Button { search = ""; searchToken += 1; Task { await loadConnectors() } } label: {
+                Button { search = ""; Task { await loadConnectors() } } label: {
                     Image(systemName: "xmark.circle.fill").foregroundStyle(Palette.tertiary)
                 }
                 .buttonStyle(.plain)
