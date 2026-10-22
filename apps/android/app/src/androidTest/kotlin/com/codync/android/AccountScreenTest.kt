@@ -232,6 +232,32 @@ class AccountScreenTest {
         compose.runOnIdle { assertEquals(listOf("first", "finished", "approved"), calls) }
     }
 
+    @Test fun approvalRemainsVisibleWhileTheComputerHandoffWaits() {
+        lateinit var store: AppStore
+        val release = CompletableDeferred<Unit>()
+        compose.setContent { store = viewModel() }
+        compose.waitUntil { !store.state.value.loading }
+        compose.runOnUiThread {
+            store.mutableState.value = store.state.value.copy(computers = listOf(computer),
+                access = AccessTicket("approved-request", Long.MAX_VALUE, "123456", "replacement", "new-key"),
+                busy = setOf("access"))
+            store.sessionAction { release.await() }
+            store.useApprovedComputer(Computer("replacement", "New computer", "new-key"), "approved-request")
+            // The access polling action ends as soon as the cloud confirms approval.
+            store.mutableState.value = store.state.value.copy(access = null, busy = store.state.value.busy - "access")
+        }
+        compose.runOnIdle {
+            assertEquals("approved-request", store.state.value.approvedAccess["replacement"])
+            assertEquals(computer, store.state.value.computers.single())
+        }
+        // Retire this test's generation so releasing the queue cannot persist a pairing.
+        compose.runOnUiThread {
+            store.mutableState.value = store.state.value.copy(generation = store.state.value.generation + 1)
+            release.complete(Unit)
+        }
+        compose.waitUntil { "session" !in store.state.value.busy }
+    }
+
     private fun snapshot(name: String) {
         if (InstrumentationRegistry.getArguments().getString("layoutSnapshots") != "true") return
         val bitmap = compose.onRoot().captureToImage().asAndroidBitmap()

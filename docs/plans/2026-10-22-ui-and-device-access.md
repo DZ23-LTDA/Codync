@@ -172,3 +172,18 @@ successfully. Card polish commit is `27662acc`; #194 is still open, so the separ
 mascot/access/card source commits remain local pending the coordinated release.
 The main thinking-review Electron/Vite/host and temporary simulators were stopped;
 the held mascot worktree's development app remains available until its push.
+
+## CI and release handoff (2026-10-23)
+
+- #194 merged as `4f18c688` after every CI check (including notarization) and
+  Greptile passed, with all review threads resolved.
+- Version 2.22.1 is aligned across iOS, host and desktop. The complete UI work is
+  pushed to dev and release PR #195, with phone-card screenshots in the PR.
+- PR review identified Android approval being hidden while a session handoff waits.
+  The confirmed cloud approval is now recorded before queuing; it is restored after
+  context loading as before. Three narrow after-change reviews found no new defects.
+  Android unit/build/lint checks and three emulator regression cases pass, including
+  the real handoff function blocked behind a busy session and request-specific UI
+  success. This is Android's queued context handoff; iOS awaits its own transition.
+- A memory-layer fullness finding from the pre-#194 comparison is being checked by
+  the original memory owner before #195 merges. CI/review are not bypassed.
