@@ -2,6 +2,7 @@
 //! same HTTP + SSE API as the phone and desktop apps (locally: no pairing needed).
 
 mod app;
+mod appearance;
 mod connections;
 mod drafts;
 mod manage;

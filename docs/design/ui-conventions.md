@@ -251,3 +251,19 @@ applies in expanded and compact sidebars. iOS retains native toolbar treatment;
 terminal computer selection has no corresponding icon button.
 
 Dialog scrims cover the entire presentation surface, including the iPhone status-bar and home-indicator safe areas, throughout opening and closing. The shared iPhone overlay fades a full-screen canvas without scaling its backdrop; root in-place dialogs also extend the canvas beyond container safe areas. Desktop dialogs keep their viewport-sized backdrop fixed and scale only the card. Terminal dialogs already dim the complete terminal buffer.
+
+## Appearance preference
+
+Desktop General → Appearance and phone settings → Appearance offer **System**,
+**Light** and **Dark**, defaulting to System. Save the choice on the device,
+independently of accounts and hosts, and apply it immediately and on relaunch.
+Desktop uses Electron's native theme source so native chrome, CSS and canvas
+artwork agree across all windows. iPhone sets the window's interface style so
+already-presented sheets update and System clears the override;
+Android supplies the selected theme and matching system-bar contrast. Remote
+screen viewing and explicitly dark previews keep their existing dark surfaces.
+
+The terminal's `Ctrl+K` actions offer the same three choices, saved in the local
+`tui-appearance` file. System retains the terminal's foreground/background and
+uses `COLORFGBG` for accent contrast. `CODYNC_THEME` supplies the initial choice
+when none is saved; `NO_COLOR` continues to disable color output.

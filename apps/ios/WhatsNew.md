@@ -6,6 +6,14 @@ any left). tools/asc-submit.py reads the released version's section;
 a version without one gets a generic "Bug fixes and improvements" line. Delete old sections.
 -->
 
+## 2.23.0
+
+### zh-Hant
+- 外觀可選擇跟隨系統、淺色或深色，並保留此裝置的偏好
+
+### en-US
+- Choose System, Light or Dark appearance and keep your preference on this device
+
 ## 2.22.2
 
 ### zh-Hant

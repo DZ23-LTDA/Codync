@@ -5,6 +5,7 @@ import type { ScreenAgentState } from './computer-access'
 import type { IslandRect, IslandScreen, IslandSummary } from './island'
 import type { VoiceKey, VoiceShortcut } from './voice-shortcut'
 import type { ErrorReport } from './error-report'
+import type { Appearance } from './appearance'
 
 // The bridge between the main process (host lifecycle, loopback HTTP, tray, windows)
 // and the renderer (stores and UI). Exposed as `window.codync` by the preload script.
@@ -222,6 +223,8 @@ export interface CodyncBridge {
     onCommand(cb: (command: WindowCommand) => void): () => void
     resetAllData(): Promise<void>
     setLaunchAtLogin(on: boolean): Promise<boolean>
+    appearance(): Promise<Appearance>
+    setAppearance(value: Appearance): Promise<Appearance>
     showInDock(): Promise<boolean>
     setShowInDock(on: boolean): Promise<boolean>
     launchAtLogin(): Promise<boolean>
