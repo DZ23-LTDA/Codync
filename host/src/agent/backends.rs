@@ -31,8 +31,9 @@ pub struct Harness {
     pub setup: &'static str,
     /// How Codync installs the CLI for you (in a setup terminal).
     pub install: Option<Install>,
-    /// Shell command that signs in, run in a setup terminal (`{bin}` = the CLI).
-    pub login: &'static str,
+    /// Shell command that signs in, run in a setup terminal (`{bin}` = the CLI); `None` when only the
+    /// agent's own ACP sign-in methods reach the session Codync runs.
+    pub login: Option<&'static str>,
     /// How to tell whether it's signed in without starting it.
     pub signed_in: Option<SignInCheck>,
 }
@@ -73,7 +74,7 @@ pub const HARNESSES: &[Harness] = &[
             unix: "curl -fsSL https://claude.ai/install.sh | bash",
             windows: "powershell -NoProfile -ExecutionPolicy Bypass -Command \"irm https://claude.ai/install.ps1 | iex\"",
         }),
-        login: "{bin} auth login",
+        login: Some("{bin} auth login"),
         signed_in: Some(SignInCheck { args: "auth status", ok: claude_signed_in }),
     },
     Harness {
@@ -87,7 +88,7 @@ pub const HARNESSES: &[Harness] = &[
             unix: "curl -fsSL https://chatgpt.com/codex/install.sh | sh",
             windows: "powershell -NoProfile -ExecutionPolicy Bypass -Command \"irm https://chatgpt.com/codex/install.ps1 | iex\"",
         }),
-        login: "{bin} login --device-auth",
+        login: Some("{bin} login --device-auth"),
         signed_in: Some(SignInCheck { args: "login status", ok: exit_ok }),
     },
     Harness {
@@ -101,7 +102,7 @@ pub const HARNESSES: &[Harness] = &[
             unix: "curl https://cursor.com/install -fsS | bash",
             windows: "powershell -NoProfile -ExecutionPolicy Bypass -Command \"irm 'https://cursor.com/install?win32=true' | iex\"",
         }),
-        login: "NO_OPEN_BROWSER=1 {bin} login",
+        login: Some("NO_OPEN_BROWSER=1 {bin} login"),
         signed_in: Some(SignInCheck { args: "status", ok: says_logged_in }),
     },
     Harness {
@@ -112,7 +113,7 @@ pub const HARNESSES: &[Harness] = &[
         registry: Some("pi-acp"),
         setup: "Install pi (npm install -g @earendil-works/pi-coding-agent), run `pi` and type /login.",
         install: Some(Install::Npm("@earendil-works/pi-coding-agent")),
-        login: "{bin}",
+        login: Some("{bin}"),
         signed_in: None,
     },
     Harness {
@@ -127,7 +128,7 @@ pub const HARNESSES: &[Harness] = &[
             unix: "curl -fsSL https://omp.sh/install | sh -s -- --binary",
             windows: "powershell -NoProfile -ExecutionPolicy Bypass -Command \"& ([scriptblock]::Create((irm https://omp.sh/install.ps1))) -Binary\"",
         }),
-        login: "{bin} login",
+        login: Some("{bin} login"),
         signed_in: None,
     },
     Harness {
@@ -138,7 +139,7 @@ pub const HARNESSES: &[Harness] = &[
         registry: Some("opencode"),
         setup: "Install OpenCode (curl -fsSL https://opencode.ai/install | bash) and run `opencode auth login`.",
         install: Some(Install::Script("curl -fsSL https://opencode.ai/install | bash")),
-        login: "{bin} auth login",
+        login: Some("{bin} auth login"),
         signed_in: None,
     },
     Harness {
@@ -152,7 +153,7 @@ pub const HARNESSES: &[Harness] = &[
             unix: "curl -fsSL https://x.ai/cli/install.sh | bash",
             windows: "powershell -NoProfile -ExecutionPolicy Bypass -Command \"irm https://x.ai/cli/install.ps1 | iex\"",
         }),
-        login: "{bin} login --device-auth",
+        login: Some("{bin} login --device-auth"),
         signed_in: None,
     },
     Harness {
@@ -163,7 +164,7 @@ pub const HARNESSES: &[Harness] = &[
         registry: Some("gemini"),
         setup: "Install Gemini CLI (npm install -g @google/gemini-cli) and run `gemini` to sign in with Google.",
         install: Some(Install::Npm("@google/gemini-cli")),
-        login: "NO_BROWSER=true {bin}",
+        login: Some("NO_BROWSER=true {bin}"),
         signed_in: None,
     },
     Harness {
@@ -177,7 +178,7 @@ pub const HARNESSES: &[Harness] = &[
             unix: "curl -fsSL https://gh.io/copilot-install | bash",
             windows: "winget install --id GitHub.Copilot -e",
         }),
-        login: "{bin} login --device-code",
+        login: Some("{bin} login --device-code"),
         signed_in: None,
     },
     Harness {
@@ -191,7 +192,7 @@ pub const HARNESSES: &[Harness] = &[
             unix: "curl -fsSL https://qwen-code-assets.oss-cn-hangzhou.aliyuncs.com/installation/install-qwen-standalone.sh | bash",
             windows: "powershell -NoProfile -ExecutionPolicy Bypass -Command \"irm https://qwen-code-assets.oss-cn-hangzhou.aliyuncs.com/installation/install-qwen-standalone.ps1 | iex\"",
         }),
-        login: "{bin}",
+        login: Some("{bin}"),
         signed_in: None,
     },
     Harness {
@@ -204,7 +205,7 @@ pub const HARNESSES: &[Harness] = &[
         install: Some(Install::Script(
             "curl -fsSL https://github.com/aaif-goose/goose/releases/download/stable/download_cli.sh | bash",
         )),
-        login: "{bin} configure",
+        login: Some("{bin} configure"),
         signed_in: None,
     },
     Harness {
@@ -218,7 +219,7 @@ pub const HARNESSES: &[Harness] = &[
             unix: "curl -fsSL https://code.kimi.com/kimi-code/install.sh | bash",
             windows: "powershell -NoProfile -ExecutionPolicy Bypass -Command \"irm https://code.kimi.com/kimi-code/install.ps1 | iex\"",
         }),
-        login: "{bin} login",
+        login: Some("{bin} login"),
         signed_in: None,
     },
     Harness {
@@ -232,7 +233,7 @@ pub const HARNESSES: &[Harness] = &[
             unix: "curl -fsSL https://app.factory.ai/cli | sh",
             windows: "powershell -NoProfile -ExecutionPolicy Bypass -Command \"irm https://app.factory.ai/cli/windows | iex\"",
         }),
-        login: "{bin}",
+        login: Some("{bin}"),
         signed_in: None,
     },
     Harness {
@@ -246,7 +247,7 @@ pub const HARNESSES: &[Harness] = &[
             unix: "curl -fsSL https://ampcode.com/install.sh | bash",
             windows: "powershell -NoProfile -ExecutionPolicy Bypass -Command \"irm https://ampcode.com/install.ps1 | iex\"",
         }),
-        login: "{bin} login",
+        login: Some("{bin} login"),
         signed_in: None,
     },
     Harness {
@@ -257,7 +258,7 @@ pub const HARNESSES: &[Harness] = &[
         registry: Some("kilo"),
         setup: "Install Kilo CLI (npm install -g @kilocode/cli) and run `kilo auth login`.",
         install: Some(Install::Npm("@kilocode/cli")),
-        login: "{bin} auth login",
+        login: Some("{bin} auth login"),
         signed_in: Some(SignInCheck { args: "profile --json", ok: exit_ok }),
     },
     Harness {
@@ -268,7 +269,7 @@ pub const HARNESSES: &[Harness] = &[
         registry: Some("cline"),
         setup: "Install Cline CLI (npm install -g cline) and run `cline auth`.",
         install: Some(Install::Npm("cline")),
-        login: "{bin} auth",
+        login: Some("{bin} auth"),
         signed_in: None,
     },
     Harness {
@@ -279,7 +280,7 @@ pub const HARNESSES: &[Harness] = &[
         registry: Some("auggie"),
         setup: "Install Auggie (npm install -g @augmentcode/auggie) and run `auggie login`.",
         install: Some(Install::Npm("@augmentcode/auggie")),
-        login: "{bin} login",
+        login: Some("{bin} login"),
         signed_in: Some(SignInCheck { args: "account status", ok: exit_ok }),
     },
     Harness {
@@ -290,7 +291,7 @@ pub const HARNESSES: &[Harness] = &[
         registry: Some("mistral-vibe"),
         setup: "Install Mistral Vibe (curl -LsSf https://mistral.ai/vibe/install.sh | bash) and run `vibe --setup`.",
         install: Some(Install::Script("curl -LsSf https://mistral.ai/vibe/install.sh | bash")),
-        login: "vibe --setup",
+        login: Some("vibe --setup"),
         signed_in: None,
     },
     Harness {
@@ -304,7 +305,7 @@ pub const HARNESSES: &[Harness] = &[
             unix: "curl -fsSL https://cli.kiro.dev/install | bash",
             windows: "powershell -NoProfile -ExecutionPolicy Bypass -Command \"irm 'https://cli.kiro.dev/install.ps1' | iex\"",
         }),
-        login: "{bin} login",
+        login: Some("{bin} login"),
         signed_in: None,
     },
     Harness {
@@ -318,7 +319,7 @@ pub const HARNESSES: &[Harness] = &[
             unix: "curl -fsSL https://cli.devin.ai/install.sh | bash",
             windows: "powershell -NoProfile -ExecutionPolicy Bypass -Command \"irm https://cli.devin.ai/install.ps1 | iex\"",
         }),
-        login: "{bin} auth login",
+        login: Some("{bin} auth login"),
         signed_in: None,
     },
     Harness {
@@ -332,7 +333,7 @@ pub const HARNESSES: &[Harness] = &[
             unix: "curl -fsSL https://qoder.com/install | bash",
             windows: "powershell -NoProfile -ExecutionPolicy Bypass -Command \"irm https://qoder.com/install.ps1 | iex\"",
         }),
-        login: "{bin} login",
+        login: Some("{bin} login"),
         signed_in: Some(SignInCheck { args: "status -o json", ok: qoder_signed_in }),
     },
     Harness {
@@ -343,7 +344,7 @@ pub const HARNESSES: &[Harness] = &[
         registry: Some("codebuddy-code"),
         setup: "Install CodeBuddy Code (npm install -g @tencent-ai/codebuddy-code) and sign in with `codebuddy`.",
         install: Some(Install::Npm("@tencent-ai/codebuddy-code")),
-        login: "{bin}",
+        login: Some("{bin}"),
         signed_in: None,
     },
     Harness {
@@ -354,7 +355,7 @@ pub const HARNESSES: &[Harness] = &[
         registry: Some("minimax-code"),
         setup: "Install MiniMax Code (npm install -g @minimax-ai/code) and run `mcode login`.",
         install: Some(Install::Npm("@minimax-ai/code")),
-        login: "{bin} login",
+        login: Some("{bin} login"),
         signed_in: None,
     },
     Harness {
@@ -368,7 +369,7 @@ pub const HARNESSES: &[Harness] = &[
             unix: "curl -fsSL https://junie.jetbrains.com/install.sh | bash",
             windows: "powershell -NoProfile -ExecutionPolicy Bypass -Command \"iex (irm 'https://junie.jetbrains.com/install.ps1')\"",
         }),
-        login: "{bin}",
+        login: Some("{bin}"),
         signed_in: None,
     },
     Harness {
@@ -377,12 +378,14 @@ pub const HARNESSES: &[Harness] = &[
         bins: &["agy"],
         local: None,
         registry: Some("antigravity-acp"),
-        setup: "Install the Antigravity CLI (curl -fsSL https://antigravity.google/cli/install.sh | bash) and sign in with `agy`.",
+        setup: "Install the Antigravity CLI (curl -fsSL https://antigravity.google/cli/install.sh | bash), then sign in from Codync with Log in with Google.",
         install: Some(Install::Scripts {
             unix: "curl -fsSL https://antigravity.google/cli/install.sh | bash",
             windows: "powershell -NoProfile -ExecutionPolicy Bypass -Command \"irm https://antigravity.google/cli/install.ps1 | iex\"",
         }),
-        login: "{bin}",
+        // Signing in with `agy` doesn't sign in its ACP server, which keeps its own sign-in
+        // (`~/.gemini/antigravity-acp/settings.json`): only the server's own methods do.
+        login: None,
         signed_in: None,
     },
     Harness {
@@ -396,7 +399,7 @@ pub const HARNESSES: &[Harness] = &[
             unix: "curl -LsS https://ai.snowflake.com/static/cc-scripts/install.sh | sh",
             windows: "powershell -NoProfile -ExecutionPolicy Bypass -Command \"irm https://ai.snowflake.com/static/cc-scripts/install.ps1 | iex\"",
         }),
-        login: "{bin}",
+        login: Some("{bin}"),
         signed_in: None,
     },
     Harness {
@@ -410,7 +413,7 @@ pub const HARNESSES: &[Harness] = &[
             unix: "curl -fsSL https://downloads.poolside.ai/pool/install.sh | sh",
             windows: "powershell -NoProfile -ExecutionPolicy Bypass -Command \"irm https://downloads.poolside.ai/pool/install.ps1 | iex\"",
         }),
-        login: "{bin} login",
+        login: Some("{bin} login"),
         signed_in: None,
     },
 ];
@@ -639,22 +642,27 @@ fn registry_cli(h: &Harness) -> Option<Value> {
 
 /// Codync's own sign-in command for `id` can run now.
 pub fn login_available(id: &str) -> bool {
-    harness(id)
-        .is_some_and(|h| h.bins.iter().any(|b| on_path(b)) || !h.login.contains("{bin}") || registry_cli(h).is_some())
+    harness(id).is_some_and(|h| {
+        h.login.is_some_and(|login| {
+            h.bins.iter().any(|b| on_path(b)) || !login.contains("{bin}") || registry_cli(h).is_some()
+        })
+    })
 }
 
 /// Codync's own sign-in command for `id`, with `{bin}` resolved.
 pub async fn login_command(id: &str) -> anyhow::Result<String> {
-    let h = harness(id).ok_or_else(|| anyhow::anyhow!("no sign-in command for {id}"))?;
+    let (h, login) = harness(id)
+        .and_then(|h| h.login.map(|login| (h, login)))
+        .ok_or_else(|| anyhow::anyhow!("no sign-in command for {id}"))?;
     let bin = match h.bins.iter().find_map(|b| which(b)) {
         Some(p) => shell::quote(&p.to_string_lossy()),
         None => match registry_cli(h) {
             Some(agent) => registry::command(&agent, |_| {}).await?.program,
-            None if !h.login.contains("{bin}") => String::new(),
+            None if !login.contains("{bin}") => String::new(),
             None => anyhow::bail!("Install {} first.", h.name),
         },
     };
-    Ok(h.login.replace("{bin}", &bin))
+    Ok(login.replace("{bin}", &bin))
 }
 
 /// The installed CLI's own ACP mode, if it has one and it's installed.
