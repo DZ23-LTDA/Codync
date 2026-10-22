@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import type { TraySummary } from '@shared/ipc'
+import type { TrayImage, TraySummary } from '@shared/ipc'
 import { isGroup, isWorking, needsInput, folderName, type Bot, type UsageWindow } from '@shared/models'
 import { drawCharacter, moodOf } from '../components/Avatar'
 import { useModels } from '../lib/observable'
@@ -7,32 +7,40 @@ import { prefs, usePref } from '../lib/prefs'
 import { avatarColor, isDark, palette } from '../lib/theme'
 import type { AppModel } from '../store/app-model'
 import { providerTint, resetDate, untilText, windowTitle } from './usage/usage-model'
-import { mascotDataURL } from './usage/ProviderMascot'
+import { drawMascot, nearlyUsedUp } from './usage/ProviderMascot'
 
 const isMac = window.codync.platform === 'darwin'
 
 /** Rendered icons by what they show and the appearance: nothing is redrawn while nothing changed. */
-const cache = new Map<string, string>()
+const cache = new Map<string, TrayImage>()
 
-function canvasURL(key: string, width: number, height: number, draw: (ctx: CanvasRenderingContext2D) => void) {
+/**
+ * A menu image drawn for 1x and 2x screens (a 1x screen shrinking a 2x image blurs it), or null
+ * while `draw` can't draw yet (it returns false).
+ */
+function canvasImage(key: string, width: number, height: number, draw: (ctx: CanvasRenderingContext2D) => boolean | void): TrayImage | null {
   const full = `${key}|${isDark()}`
   const hit = cache.get(full)
   if (hit) return hit
-  const ratio = 2
-  const canvas = document.createElement('canvas')
-  canvas.width = width * ratio
-  canvas.height = height * ratio
-  const ctx = canvas.getContext('2d')!
-  ctx.scale(ratio, ratio)
-  draw(ctx)
-  const url = canvas.toDataURL('image/png')
-  cache.set(full, url)
-  return url
+  const at = (ratio: number) => {
+    const canvas = document.createElement('canvas')
+    canvas.width = width * ratio
+    canvas.height = height * ratio
+    const ctx = canvas.getContext('2d')!
+    ctx.scale(ratio, ratio)
+    return draw(ctx) === false ? null : canvas.toDataURL('image/png')
+  }
+  const x1 = at(1)
+  const x2 = x1 && at(2)
+  if (!x1 || !x2) return null
+  const image = { x1, x2 }
+  cache.set(full, image)
+  return image
 }
 
 function avatarIcon(bot: Bot) {
   const key = `bot|${bot.id}|${bot.avatarShape}|${bot.avatarColor}|${bot.status}|${bot.unread > 0}`
-  return canvasURL(key, 20, 20, (ctx) => {
+  return canvasImage(key, 20, 20, (ctx) => {
     const dark = isDark()
     drawCharacter(ctx, { shape: bot.avatarShape, fill: avatarColor(bot.avatarColor), size: 20, mood: moodOf(bot, false), dark, t: 0, still: true })
     const badge = needsInput(bot) ? palette(dark).warning : bot.unread > 0 ? (dark ? '#FFFFFF' : '#000000') : null
@@ -58,7 +66,7 @@ export function botDetail(bot: Bot) {
 /** One usage limit's bar in the provider's color: amber from 70%, red from 90%. */
 function barIcon(providerId: string, window: UsageWindow) {
   const percent = Math.round(window.percent)
-  return canvasURL(`bar|${providerId}|${percent}`, 60, 16, (ctx) => {
+  return canvasImage(`bar|${providerId}|${percent}`, 60, 16, (ctx) => {
     const dark = isDark()
     const color = window.percent >= 90 ? palette(dark).danger : window.percent >= 70 ? palette(dark).warning : providerTint(providerId)
     ctx.fillStyle = dark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.12)'
@@ -110,7 +118,7 @@ export function useTraySummary(app: AppModel) {
         })),
         usage: (local?.usage.providers ?? []).map((p) => ({
           name: p.name,
-          icon: mascotDataURL(p, 16, iconStyle, isDark()),
+          icon: canvasImage(`mascot|${p.id}|${iconStyle}|${nearlyUsedUp(p)}`, 16, 16, (ctx) => drawMascot(ctx, p, 16, iconStyle, isDark())),
           lines: p.windows.map((w) => ({ title: usageLine(w), bar: barIcon(p.id, w) })),
         })),
         screen: screen

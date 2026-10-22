@@ -36,13 +36,19 @@ export interface CallError {
   message: string
 }
 
+/** A menu image as PNG data URLs drawn for 1x and 2x screens; each screen shows its own. */
+export interface TrayImage {
+  x1: string
+  x2: string
+}
+
 /** What the tray menu shows; the renderer owns the stores and sends this on every change. */
 export interface TraySummary {
   status: string
   canPair: boolean
-  bots: { ref: string; name: string; detail: string; working: boolean; avatar: string | null }[]
+  bots: { ref: string; name: string; detail: string; working: boolean; avatar: TrayImage | null }[]
   approval: string | null
-  usage: { name: string; icon: string | null; lines: { title: string; bar: string | null }[] }[]
+  usage: { name: string; icon: TrayImage | null; lines: { title: string; bar: TrayImage | null }[] }[]
   screen: {
     enabled: boolean
     subtitle: string

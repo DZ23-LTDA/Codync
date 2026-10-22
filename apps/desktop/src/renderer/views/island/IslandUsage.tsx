@@ -1,5 +1,6 @@
 import type { UsageProvider, UsageWindow } from '@shared/models'
 import { prefs, usePref } from '../../lib/prefs'
+import { usePixelRatio } from '../../lib/theme'
 import { UsageBar } from '../usage/UsageBar'
 import { mascotDataURL } from '../usage/ProviderMascot'
 import { providerTintCSS, resetDescription, tightest, windowTitle } from '../usage/usage-model'
@@ -11,7 +12,8 @@ import type { IslandModel } from './island-model'
 /** A provider's character for the black island, whatever the system appearance. */
 function Mascot({ provider, size }: { provider: UsageProvider; size: number }) {
   const [style] = usePref(prefs.usageIconStyle)
-  const src = mascotDataURL(provider, size, style, true)
+  const ratio = usePixelRatio()
+  const src = mascotDataURL(provider, size, style, true, ratio)
   return src ? <img src={src} alt="" width={size} height={size} className="island-mascot" /> : null
 }
 

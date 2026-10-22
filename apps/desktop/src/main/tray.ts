@@ -1,6 +1,6 @@
 import { join } from 'node:path'
 import { app, clipboard, Menu, nativeImage, shell, Tray as ElectronTray } from 'electron'
-import type { TraySummary, WindowCommand } from '../shared/ipc'
+import type { TrayImage, TraySummary, WindowCommand } from '../shared/ipc'
 import type { HostController } from './host-controller'
 import type { Updates } from './updates'
 import { updateAction } from '../shared/update-action'
@@ -55,11 +55,12 @@ export class Tray {
     this.rebuild()
   }
 
-  /** The renderer draws menu images at 2× (`tray-summary.ts`): shown at half their pixel size. */
-  private image(dataURL: string | null) {
-    if (!dataURL) return undefined
+  /** The renderer draws menu images at 1× and 2× (`tray-summary.ts`): each screen gets its own pixels. */
+  private image(drawn: TrayImage | null) {
+    if (!drawn) return undefined
     const image = nativeImage.createEmpty()
-    image.addRepresentation({ scaleFactor: 2, dataURL })
+    image.addRepresentation({ scaleFactor: 1, dataURL: drawn.x1 })
+    image.addRepresentation({ scaleFactor: 2, dataURL: drawn.x2 })
     return image.isEmpty() ? undefined : image
   }
 
