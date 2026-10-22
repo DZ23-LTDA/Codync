@@ -1,9 +1,6 @@
 /* Dictation in progress: a quiet pill with stop, the time and the level dots. */
 .recording-pill {
   flex: none;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
   height: 28px;
   box-sizing: border-box;
   padding: 0 10px 0 4px;
@@ -11,6 +8,9 @@
   background: rgba(var(--text-rgb), 0.08);
   font-size: var(--text-body);
   animation: fade-in var(--fade) both;
+}
+.recording-pill.transcribing {
+  padding-left: 10px;
 }
 .recording-stop {
   width: 22px;

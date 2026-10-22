@@ -26,8 +26,6 @@ struct Composer: View {
     @State private var photoItems: [PhotosPickerItem] = []
     @FocusState private var focused: Bool
     @State private var dictation = Dictation()
-    /// The box when dictation started; the words heard go after it.
-    @State private var dictatedAfter = ""
     /// One line of the field's text, following Dynamic Type: the send button centers on the last line.
     @ScaledMetric(relativeTo: .body) private var lineHeight: CGFloat = 22
 
@@ -207,31 +205,39 @@ struct Composer: View {
         .animation(Motion.reduced(Motion.morph, reduceMotion), value: canSend)
     }
 
-    /// Dictation, beside send / call (Grok Bot's): a light circle; while it listens, the recording pill.
+    /// Dictation, beside send / call (Grok Bot's): a light circle with its engine menu; while it
+    /// listens or transcribes, the recording pill.
     private var micButton: some View {
         Group {
-            if dictation.listening {
+            if dictation.listening || dictation.transcribing {
                 RecordingPill(dictation: dictation, height: buttonSize)
                     .transition(.opacity.combined(with: .scale(scale: 0.9, anchor: .trailing)))
             } else {
-                Button {
-                    dictatedAfter = draft
-                    Task { await dictation.start { said in draft = Dictation.join(dictatedAfter, said) } }
-                } label: {
-                    Image(systemName: "mic")
-                        .font(.system(size: 15, weight: .medium))
-                        .foregroundStyle(Palette.secondary)
-                        .frame(width: buttonSize, height: buttonSize)
-                        .background(Palette.bubbleAgent, in: Circle())
-                        .contentShape(Circle())
+                HStack(spacing: 0) {
+                    Button {
+                        Task {
+                            await dictation.start(after: draft, model: model) { change in draft = change(draft) }
+                        }
+                    } label: {
+                        Image(systemName: "mic")
+                            .font(.system(size: 15, weight: .medium))
+                            .foregroundStyle(Palette.secondary)
+                            .frame(width: buttonSize, height: buttonSize)
+                            .contentShape(Circle())
+                    }
+                    .buttonStyle(PressScale())
+                    .accessibilityLabel("Dictate")
+                    .help("Dictate")
+                    DictationEngineMenu(height: buttonSize)
                 }
-                .buttonStyle(PressScale())
-                .accessibilityLabel("Dictate")
-                .help("Dictate")
+                // The mic and its engine menu share one light capsule.
+                .background(Palette.bubbleAgent, in: Capsule())
                 .transition(.opacity)
             }
         }
-        .animation(Motion.reduced(Motion.morph, reduceMotion), value: dictation.listening)
+        .animation(Motion.reduced(Motion.morph, reduceMotion), value: dictation.listening || dictation.transcribing)
+        .codyncDialog("Couldn't dictate", isPresented: Binding(get: { dictation.failure != nil }, set: { if !$0 { dictation.failure = nil } }),
+                      message: dictation.failure, cancel: "OK") { [] }
     }
 
     private var box: some View {
@@ -378,6 +384,8 @@ struct Composer: View {
     }
 
     private func submit() {
+        // Words still on their way would land in the emptied box.
+        dictation.stop()
         if files.isEmpty, let command = SlashCommands.builtIn(for: bot, members: members, draft: draft) { return run(command) }
         guard canSend else { return }
         withAnimation(Motion.reduced(Motion.conversation, reduceMotion)) {

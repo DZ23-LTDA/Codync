@@ -51,15 +51,34 @@ shortcut's tap), which waits for the last words, on an error (shown in the windo
 window takes the speech helper; it doesn't stop on a pause. On the iPhone the pill's stop keeps what
 was recognized so far. The desktop island's message field has the same mic and pill.
 
-- Desktop (`views/thread/dictation.ts`): the speech helper, macOS only, so Linux and Windows show
-  no mic. An unpackaged `npm run dev` can't use it: macOS stops the helper because the dev Electron
-  has no speech usage description, so test it in a packaged build (`dist:mac:dev`), like calls.
+A `chevron.up` beside the composer's mic picks dictation's engine, kept on the device apart from the
+call engine (`dictationEngine`): **On device** (the above), or **OpenAI** / **Gemini** on the user's
+own key. With a provider, the mic first checks that the computer holds its key (`voiceStatus`; no key
+means an error before anything is recorded), then records; nothing is typed while recording. The
+pill's stop turns the pill into "Transcribing…" and the whole recording goes through
+`voiceTranscribe` with the call settings' speech-to-text model; the text lands after what's in the
+box when it arrives (typing goes on while it records). The recording goes in 20 s pieces (one
+channel message each on the iPhone; under the host's 2 MB request body on the desktop), three at a
+time, joined in order; a tail under half a second stays with the piece before, and the first piece
+that fails fails the dictation. Under half a second of audio in all is dropped. Sending a message,
+starting a call or switching chats drops a dictation still recording or transcribing. The
+recording's length counts toward the provider's minutes this month. The island's mic stays
+on-device (its window doesn't reach the host).
+
+- Desktop (`views/thread/dictation.ts`, the model, tested with a stub platform; the helper,
+  microphone and host wired in `dictation-platform.ts`; pieces in `dictation-pieces.ts`; menu in
+  `DictationEngineMenu.tsx`): on-device speech is the speech helper, macOS only. Linux and Windows
+  show the mic too, for a provider; with **On device** picked each press says on-device speech isn't
+  available there. An unpackaged `npm run dev` can't use the helper: macOS stops it because the dev
+  Electron has no speech usage description, so test it in a packaged build (`dist:mac:dev`), like
+  calls.
 - Desktop: the speech helper serves one window at a time. When another window starts it (the
   island while the chat window dictates or calls, or the other way round), `main/speech.ts` tells
   the window that lost it (`stopped`) and ignores that window's stop.
-- iPhone (`Thread/Dictation.swift`, pill in `Thread/RecordingPill.swift`, dots shared with the call
-  bar in `LevelDots.swift`): `SFSpeechRecognizer` on device; with no microphone route (some
-  simulators) the mic does nothing.
+- iPhone (`Thread/Dictation.swift`, pill in `Thread/RecordingPill.swift`, menu in
+  `Thread/DictationEngineMenu.swift`, dots shared with the call bar in `LevelDots.swift`):
+  `SFSpeechRecognizer` on device; with no microphone route (some simulators) the mic does nothing.
+  A provider's errors (no key, no connection) show in a dialog.
 - Android has no composer mic yet.
 - The terminal UI has no microphone, so no mic.
 
@@ -176,7 +195,10 @@ is there and can test it. Picking a cloud engine shows its key form instead of t
 to the provider's key page, **Test** (the computer checks a new key with the provider and keeps it
 only if it works, otherwise the provider's error is shown; with a key saved, it mints a call
 credential for the chosen model and voice), a model picker, a voice picker, and minutes used this month.
-Speech mode adds speech-to-text and text-to-speech pickers and the pause length. The model list comes from the provider through the computer (`voiceModels`: OpenAI `GET /v1/models`
+Speech mode adds speech-to-text and text-to-speech pickers and the pause length; dictating with
+the provider shows its speech-to-text picker too. When dictation's engine is a provider the call
+engine isn't, that provider gets its own section below with just the key and speech-to-text picker
+("For dictation in the message box."), so its key can be added without switching the call engine; its **Test** lists the key's models instead of minting a call credential. The model list comes from the provider through the computer (`voiceModels`: OpenAI `GET /v1/models`
 ids sorted into realtime, transcribe and tts models; Gemini `GET v1beta/models` by
 `bidiGenerateContent` / `generateContent` and name; translation and diarization models left out), fetched after a successful test and each time the form opens. The call bar
 shows the provider's name next to the dots whenever audio leaves the device.
@@ -225,7 +247,8 @@ The realtime model is an operator in front of the bot, not a replacement for it 
 - No key on the computer, invalid key, quota or network failure at start, or a dropped connection mid-call: the
   call switches to On device without hanging up, with a one-line notice under the bar.
 - Usage is billed by the provider to the user. The key form shows minutes used this month
-  (`VoiceUsage`, counted on each device while a cloud engine is live) as an estimate, not a bill.
+  (`VoiceUsage`, counted on each device while a cloud engine is live and for each recording
+  dictated with the provider) as an estimate, not a bill.
 
 ### Verification
 

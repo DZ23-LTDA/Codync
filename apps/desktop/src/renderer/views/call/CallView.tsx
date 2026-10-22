@@ -11,6 +11,8 @@ import { avatarColor } from '../../lib/theme'
 import { analytics } from '../../store/analytics'
 import { useStore } from '../../store/context'
 import { VoiceChatSettingsView } from '../settings/VoiceChatSettingsView'
+import { voiceStatus } from '../settings/voice-settings'
+import { stopDictation } from '../thread/dictation'
 import { CallOperator } from './call-operator'
 
 /**
@@ -22,7 +24,7 @@ import { CloudSpeechEngine } from './CloudSpeechEngine'
 import { GeminiLiveEngine } from './GeminiLiveEngine'
 import { OnDeviceEngine } from './OnDeviceEngine'
 import { OpenAIRealtimeEngine } from './OpenAIRealtimeEngine'
-import { countVoiceUsage, fromBase64, onDeviceAvailable, onDeviceUnavailableReason, providerName, toBase64, VoiceEngine, VoiceSettings, type VoiceProvider, type VoiceStatus } from './voice'
+import { countVoiceUsage, fromBase64, onDeviceAvailable, onDeviceUnavailableReason, providerName, transcribeOnHost, VoiceEngine, VoiceSettings, type VoiceProvider } from './voice'
 import { watchVoiceCall } from './voice-call'
 import './call.css'
 
@@ -71,6 +73,8 @@ export function CallView({ botId, onSpeaking, interrupt, onEnd }: {
   /** Starts the engine: a realtime provider on the key kept by the computer, or on-device speech. */
   const begin = (provider: VoiceProvider | null) => {
     if (closed.current) return
+    // Every engine takes the microphone (and the speech helper) from any dictation in progress.
+    stopDictation()
     if (!provider && !onDeviceAvailable()) return void fallbackFromDevice()
     const op = new CallOperator(store, botId)
     const send = (text: string) => store.send(text, botId)
@@ -81,8 +85,7 @@ export function CallView({ botId, onSpeaking, interrupt, onEnd }: {
       const voice = VoiceSettings.voice(provider)
       next = new CloudSpeechEngine(provider, {
         // ponytail: kit turns Simplified Chinese transcripts into Traditional (ICU Hans-Hant); Chromium has no such transform.
-        transcribe: async (audio) =>
-          (await (await store.ready()).call<{ text: string }>('voiceTranscribe', { provider, model: transcribe, audio: toBase64(audio) }, 60_000)).text,
+        transcribe: async (audio) => transcribeOnHost(await store.ready(), provider, transcribe, audio),
         speak: async (text) => {
           const clip = await (await store.ready()).call<{ audio: string; format: string }>('voiceSpeak', { provider, model: speechModel, voice, text }, 90_000)
           return { audio: fromBase64(clip.audio), format: clip.format }
@@ -122,9 +125,7 @@ export function CallView({ botId, onSpeaking, interrupt, onEnd }: {
 
   const rememberStatus = async () => {
     try {
-      const status = await (await store.ready()).call<VoiceStatus>('voiceStatus')
-      VoiceSettings.remember(status)
-      return status
+      return await voiceStatus(await store.ready())
     } catch {
       return null
     }

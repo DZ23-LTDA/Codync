@@ -16,7 +16,8 @@ import { composerEnter } from './composer-keyboard'
 import { CommandMenu, useCommandMenu } from './CommandMenu'
 import { ComposerAttachment } from './ComposerAttachment'
 import { QuoteRow } from './ChatRows'
-import { useDictation } from './dictation'
+import { useDictation } from './dictation-platform'
+import { DictationEngineMenu } from './DictationEngineMenu'
 import { builtInCommand, slashCommands, slashQuery, type SlashCommand } from './slash-commands'
 import { useVoiceShortcut } from './voice-shortcut-keys'
 
@@ -52,7 +53,7 @@ function DestinationComposer({ botId, reply, cancelReply, onCall, onInterrupt }:
   const draft = useSyncExternalStore(drafts.subscribe, () => drafts.get(botId))
   const setDraft = (text: string) => drafts.set(botId, text)
   const [files, setFiles] = useState<OutgoingFile[]>([])
-  const dictation = useDictation(setDraft)
+  const dictation = useDictation((change) => drafts.set(botId, change(drafts.get(botId))))
   const field = useRef<HTMLTextAreaElement>(null)
   const measure = useRef<HTMLDivElement>(null)
   const composing = useRef(false)
@@ -171,9 +172,6 @@ function DestinationComposer({ botId, reply, cancelReply, onCall, onInterrupt }:
     field.current?.focus()
   }
   useVoiceShortcut(dictation, draft, submit, () => field.current?.focus())
-  useEffect(() => {
-    if (dictation.error) store.setError(dictation.error)
-  }, [dictation.error, store])
 
   const trailing: Trailing = onInterrupt && !draft && !files.length ? 'interrupt' : working && !draft && !files.length ? 'stop' : onCall && !draft && !files.length ? 'call' : 'send'
   const [symbol, label] = ({
@@ -279,12 +277,21 @@ function DestinationComposer({ botId, reply, cancelReply, onCall, onInterrupt }:
                 }}
               />
             </div>
-            {dictation.listening ? (
-              <RecordingPill startedAt={dictation.startedAt} sample={() => dictation} onStop={() => dictation.finish()} className="composer-recording" />
+            {dictation.listening || dictation.transcribing ? (
+              <RecordingPill
+                startedAt={dictation.startedAt}
+                sample={() => dictation}
+                onStop={() => dictation.finish()}
+                transcribing={dictation.transcribing}
+                className="composer-recording"
+              />
             ) : dictation.available ? (
-              <button className="press composer-mic" aria-label="Dictate" title="Dictate" onClick={() => dictation.start(draft)}>
-                <Icon name="mic" size={13} weight="medium" />
-              </button>
+              <HStack as="span" gap={0} className="composer-mic-group">
+                <button className="press composer-mic" aria-label="Dictate" title="Dictate" onClick={() => dictation.start(draft)}>
+                  <Icon name="mic" size={13} weight="medium" />
+                </button>
+                <DictationEngineMenu />
+              </HStack>
             ) : null}
             <button
               className={trailing === 'interrupt' ? 'press composer-send interrupt' : 'press composer-send'}

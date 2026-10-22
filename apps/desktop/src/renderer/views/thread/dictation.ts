@@ -1,8 +1,8 @@
-import { useEffect, useRef, useState } from 'react'
-import type { SpeechEvent } from '@shared/ipc'
-import { VoiceKeyRouter, type VoiceKey } from '@shared/voice-shortcut'
-import { Observable, useModel } from '../../lib/observable'
-import { VoiceSettings } from '../call/voice'
+import type { CodyncBridge, SpeechEvent } from '../../../shared/ipc.ts'
+import { VoiceKeyRouter, type VoiceKey } from '../../../shared/voice-shortcut.ts'
+import { Observable } from '../../lib/observable.ts'
+import type { VoiceProvider } from '../settings/voice-settings.ts'
+import { inOrder, joinDictated, MIN_SAMPLES, pieces } from './dictation-pieces.ts'
 
 /** The running dictation: one recognizer at a time, and a call stops dictation first. */
 let active: Dictation | null = null
@@ -11,21 +11,50 @@ export function stopDictation() {
   active?.cancel()
 }
 
-/** `said` after what's already in the box, with one space between. */
-export function joinDictated(before: string, said: string) {
-  if (!before.trim()) return said
-  if (!said) return before
-  return /\s$/.test(before) ? before + said : `${before} ${said}`
+/** What dictation reaches outside itself: `dictation-platform.ts` wires the real ones, tests stub them. */
+export interface DictationPlatform {
+  /** The on-device speech helper (macOS), or null without one. */
+  speech: Pick<CodyncBridge['speech'], 'start' | 'stop' | 'onEvent'> | null
+  /** Why there's no on-device speech here, said when it's picked anyway. */
+  noSpeech: string
+  /** This window reaches a host, so it can dictate with a provider on the user's key. */
+  host: boolean
+  /** The on-device recognizer's language; null is the computer's. */
+  language(): string | null
+  /** The provider picked beside the mic; null is on-device. */
+  provider(): VoiceProvider | null
+  /** Rejects, saying what to do, unless the host holds `provider`'s key. */
+  checkKey(provider: VoiceProvider): Promise<void>
+  /** Opens the microphone as 16 kHz PCM; resolves to what closes it. */
+  microphone(out: (pcm: Int16Array, level: number) => void): Promise<() => void>
+  /** One piece of a recording, as the provider's text. */
+  transcribe(provider: VoiceProvider, piece: Int16Array): Promise<string>
+  /** Seconds sent to `provider`, for this month's usage. */
+  count(seconds: number, provider: VoiceProvider): void
+  /** Shows an error, every time (even the same one again). */
+  report(message: string): void
 }
 
+/** Recording for a provider: what the microphone heard so far, and how to stop it. */
+interface Recording {
+  provider: VoiceProvider
+  pcm: Int16Array[]
+  stopMic: (() => void) | null
+}
+
+const messageOf = (e: unknown) => (e instanceof Error ? e.message : String(e))
+
 /**
- * Dictation with on-device speech (the speech helper; macOS). Words reach `write` as they're
- * recognized, after what was already typed. The helper doesn't stop on a pause: it ends on
- * `finish()` once the last words are in, on `cancel()`, on an error, or when another window takes it.
+ * Dictation into a message box. With on-device speech (the speech helper; macOS), words reach
+ * `edit` as they're recognized, after what was already typed; the helper doesn't stop on a pause:
+ * it ends on `finish()` once the last words are in, on `cancel()`, on an error, or when another
+ * window takes it. With a provider picked beside the mic, it records, and `finish()` has the host
+ * transcribe the whole recording with the user's key, then puts it after what's in the box by then.
  */
 export class Dictation extends Observable {
-  readonly available = window.codync.speech.available
   listening = false
+  /** Recorded for a provider, waiting for its transcript. */
+  transcribing = false
   /** When it started listening (ms since the epoch). */
   startedAt = 0
   /** The microphone's level while listening, 0…1. Read it each frame: it doesn't re-render. */
@@ -35,18 +64,31 @@ export class Dictation extends Observable {
   /** The box up to the words still being recognized. */
   private before = ''
   private off: (() => void) | null = null
+  private recording: Recording | null = null
   private done: (() => void) | null = null
+  /** Bumped by each start, finish and cancel: a microphone or transcript arriving late for an earlier one is dropped. */
+  private generation = 0
   /** Started by the voice input shortcut's double tap: its next tap sends what's in the field. */
   private byShortcut = false
   private readonly keys = new VoiceKeyRouter()
+  /** Changes the box's text. */
+  private readonly edit: (change: (box: string) => string) => void
+  private readonly platform: DictationPlatform
 
-  constructor(private write: (text: string) => void) {
+  constructor(edit: (change: (box: string) => string) => void, platform: DictationPlatform) {
     super()
+    this.edit = edit
+    this.platform = platform
+  }
+
+  /** On-device speech here, or a host to transcribe with a provider. */
+  get available() {
+    return this.platform.speech !== null || this.platform.host
   }
 
   /** Listening, or stopped and waiting for the last words. */
   get busy() {
-    return this.off !== null
+    return this.off !== null || this.recording !== null || this.transcribing
   }
 
   start(draft: string, byShortcut = false) {
@@ -55,30 +97,42 @@ export class Dictation extends Observable {
     this.byShortcut = byShortcut
     this.error = null
     this.before = draft
-    this.off = window.codync.speech.onEvent((e) => this.event(e))
-    window.codync.speech.start(VoiceSettings.language() || null)
+    const { speech } = this.platform
+    const provider = this.platform.host ? this.platform.provider() : null
+    if (provider) {
+      this.recording = { provider, pcm: [], stopMic: null }
+      void this.record(this.recording, ++this.generation)
+    } else if (speech) {
+      this.off = speech.onEvent((e) => this.event(e))
+      speech.start(this.platform.language())
+    } else {
+      return this.fail(`${this.platform.noSpeech} Pick OpenAI or Gemini beside the mic.`)
+    }
     this.startedAt = Date.now()
     this.listening = true
     this.changed()
   }
 
-  /** Stops listening; `done` runs once the recognizer has delivered its last words. */
+  /** Stops listening; `done` runs once the last words are in the box (recognized, or transcribed for a provider). */
   finish(done?: () => void) {
     this.byShortcut = false
+    if (this.recording) return void this.transcribe(this.recording, done)
     if (!this.off) return done?.()
     this.done = done ?? null
     this.listening = false
     this.level = 0
     this.changed()
-    window.codync.speech.stop()
+    this.platform.speech?.stop()
   }
 
   /** Stops listening now and drops words still on their way. */
   cancel() {
     this.byShortcut = false
     this.error = null
-    if (!this.off) return
-    window.codync.speech.stop()
+    if (!this.busy) return
+    this.generation++
+    if (this.off) this.platform.speech?.stop()
+    this.done = null
     this.end()
   }
 
@@ -94,21 +148,81 @@ export class Dictation extends Observable {
 
   private event(e: SpeechEvent) {
     if (e.type === 'level') this.level = e.value
-    if (e.type === 'partial' || e.type === 'final') this.write(joinDictated(this.before, e.text))
+    if (e.type === 'partial' || e.type === 'final') this.edit(() => joinDictated(this.before, e.text))
     if (e.type === 'final') this.before = joinDictated(this.before, e.text)
     if (e.type === 'error') {
       // Nothing to send, and the helper (which may still hold the microphone) goes too.
       this.byShortcut = false
       this.error = e.message
-      window.codync.speech.stop()
+      this.platform.report(e.message)
+      this.platform.speech?.stop()
     }
     if (e.type === 'stopped' || e.type === 'error') this.end()?.()
+  }
+
+  /** Opens the microphone once the host has the provider's key, so nothing said is lost to a missing one. */
+  private async record(recording: Recording, generation: number) {
+    try {
+      await this.platform.checkKey(recording.provider)
+      if (generation !== this.generation) return
+      const stop = await this.platform.microphone((pcm, level) => {
+        recording.pcm.push(pcm)
+        this.level = level
+      })
+      if (generation !== this.generation) return stop()
+      recording.stopMic = stop
+    } catch (e) {
+      if (generation === this.generation) this.fail(messageOf(e))
+    }
+  }
+
+  /**
+   * Stops recording and puts the provider's transcript of all of it after what's in the box now
+   * (typing goes on while it records); `done` runs once it's there.
+   */
+  private async transcribe(recording: Recording, done?: () => void) {
+    const generation = ++this.generation
+    recording.stopMic?.()
+    this.recording = null
+    this.done = done ?? null
+    this.listening = false
+    this.level = 0
+    const samples = recording.pcm.reduce((n, c) => n + c.length, 0)
+    if (samples < MIN_SAMPLES) return void this.end()?.()
+    this.transcribing = true
+    this.changed()
+    try {
+      const { provider } = recording
+      // Once cancelled, the pieces not sent yet stay unsent (each is billed on the user's key).
+      const texts = await inOrder(pieces(recording.pcm), (piece) =>
+        generation === this.generation ? this.platform.transcribe(provider, piece) : Promise.reject(new Error('Cancelled')),
+      )
+      this.platform.count(samples / 16000, provider)
+      if (generation !== this.generation) return
+      const said = texts.map((t) => t.trim()).filter(Boolean).reduce(joinDictated, '')
+      this.edit((box) => joinDictated(box, said))
+      this.end()?.()
+    } catch (e) {
+      if (generation === this.generation) this.fail(messageOf(e))
+    }
+  }
+
+  /** Ends with `message` and nothing to send. */
+  private fail(message: string) {
+    this.byShortcut = false
+    this.error = message
+    this.platform.report(message)
+    this.done = null
+    this.end()
   }
 
   /** Returns what was waiting for the last words. */
   private end() {
     this.off?.()
     this.off = null
+    this.recording?.stopMic?.()
+    this.recording = null
+    this.transcribing = false
     this.listening = false
     this.level = 0
     if (active === this) active = null
@@ -117,13 +231,4 @@ export class Dictation extends Observable {
     this.changed()
     return done
   }
-}
-
-/** A composer's dictation; it stops when the composer goes away (another chat). */
-export function useDictation(setDraft: (text: string) => void) {
-  const write = useRef(setDraft)
-  write.current = setDraft
-  const [dictation] = useState(() => new Dictation((text) => write.current(text)))
-  useEffect(() => () => dictation.cancel(), [dictation])
-  return useModel(dictation)
 }

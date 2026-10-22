@@ -6,6 +6,7 @@ import { VOICE_SHORTCUT_KEYS, type VoiceKey, type VoiceShortcut } from '@shared/
 import { Observable } from '../../lib/observable'
 import { pref } from '../../lib/prefs'
 import { Dictation } from '../thread/dictation'
+import { dictationPlatform } from '../thread/dictation-platform'
 
 /** The bare notch peeks at once and opens after a rest; the compact island opens sooner. */
 const OPEN_FROM_PEEK_MS = 650
@@ -31,7 +32,7 @@ export class IslandModel extends Observable {
   /** The message field's text. */
   draft = ''
   /** Talking into the message field (the field's mic, or the voice input shortcut). */
-  readonly dictation = new Dictation((text) => this.update(() => (this.draft = text)))
+  readonly dictation = new Dictation((change) => this.update(() => (this.draft = change(this.draft))), dictationPlatform())
   /** The voice input shortcut, as Settings → General has it. */
   shortcut: VoiceShortcut = 'off'
   /** The shape grew on its last change: open with a spring, close without one. */
@@ -126,6 +127,8 @@ export class IslandModel extends Observable {
 
   /** The header's tabs. Bots puts the approvals on screen off until another arrives. */
   setTab(tab: IslandTab) {
+    // Leaving the message field hides the recording pill: stop there, keeping the words.
+    if (this.tab === 'message' && tab !== 'message' && this.dictation.busy) this.dictation.finish()
     this.update(() => {
       if (tab === 'bots') for (const p of this.summary.permissions) this.deferred.add(p.entryId)
       if (tab === 'message' && !this.messageRef) this.messageRef = this.focus?.ref ?? null

@@ -11,7 +11,9 @@ a version without one gets a generic "Bug fixes and improvements" line. Delete o
 ### zh-Hant
 - 用麥克風聽寫時，麥克風按鈕會變成錄音膠囊：停止鍵、錄了多久，還有跟著你說話起伏的點點
 - Bot 工作中時點一下狀態列，就能即時看它的思考過程和每個步驟
+- 麥克風旁的向上箭頭可以選聽寫要用裝置內建語音，還是用你自己的 OpenAI 或 Gemini 金鑰
 
 ### en-US
 - While you dictate, the mic turns into a recording pill: a stop button, how long you've been talking, and dots that follow your voice
 - While a bot works, tap its status line to watch its thinking and each step live
+- The arrow beside the mic picks how dictation hears you: on-device speech, or your own OpenAI or Gemini key

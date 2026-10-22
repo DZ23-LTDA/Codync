@@ -60,6 +60,13 @@ enum VoiceSettings {
         UserDefaults.standard.string(forKey: engineKey).flatMap(VoiceProvider.init(rawValue:))
     }
 
+    /// The same choice for dictation into the message box, picked beside its mic.
+    static let dictationEngineKey = "dictationEngine"
+
+    static var dictationProvider: VoiceProvider? {
+        UserDefaults.standard.string(forKey: dictationEngineKey).flatMap(VoiceProvider.init(rawValue:))
+    }
+
     static func modelKey(_ provider: VoiceProvider) -> String { "callModel.\(provider.rawValue)" }
     /// The provider's model list as last fetched with the user's key.
     static func modelsKey(_ provider: VoiceProvider) -> String { "callModels.\(provider.rawValue)" }

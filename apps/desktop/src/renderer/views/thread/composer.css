@@ -157,19 +157,37 @@
 }
 .composer-symbol.active { opacity: 1; transform: scale(1) rotate(0); }
 /* Dictation, beside send / call (Grok Bot's): a light circle; a recording pill while it listens. */
+/* The mic and its engine menu share one light capsule. */
+.composer-mic-group {
+  flex: none;
+  height: 25px;
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--text) 7%, var(--composer-fill));
+  margin-bottom: var(--first-line-inset);
+}
 .composer-mic {
   width: 25px;
   height: 25px;
-  border-radius: 50%;
   display: grid;
   place-items: center;
   flex: none;
   color: var(--secondary);
-  background: color-mix(in srgb, var(--text) 7%, var(--composer-fill));
-  margin-bottom: var(--first-line-inset);
-  transition: background-color var(--morph), color var(--morph), transform var(--press);
+  transition: color var(--morph), transform var(--press);
 }
 .composer-mic:hover {
+  color: var(--text);
+}
+.composer-engine {
+  width: 18px;
+  height: 25px;
+  display: grid;
+  place-items: center;
+  flex: none;
+  padding-right: 4px;
+  color: var(--secondary);
+  transition: color var(--hover);
+}
+.composer-engine:hover {
   color: var(--text);
 }
 /* Centered on the first line, like the mic it replaces. */

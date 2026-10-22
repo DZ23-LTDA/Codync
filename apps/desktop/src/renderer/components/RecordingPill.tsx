@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
+import { Spinner } from './Controls'
 import { Icon } from './Icon'
 import { LevelDots, type LevelSample } from './LevelDots'
+import { HStack } from './Stack'
 import { Text } from './Text'
 import './recording-pill.css'
 
@@ -17,23 +19,33 @@ function useElapsed(startedAt: number) {
 
 /**
  * Dictation in progress, in place of the mic: stop, the time since it started, and dots that
- * follow the microphone's level. `color` null is the text color.
+ * follow the microphone's level; `transcribing` once a recording waits for its transcript.
+ * `color` null is the text color.
  */
-export function RecordingPill({ startedAt, sample, onStop, color = null, className = '' }: {
+export function RecordingPill({ startedAt, sample, onStop, transcribing = false, color = null, className = '' }: {
   startedAt: number
   sample: () => LevelSample
   onStop: () => void
+  transcribing?: boolean
   color?: string | null
   className?: string
 }) {
   const elapsed = useElapsed(startedAt)
+  if (transcribing) {
+    return (
+      <HStack as="span" gap={6} className={`recording-pill transcribing ${className}`}>
+        <Spinner size={12} />
+        <Text tone="secondary">Transcribing…</Text>
+      </HStack>
+    )
+  }
   return (
-    <span className={`recording-pill ${className}`}>
+    <HStack as="span" gap={6} className={`recording-pill ${className}`}>
       <button type="button" className="recording-stop" aria-label="Stop dictating" title="Stop dictating" onClick={onStop}>
         <Icon name="stop.fill" size={11} scaled={false} />
       </button>
       <Text tabular tone="text">{elapsed}</Text>
       <LevelDots sample={sample} color={color} width={32} height={12} label="Listening" />
-    </span>
+    </HStack>
   )
 }

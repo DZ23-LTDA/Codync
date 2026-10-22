@@ -36,7 +36,7 @@ bar). A bot can be messaged from the island, and ⌥Y / ⌥N answer an approval 
 
 Opened by hover, the island folds 0.8 s after the pointer leaves; opened by a click or a tab,
 10 s after (a 2 pt line counts down). The message field stays until it sends, Esc or a click in
-another app. An approval opens by itself and stays until answered; the Bots tab puts it off
+another app; switching to another tab while it dictates stops dictation and keeps the words. An approval opens by itself and stays until answered; the Bots tab puts it off
 until another arrives. Answers and messages go through the chat window (`respondPermission`,
 `send`), like the chat's own cards and composer. The states, sizes and motion are drawn in the
 design canvas the island was built from.
