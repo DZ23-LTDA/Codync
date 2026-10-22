@@ -165,3 +165,10 @@ Phone source committed as `effa2091`; pre-commit Android checks passed. Desktop 
   desktop tests and typecheck pass. Live desktop E2E could observe onboarding but
   CUA failed to operate that Electron window (noWindowsAvailable), so it is not
   recorded as passed. Other agents' uncommitted files were preserved during rebase.
+
+The held branch is rebased onto `62672102`, preserving latest dev's no-preview chat
+and compact approval cards. Synced physical iPhone build passed and was reinstalled
+successfully. Card polish commit is `27662acc`; #194 is still open, so the separate
+mascot/access/card source commits remain local pending the coordinated release.
+The main thinking-review Electron/Vite/host and temporary simulators were stopped;
+the held mascot worktree's development app remains available until its push.
