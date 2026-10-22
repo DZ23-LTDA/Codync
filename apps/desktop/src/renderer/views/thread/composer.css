@@ -88,7 +88,7 @@
   display: grid;
   place-items: center;
   flex: none;
-  margin-bottom: calc(max(0px, (round(up, calc(var(--conversation) * 1.25), 1px) + 10px - 25px) / 2));
+  margin-bottom: var(--first-line-inset);
 }
 .composer-surface {
   position: relative;
@@ -102,6 +102,8 @@
   flex-direction: column;
 }
 .composer-box {
+  /* Centers a 25 px control on the field's first line. */
+  --first-line-inset: calc(max(0px, (round(up, calc(var(--conversation) * 1.25), 1px) + 10px - 25px) / 2));
   display: flex;
   align-items: flex-end;
   gap: 8px;
@@ -154,25 +156,44 @@
   transition: opacity var(--morph), transform var(--morph);
 }
 .composer-symbol.active { opacity: 1; transform: scale(1) rotate(0); }
-/* Dictation, beside send / call (Grok Bot's): a light circle; filled while it listens. */
+/* Dictation, beside send / call (Grok Bot's): a light circle; a recording pill while it listens. */
+/* The mic and its engine menu share one light capsule. */
+.composer-mic-group {
+  flex: none;
+  height: 25px;
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--text) 7%, var(--composer-fill));
+  margin-bottom: var(--first-line-inset);
+}
 .composer-mic {
   width: 25px;
   height: 25px;
-  border-radius: 50%;
   display: grid;
   place-items: center;
   flex: none;
   color: var(--secondary);
-  background: color-mix(in srgb, var(--text) 7%, var(--composer-fill));
-  margin-bottom: calc(max(0px, (round(up, calc(var(--conversation) * 1.25), 1px) + 10px - 25px) / 2));
-  transition: background-color var(--morph), color var(--morph), transform var(--press);
+  transition: color var(--morph), transform var(--press);
 }
 .composer-mic:hover {
   color: var(--text);
 }
-.composer-mic.on {
-  background: var(--danger-fill);
-  color: var(--on-danger);
+.composer-engine {
+  width: 18px;
+  height: 25px;
+  display: grid;
+  place-items: center;
+  flex: none;
+  padding-right: 4px;
+  color: var(--secondary);
+  transition: color var(--hover);
+}
+.composer-engine:hover {
+  color: var(--text);
+}
+/* Centered on the first line, like the mic it replaces. */
+.composer-recording {
+  height: 25px;
+  margin-bottom: var(--first-line-inset);
 }
 .composer-send {
   width: 25px;
@@ -181,7 +202,7 @@
   display: grid;
   place-items: center;
   flex: none;
-  margin-bottom: calc(max(0px, (round(up, calc(var(--conversation) * 1.25), 1px) + 10px - 25px) / 2));
+  margin-bottom: var(--first-line-inset);
   background: var(--accent-fill);
   color: var(--on-accent);
   transition: background-color var(--morph), color var(--morph), transform var(--press);

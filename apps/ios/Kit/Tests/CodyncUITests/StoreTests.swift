@@ -135,7 +135,7 @@ private func context() -> (SharedStore.Context, String) {
 
 /// Polls until `condition` holds (2 s at most).
 @MainActor
-private func until(_ condition: @MainActor () async -> Bool) async -> Bool {
+func until(_ condition: @MainActor () async -> Bool) async -> Bool {
     for _ in 0..<200 {
         if await condition() { return true }
         try? await Task.sleep(for: .milliseconds(10))

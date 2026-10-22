@@ -18,7 +18,8 @@ its own context and compacts it itself.
 ## Instruction snapshot (`host/src/chat/context.rs`)
 
 - The bot's instructions are rendered once, in English and kept general: profile (name, description), how to
-  message the user, other conversations, workspace, skills, plus the memory section. How to use each tool
+  message the user, where the user is (Codync's apps, not the engine's own CLI; New session to start over),
+  other conversations, workspace, skills, plus the memory section. How to use each tool
   lives with the tool (MCP server instructions, tool descriptions), not here. They're stored as a snapshot in `kv` under `context.<bot>`, keyed by **session + compaction
   epoch**, and don't change until one of those changes. This keeps the prompt byte-identical so the prompt
   cache stays warm.
@@ -47,11 +48,13 @@ Claude Code's own memory; the rules live in the `codync-mem` crate, and `chat/me
 - **Two layers, two kinds of file.** Each layer is a folder: "yours", shared by every bot that uses it, in
   `<data>/shared-memory/`, and one per bot in `<data>/bots/<id>/bot-memory/`. A bot in its own workspace uses
   "yours" by default and one in a project folder doesn't; the user switches it per bot (`sharedMemory`).
-  - `MEMORY.md`: one short fact per line (at most 150 tokens a line). Caps count tokens (one per CJK character, one
-    per four others): 400 for "yours", 1,200 per bot. It may be empty.
-  - Notes: one topic each, `lowercase-with-dashes.md`, starting with frontmatter whose `description:` says when to
-    read it; at most 2,000 tokens a note and 20 notes a folder, marked when passed, never cut. Links, hidden files
-    and folders are ignored.
+  - `MEMORY.md`: the short version, one short fact per line (at most 150 tokens a line), the way a project keeps
+    its `CLAUDE.md` short and its `docs/` detailed. Caps count tokens (one per CJK character, one per four others):
+    400 for "yours", 1,200 per bot. It may be empty. Dreaming keeps it within its cap (below).
+  - Notes: the detail, one topic each, `lowercase-with-dashes.md` in up to three topic folders
+    (`health/allergies.md`), starting with frontmatter whose `description:` says when to read it; at most 2,000
+    tokens a note and 20 notes a layer, marked when passed, never cut. Links (a topic folder too: the host never
+    reads or writes through one), hidden files and folders, and folders deeper than three are ignored.
 - **The opening** holds each `MEMORY.md` the bot sees in full (over its cap: marked, never cut), then the index of
   its notes (path, description, tokens). It doesn't change for a memory change, so the prompt cache holds: every
   change (the bot's, another bot's in "yours", dreaming's, an edit on the computer) reaches each session of the
@@ -73,8 +76,10 @@ Claude Code's own memory; the rules live in the `codync-mem` crate, and `chat/me
   (`codync_mem::files::check_change`): no hidden characters, prompt-carrying links, planted instructions,
   passwords, keys, ID or card numbers, and the caps. Lines already there aren't checked again, and a file over its
   cap may still shrink. In a turn the user started in the bot's own chat (`Runtime.message`; a message the
-  host wrote in the user's place doesn't count), the bot may change anything. Otherwise (routines, rooms, other
-  bots) it may only add lines, and none the user had forgotten.
+  host wrote in the user's place doesn't count), the bot may change anything, and `MEMORY.md` may grow to twice
+  its cap, so what the user asks to remember is never turned away for space. Otherwise (routines, rooms, other
+  bots) it may only add lines, none the user had forgotten, and within the cap: a full `MEMORY.md` sends the bot
+  to a note instead.
 - **Forgetting.** When a change in the user's own turn takes a fact out of a layer (and no other file of the layer
   holds it), that fact and the message it was learned from are tombstoned (`codync_mem::store::bury`): no bot
   outside the user's turn and no dream writes it again or learns from that message. Written again in the user's
@@ -85,7 +90,7 @@ Claude Code's own memory; the rules live in the `codync-mem` crate, and `chat/me
   turn-end scan looks again once it settles). A bot's change that breaks a rule is put back, and the session that
   made it hears why at the start of its next message (`memory::put_back`). A change is the bot's when its tool call named the file,
   or when it turns up from the bot's prompt until the scan after its turn, and that turn ran a tool that can write
-  files (`files::begin_turn`; when several bots' turns could have made it, the strictest rules apply). Any other
+  files (`turns::begin_turn`; when several bots' turns could have made it, the strictest rules apply). Any other
   change (an editor, another program) is recorded as the computer's, unchecked; the opening withholds each of its
   lines that fails the checks. Host writes (`edit_memory`, dreaming, the moves below) are compare-and-swap on the
   content's hash, one at a time with the scans, through a temporary file renamed over it. Each fact of `MEMORY.md`
@@ -93,11 +98,22 @@ Claude Code's own memory; the rules live in the `codync-mem` crate, and `chat/me
 - **Dreaming** (`chat/memory/dream.rs`). After five idle minutes or eight user messages (sooner on a new session or
   compaction, and once a day for the time review, which rewrites a dated line whose date has passed, once), it
   reads the bot's chat since its bookmark on the bot's own harness (Claude: Haiku, no tools) and proposes lines to
-  add to and take out of `MEMORY.md`, lines to append to notes, and, when a `MEMORY.md` is nine-tenths full, lines
-  to move into a note. Each change must quote what the user typed: pasted text (the apps send `pasted`), fenced
-  code, quoted lines and forwarded messages don't count, nor do bare acknowledgements. At most 10 changes and never
-  more than a quarter of the lines; it never takes out a line the user wrote, never adds one the user had
-  forgotten, and never rewrites a note. It waits while the plan's usage is above 75%. It writes the files
+  add to and take out of `MEMORY.md` and lines to append to notes. Each change must quote what the user typed:
+  pasted text (the apps send `pasted`), fenced code, quoted lines and forwarded messages don't count, nor do bare
+  acknowledgements. At most 10 changes and never more than a quarter of the lines taken out; it never takes out a
+  line the user wrote, never writes one the user had forgotten (an add, a review's rewrite, a pointer below), and
+  never rewrites a note.
+  **Tidying:** when a `MEMORY.md` the bot sees is nine-tenths full (`codync_mem::dream::full`), a run moves its
+  detail word for word into the notes of their topics (`moveOut`), a topic's lines together, the user's lines too,
+  and leaves one line per topic that sums it up and points to its note, the way `CLAUDE.md` points into `docs/`
+  (`Allergic to peanuts → health/allergies.md`): the run's `summary`, else the note's description, else its name,
+  the first that passes `MEMORY.md`'s checks and fits; when none does, the topic gets no line and the index still
+  lists the note, so a pointer never costs the run its other changes. A topic that already points to its note
+  keeps that line unless the run sums it up anew and the user didn't write it; a pointing line never moves itself.
+  A move keeps the line, so it doesn't count toward the quarter. It runs for this even with no new conversation,
+  and again after each run that moved something, until there is room or a run moves nothing (`tidied` in `kv`
+  holds, per layer, the hash of the `MEMORY.md` a run last saw nearly full). Runs of bots that see the shared
+  layer take turns, so one run tidies it and the others find it tidied. It waits while the plan's usage is above 75%. It writes the files
   compare-and-swap; when one changed meanwhile, the rest waits for the next run. Every run is logged (the lines it
   added and took out, the notes it wrote).
 - **The harness's own memory** is off for every bot and for background jobs (`agent/own_memory.rs`): Claude Code

@@ -17,6 +17,9 @@ The Electron composer restores the draft and layout behavior previously fixed in
   both opening and closing. Rapid toggles cancel pending reveal callbacks.
   Reduced Motion removes these transitions.
 - iOS keeps its native multiline field, keyboard and existing Motion animations.
+  With a hardware keyboard (iPhone/iPad), Return inserts a newline at the cursor
+  and ⌘↩ sends (send state only); on Android, Enter inserts a newline and
+  Ctrl/Meta+Enter sends (send state only).
   The terminal uses immediate text layout, with Shift/Alt-Enter (where supported)
   or Ctrl+J for a newline; it has no voice button or graphical inspector animation.
 

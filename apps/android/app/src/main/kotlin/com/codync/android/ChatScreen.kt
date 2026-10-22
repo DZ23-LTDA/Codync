@@ -251,6 +251,6 @@ import com.kyant.shapes.Capsule
                 is ChatItem.Exchanges -> BotMessageRow(item.group, state) { openPeer(item.group.peerId) }
             }
         }
-        if (working) item("working") { WorkingIndicator(bot, currentThinking(state.entries, bot.id)) }
+        if (working) item("working") { WorkingIndicator(bot) }
     }
 }

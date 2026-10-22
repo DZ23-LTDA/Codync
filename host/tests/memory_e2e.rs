@@ -18,6 +18,11 @@ fn texts(layer: &Value) -> Vec<String> {
     layer["entries"].as_array().unwrap().iter().map(|e| e["text"].as_str().unwrap().to_owned()).collect()
 }
 
+/// `count` MEMORY.md lines of `width` CJK characters each, told apart by a number.
+fn filler(count: usize, width: usize) -> String {
+    (0..count).map(|i| format!("- {}{i}\n", "字".repeat(width))).collect::<Vec<_>>().concat()
+}
+
 #[tokio::test]
 async fn moves_old_memory_into_files_once() {
     let mut host = Host::start().await;
@@ -107,6 +112,14 @@ async fn a_bot_keeps_its_memory_and_only_the_users_own_turn_changes_it() {
     let found = host.tool(&auto, "search_memory", json!({"query": "short"})).await;
     assert_eq!(found["results"][0]["file"], "MEMORY.md");
 
+    // Notes sit in topic folders, like a project's docs.
+    std::fs::create_dir_all(host.memory_folder(Some(&auto)).join("people")).unwrap();
+    host.write_memory(Some(&auto), "people/family.md", "---\ndescription: The user's family\n---\n- Mei: daughter\n");
+    let listed = host.tool(&auto, "read_memory", json!({})).await;
+    assert!(listed["files"].as_array().unwrap().iter().any(|f| f["file"] == "people/family.md"), "{listed}");
+    let note = host.tool(&auto, "read_memory", json!({"file": "people/family.md"})).await;
+    assert!(note["content"].as_str().unwrap().contains("Mei"), "{note}");
+
     // The apps only read it.
     let refused = host.refused("saveMemory", json!({"botId": auto, "text": "Has two cats"})).await;
     assert!(refused.contains("unknown method"), "{refused}");
@@ -124,6 +137,9 @@ async fn a_bot_keeps_its_memory_and_only_the_users_own_turn_changes_it() {
     assert_eq!(texts(&view["bot"]), ["Likes green tea"]);
     assert_eq!(view["bot"]["entries"][0]["author"], "bot");
     assert_eq!(view["bot"]["entries"][0]["evidence"].as_array().unwrap().len(), 1, "learned from that message");
+    // There MEMORY.md may pass its cap: what the user asks to remember is never turned away for space.
+    let over = json!({"file": "MEMORY.md", "shared": true, "content": filler(5, 99)});
+    assert_eq!(host.tool(&bot, "edit_memory", over).await["status"], "saved");
 
     // What the user had it forget doesn't come back outside their own turn.
     host.call("respondPermission", json!({"entryId": card["id"], "optionId": "allow"})).await;
@@ -141,6 +157,13 @@ async fn a_bot_keeps_its_memory_and_only_the_users_own_turn_changes_it() {
     let back = json!({"file": "MEMORY.md", "append": "- Has two cats"});
     let refused = host.tool_refused(&bot, "edit_memory", back).await;
     assert!(refused.contains("had this forgotten"), "{refused}");
+
+    // Outside it, a MEMORY.md past its cap takes nothing more: that goes in a note until dreaming tidies it.
+    let movie = json!({"file": "MEMORY.md", "shared": true, "append": "- Favourite film is Spirited Away"});
+    assert!(host.tool_refused(&bot, "edit_memory", movie).await.contains("has no room"));
+    let film = "---\ndescription: Films the user loves\n---\n- Spirited Away\n";
+    let note = json!({"file": "films/favourites.md", "shared": true, "content": film});
+    assert_eq!(host.tool(&bot, "edit_memory", note).await["status"], "saved");
 }
 
 /// The first entry of the bot's chat that `matches`, once there is one.
@@ -226,6 +249,59 @@ async fn dreaming_keeps_only_what_the_user_typed() {
             .await
             .contains("unknown method")
     );
+}
+
+#[tokio::test]
+async fn dreaming_tidies_a_nearly_full_memory_md_once_and_stops_when_nothing_moves() {
+    let host = Host::start().await;
+    let agent = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/memory_agent.py");
+    let mut bots = Vec::new();
+    for name in ["Tidy A", "Tidy B"] {
+        let bot = json!({"name": name, "backend": "custom", "command": common::python_agent(&agent), "connectors": [], "notify": false});
+        bots.push(host.call("createBot", bot).await["bot"]["id"].as_str().unwrap().to_owned());
+    }
+    let (a, b) = (bots[0].as_str(), bots[1].as_str());
+    let log = host.home.join("background/dreams.log");
+    let tidies = || std::fs::read_to_string(&log).unwrap_or_default().matches("tidy").count();
+
+    // Both bots share a MEMORY.md nine-tenths full of the user's own lines: one run moves the detail into a note,
+    // with no new conversation, and the other finds it tidied.
+    let main = format!("- Allergic to peanuts and shellfish {}\n{}", "敏".repeat(100), filler(3, 90));
+    host.write_memory(None, "MEMORY.md", &main);
+    host.memory(a).await;
+    for bot in [a, b] {
+        host.call("newSession", json!({"botId": bot})).await;
+    }
+    let shared = host.memory_folder(None);
+    let deadline = Instant::now() + Duration::from_secs(30);
+    while std::fs::read_to_string(shared.join("MEMORY.md")).unwrap().contains("Allergic") {
+        assert!(Instant::now() < deadline, "dreaming didn't tidy");
+        tokio::time::sleep(Duration::from_millis(100)).await;
+    }
+    tokio::time::sleep(Duration::from_secs(1)).await;
+    let notes: Vec<PathBuf> = std::fs::read_dir(shared.join("health")).unwrap().map(|e| e.unwrap().path()).collect();
+    assert_eq!(notes.len(), 1, "one run moved it: {notes:?}");
+    assert_eq!(std::fs::read_to_string(&notes[0]).unwrap().matches("Allergic").count(), 1);
+    let main = std::fs::read_to_string(shared.join("MEMORY.md")).unwrap();
+    assert_eq!(main.matches("- Has food allergies → health/allergies-").count(), 1, "one line points to it: {main}");
+    assert_eq!(tidies(), 1, "the other bot found it tidied");
+    let view = host.memory(b).await;
+    assert!(view["yours"]["used"].as_u64() < view["yours"]["cap"].as_u64(), "{view}");
+    let listed = view["files"]["yours"]["files"].as_array().unwrap();
+    assert!(listed.iter().any(|f| f["name"].as_str().unwrap().starts_with("health/allergies-")), "{view}");
+
+    // A run that moves nothing out waits for MEMORY.md to change.
+    host.write_memory(Some(a), "MEMORY.md", &filler(8, 140));
+    host.memory(a).await;
+    host.call("newSession", json!({"botId": a})).await;
+    let deadline = Instant::now() + Duration::from_secs(30);
+    while tidies() < 2 {
+        assert!(Instant::now() < deadline, "dreaming didn't try to tidy the bot's own");
+        tokio::time::sleep(Duration::from_millis(100)).await;
+    }
+    host.call("newSession", json!({"botId": a})).await;
+    tokio::time::sleep(Duration::from_secs(2)).await;
+    assert_eq!(tidies(), 2, "nothing moved, so it doesn't try again");
 }
 
 #[tokio::test]

@@ -10,8 +10,8 @@
 //! moves the lane's epoch, which ends a running room turn before its next speaker.
 
 use crate::LockExt;
-use crate::agent::bot::Cmd;
-use crate::hub::Hub;
+use crate::agent::bot::{Cmd, NoticeStyle};
+use crate::hub::{BotStatus, Hub};
 use crate::remote::push::{self, AlertKind};
 use crate::store::{BotConfig, BotKind, Entry, EntryKind, Lane, Store};
 use anyhow::{Result, anyhow, bail};
@@ -34,8 +34,12 @@ pub struct GroupTurn {
     pub prompt: String,
     /// The newest message `prompt` shows (its `seq`): a reaction goes on what the member saw.
     pub shown: i64,
-    /// The room turn that asked; a member skips it once a newer one started (see [`Rooms::current`]).
+    /// The room turn that asked; a member skips it once a newer one started (see [`Rooms::current`]), unless `late`.
     pub epoch: u64,
+    /// Queued while the member was busy elsewhere: it answers once free whatever the room did since, on a
+    /// prompt built when it starts ([`refresh`]). Only the group's Stop, the room asking the member again, or the
+    /// member leaving the group drops it (Stop in the member's own chat doesn't).
+    pub late: bool,
     /// The reply the room sees, or `None` for a pass.
     pub reply: oneshot::Sender<Result<Option<String>>>,
 }
@@ -113,8 +117,10 @@ pub fn start(hub: &Arc<Hub>, group: &BotConfig, lane: Lane) {
 async fn run(hub: &Arc<Hub>, group_id: &str, lane: &Lane, epoch: u64) -> Result<()> {
     let mut replies = 0;
     let mut last_reply: Option<(String, String, String)> = None;
+    // Members busy elsewhere: their turn waits in their queue, and they answer on their own once free.
+    let mut later: Vec<String> = vec![];
     'rounds: for round in 0..MAX_ROUNDS {
-        let group = hub.store.bot(group_id)?.filter(|r| !r.deleted).ok_or_else(|| anyhow!("group deleted"))?.config;
+        let group = group(hub, group_id)?;
         let members = members(hub, &group);
         let since_user = since_last_user_message(hub, lane)?;
         let mut speakers = responders(&members, &since_user);
@@ -132,11 +138,24 @@ async fn run(hub: &Arc<Hub>, group_id: &str, lane: &Lane, epoch: u64) -> Result<
             if replies >= MAX_REPLIES {
                 break 'rounds;
             }
-            let shown = hub.store.messages_after(lane, 0, 1)?.last().map_or(0, |e| e.seq);
-            let prompt = member_prompt(hub, &group, &members, member, lane)?;
+            if later.contains(&member.id) {
+                continue;
+            }
+            let (prompt, shown) = ask(hub, &group, &members, member, lane)?;
             let (reply, answer) = oneshot::channel();
-            let turn = GroupTurn { lane: lane.clone(), prompt, shown, epoch, reply };
+            let busy = busy_elsewhere(hub, &member.id, lane);
+            let turn = GroupTurn { lane: lane.clone(), prompt, shown, epoch, late: busy, reply };
             if hub.send_cmd(&member.id, Cmd::Group(turn)).is_err() {
+                continue;
+            }
+            // The room doesn't wait on a turn elsewhere (it can run for hours): it says so, and the member
+            // answers here when it's done.
+            if busy {
+                let text = format!("{} is busy in another chat and will answer here when it's done.", member.name);
+                let data = serde_json::json!({"text": text, "style": NoticeStyle::Info});
+                hub.add_entry(lane, EntryKind::Notice, hub.store.max_turn(group_id), &data);
+                later.push(member.id.clone());
+                tokio::spawn(answer_later(hub.clone(), group_id.to_owned(), (*member).clone(), answer));
                 continue;
             }
             // A failed, cancelled or overdue member turn counts as a pass; its error shows in the room.
@@ -150,12 +169,59 @@ async fn run(hub: &Arc<Hub>, group_id: &str, lane: &Lane, epoch: u64) -> Result<
             break;
         }
     }
-    if let Some((from, name, text)) = last_reply
-        && let Some(group) = hub.store.bot(group_id)?.map(|r| r.config)
-    {
-        push::notify(hub, &group, Some(&from), &format!("{name} in {}", group.name), &text, AlertKind::Done);
+    if let Some((from, name, text)) = last_reply {
+        alert(hub, group_id, &from, &name, &text)?;
     }
     Ok(())
+}
+
+/// A busy member's reply, after the room turn moved on: it alerts like the room's last reply. Dropping the member's
+/// queued turn (see [`GroupTurn::late`]) ends this wait.
+async fn answer_later(
+    hub: Arc<Hub>,
+    group_id: String,
+    member: BotConfig,
+    answer: oneshot::Receiver<Result<Option<String>>>,
+) {
+    if let Ok(Ok(Some(text))) = answer.await
+        && let Err(error) = alert(&hub, &group_id, &member.id, &member.name, &text)
+    {
+        tracing::warn!(group = group_id, error = format!("{error:#}"), "late room reply not pushed");
+    }
+}
+
+/// The "done" push for `name`'s reply in the group.
+fn alert(hub: &Hub, group_id: &str, from: &str, name: &str, text: &str) -> Result<()> {
+    if let Some(group) = hub.store.bot(group_id)?.map(|r| r.config) {
+        push::notify(hub, &group, Some(from), &format!("{name} in {}", group.name), text, AlertKind::Done);
+    }
+    Ok(())
+}
+
+/// `member` runs a turn outside this room, so a room turn would queue behind it.
+fn busy_elsewhere(hub: &Hub, member: &str, lane: &Lane) -> bool {
+    let r = hub.runtime(member);
+    matches!(r.status, BotStatus::Working | BotStatus::NeedsInput) && r.lane.as_ref() != Some(lane)
+}
+
+/// A late turn starts: it shows the room as it is now, not as it was when the turn was queued.
+pub fn refresh(hub: &Hub, turn: &mut GroupTurn, me: &BotConfig) -> Result<()> {
+    let group = group(hub, &turn.lane.chat)?;
+    if !group.members.contains(&me.id) {
+        bail!("no longer in the group");
+    }
+    (turn.prompt, turn.shown) = ask(hub, &group, &members(hub, &group), me, &turn.lane)?;
+    Ok(())
+}
+
+fn group(hub: &Hub, id: &str) -> Result<BotConfig> {
+    Ok(hub.store.bot(id)?.filter(|r| !r.deleted).ok_or_else(|| anyhow!("group deleted"))?.config)
+}
+
+/// `me`'s prompt for a turn in the room, and the newest message it shows (its `seq`).
+fn ask(hub: &Hub, group: &BotConfig, members: &[BotConfig], me: &BotConfig, lane: &Lane) -> Result<(String, i64)> {
+    let shown = hub.store.messages_after(lane, 0, 1)?.last().map_or(0, |e| e.seq);
+    Ok((member_prompt(hub, group, members, me, lane)?, shown))
 }
 
 fn members(hub: &Hub, group: &BotConfig) -> Vec<BotConfig> {

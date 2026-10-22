@@ -1,6 +1,7 @@
 import { execFile } from 'node:child_process'
 import { BrowserWindow, globalShortcut, ipcMain, screen } from 'electron'
 import type { WindowCommand } from '../shared/ipc'
+import type { VoiceKey } from '../shared/voice-shortcut'
 import { hitRect, hits, notchOf, PANEL, type IslandRect, type IslandScreen, type IslandSummary, type NotchScreen } from '../shared/island'
 import { prefs } from './host-controller'
 
@@ -200,6 +201,11 @@ export class Island {
         console.error(`island: ${accelerator} is taken by another app`)
       }
     }
+  }
+
+  /** The voice input shortcut's taps, while the island is on. */
+  voiceKey(key: VoiceKey) {
+    this.window?.webContents.send('island:voiceKey', key)
   }
 
   /** Top center of the display with the notch, else the main display. */

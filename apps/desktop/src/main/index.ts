@@ -14,6 +14,7 @@ import { AccountService } from './account'
 import { Updates, yieldsToInstall } from './updates'
 import { handleURL, registerAuthIPC, registerSchemes, urlFromArgv } from './auth'
 import { registerSpeech } from './speech'
+import { VoiceShortcutKeys } from './voice-shortcut'
 import { registerScreenIPC } from './screen'
 import { registerCloud } from './cloud'
 import { registerSSH } from './ssh'
@@ -227,6 +228,8 @@ if (yieldsToInstall()) {
     updates.on('change', () => tray.hostChanged())
     registerIPC(tray)
     island.register()
+    // Voice input goes to the island while it's on, else to the chat window's composer.
+    new VoiceShortcutKeys((key) => (island.enabled ? island.voiceKey(key) : send({ kind: 'voiceKey', key }, key === 'double'))).register()
     registerAuthIPC()
     registerSpeech()
     registerScreenIPC()

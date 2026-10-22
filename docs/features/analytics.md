@@ -97,7 +97,9 @@ host panic is its location only.
 
 Alerts email the owner, from insights on the *Codync users* dashboard (production only): *Any
 crash or error in a day* (`$exception` > 0, checked daily) and *Failed agent turns over 15 in an
-hour* (`turn_finished` with `outcome = failed`, checked hourly; a normal hour has a few). Error
+hour* (`turn_finished` with `outcome = failed`, checked hourly; a normal hour has a few). A turn
+that only needs the user to sign in or install the agent reports `needs_setup` and isn't counted;
+older hosts still report it as `failed` with `error` `sign_in`/`not_installed`. Error
 tracking's own issue alerts (new, reopened, spiking) need a Slack or Discord destination.
 
 Errors traced to a root cause are written up in [investigations](../README.md#investigations);

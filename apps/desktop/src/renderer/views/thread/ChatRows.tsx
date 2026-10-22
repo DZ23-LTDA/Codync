@@ -219,35 +219,19 @@ export function NoticeRow({ entry, addFallback }: { entry: Entry; addFallback?: 
   }
 }
 
-/**
- * The bot's live activity line: a turning orb, what it's doing and for how long. Clicking it
- * unfolds what the bot is thinking right now.
- */
-export function WorkingIndicator({ bot, thinking }: { bot: Bot; thinking: string | null }) {
-  const [expanded, setExpanded] = useState(false)
+/** The bot's current activity and elapsed time. */
+export function WorkingIndicator({ bot }: { bot: Bot }) {
   const waiting = needsInput(bot)
   return (
-    <HStack gap={10} className="agent-inset">
-      <button className="working" disabled={!thinking} onClick={() => setExpanded((e) => !e)} aria-expanded={thinking ? expanded : undefined}>
+    <VStack align="flex-start" className="agent-inset">
+      <div className="working">
         <HStack as="span" gap={8}>
           <ThinkingOrb state={waiting ? 'listening' : 'working'} size={16} color={waiting ? 'var(--warning)' : 'var(--secondary)'} />
           <Text size="subheadline" tone={waiting ? 'attention' : 'secondary'} truncate>{bot.activity || 'Working…'}</Text>
           {bot.startedAt ? <Timer since={bot.startedAt} /> : null}
-          {thinking ? (
-            <HStack as="span" align="stretch" className={expanded ? 'working-chevron expanded' : 'working-chevron'}>
-              <Icon name="chevron.down" size={10} weight="semibold" color="var(--tertiary)" />
-            </HStack>
-          ) : null}
         </HStack>
-        {expanded && thinking ? (
-          <div className="selectable thinking" ref={(el) => {
-            if (el) el.scrollTop = el.scrollHeight
-          }}>
-            {thinking}
-          </div>
-        ) : null}
-      </button>
-    </HStack>
+      </div>
+    </VStack>
   )
 }
 

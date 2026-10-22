@@ -37,12 +37,8 @@ pub fn turn_finished(
     source: TurnSource,
     ms: i64,
 ) {
-    let outcome = match outcome {
-        TurnOutcome::Done => "done",
-        TurnOutcome::Stopped => "stopped",
-        TurnOutcome::Failed => "failed",
-        TurnOutcome::Incomplete => "incomplete",
-    };
+    let failure = failure.map(failure_kind);
+    let outcome = outcome_name(outcome, failure.map(|(kind, _)| kind));
     // ACP's stop reasons plus ours; anything else an adapter invents is just `other`.
     let stop_reason = match stop_reason {
         "end_turn" | "cancelled" | "max_tokens" | "max_turn_requests" | "refusal" | "error" | "start_failed" => {
@@ -57,8 +53,7 @@ pub fn turn_finished(
         TurnSource::Bot => "bot",
     };
     let mut p = json!({"agent": agent, "outcome": outcome, "stop_reason": stop_reason, "source": source, "seconds": ms.max(0) / 1000});
-    if let Some(e) = failure {
-        let (kind, rpc) = failure_kind(e);
+    if let Some((kind, rpc)) = failure {
         p["error"] = kind.into();
         if let Some(rpc) = rpc {
             p["rpc_code"] = rpc.code.into();
@@ -66,6 +61,18 @@ pub fn turn_finished(
         }
     }
     capture(hub, Event::TurnFinished, p.as_object().cloned().unwrap_or_default());
+}
+
+/// A turn that failed only because the agent isn't installed or signed in on this computer is
+/// `needs_setup`, not `failed`: the user has a step to take, nothing broke.
+fn outcome_name(outcome: TurnOutcome, error: Option<&str>) -> &'static str {
+    match outcome {
+        TurnOutcome::Done => "done",
+        TurnOutcome::Stopped => "stopped",
+        TurnOutcome::Failed if matches!(error, Some("sign_in" | "not_installed")) => "needs_setup",
+        TurnOutcome::Failed => "failed",
+        TurnOutcome::Incomplete => "incomplete",
+    }
 }
 
 /// `agent_fell_back`: a turn moved on from `agent` to the bot's next one, and why (never the error's text).
@@ -78,6 +85,7 @@ pub fn agent_fell_back(hub: &Hub, agent: &str, reason: crate::agent::fallback::R
 /// category): never the error's text, which can hold paths and agent output.
 fn failure_kind(e: &anyhow::Error) -> (&'static str, Option<&crate::agent::acp::RpcError>) {
     use crate::agent::acp::{Failure, FailureKind, RpcError};
+    use crate::agent::fallback::{Reason, reason};
     if let Some(f) = e.chain().find_map(|c| c.downcast_ref::<Failure>()) {
         let kind = match f.kind {
             FailureKind::NotSetUp => "not_installed",
@@ -87,15 +95,18 @@ fn failure_kind(e: &anyhow::Error) -> (&'static str, Option<&crate::agent::acp::
         };
         return (kind, None);
     }
-    if crate::agent::acp::needs_sign_in(e) {
+    // The same two tests that put a sign-in card in the chat (`invite_sign_in`, `fall_back`).
+    if crate::agent::acp::needs_sign_in(e) || reason::of(e) == Some(Reason::SignedOut) {
         return ("sign_in", None);
     }
     for cause in e.chain() {
         if let Some(r) = cause.downcast_ref::<RpcError>() {
             return ("agent_error", Some(r));
         }
-        if let Some(io) = cause.downcast_ref::<std::io::Error>() {
-            return (if io.kind() == std::io::ErrorKind::NotFound { "not_installed" } else { "io" }, None);
+        // Never `not_installed`: agents start through the shell, so a missing one exits instead,
+        // and a NotFound here is the host's own (a bot's missing folder).
+        if cause.downcast_ref::<std::io::Error>().is_some() {
+            return ("io", None);
         }
     }
     ("other", None)
@@ -154,16 +165,27 @@ mod tests {
         assert_eq!(code(&hung.expect_err("failed")), ("timeout", None));
         let missing = std::io::Error::new(std::io::ErrorKind::NotFound, "/Users/me/bin/agent");
         let spawn = Err::<(), _>(missing).context("starting `/Users/me/bin/agent`");
-        assert_eq!(code(&spawn.expect_err("failed")), ("not_installed", None));
-        let auth = anyhow::Error::new(RpcError { code: -32000, message: "Authentication required".into(), kind: None });
-        assert_eq!(code(&auth), ("sign_in", None));
-        let rpc =
-            anyhow::Error::new(RpcError { code: -32603, message: "Internal error: /Users/me".into(), kind: None });
-        assert_eq!(code(&rpc), ("agent_error", Some(-32603)));
-        let limited =
-            anyhow::Error::new(RpcError { code: -32603, message: "x".into(), kind: Some("rate_limit".into()) });
+        assert_eq!(code(&spawn.expect_err("failed")), ("io", None));
+        let rpc_error = |code, message: &str, kind: Option<&str>| {
+            anyhow::Error::new(RpcError { code, message: message.into(), kind: kind.map(Into::into) })
+        };
+        assert_eq!(code(&rpc_error(-32000, "Authentication required", None)), ("sign_in", None));
+        assert_eq!(code(&rpc_error(-32603, "Internal error", Some("authentication_failed"))), ("sign_in", None));
+        assert_eq!(code(&rpc_error(-32603, "OAuth token has expired", None)), ("sign_in", None));
+        assert_eq!(code(&rpc_error(-32603, "Internal error: /Users/me", None)), ("agent_error", Some(-32603)));
+        let limited = rpc_error(-32603, "x", Some("rate_limit"));
         assert_eq!(failure_kind(&limited).1.and_then(|r| r.kind.as_deref()), Some("rate_limit"));
         assert_eq!(code(&anyhow::anyhow!("something else")), ("other", None));
+    }
+
+    #[test]
+    fn a_turn_the_user_must_set_up_is_not_a_failure() {
+        use crate::agent::acp::{AUTH_REQUIRED, Failure, FailureKind, RpcError};
+        let failed = |e: anyhow::Error| outcome_name(TurnOutcome::Failed, Some(failure_kind(&e).0));
+        assert_eq!(failed(Failure::error(FailureKind::NotSetUp, "Codex isn't set up")), "needs_setup");
+        assert_eq!(failed(RpcError { code: AUTH_REQUIRED, message: "x".into(), kind: None }.into()), "needs_setup");
+        assert_eq!(failed(RpcError { code: -32603, message: "x".into(), kind: None }.into()), "failed");
+        assert_eq!(outcome_name(TurnOutcome::Done, None), "done");
     }
 
     #[test]

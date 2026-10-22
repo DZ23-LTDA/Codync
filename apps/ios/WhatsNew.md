@@ -6,14 +6,22 @@ any left). tools/asc-submit.py reads the released version's section;
 a version without one gets a generic "Bug fixes and improvements" line. Delete old sections.
 -->
 
-## 2.21.0
+## 2.22.0
 
 ### zh-Hant
-- Routine 還沒動手就失敗（例如額度用完）時，會在 1、5、15 分鐘後自動再試；已經動過手或超過時間上限的失敗，通知旁有重試按鈕讓你決定
-- Bot 的記憶頁改成唯讀，想改記憶直接跟 bot 說；Dreams 分頁新增的記憶是綠色、拿掉的是紅色，旁邊的資訊按鈕說明做夢在做什麼
-- Bot 可以設定後備 agent：Claude Code 額度用完、被限流或登出時，下一個 agent（例如 Codex）會在同一個聊天接手，帶著記憶和這一輪做到哪裡；原本的 agent 恢復後自動換回來，也可以按 Switch back；如果是被登出，聊天裡會同時出現它的登入卡片，登入後就換回來。Bot 也能自己設定這份清單，可在設定中關閉
+- 授權卡片在寬螢幕上更精簡，不再撐滿聊天區
+- 用麥克風聽寫時，麥克風按鈕會變成錄音膠囊：停止鍵、錄了多久，還有跟著你說話起伏的點點
+- Bot 工作中會顯示簡潔的動畫、目前動作與經過時間，詳細紀錄可從「完整對話」查看
+- 麥克風旁的向上箭頭可以選聽寫要用裝置內建語音，還是用你自己的 OpenAI 或 Gemini 金鑰
+- iPad 接實體鍵盤時，在輸入框按 Return 會換行，⌘↩ 送出
+- 群組裡被提及的 bot 若正在別的對話忙，群組會顯示它在忙，忙完就回來回答
+- 記憶不會再滿：快滿時，Dreaming 會把細節依主題整理進筆記資料夾，你要 bot 記住的事一定存得下
 
 ### en-US
-- A routine that fails before doing anything (a usage limit, say) tries again on its own after 1, 5 and 15 minutes; one that already acted or hit its time limit gets a retry button on its failure notice, so you decide
-- A bot's memory is now read-only: to change it, tell the bot. In the Dreams tab, added memories show in green, ones it took out in red, and an info button explains what dreaming does
-- Fallback agents: when a bot's agent runs out of usage, is rate limited or signed out, the next one (Codex, say) carries on in the same chat, with its memory and where the turn had got to; the bot goes back once its own agent recovers, or when you tap Switch back. If it was signed out, its sign-in card shows up in the chat too, and signing in brings it back. A bot can set this list itself, which you can turn off in its settings
+- Approval cards stay compact on wide screens instead of stretching across the chat
+- While you dictate, the mic turns into a recording pill: a stop button, how long you've been talking, and dots that follow your voice
+- While a bot works, see its activity and elapsed time in a compact animated indicator; details remain in Full conversation
+- The arrow beside the mic picks how dictation hears you: on-device speech, or your own OpenAI or Gemini key
+- On iPad with a hardware keyboard, Return starts a new line in the message box and ⌘↩ sends
+- In a group, a bot you mention that's busy in another chat now says so, and answers once it's done
+- Memory no longer fills up: as it nears its limit, dreaming files the detail into notes by topic, so what you ask a bot to remember always fits

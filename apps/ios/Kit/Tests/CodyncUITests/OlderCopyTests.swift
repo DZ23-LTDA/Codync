@@ -147,10 +147,11 @@ private final class RemoveCopyCloudStub: CloudStub {
 @MainActor @Test func listDuringRemovalLeavesTheOlderCopyOut() async throws {
     let suite = "RemovingCopy.\(UUID().uuidString)"
     defer { UserDefaults(suiteName: suite)?.removePersistentDomain(forName: suite) }
-    // The second request, the DELETE, is slow; the account keeps listing both copies meanwhile.
+    // The second request, the DELETE, waits until the list is in; the account keeps listing both copies meanwhile.
+    let (deleteGate, openDelete) = AsyncStream<Void>.makeStream()
     let tokens = OSAllocatedUnfairLock(initialState: 0)
     let cloud = stubbedCloud(OlderCopyCloudStub.self) {
-        if tokens.withLock({ $0 += 1; return $0 }) == 2 { try await Task.sleep(for: .milliseconds(300)) }
+        if tokens.withLock({ $0 += 1; return $0 }) == 2 { for await _ in deleteGate {} }
         return "token"
     }
     let accounts = AccountStore(storage: SharedStore.Context(accountID: "account", suite: suite), cloud: cloud)
@@ -162,5 +163,6 @@ private final class RemoveCopyCloudStub: CloudStub {
     for _ in 0..<100 where tokens.withLock({ $0 }) < 2 { try await Task.sleep(for: .milliseconds(10)) }
     await accounts.refreshCloud()
     #expect(accounts.cloudComputers.map(\.computerId) == ["new"])
+    openDelete.finish()
     await removal.value
 }

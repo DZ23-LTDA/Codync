@@ -322,31 +322,38 @@
   padding-right: 40px;
 }
 .chat-working {
+  --working-duration: 0.42s;
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  transition: grid-template-rows var(--working-duration) var(--spring), opacity var(--working-duration) var(--ease-out);
+}
+.chat-working.shown {
+  grid-template-rows: 1fr;
+  opacity: 1;
+}
+.chat-working-clip {
+  min-height: 0;
+  overflow: hidden;
+}
+.chat-working-content {
   padding-top: 6px;
+  transform: translateY(6px) scale(0.98);
+  transform-origin: top left;
+  transition: transform var(--working-duration) var(--spring);
+}
+.chat-working.shown .chat-working-content {
+  transform: none;
 }
 .working {
   display: flex;
+  /* A column stretches the row to the pill's width, so a long activity truncates. */
   flex-direction: column;
-  gap: 8px;
   padding: 12px;
   border-radius: var(--radius-xl);
   background: var(--bubble-agent);
   text-align: left;
   min-width: 0;
-}
-.working-chevron {
-  transition: transform var(--layout);
-}
-.working-chevron.expanded {
-  transform: rotate(180deg);
-}
-.thinking {
-  max-height: 180px;
-  overflow-y: auto;
-  white-space: pre-wrap;
-  text-align: left;
-  font-size: var(--text-caption);
-  color: var(--secondary);
 }
 
 .call-overlay {
@@ -403,6 +410,10 @@
   }
 }
 @media (prefers-reduced-motion: reduce) {
+  .chat-working, .chat-working-content {
+    transition: none;
+    transform: none;
+  }
   .row-in {
     animation: fade-in 0.12s both;
   }

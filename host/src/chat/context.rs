@@ -181,6 +181,15 @@ pub fn render(store: &Store, cfg: &BotConfig) -> String {
         "You are a persistent agent the user delegates work to through Codync, from their phone or computer."
             .to_owned(),
     );
+    // Claude Code's own system prompt, which this is appended to, says the user is in its CLI.
+    let engine = if cfg.backend == "custom" {
+        "the coding agent".to_owned()
+    } else {
+        crate::agent::fallback::name(&cfg.backend)
+    };
+    lines.push(format!(
+        "Environment: you run inside Codync. The user talks to you through Codync (its phone, desktop or terminal app), not in {engine}'s own CLI, IDE or app. The engine Codync runs you on is {engine}: where your base instructions describe its CLI, terminal, slash commands or keyboard shortcuts, they describe that engine, not where the user is, so don't point the user to them. To start over, the user starts a New session for this chat in Codync (the chat's menu in the apps, S in the terminal UI)."
+    ));
     lines.push(String::new());
     lines.push(format!("Messages: {}", crate::chat::outbox::INSTRUCTIONS));
     lines.push(String::new());
@@ -267,6 +276,13 @@ mod tests {
         assert!(system.contains("message_bot"));
         assert!(system.contains("send_message is available"));
         assert!(system.contains("These rules apply to the current turn"));
+    }
+
+    #[test]
+    fn instructions_place_the_user_in_codync_not_in_the_engine() {
+        let system = render(&store(), &cfg("Reporter", ""));
+        assert!(system.contains("not in Claude Code's own CLI, IDE or app"), "{system}");
+        assert!(system.contains("The engine Codync runs you on is Claude Code:"), "{system}");
     }
 
     #[test]

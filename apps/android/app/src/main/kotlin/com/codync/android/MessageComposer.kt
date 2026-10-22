@@ -51,6 +51,13 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.isCtrlPressed
+import androidx.compose.ui.input.key.isMetaPressed
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
@@ -148,6 +155,10 @@ private enum class Trailing { Interrupt, Stop, Call, Send }
             else -> { store.toggleFastMode(bot); clear() }
         }
     }
+    fun send() {
+        val command = if (files.isEmpty()) SlashCommands.builtIn(bot, typed, members) else null
+        if (command != null) run(command) else store.sendDraft(bot.id, typed, replyTo?.replyQuote) { clear(); cancelReply() }
+    }
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
     AnimatedVisibility(commands.isNotEmpty(), enter = fadeIn(Motion.fade()) + expandVertically(Motion.layoutSize),
         exit = fadeOut(Motion.fade()) + shrinkVertically(Motion.layoutSize)) {
@@ -185,7 +196,13 @@ private enum class Trailing { Interrupt, Stop, Call, Send }
             }
             Row(Modifier.padding(start = 18.dp, end = 6.dp, top = 6.dp, bottom = 6.dp), verticalAlignment = Alignment.Bottom,
                 horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                BasicTextField(state = text, enabled = !queuing, modifier = Modifier.weight(1f).focusRequester(focus).contentReceiver(receiver).padding(vertical = 10.dp),
+                // A hardware keyboard's Enter is a new line; Ctrl/Meta+Enter (⌘↩ on iOS) sends, and never stops or calls.
+                val sendKey = Modifier.onPreviewKeyEvent { e ->
+                    val ctrlEnter = e.type == KeyEventType.KeyDown && e.key == Key.Enter && (e.isCtrlPressed || e.isMetaPressed)
+                    if (ctrlEnter && trailing == Trailing.Send && canSend) send()
+                    ctrlEnter
+                }
+                BasicTextField(state = text, enabled = !queuing, modifier = Modifier.weight(1f).focusRequester(focus).contentReceiver(receiver).then(sendKey).padding(vertical = 10.dp),
                     textStyle = Type.body.copy(color = Palette.text), cursorBrush = SolidColor(Palette.accent),
                     lineLimits = TextFieldLineLimits.MultiLine(maxHeightInLines = 8),
                     decorator = { input -> Box { if (text.text.isEmpty()) Text(placeholder, style = Type.body, color = Palette.tertiary, maxLines = 1, overflow = TextOverflow.Ellipsis); input() } })
@@ -194,10 +211,7 @@ private enum class Trailing { Interrupt, Stop, Call, Send }
                         Trailing.Interrupt -> onInterrupt?.invoke()
                         Trailing.Stop -> store.command("stop", body("botId" to bot.id))
                         Trailing.Call -> onCall?.invoke()
-                        Trailing.Send -> {
-                            val command = if (files.isEmpty()) SlashCommands.builtIn(bot, typed, members) else null
-                            if (command != null) run(command) else store.sendDraft(bot.id, typed, replyTo?.replyQuote) { clear(); cancelReply() }
-                        }
+                        Trailing.Send -> send()
                     }
                 }
             }

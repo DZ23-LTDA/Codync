@@ -10,8 +10,11 @@ public struct TraceView: View {
     @Environment(BotStore.self) private var model
 
     public var body: some View {
-        let turns = Dictionary(grouping: model.chat(botId), by: \.turn)
+        let all = model.chat(botId)
+        let turns = Dictionary(grouping: all, by: \.turn)
             .sorted { $0.key < $1.key }
+        // The running turn's thoughts start unfolded.
+        let running = Self.runningTurn(all, working: model.bots[botId]?.isWorking(in: botId) == true)
         VStack(spacing: 0) {
             ModalHeader("Full conversation")
             ScrollView {
@@ -28,7 +31,7 @@ public struct TraceView: View {
                             .foregroundStyle(Palette.text)
                             .padding(.leading, 4)
                         CardSection {
-                            ForEach(entries) { TraceRow(entry: $0) }
+                            ForEach(entries) { TraceRow(entry: $0, unfolded: turn == running) }
                         }
                     }
                 }
@@ -41,11 +44,22 @@ public struct TraceView: View {
         .background(Palette.background)
         .tracked(.screenViewed(.trace))
     }
+
+    /// The turn running now while the bot works in this chat; a queued message already holds the next turn.
+    nonisolated static func runningTurn(_ entries: [Entry], working: Bool) -> Int64? {
+        working ? entries.filter { $0.data.status != "queued" }.map(\.turn).max() : nil
+    }
 }
 
 private struct TraceRow: View {
     let entry: Entry
-    @State private var expanded = false
+    @State private var expanded: Bool
+
+    /// The running turn's thoughts start unfolded, so its reasoning reads as it comes in.
+    init(entry: Entry, unfolded: Bool) {
+        self.entry = entry
+        _expanded = State(initialValue: unfolded)
+    }
 
     var body: some View {
         let d = entry.data

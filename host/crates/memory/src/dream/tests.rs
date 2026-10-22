@@ -1,6 +1,8 @@
 use super::*;
 use crate::files::{Author, Cause, Change};
 
+mod notes;
+
 fn db() -> Connection {
     let conn = Connection::open_in_memory().unwrap();
     crate::schema::migrate(&conn).unwrap();
@@ -25,9 +27,14 @@ fn remove(line: &str, quote: &str, message: &str) -> Remove {
 
 /// Writes bot `a`'s MEMORY.md as `author` wrote it.
 fn seed(conn: &Connection, author: Author, content: &str) {
+    write(conn, author, MAIN, content);
+}
+
+/// Writes bot `a`'s file `name` as `author` wrote it.
+fn write(conn: &Connection, author: Author, name: &str, content: &str) {
     let change = Change {
         bot: Some("a"),
-        name: MAIN,
+        name,
         content: Some(content),
         author,
         author_bot: None,
@@ -229,6 +236,19 @@ fn reviews_rewrite_dated_lines_in_the_past_tense_once() {
     let again = Plan { review: vec![review("Went to Singapore in July 2026", "Went to Singapore")], ..Plan::default() };
     let (kept, _) = audit(&snapshot, &[], again);
     assert_eq!(edits(&conn, &snapshot, &kept, &[]).unwrap().0.files, [] as [Edit; 0]);
+
+    // A rewrite the user had forgotten isn't written back: the dated line stays as it is.
+    let conn = db();
+    seed(&conn, Author::Dream, &format!("- Going to Singapore in July 2026\n{filler}"));
+    store::bury(&conn, Some("a"), ["Went to Singapore in July 2026"], []).unwrap();
+    let snapshot = super::snapshot(&conn, "a", false, "2026-10-17").unwrap();
+    let past = Plan {
+        review: vec![review("Going to Singapore in July 2026", "Went to Singapore in July 2026")],
+        ..Plan::default()
+    };
+    let (kept, _) = audit(&snapshot, &[], past);
+    let (unchanged, rejected) = edits(&conn, &snapshot, &kept, &[]).unwrap();
+    assert!(unchanged.files.is_empty() && rejected.iter().any(|r| r.contains("forgotten")), "{rejected:?}");
 }
 
 #[test]
@@ -255,166 +275,4 @@ fn the_prompt_numbers_messages_and_marks_the_users_lines() {
     assert!(material.contains("[m2] Bot"));
     assert!(material.contains("Notes now:\n(none)"));
     assert!(!system.contains("moveOut"), "only offered when memory is nearly full");
-}
-
-#[test]
-fn notes_cite_the_user_and_lines_move_out_only_when_full() {
-    let conn = db();
-    seed(&conn, Author::Bot, "- Mei's teacher is Ms. Lin\n");
-    let messages = [user("u1", "Mei started piano lessons on Tuesdays")];
-    let append = |file: &str, description: &str| Append {
-        file: file.into(),
-        shared: true,
-        text: "Mei has piano lessons on Tuesdays".into(),
-        quote: "Mei started piano lessons".into(),
-        message: "m1".into(),
-        description: description.into(),
-    };
-    let snapshot = snapshot(&conn, "a", false, "2026-10-17").unwrap();
-    let plan = Plan {
-        append: vec![
-            append("people.md", "The user's family"),
-            append("People.md", "x"),
-            append("new.md", ""),
-            append("MEMORY.md", "x"),
-        ],
-        move_out: vec![MoveOut {
-            line: "Mei's teacher is Ms. Lin".into(),
-            shared: false,
-            file: "people.md".into(),
-            description: String::new(),
-        }],
-        ..Plan::default()
-    };
-    let (kept, rejected) = audit(&snapshot, &messages, plan);
-    assert_eq!(kept.append.len(), 1);
-    assert!(!kept.append[0].shared, "a bot without the shared layer keeps notes to itself");
-    assert_eq!(rejected.iter().filter(|r| r.contains("lowercase")).count(), 2, "{rejected:?}");
-    assert!(rejected.iter().any(|r| r.contains("description")) && rejected.iter().any(|r| r.contains("isn't full")));
-
-    let (edits, _) = edits(&conn, &snapshot, &kept, &messages).unwrap();
-    assert_eq!(
-        edits.files,
-        [Edit {
-            bot: Some("a".into()),
-            name: "people.md".into(),
-            before: None,
-            after: "---\ndescription: The user's family\n---\n- Mei has piano lessons on Tuesdays\n".into(),
-        }]
-    );
-}
-
-#[test]
-fn a_full_memory_moves_detail_out_and_the_log_keeps_the_run() {
-    let conn = db();
-    let mut content = String::new();
-    while crate::tokens::estimate(&content) * 10 < files::cap(Some("a")) * 9 {
-        let next = lines([format!("Filler fact number {} about the user's week", content.lines().count())]);
-        content.push_str(&next);
-    }
-    seed(&conn, Author::Bot, &content);
-    let snapshot = snapshot(&conn, "a", false, "2026-10-17").unwrap();
-    assert!(snapshot.full);
-    let line = "Filler fact number 0 about the user's week";
-    let plan = Plan {
-        move_out: vec![MoveOut {
-            line: line.into(),
-            shared: false,
-            file: "week.md".into(),
-            description: "The user's week".into(),
-        }],
-        ..Plan::default()
-    };
-    let (kept, rejected) = audit(&snapshot, &[], plan);
-    assert!(rejected.is_empty(), "{rejected:?}");
-    let (edits, _) = edits(&conn, &snapshot, &kept, &[]).unwrap();
-    assert!(!main_after(&edits).contains(line));
-    assert_eq!(edits.files[0].name, "week.md", "the note is written before MEMORY.md loses the line");
-    let week = edits.files.iter().find(|e| e.name == "week.md").unwrap();
-    assert_eq!(week.after, format!("---\ndescription: The user's week\n---\n- {line}\n"));
-
-    // A note that can't take the line leaves it in MEMORY.md.
-    let crowded = format!("---\ndescription: The user's week\n---\n{}", "字".repeat(files::FILE_CAP - 10));
-    let note = Change {
-        bot: Some("a"),
-        name: "week.md",
-        content: Some(&crowded),
-        author: Author::Bot,
-        author_bot: Some("a"),
-        cause: Cause::Edit,
-        message: None,
-        mtime: 1,
-        size: 1,
-    };
-    files::record(&conn, &note, 2, 2).unwrap();
-    let crowded_snapshot = super::snapshot(&conn, "a", false, "2026-10-17").unwrap();
-    let (kept, _) = audit(&crowded_snapshot, &[], kept);
-    let (stuck, rejected) = super::edits(&conn, &crowded_snapshot, &kept, &[]).unwrap();
-    assert!(stuck.files.is_empty() && stuck.removed.is_empty(), "{stuck:?}");
-    assert!(rejected.iter().any(|r| r.contains("week.md")), "{rejected:?}");
-
-    let dream = begin(&conn, "a", 5).unwrap();
-    record_line(&conn, dream, false, line).unwrap();
-    let mut change = Change {
-        bot: Some("a"),
-        name: "week.md",
-        content: Some(&week.after),
-        author: Author::Dream,
-        author_bot: Some("a"),
-        cause: Cause::Dream,
-        message: None,
-        mtime: 1,
-        size: 1,
-    };
-    let note = files::record(&conn, &change, 6, 6).unwrap();
-    record_file(&conn, dream, note.id).unwrap();
-    change.name = MAIN;
-    change.content = Some(main_after(&edits));
-    let main = files::record(&conn, &change, 6, 6).unwrap();
-    record_file(&conn, dream, main.id).unwrap();
-    let logged = get(&conn, dream).unwrap().unwrap();
-    assert_eq!(logged.archived[0].text, line);
-    assert_eq!(
-        logged.files,
-        [FileChange { name: "week.md".into(), shared: false, version: note.id }],
-        "MEMORY.md shows as lines"
-    );
-    assert_eq!(recent(&conn, "a", 5).unwrap(), [logged]);
-
-    let empty = begin(&conn, "a", 7).unwrap();
-    discard_if_empty(&conn, empty).unwrap();
-    assert!(get(&conn, empty).unwrap().is_none(), "a run that wrote nothing is no run");
-}
-
-#[test]
-fn a_line_memory_md_keeps_doesnt_go_into_a_note_too() {
-    let conn = db();
-    let mut content = "- Trip on 2026-10-01\n".to_owned();
-    while crate::tokens::estimate(&content) <= files::cap(Some("a")) {
-        content.push_str(&lines([format!("Filler fact number {} about the user's week", content.lines().count())]));
-    }
-    seed(&conn, Author::Bot, &content);
-    let snapshot = snapshot(&conn, "a", false, "2026-10-17").unwrap();
-    let line = "Filler fact number 1 about the user's week";
-    let plan = Plan {
-        // The rewrite grows the file, already over its cap, by more than the move takes out of it.
-        review: vec![Review {
-            line: "Trip on 2026-10-01".into(),
-            shared: false,
-            text: "Went on a long trip on 2026-10-01 with the whole family, to the mountains and the sea and back"
-                .into(),
-        }],
-        move_out: vec![MoveOut {
-            line: line.into(),
-            shared: false,
-            file: "week.md".into(),
-            description: "The user's week".into(),
-        }],
-        ..Plan::default()
-    };
-    let (kept, rejected) = audit(&snapshot, &[], plan);
-    assert!(rejected.is_empty(), "{rejected:?}");
-    let (edits, rejected) = edits(&conn, &snapshot, &kept, &[]).unwrap();
-    assert!(edits.files.is_empty(), "{edits:?}");
-    assert!(rejected.iter().any(|r| r.contains(line) && r.contains("wasn't changed")), "{rejected:?}");
 }

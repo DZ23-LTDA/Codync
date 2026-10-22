@@ -62,6 +62,9 @@ const bridge: CodyncBridge = {
     start: (locale) => ipcRenderer.send('speech:start', locale),
     stop: () => ipcRenderer.send('speech:stop'),
     onEvent: (cb) => listen('speech:event', cb),
+    shortcut: () => ipcRenderer.invoke('voice:shortcut'),
+    setShortcut: (shortcut) => ipcRenderer.invoke('voice:setShortcut', shortcut),
+    setCalling: (on) => ipcRenderer.send('voice:calling', on),
   },
   ssh: sshBridge,
   island: {
@@ -77,6 +80,7 @@ const bridge: CodyncBridge = {
     setFocusable: (on) => ipcRenderer.send('island:focusable', on),
     setKeys: (on) => ipcRenderer.send('island:keys', on),
     onKey: (cb) => listen('island:key', cb),
+    onVoiceKey: (cb) => listen('island:voiceKey', cb),
     respond: (ref, entryId, optionId) => ipcRenderer.send('island:respond', ref, entryId, optionId),
     send: (ref, text) => ipcRenderer.send('island:send', ref, text),
     openBot: (ref) => ipcRenderer.send('island:openBot', ref),

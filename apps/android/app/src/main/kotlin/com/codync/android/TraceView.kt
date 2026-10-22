@@ -14,10 +14,9 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -34,9 +33,13 @@ import kotlinx.serialization.json.jsonPrimitive
 
 /** "Full conversation": everything the agent did, grouped by turn (iOS `TraceView`). */
 @Composable internal fun TraceView(bot: Bot, state: AppState) {
-    val turns = state.entries.filter { it.botId == bot.id }.groupBy { it.turn }.toSortedMap().toList()
+    val all = state.entries.filter { it.botId == bot.id }
+    val turns = all.groupBy { it.turn }.toSortedMap().toList()
+    // The running turn's thoughts start unfolded.
+    val running = runningTurn(all, bot.isWorking(bot.id))
     val list = rememberLazyListState()
-    LaunchedEffect(Unit) { if (turns.isNotEmpty()) list.scrollToItem(turns.lastIndex, Int.MAX_VALUE) }
+    // Opens at the end and follows any new step there (in whichever turn) until the reader scrolls up.
+    rememberFollowing(list, turns.lastOrNull()?.first?.toString(), all.maxOfOrNull { it.rev }, working = false, bottom = 0.dp)
     Column(Modifier.fillMaxSize()) {
         ModalHeader("Full conversation")
         LazyColumn(state = list, contentPadding = PaddingValues(20.dp), verticalArrangement = Arrangement.spacedBy(22.dp)) {
@@ -45,16 +48,21 @@ import kotlinx.serialization.json.jsonPrimitive
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(entries.firstOrNull { it.kind == "user" }?.text ?: "Turn $turn", Modifier.padding(start = 4.dp),
                         style = Type.subheadline.semibold, color = Palette.text, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    CardSection { for (entry in entries) row { TraceRow(entry) } }
+                    CardSection { for (entry in entries) row { TraceRow(entry, unfolded = turn == running) } }
                 }
             }
         }
     }
 }
 
-@Composable private fun TraceRow(entry: Entry) {
+/** The turn running now while the bot works in this chat; a queued message already holds the next turn. */
+internal fun runningTurn(entries: List<Entry>, working: Boolean): Long? =
+    if (working) entries.filter { it.status != "queued" }.maxOfOrNull { it.turn } else null
+
+/** The running turn's thoughts start `unfolded`, so its reasoning reads as it comes in. */
+@Composable private fun TraceRow(entry: Entry, unfolded: Boolean) {
     val d = entry.data
-    var expanded by remember { mutableStateOf(false) }
+    var expanded by rememberSaveable { mutableStateOf(unfolded) }
     when (entry.kind) {
         "user" -> Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Symbol("person.fill", size = 16.dp, tint = Palette.secondary)
@@ -94,7 +102,7 @@ import kotlinx.serialization.json.jsonPrimitive
 
 /** A tool call: its kind's symbol, title and outcome; output and diffs unfold. */
 @Composable private fun ToolRow(d: JsonObject) {
-    var expanded by remember { mutableStateOf(false) }
+    var expanded by rememberSaveable { mutableStateOf(false) }
     val icon = when (d.text("toolKind")) {
         "read" -> "doc.text"; "edit" -> "pencil"; "delete" -> "trash"; "move" -> "arrow.right.doc.on.clipboard"
         "search" -> "magnifyingglass"; "execute" -> "terminal"; "think" -> "brain"; "fetch" -> "globe"

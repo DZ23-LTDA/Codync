@@ -38,8 +38,8 @@ pub struct Edits {
 }
 
 /// Turns an audited plan into each file's new content. An add the user had forgotten, learned from a message whose
-/// memory was forgotten, already in memory, or past the cap is dropped here, with why. A line moves into a note
-/// only when its note takes it and `MEMORY.md` loses it.
+/// memory was forgotten, already in memory, or past the cap is dropped here, with why, and so is a review whose
+/// rewrite the user had forgotten. A line moves into a note only when its note takes it and `MEMORY.md` loses it.
 pub fn edits(
     conn: &Connection,
     snapshot: &Snapshot,
@@ -49,8 +49,7 @@ pub fn edits(
     let mut notes = notes::edits(conn, snapshot, plan, messages)?;
     let (mut main, mut rejected, mut stuck) = (Edits::default(), Vec::new(), Vec::new());
     for layer in &snapshot.layers {
-        let moved: Vec<&str> =
-            notes.moved.iter().filter(|m| m.shared == layer.shared).map(|m| m.line.as_str()).collect();
+        let moved: Vec<&MoveOut> = notes.moved.iter().filter(|m| m.shared == layer.shared).collect();
         match main_edit(conn, snapshot, layer, plan, &moved, messages, &mut rejected)? {
             Some(edits) => {
                 main.files.extend(edits.files);
@@ -73,15 +72,15 @@ pub fn edits(
     Ok((Edits { files: notes.files, added: main.added, removed: main.removed }, notes.rejected))
 }
 
-/// A layer's `MEMORY.md` after the run (`moved`: its lines a note took), with the lines it gains and loses. `None`
-/// when the run changes no line of it (it never only respells one, a final line break say) or the change fails
-/// the checks.
+/// A layer's `MEMORY.md` after the run (`moved`: its lines a note took, each topic left as one line pointing to its
+/// note), with the lines it gains and loses. `None` when the run changes no line of it (it never only respells one,
+/// a final line break say) or the change fails the checks.
 fn main_edit(
     conn: &Connection,
     snapshot: &Snapshot,
     layer: &Layer,
     plan: &Plan,
-    moved: &[&str],
+    moved: &[&MoveOut],
     messages: &[Message],
     rejected: &mut Vec<String>,
 ) -> store::Result<Option<Edits>> {
@@ -99,17 +98,23 @@ fn main_edit(
         removed.extend(take_out(&mut lines, &remove.line));
     }
     for moved in moved {
-        removed.extend(take_out(&mut lines, moved));
+        removed.extend(take_out(&mut lines, &moved.line));
     }
-    let mut added = Vec::new();
+    let (replaced, pointers) = notes::point(conn, snapshot, layer, moved, &mut lines)?;
+    removed.extend(replaced);
+    let mut added: Vec<Line> = pointers.iter().map(|text| line(text, None, None)).collect();
     for review in plan.review.iter().filter(|r| r.shared == layer.shared) {
         let Some(fact) = snapshot.fact(layer.shared, &review.line) else { continue };
         // A review's own rewrite is already in the past tense: rewriting it again each day would only churn.
         if store::marked(conn, bot, &reviewed_mark(&review.line))? {
             continue;
         }
+        let text = review.text.trim();
+        if store::forgotten(conn, bot, text)? {
+            rejected.push(format!("review \"{}\": the user had \"{text}\" forgotten", review.line));
+            continue;
+        }
         if let Some(old) = take_out(&mut lines, &review.line) {
-            let text = review.text.trim();
             removed.push(old);
             lines.push(format!("- {text}"));
             added.push(line(text, fact.message.clone(), Some(fact.clone())));
@@ -130,7 +135,7 @@ fn main_edit(
             continue;
         }
         lines.push(format!("- {text}"));
-        if let Err(refusal) = files::check_change(bot, MAIN, before, &joined(&lines)) {
+        if let Err(refusal) = files::check_change(bot, MAIN, before, &joined(&lines), false) {
             lines.pop();
             rejected.push(format!("add \"{text}\": {refusal}"));
             continue;
@@ -141,7 +146,7 @@ fn main_edit(
         return Ok(None);
     }
     let after = joined(&lines);
-    if let Err(refusal) = files::check_change(bot, MAIN, before, &after) {
+    if let Err(refusal) = files::check_change(bot, MAIN, before, &after, false) {
         rejected.push(format!("{MAIN}: {refusal}"));
         return Ok(None);
     }
@@ -184,7 +189,7 @@ fn take_out(lines: &mut Vec<String>, line: &str) -> Option<String> {
     find(lines, line).map(|at| lines.remove(at))
 }
 
-fn joined(lines: &[String]) -> String {
+pub(super) fn joined(lines: &[String]) -> String {
     let text = lines.join("\n");
     if text.trim().is_empty() { String::new() } else { format!("{}\n", text.trim_end()) }
 }

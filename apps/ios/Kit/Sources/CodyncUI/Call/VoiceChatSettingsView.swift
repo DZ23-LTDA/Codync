@@ -7,6 +7,7 @@ import SwiftUI
 /// from the computer's row in settings; the computer is the `BotStore` in the environment.
 public struct VoiceChatSettingsView: View {
     @AppStorage(VoiceSettings.engineKey) private var engine = "device"
+    @AppStorage(VoiceSettings.dictationEngineKey) private var dictationEngine = "device"
     @AppStorage(OnDeviceEngine.rateKey) private var rate = Double(AVSpeechUtteranceDefaultSpeechRate)
     @AppStorage(OnDeviceEngine.languageKey) private var language = ""
     @State private var languages = OnDeviceEngine.languageOptions
@@ -40,10 +41,18 @@ public struct VoiceChatSettingsView: View {
                 if let provider = VoiceProvider(rawValue: engine) {
                     ProviderVoiceSettings(provider: provider).id(provider)
                 }
+                if let provider = dictationProvider {
+                    ProviderVoiceSettings(provider: provider, dictationOnly: true).id("dictation-\(provider.rawValue)")
+                }
             }
         }
         .background(Palette.background)
         .tracked(.screenViewed(.voiceSettings))
+    }
+
+    /// Dictation on another provider than calls still needs that provider's key and speech-to-text model.
+    private var dictationProvider: VoiceProvider? {
+        dictationEngine == engine ? nil : VoiceProvider(rawValue: dictationEngine)
     }
 
     private var engineFooter: String {
@@ -84,11 +93,14 @@ private struct PauseRow: View {
 }
 
 /// One provider: mode, the key the computer keeps, models, voice and this month's minutes.
+/// `dictationOnly` keeps the key and speech-to-text model.
 private struct ProviderVoiceSettings: View {
     let provider: VoiceProvider
+    let dictationOnly: Bool
     @Environment(BotStore.self) private var store
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @AppStorage private var mode: String
+    @AppStorage(VoiceSettings.dictationEngineKey) private var dictationEngine = "device"
     /// nil while the computer hasn't answered yet.
     @State private var saved: Bool?
     @State private var replacing = false
@@ -101,16 +113,19 @@ private struct ProviderVoiceSettings: View {
     @State private var speechModel = ""
     @State private var models = VoiceModels(models: [], transcribe: [], speech: [])
 
-    init(provider: VoiceProvider) {
+    init(provider: VoiceProvider, dictationOnly: Bool = false) {
         self.provider = provider
+        self.dictationOnly = dictationOnly
         _mode = AppStorage(wrappedValue: "realtime", VoiceSettings.modeKey(provider))
     }
 
     private var speechMode: Bool { mode == "speech" }
+    /// Speech mode and dictation with this provider both use its speech-to-text model.
+    private var transcribes: Bool { dictationOnly || speechMode || dictationEngine == provider.rawValue }
     private var hasKey: Bool { saved == true }
 
     var body: some View {
-        CardSection(provider.name, footer: hasKey ? nil : "Add a key to choose from \(provider.name)'s models.") {
+        CardSection(provider.name, footer: footer) {
             VStack(alignment: .leading, spacing: 8) {
                 if hasKey && !replacing {
                     savedKeyRow
@@ -127,14 +142,18 @@ private struct ProviderVoiceSettings: View {
                 }
             }
             Group {
-                if speechMode {
+                if transcribes {
                     ValueRow("Speech to text") { picker($transcribeModel, models.transcribe) }
-                    ValueRow("Text to speech") { picker($speechModel, models.speech) }
-                } else {
-                    ValueRow("Model") { picker($model, models.models) }
                 }
-                ValueRow("Voice") { ChoicePicker(selection: $voice, options: provider.voices.map { ($0, $0) }) }
-                ValueRow("This month", value: "≈ \(VoiceUsage.minutes(for: provider)) min")
+                if !dictationOnly {
+                    if speechMode {
+                        ValueRow("Text to speech") { picker($speechModel, models.speech) }
+                    } else {
+                        ValueRow("Model") { picker($model, models.models) }
+                    }
+                    ValueRow("Voice") { ChoicePicker(selection: $voice, options: provider.voices.map { ($0, $0) }) }
+                    ValueRow("This month", value: "≈ \(VoiceUsage.minutes(for: provider)) min")
+                }
             }
             .disabled(!hasKey)
             .opacity(hasKey ? 1 : 0.55)
@@ -152,6 +171,11 @@ private struct ProviderVoiceSettings: View {
             .onChange(of: speechModel) { _, m in
                 VoiceSettings.save(m, default: VoiceSettings.defaults(provider).speech, forKey: VoiceSettings.speechKey(provider))
             }
+    }
+
+    private var footer: String? {
+        guard hasKey else { return "Add a key to choose from \(provider.name)'s models." }
+        return dictationOnly ? "For dictation in the message box." : nil
     }
 
     /// The key is on the computer: say so, and offer test / replace / remove.
@@ -269,13 +293,16 @@ private struct ProviderVoiceSettings: View {
     }
 
     /// A pasted key is checked with the provider by the computer before it's kept. With a key
-    /// saved, Test starts a call credential with the chosen model and voice.
+    /// saved, Test starts a call credential with the chosen model and voice; for dictation only, it
+    /// lists the key's models.
     private func test() {
         let typed = key.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !typed.isEmpty || hasKey else { return }
         run { client in
             if typed.isEmpty || !replacing && hasKey {
-                if speechMode {
+                if dictationOnly {
+                    _ = try await client.voiceModels(provider)
+                } else if speechMode {
                     _ = try await client.voiceSpeak(provider, model: speechModel, voice: voice, text: "OK")
                 } else {
                     _ = try await client.voiceSession(provider, model: model, voice: voice)

@@ -19,6 +19,8 @@ struct Composer: View {
     /// The field owns its text; the store only keeps a copy. A field bound straight to the
     /// store loses a hardware keyboard's IME composition (Zhuyin, Pinyin, Kana) on iPad.
     @State private var draft = ""
+    /// The cursor, so a hardware keyboard's Return starts a new line where it is.
+    @State private var selection: TextSelection?
     /// Files going out with the next message.
     @State private var files: [OutgoingFile] = []
     @State private var pickingFiles = false
@@ -26,8 +28,6 @@ struct Composer: View {
     @State private var photoItems: [PhotosPickerItem] = []
     @FocusState private var focused: Bool
     @State private var dictation = Dictation()
-    /// The box when dictation started; the words heard go after it.
-    @State private var dictatedAfter = ""
     /// One line of the field's text, following Dynamic Type: the send button centers on the last line.
     @ScaledMetric(relativeTo: .body) private var lineHeight: CGFloat = 22
 
@@ -201,44 +201,57 @@ struct Composer: View {
         }
         .buttonStyle(PressScale())
         .disabled(!enabled)
+        .keyboardShortcut(state == .send ? KeyboardShortcut(.return, modifiers: .command) : nil)
         .accessibilityLabel(label)
         .help(label)
         .animation(Motion.reduced(Motion.morph, reduceMotion), value: state)
         .animation(Motion.reduced(Motion.morph, reduceMotion), value: canSend)
     }
 
-    /// Dictation, beside send / call (Grok Bot's): a light circle; red while it listens.
+    /// Dictation, beside send / call (Grok Bot's): a light circle with its engine menu; while it
+    /// listens or transcribes, the recording pill.
     private var micButton: some View {
-        let on = dictation.listening
-        return Button {
-            if on {
-                dictation.stop()
+        Group {
+            if dictation.listening || dictation.transcribing {
+                RecordingPill(dictation: dictation, height: buttonSize)
+                    .transition(.opacity.combined(with: .scale(scale: 0.9, anchor: .trailing)))
             } else {
-                dictatedAfter = draft
-                Task { await dictation.start { said in draft = Dictation.join(dictatedAfter, said) } }
+                HStack(spacing: 0) {
+                    Button {
+                        Task {
+                            await dictation.start(after: draft, model: model) { change in draft = change(draft) }
+                        }
+                    } label: {
+                        Image(systemName: "mic")
+                            .font(.system(size: 15, weight: .medium))
+                            .foregroundStyle(Palette.secondary)
+                            .frame(width: buttonSize, height: buttonSize)
+                            .contentShape(Circle())
+                    }
+                    .buttonStyle(PressScale())
+                    .accessibilityLabel("Dictate")
+                    .help("Dictate")
+                    DictationEngineMenu(height: buttonSize)
+                }
+                // The mic and its engine menu share one light capsule.
+                .background(Palette.bubbleAgent, in: Capsule())
+                .transition(.opacity)
             }
-        } label: {
-            Image(systemName: on ? "mic.fill" : "mic")
-                .font(.system(size: 15, weight: .medium))
-                .contentTransition(.symbolEffect(.replace))
-                .foregroundStyle(on ? .white : Palette.secondary)
-                .frame(width: buttonSize, height: buttonSize)
-                .background(on ? Palette.danger : Palette.bubbleAgent, in: Circle())
-                .contentShape(Circle())
         }
-        .buttonStyle(PressScale())
-        .accessibilityLabel(on ? "Stop dictating" : "Dictate")
-        .help(on ? "Stop dictating" : "Dictate")
-        .animation(Motion.reduced(Motion.morph, reduceMotion), value: on)
+        .animation(Motion.reduced(Motion.morph, reduceMotion), value: dictation.listening || dictation.transcribing)
+        .codyncDialog("Couldn't dictate", isPresented: Binding(get: { dictation.failure != nil }, set: { if !$0 { dictation.failure = nil } }),
+                      message: dictation.failure, cancel: "OK") { [] }
     }
 
     private var box: some View {
         HStack(alignment: .bottom, spacing: 8) {
-            TextField(placeholder, text: $draft, axis: .vertical)
+            TextField(placeholder, text: $draft, selection: $selection, axis: .vertical)
                 .lineLimit(1...8)
                 .font(.body)
                 .textFieldStyle(.plain)
                 .focused($focused)
+                // A hardware keyboard's Return (⌘↩ too) submits the field and ends editing.
+                .onSubmit(newline)
                 .padding(.vertical, fieldPadding)
             micButton
                 .padding(.bottom, max(0, (textLineHeight + 2 * fieldPadding - buttonSize) / 2))
@@ -375,7 +388,22 @@ struct Composer: View {
         focused = true
     }
 
+    /// Return on a hardware keyboard: a new line at the cursor, and the field keeps the keyboard.
+    /// An empty box gets none, also right after ⌘↩ sent it (the field submits after the shortcut).
+    private func newline() {
+        focused = true
+        guard !draft.isEmpty else { return }
+        // A selection left from text that has since changed (dictation, a mention) means the end.
+        let range = if case .selection(let r) = selection?.indices, r.upperBound <= draft.endIndex { r } else { draft.endIndex..<draft.endIndex }
+        // Counted in scalars: a "\n" after a lone "\r" joins it into one Character.
+        let offset = draft.unicodeScalars.distance(from: draft.startIndex, to: range.lowerBound)
+        draft.replaceSubrange(range, with: "\n")
+        selection = TextSelection(insertionPoint: draft.unicodeScalars.index(draft.startIndex, offsetBy: offset + 1))
+    }
+
     private func submit() {
+        // Words still on their way would land in the emptied box.
+        dictation.stop()
         if files.isEmpty, let command = SlashCommands.builtIn(for: bot, members: members, draft: draft) { return run(command) }
         guard canSend else { return }
         withAnimation(Motion.reduced(Motion.conversation, reduceMotion)) {

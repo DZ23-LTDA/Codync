@@ -205,12 +205,13 @@ async fn a_reaction_can_be_the_whole_reply() {
     assert_eq!(finals(host.entries(&group).await), 0);
 }
 
-/// A final reply that starts with `speed` and quotes `word` from its prompt.
+/// A final reply that starts with `speed` and ends with `word`, the user's message: the instructions before it in
+/// the prompt may hold the word too.
 fn speed_reply(speed: &'static str, word: &'static str) -> impl Fn(&Value) -> bool {
     move |e: &Value| {
         e["kind"] == "agent"
             && e["data"]["final"] == true
-            && e["data"]["text"].as_str().is_some_and(|t| t.starts_with(speed) && t.contains(word))
+            && e["data"]["text"].as_str().is_some_and(|t| t.starts_with(speed) && t.trim_end().ends_with(word))
     }
 }
 

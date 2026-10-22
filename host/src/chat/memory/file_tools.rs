@@ -10,7 +10,8 @@ use serde_json::{Value, json};
 use std::sync::Arc;
 
 pub fn definitions() -> [Value; 2] {
-    let file = json!({"type": "string", "description": "MEMORY.md, or a note's name like people.md."});
+    let file =
+        json!({"type": "string", "description": "MEMORY.md, or a note's name like people.md or health/allergies.md."});
     let shared = json!({"type": "boolean", "description": "True for the memory all the user's bots share."});
     [
         json!({
@@ -21,7 +22,7 @@ pub fn definitions() -> [Value; 2] {
         }),
         json!({
             "name": "edit_memory",
-            "description": "Change one of your memory files. MEMORY.md holds one short fact about the user per line and is in every session in full, within its cap. A note holds one topic's detail; it starts with frontmatter whose description: line says when to read it, and holds at most 2,000 tokens. Give append to add a line, old and new to replace text that appears once, content to write the whole file, or delete. Changing or taking out lines works only in a turn the user started in your own chat; a line the user had you forget comes back only when they ask for it there.",
+            "description": "Change one of your memory files. MEMORY.md holds one short fact about the user per line and is in every session in full; dreaming keeps it within its cap by moving detail into notes. A note holds one topic's detail, in a topic folder when one fits (health/allergies.md); it starts with frontmatter whose description: line says when to read it, and holds at most 2,000 tokens. Give append to add a line, old and new to replace text that appears once, content to write the whole file, or delete. Changing or taking out lines works only in a turn the user started in your own chat; a line the user had you forget comes back only when they ask for it there.",
             "inputSchema": {
                 "type": "object",
                 "properties": {

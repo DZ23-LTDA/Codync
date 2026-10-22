@@ -63,8 +63,13 @@ it has no pointer tooltip or link-opening action.
 ## While it works
 
 The working line under the last message shows the bot's activity; composing a `send_message`
-reads as **Typing…** (`activity()` in `agent/bot.rs`). Thoughts and tool calls stay in the
-Full conversation sheet.
+reads as **Typing…** (`activity()` in `agent/bot.rs`). The activity indicator shows an animated orb,
+a short status and elapsed time. It is not interactive and does not expand thinking text.
+Replies arrive as complete messages.
+
+Full conversation remains available from the conversation menu. It contains narration, all
+thoughts, tools and previous turns, and follows new steps until the reader scrolls up.
+On the terminal, `t` opens Full conversation, and the working line retains the count of steps so far.
 
 ## Motion and scrolling
 
@@ -79,3 +84,8 @@ Full conversation sheet.
   below the turning arrow, then eases back. A pull that isn't full refreshes nothing. The desktop
   reconnects from the computer menu instead.
 - The terminal UI lists the same messages; its steps line goes under the turn's last message.
+
+- Electron keeps the activity row mounted during its 0.42 s exit and animates its height,
+  opacity and a small scale change together. The transition honors Reduce Motion and reverses
+  when work restarts during an exit. iPhone conversation insertion, removal and scrolling
+  keep their existing animations.

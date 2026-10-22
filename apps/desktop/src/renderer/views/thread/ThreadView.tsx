@@ -12,7 +12,8 @@ import { useStore } from '../../store/context'
 import { UpdateNeededCard } from '../UpdateNeededCard'
 import { buildChat, rowIn, useArrivals, type ChatItem } from './chat-items'
 import { BotConversationView, BotMessageRow } from './BotConversation'
-import { ChatRow, TimeSeparator, WorkingIndicator } from './ChatRows'
+import { ChatRow, TimeSeparator } from './ChatRows'
+import { WorkingTransition } from './WorkingTransition'
 import { RoutineNotice } from './RoutineNotice'
 import { Composer } from './Composer'
 import { ChatSidePanel } from './ChatSidePanel'
@@ -279,7 +280,7 @@ const Transcript = memo(function Transcript({ botId, openTrace, onReply, openRou
   const keepPlace = useRef<number | null>(null)
   const last = items[items.length - 1]
   const jump = usePresence(!following && items.length > 0, 200)
-  const arrivals = useArrivals([...items.map((i) => i.id), ...(live ? ['working'] : [])], following)
+  const arrivals = useArrivals(items.map((i) => i.id), following)
 
   const toBottom = (smooth = false) => {
     const el = scroller.current
@@ -363,11 +364,7 @@ const Transcript = memo(function Transcript({ botId, openTrace, onReply, openRou
               <Row item={item} chat={bot} openTrace={openTrace} onReply={onReply} openRoutine={openRoutine} openAgent={openAgent} openBotChat={openBotChat} />
             </div>
           ))}
-          {bot && live ? (
-            <div className={arrivals.has('working') ? 'chat-working row-in' : 'chat-working'}>
-              <WorkingIndicator bot={bot} thinking={store.currentThinking(botId)} />
-            </div>
-          ) : null}
+          {bot ? <WorkingTransition bot={bot} visible={live} /> : null}
           <div className="chat-end" />
         </div>
       </div>
