@@ -66,6 +66,7 @@ struct PermissionCard: View {
             }
         }
         .padding(16)
+        .frame(maxWidth: 420, alignment: .leading)
         .background(Palette.bubbleAgent, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
         .padding(.trailing, 40)
     }

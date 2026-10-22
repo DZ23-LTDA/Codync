@@ -9,6 +9,7 @@ a version without one gets a generic "Bug fixes and improvements" line. Delete o
 ## 2.22.0
 
 ### zh-Hant
+- 授權卡片在寬螢幕上更精簡，不再撐滿聊天區
 - 用麥克風聽寫時，麥克風按鈕會變成錄音膠囊：停止鍵、錄了多久，還有跟著你說話起伏的點點
 - Bot 工作中會顯示簡潔的動畫、目前動作與經過時間，詳細紀錄可從「完整對話」查看
 - 麥克風旁的向上箭頭可以選聽寫要用裝置內建語音，還是用你自己的 OpenAI 或 Gemini 金鑰
@@ -17,6 +18,7 @@ a version without one gets a generic "Bug fixes and improvements" line. Delete o
 - 記憶不會再滿：快滿時，Dreaming 會把細節依主題整理進筆記資料夾，你要 bot 記住的事一定存得下
 
 ### en-US
+- Approval cards stay compact on wide screens instead of stretching across the chat
 - While you dictate, the mic turns into a recording pill: a stop button, how long you've been talking, and dots that follow your voice
 - While a bot works, see its activity and elapsed time in a compact animated indicator; details remain in Full conversation
 - The arrow beside the mic picks how dictation hears you: on-device speech, or your own OpenAI or Gemini key
