@@ -59,6 +59,11 @@ import kotlinx.serialization.json.jsonPrimitive
 internal fun runningTurn(entries: List<Entry>, working: Boolean): Long? =
     if (working) entries.filter { it.status != "queued" }.maxOfOrNull { it.turn } else null
 
+internal fun latestThought(entries: List<Entry>): String? {
+    val turn = runningTurn(entries, working = true)
+    return entries.lastOrNull { it.turn == turn && it.kind == "thought" && it.text.isNotBlank() }?.text
+}
+
 /** The running turn's thoughts start `unfolded`, so its reasoning reads as it comes in. */
 @Composable private fun TraceRow(entry: Entry, unfolded: Boolean) {
     val d = entry.data

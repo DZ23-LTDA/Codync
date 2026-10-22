@@ -45,6 +45,11 @@ public struct TraceView: View {
         .tracked(.screenViewed(.trace))
     }
 
+    nonisolated static func latestThought(_ entries: [Entry]) -> String? {
+        let turn = runningTurn(entries, working: true)
+        return entries.last { $0.turn == turn && $0.kind == "thought" && !($0.data.text ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }?.data.text
+    }
+
     /// The turn running now while the bot works in this chat; a queued message already holds the next turn.
     nonisolated static func runningTurn(_ entries: [Entry], working: Bool) -> Int64? {
         working ? entries.filter { $0.data.status != "queued" }.map(\.turn).max() : nil
