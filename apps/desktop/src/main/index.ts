@@ -1,4 +1,5 @@
 import { identity } from './environment'
+import { registerAppearance } from './appearance'
 import { execFileSync } from 'node:child_process'
 import { hostname } from 'node:os'
 import { join } from 'node:path'
@@ -218,6 +219,7 @@ if (yieldsToInstall()) {
     // A menu bar app: it keeps running with no window.
   })
   void app.whenReady().then(() => {
+    registerAppearance()
     // Packaged builds take the icon from the bundle (resources/AppIcon.icon); a development run
     // would otherwise show Electron's.
     if (isMac && !app.isPackaged) app.dock?.setIcon(join(__dirname, '../../resources/icon.png'))

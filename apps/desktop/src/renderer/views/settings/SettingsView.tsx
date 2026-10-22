@@ -1,5 +1,6 @@
 import { Fragment, useEffect, useState } from 'react'
 import type { Screen } from '@shared/analytics'
+import { APPEARANCES, type Appearance } from '@shared/appearance'
 import { islandLabel } from '@shared/island'
 import { VOICE_SHORTCUTS, type VoiceShortcut } from '@shared/voice-shortcut'
 import { Button, CardForm, CardSection, ChoicePicker, IconButton, ProgressBar, Switch, ValueRow } from '../../components/Controls'
@@ -112,6 +113,8 @@ function PageContent({ page }: { page: SettingsPage }) {
 /** Account, window and app preferences. */
 function GeneralSettings() {
   const account = useAccount()
+  const [appearance, setAppearance] = useState<Appearance>('system')
+  useEffect(() => void window.codync.app.appearance().then(setAppearance), [])
   const [textSize, setTextSize] = usePref(prefs.textSize)
   const [usageIconStyle, setUsageIconStyle] = usePref(prefs.usageIconStyle)
   const [compact, setCompact] = usePref(prefs.sidebarCompact)
@@ -154,6 +157,9 @@ function GeneralSettings() {
         </div>
       </CardSection>
       <CardSection title="Appearance">
+        <ValueRow label="Theme">
+          <ChoicePicker selection={appearance} options={[...APPEARANCES]} onChange={(value) => void window.codync.app.setAppearance(value).then(setAppearance)} />
+        </ValueRow>
         <ValueRow label="Text size">
           <ChoicePicker
             selection={textSize}

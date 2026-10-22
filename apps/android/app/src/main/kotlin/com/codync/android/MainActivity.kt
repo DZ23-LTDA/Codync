@@ -5,6 +5,9 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.runtime.SideEffect
+import androidx.core.view.WindowCompat
 import androidx.activity.viewModels
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -28,6 +31,7 @@ class MainActivity : ComponentActivity() {
     private val store: AppStore by viewModels()
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        AppearancePreferences.initialize(applicationContext)
         NativeAccounts.initialize(this)
         Analytics.start(applicationContext)
         // Clerk's session, not the UI's copy of it: right as sign-in and sign-out happen.
@@ -52,7 +56,16 @@ class MainActivity : ComponentActivity() {
             DisposableEffect(images) { onDispose { AccountImages.close(images) } }
             CompositionLocalProvider(LocalNetworkImages provides images) {
                 key(state.contextId, state.generation) {
-                    CodyncTheme { OverlayRoot { CodyncApp(state, store); LaunchLayer(state.loading) } }
+                    val appearance by AppearancePreferences.mode.collectAsStateWithLifecycle()
+                    val dark = appearance.isDark(isSystemInDarkTheme())
+                    val darkBars = dark || state.screenRequest != null
+                    SideEffect {
+                        WindowCompat.getInsetsController(window, window.decorView).apply {
+                            isAppearanceLightStatusBars = !darkBars
+                            isAppearanceLightNavigationBars = !darkBars
+                        }
+                    }
+                    CodyncTheme(dark = dark) { OverlayRoot { CodyncApp(state, store); LaunchLayer(state.loading) } }
                 }
             }
         }

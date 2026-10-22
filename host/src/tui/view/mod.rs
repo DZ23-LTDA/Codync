@@ -62,6 +62,7 @@ pub fn draw(f: &mut Frame<'_>, app: &mut App) {
         _ => Width::Huge,
     };
     let buf = f.buffer_mut();
+    buf.set_style(area, theme().text);
     if area.width < 40 || area.height < 12 {
         let c = app.counts();
         put(buf, 0, 0, area.width, "Make the window bigger", theme().bold);

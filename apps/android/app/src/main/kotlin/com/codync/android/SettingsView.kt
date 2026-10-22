@@ -96,6 +96,7 @@ import kotlinx.serialization.json.put
                     }
                 }
             }
+            AppearanceSettings()
             if (state.actualConnection is LinkState.Ready) CardSection("Voice chat", "Android speech on this phone, or OpenAI and Gemini on your own API key, kept on the computer.") {
                 row {
                     Row(Modifier.fillMaxWidth().plainButton { voice = true }, verticalAlignment = Alignment.CenterVertically,

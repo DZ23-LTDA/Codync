@@ -101,6 +101,8 @@ const bridge: CodyncBridge = {
     onCommand: none,
     resetAllData: async () => {},
     setLaunchAtLogin: async () => false,
+    appearance: async () => 'system',
+    setAppearance: async (value) => value,
     showInDock: async () => true,
     setShowInDock: async () => true,
     launchAtLogin: async () => false,
