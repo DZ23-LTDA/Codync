@@ -35,8 +35,8 @@ import kotlinx.serialization.json.jsonPrimitive
 @Composable internal fun TraceView(bot: Bot, state: AppState) {
     val all = state.entries.filter { it.botId == bot.id }
     val turns = all.groupBy { it.turn }.toSortedMap().toList()
-    // The turn running now (a queued message already holds the next one): its thoughts start unfolded.
-    val running = if (bot.isWorking(bot.id)) all.filter { it.status != "queued" }.maxOfOrNull { it.turn } else null
+    // The running turn's thoughts start unfolded.
+    val running = runningTurn(all, bot.isWorking(bot.id))
     val list = rememberLazyListState()
     // Opens at the end and follows any new step there (in whichever turn) until the reader scrolls up.
     rememberFollowing(list, turns.lastOrNull()?.first?.toString(), all.maxOfOrNull { it.rev }, working = false, bottom = 0.dp)
@@ -54,6 +54,10 @@ import kotlinx.serialization.json.jsonPrimitive
         }
     }
 }
+
+/** The turn running now while the bot works in this chat; a queued message already holds the next turn. */
+internal fun runningTurn(entries: List<Entry>, working: Boolean): Long? =
+    if (working) entries.filter { it.status != "queued" }.maxOfOrNull { it.turn } else null
 
 /** The running turn's thoughts start `unfolded`, so its reasoning reads as it comes in. */
 @Composable private fun TraceRow(entry: Entry, unfolded: Boolean) {

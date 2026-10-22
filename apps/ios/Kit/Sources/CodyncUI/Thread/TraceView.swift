@@ -13,9 +13,8 @@ public struct TraceView: View {
         let all = model.chat(botId)
         let turns = Dictionary(grouping: all, by: \.turn)
             .sorted { $0.key < $1.key }
-        // The turn running now (a queued message already holds the next one): its thoughts start unfolded.
-        let running = model.bots[botId]?.isWorking(in: botId) == true
-            ? all.filter { $0.data.status != "queued" }.map(\.turn).max() : nil
+        // The running turn's thoughts start unfolded.
+        let running = Self.runningTurn(all, working: model.bots[botId]?.isWorking(in: botId) == true)
         VStack(spacing: 0) {
             ModalHeader("Full conversation")
             ScrollView {
@@ -44,6 +43,11 @@ public struct TraceView: View {
         }
         .background(Palette.background)
         .tracked(.screenViewed(.trace))
+    }
+
+    /// The turn running now while the bot works in this chat; a queued message already holds the next turn.
+    nonisolated static func runningTurn(_ entries: [Entry], working: Bool) -> Int64? {
+        working ? entries.filter { $0.data.status != "queued" }.map(\.turn).max() : nil
     }
 }
 

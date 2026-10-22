@@ -11,6 +11,7 @@ import { useStore } from '../../store/context'
 import { useScreenViewed } from '../../store/analytics'
 import { MarkdownText } from './Markdown'
 import { CodeBox, DiffView } from './PermissionCard'
+import { runningTurn, scrolledToEnd, traceTurns } from './trace-turns'
 import './trace.css'
 
 /**
@@ -21,16 +22,10 @@ export function TraceView({ botId }: { botId: string }) {
   const store = useStore()
   useScreenViewed('trace')
   const all = store.allEntries(botId)
-  const turns = new Map<number, Entry[]>()
-  for (const e of all) {
-    turns.set(e.turn, [...(turns.get(e.turn) ?? []), e])
-  }
-  const sorted = [...turns.entries()].sort((a, b) => a[0] - b[0])
-  // The turn running now (a queued message already holds the next one): its thoughts start unfolded.
+  const sorted = traceTurns(all)
+  // The running turn's thoughts start unfolded.
   const bot = store.bots.get(botId)
-  const running = bot && isWorkingIn(bot, botId)
-    ? all.reduce((t, e) => (e.data.status === 'queued' ? t : Math.max(t, e.turn)), -1)
-    : undefined
+  const running = runningTurn(all, !!bot && isWorkingIn(bot, botId))
   const scroller = useRef<HTMLDivElement>(null)
   // Opens at the end and follows new steps there until the reader scrolls up.
   const atEnd = useRef(true)
@@ -39,8 +34,7 @@ export function TraceView({ botId }: { botId: string }) {
     if (el && atEnd.current) el.scrollTop = el.scrollHeight
   })
   const onScroll = (e: React.UIEvent<HTMLDivElement>) => {
-    const el = e.currentTarget
-    atEnd.current = el.scrollHeight - el.scrollTop - el.clientHeight < 8
+    atEnd.current = scrolledToEnd(e.currentTarget)
   }
   return (
     <SheetPage>
