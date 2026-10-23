@@ -72,7 +72,7 @@ import kotlinx.serialization.json.put
     var aboutAnalytics by remember { mutableStateOf(false) }
     LaunchedEffect(state.contextId) { store.refreshCloud() }
     Column(Modifier.fillMaxSize().background(Palette.background)) {
-        PageHeader("Computers & settings", pop)
+        PageHeader("Computers & settings", pop, icon = "gearshape")
         PullToRefresh(store::refreshComputers, Modifier.weight(1f)) { CardForm {
             CardSection("Computers", if (signedIn) "Computers in your account need your OK on the computer before this phone can use them."
                 else "Each bot runs on its own computer. Sign in to see the computers in your account.") {

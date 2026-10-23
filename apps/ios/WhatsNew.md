@@ -9,10 +9,12 @@ a version without one gets a generic "Bug fixes and improvements" line. Delete o
 ## 2.24.0
 
 ### zh-Hant
+- 設定與語音聊天的標題加入清楚的圖示。
 - 可在設定中自行選擇英文、簡體中文、繁體中文、日語、韓語、法語、德語或西班牙語，也可跟隨系統語言。
 - 語言偏好保留在這台裝置，聊天內容維持原文。
 
 ### en-US
+- Identify Settings and Voice chat with clearer header icons.
 - Choose English, Simplified Chinese, Traditional Chinese, Japanese, Korean, French, German or Spanish in Settings, or follow your system language.
 - Keep your language preference on this device without translating your conversations.
 

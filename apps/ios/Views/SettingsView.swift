@@ -141,7 +141,7 @@ struct SettingsView: View {
             [DialogAction("Start over", destructive: true) { Task { await app.startOver() } }]
         }
         .refreshable { await accounts.refreshCloud() }
-        .page("Computers & settings", pushed: pushed)
+        .page("Computers & settings", pushed: pushed, icon: "gearshape")
         // One screen, named for the way in (as on Android): Accounts → settings, the Computers sheet → computers.
         .tracked(.screenViewed(pushed ? .settings : .computers))
         .task { await accounts.refreshCloud() }

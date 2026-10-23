@@ -71,7 +71,10 @@ export function SettingsView({ page: initial }: { page: SettingsPage }) {
       </nav>
       <div className="settings-divider" />
       <div className="settings-main">
-        <Text as="div" size={24} weight="semibold" tone="text" className="settings-title">{tr(current.title)}</Text>
+        <HStack gap={12} className="settings-title">
+          <Icon name={current.icon} size={30} weight="medium" />
+          <Text as="h2" size={24} weight="semibold" tone="text">{tr(current.title)}</Text>
+        </HStack>
         <div key={page} className="settings-page">
           <PageContent page={page} />
         </div>
