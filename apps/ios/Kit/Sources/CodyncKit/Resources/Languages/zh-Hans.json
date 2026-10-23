@@ -1161,5 +1161,7 @@
   "Sign in on the computer to use remote screen relay.": "请先在电脑上登录，才能使用远程屏幕中继。",
   "Remote screen relay is not configured on this cloud.": "这台云没有配置远程屏幕中继。",
   "Remote screen relay is temporarily unavailable. Try again shortly.": "远程屏幕中继暂时不可用。请稍后再试。",
-  "Too many screen connections. Try again in a minute.": "屏幕连接太多了。请过一分钟再试。"
+  "Too many screen connections. Try again in a minute.": "屏幕连接太多了。请过一分钟再试。",
+  "Choose the language for this device. Unsupported system languages use English.": "选择此设备的界面语言。不支持的系统语言将使用英文。",
+  "resets in {time}": "{time}后重置"
 }

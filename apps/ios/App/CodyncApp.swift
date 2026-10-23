@@ -40,6 +40,7 @@ struct CodyncApp: App {
                 .environment(\.locale, AppLanguage.locale(
                     preference: AppLanguage(rawValue: appLanguageRaw) ?? .system,
                     systemIsChinese: AppLanguage.systemIsChinese()))
+                .onChange(of: appLanguageRaw) { _, _ in WidgetCenter.shared.reloadAllTimelines() }
                 // No scroll indicators anywhere in the app.
                 .scrollIndicators(.never)
                 .codyncSheet(isPresented: Binding(
