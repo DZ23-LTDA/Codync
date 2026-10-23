@@ -133,6 +133,8 @@ Host development: `cargo run --manifest-path host/Cargo.toml -- serve`. Avoid co
 
 ## Visual checks
 
+For interface catalogs, supported language choices and translation checks, see [localization](localization.md).
+
 Follow [UI conventions](../design/ui-conventions.md) for native toolbar behavior and [widget design](../design/mobile-widgets.md) for previews. Widget previews live in `apps/ios/Widgets/WidgetPreviews.swift`.
 
 Versions are defined in `apps/project.yml` (`MARKETING_VERSION`), `host/Cargo.toml` and `apps/desktop/package.json`; keep them equal (the desktop release workflow fails when the app and host differ), then regenerate the Xcode project.
