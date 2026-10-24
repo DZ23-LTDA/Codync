@@ -1197,5 +1197,10 @@
   "Library": "Bibliothèque",
   "Library is empty": "La bibliothèque est vide",
   "Artifacts {name} makes and files shared in this chat show here.": "Les artefacts créés par {name} et les fichiers partagés dans cette discussion apparaissent ici.",
-  "{name}, view details": "{name}, voir les détails"
+  "{name}, view details": "{name}, voir les détails",
+  "Find computers in your SSH config?": "Trouver des ordinateurs dans votre configuration SSH ?",
+  "Find computers in your SSH config": "Trouver des ordinateurs dans votre configuration SSH",
+  "Codync reads ~/.ssh/config on {name} to list its hosts. Nothing is sent anywhere, and nothing connects until you add one.": "Codync lit ~/.ssh/config sur {name} pour lister ses hôtes. Rien n'est envoyé nulle part, et rien ne se connecte avant que vous en ajoutiez un.",
+  "In your SSH config": "Dans votre configuration SSH",
+  "Allow": "Autoriser"
 }

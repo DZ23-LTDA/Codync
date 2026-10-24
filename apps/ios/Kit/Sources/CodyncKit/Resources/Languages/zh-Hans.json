@@ -1197,5 +1197,10 @@
   "Library": "资料库",
   "Library is empty": "资料库还是空的",
   "Artifacts {name} makes and files shared in this chat show here.": "{name} 做的 Artifact，和这个对话里分享的文件，都会出现在这里。",
-  "{name}, view details": "{name}，查看详情"
+  "{name}, view details": "{name}，查看详情",
+  "Find computers in your SSH config?": "要从 SSH 配置文件查找电脑吗？",
+  "Find computers in your SSH config": "从 SSH 配置文件查找电脑",
+  "Codync reads ~/.ssh/config on {name} to list its hosts. Nothing is sent anywhere, and nothing connects until you add one.": "Codync 会读取{name}上的 ~/.ssh/config，列出其中的主机。不会发送到任何地方，你添加之前也不会连接。",
+  "In your SSH config": "在你的 SSH 配置文件中",
+  "Allow": "允许"
 }

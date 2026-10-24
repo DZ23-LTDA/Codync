@@ -1197,5 +1197,10 @@
   "Library": "ライブラリ",
   "Library is empty": "ライブラリは空です",
   "Artifacts {name} makes and files shared in this chat show here.": "{name} が作ったアーティファクトと、このチャットで共有したファイルがここに表示されます。",
-  "{name}, view details": "{name}、詳細を表示"
+  "{name}, view details": "{name}、詳細を表示",
+  "Find computers in your SSH config?": "SSH 設定からコンピューターを探しますか？",
+  "Find computers in your SSH config": "SSH 設定からコンピューターを探す",
+  "Codync reads ~/.ssh/config on {name} to list its hosts. Nothing is sent anywhere, and nothing connects until you add one.": "Codync は {name} の ~/.ssh/config を読み取り、ホストを一覧表示します。どこにも送信されず、追加するまで接続しません。",
+  "In your SSH config": "SSH 設定にあります",
+  "Allow": "許可"
 }

@@ -1197,5 +1197,10 @@
   "Library": "資料庫",
   "Library is empty": "資料庫還是空的",
   "Artifacts {name} makes and files shared in this chat show here.": "{name} 做的 Artifact，和這個對話裡分享的檔案，都會出現在這裡。",
-  "{name}, view details": "{name}，檢視詳情"
+  "{name}, view details": "{name}，檢視詳情",
+  "Find computers in your SSH config?": "要從 SSH 設定檔找電腦嗎？",
+  "Find computers in your SSH config": "從 SSH 設定檔找電腦",
+  "Codync reads ~/.ssh/config on {name} to list its hosts. Nothing is sent anywhere, and nothing connects until you add one.": "Codync 會讀取{name}上的 ~/.ssh/config，列出裡面的主機。不會傳送到任何地方，你加入之前也不會連線。",
+  "In your SSH config": "在你的 SSH 設定檔中",
+  "Allow": "允許"
 }

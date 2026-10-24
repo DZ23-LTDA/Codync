@@ -1197,5 +1197,10 @@
   "Library": "라이브러리",
   "Library is empty": "라이브러리가 비어 있습니다",
   "Artifacts {name} makes and files shared in this chat show here.": "{name}이(가) 만든 아티팩트와 이 채팅에서 공유한 파일이 여기에 표시됩니다.",
-  "{name}, view details": "{name}, 세부 정보 보기"
+  "{name}, view details": "{name}, 세부 정보 보기",
+  "Find computers in your SSH config?": "SSH 설정에서 컴퓨터를 찾을까요?",
+  "Find computers in your SSH config": "SSH 설정에서 컴퓨터 찾기",
+  "Codync reads ~/.ssh/config on {name} to list its hosts. Nothing is sent anywhere, and nothing connects until you add one.": "Codync가 {name}의 ~/.ssh/config를 읽어 호스트 목록을 보여 줍니다. 어디에도 전송되지 않으며 추가하기 전에는 연결하지 않습니다.",
+  "In your SSH config": "SSH 설정에 있음",
+  "Allow": "허용"
 }
