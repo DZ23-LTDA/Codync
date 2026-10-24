@@ -264,9 +264,12 @@ pub fn update_connectors<T>(
 
 fn add_connector(store: &crate::store::Store, mut c: Connector) -> Result<Value> {
     update_connectors(store, |all| {
+        // A registry server is installed once: installing it again replaces it under the id the bots know.
         if let Some(name) = c.registry_name.as_deref()
-            && let Some(existing) = all.iter().find(|x| x.registry_name.as_deref() == Some(name))
+            && let Some(existing) = all.iter_mut().find(|x| x.registry_name.as_deref() == Some(name))
         {
+            c.id.clone_from(&existing.id);
+            *existing = c;
             return Ok(existing.public());
         }
         c.id = unique_id(&c.name, &all.iter().map(|c| c.id.clone()).collect::<Vec<_>>());
