@@ -31,7 +31,8 @@ the order. The computer moves with its bots: while the heading is lifted, every 
 bots fold into their headings (rows kept at no height, so the system's drag keeps its place),
 and they unfold under their computers when it's dropped. Cancelling a drag leaves the saved order unchanged. A tap folds or expands
 the section; Move up/down accessibility actions are also available. The desktop
-app supports heading drags and Alt+Up/Down on macOS, Linux and Windows.
+app drags headings the same way (the sections fold while one is lifted, and the others make
+room as it passes them) and supports Alt+Up/Down, on macOS, Linux and Windows.
 The terminal UI connects to one host, so it has no cross-computer ordering.
 
 The order never leaves the device: the cloud stores no computer order.
