@@ -697,7 +697,7 @@
   "Minimal": "Minimal",
   "The Dynamic Island shows the same Live Activity as the Lock Screen, so this switch turns off both.": "La Dynamic Island affiche la même activité en direct que l’écran verrouillé ; ce commutateur désactive donc les deux.",
   "Starts when you send a task from this iPhone. Follow its progress, then open the conversation when your bot needs you.": "Démarre lorsque vous envoyez une tâche depuis cet iPhone. Suivez sa progression, puis ouvrez la conversation lorsque le bot a besoin de vous.",
-  "The bot in its mood, its current step in the state's color, the running time and a thinking orb. When the bot needs you, Review opens the request.": "Le bot et son humeur, l’étape en cours dans la couleur de l’état, la durée et une sphère de réflexion. Lorsque le bot a besoin de vous, Examiner ouvre la demande.",
+  "The bot in its mood, its current step in the state's color, the running time, a thinking orb and its progress. When the bot needs you, Review opens the request.": "Le bot et son humeur, l’étape en cours dans la couleur de l’état, la durée, une sphère de réflexion et sa progression. Lorsque le bot a besoin de vous, Examiner ouvre la demande.",
   "The bot and a thinking orb beside the camera, outlined in the state's color. The orb becomes a check or warning when the task ends.": "Le bot et une sphère de réflexion près de la caméra, entourés de la couleur de l’état. La sphère devient une coche ou un avertissement à la fin de la tâche.",
   "Just the orb when iOS displays multiple Live Activities.": "Uniquement la sphère lorsque iOS affiche plusieurs activités en direct.",
   "Touch and hold the Dynamic Island for the current step and the running time, or Review when the bot needs you. Tap to open the conversation.": "Maintenez le doigt sur la Dynamic Island pour voir l’étape et la durée, ou Examiner si le bot a besoin de vous. Touchez pour ouvrir la conversation.",
@@ -1164,5 +1164,6 @@
   "Remote screen relay is temporarily unavailable. Try again shortly.": "Le relais d’écran distant est temporairement indisponible. Réessayez dans un instant.",
   "Too many screen connections. Try again in a minute.": "Trop de connexions à l’écran. Réessayez dans une minute.",
   "Choose the language for this device. Unsupported system languages use English.": "Choisissez la langue de cet appareil. Les langues système non prises en charge utilisent l’anglais.",
-  "resets in {time}": "réinitialisation dans {time}"
+  "resets in {time}": "réinitialisation dans {time}",
+  "Progress, step {step} of 4": "Progression, étape {step} sur 4"
 }
