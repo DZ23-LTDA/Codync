@@ -97,4 +97,4 @@ Follow the Conventional Commit and PR rules in [AGENTS.md](AGENTS.md#commit--pul
 
 - CLAUDE.md and AGENTS.md hold only rules an agent needs on every task. Reference material (file structure, naming tables, API details, audits, how-tos) goes in `docs/` as its own file, with a one-line pointer here.
 - Whenever you edit either file, check its length: past ~100 lines, or a section past a few lines of reference detail, refactor that detail into `docs/` and leave the pointer, without being asked.
-- Keep `docs/` current: update the doc in the same change that makes it stale.
+- Keep `docs/` current: update the doc in the same change that makes it stale. A change users can see also updates its page of the user manual (`web/content/docs/`): [user docs](docs/guides/user-docs.md).

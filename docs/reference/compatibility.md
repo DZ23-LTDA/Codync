@@ -2,7 +2,7 @@
 
 Clients (iPhone, desktop app on macOS, Linux and Windows, terminal client) and the host update on
 different schedules: the iPhone app waits for App Review, the desktop app and standalone hosts
-update when their owner (or the opt-in automatic updater) installs a release. Any client can
+update when their owner (or the automatic updater, on by default for hosts that update themselves) installs a release. Any client can
 meet an older or a newer host.
 
 ## Rule
