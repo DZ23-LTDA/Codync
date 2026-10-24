@@ -51,7 +51,7 @@ was walked through on an emulator against a real host.
   memory screen still calls the removed `memoryDetail`, `reviewMemory`, `exportMemory` and `importMemory`
   (`MemoryModel.kt`, `MemoryCard.kt`, `LiveMemoryTest.kt`), so it shows an error. Missing too: the two layers
   (yours and the bot's) with each `MEMORY.md` line and who wrote it, memory notes, the dream log with its info
-  sheet, the harness's own memory switch with its info sheet (2.19.0) and the handoff card. Since 2.21.0 the memory screen is read-only
+  sheet, the harness's own memory switch with its info sheet (2.19.0), the "Shared" row for harnesses whose memory every bot shares (2.25.0) and the handoff card. Since 2.21.0 the memory screen is read-only
   (the user changes memory by telling the bot), so the port drops its add and edit controls. Port them from the
   iPhone (`MemoryView.swift`, `MemoryFilesView.swift`, `MemoryInfoSheet.swift`, `HandoffRows.swift`).
 

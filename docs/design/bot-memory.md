@@ -533,6 +533,7 @@ build.
   read-only since 2.21.0 (the owner's call: the user changes memory by telling the bot).
 - **The dream log** (added green, archived red) with an info button saying what dreaming does.
 - **The harness's own memory switch** in the bot's section, off by default, with an info button; kept on, Claude Code's `MEMORY.md` shows read-only.
+- **"Shared" in place of the switch**, with an info button, where the harness keeps one memory every bot on it shares and Codync can't turn off (Gemini CLI, Hermes Agent: `harnessMemoryShared`).
 - **Notes** under each layer's facts: name, description, size and date, an over-cap mark, and a view to read one.
 - **In the chat**, only an editable handoff draft at rollover, folding to one line once sent; compactions and a
   kept handoff leave no line (2026-10-18, at the owner's request).

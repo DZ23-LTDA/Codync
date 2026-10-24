@@ -52,7 +52,8 @@ Mac e2e.
 
 ## Open questions
 
-- Gemini CLI's memory is one global `~/.gemini/GEMINI.md` shared by every Gemini session, not per bot. Say so in
-  its detail text, or leave Gemini out.
+- Gemini CLI's memory is one global `~/.gemini/GEMINI.md` shared by every Gemini session, not per bot. Since 2.25.0
+  the memory screen says so for Gemini CLI and Hermes Agent ("Shared" with an info button,
+  [context and memory](../features/context-and-memory.md)).
 - Codex's memories are off unless the user turns them on in their own config. Offer the choice when that config
   has them on.

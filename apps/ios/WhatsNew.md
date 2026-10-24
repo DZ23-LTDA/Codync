@@ -14,6 +14,7 @@ a version without one gets a generic "Bug fixes and improvements" line. Delete o
 - 鎖定畫面的即時動態加上進度條，四格依任務進度填滿，顏色跟著狀態走。
 - 帳號選單裡的「電腦與設定」和它打開的頁面同名。
 - 新增聯結器失敗後再試一次，會使用你改好的金鑰。
+- 使用 Hermes Agent 或 Gemini CLI 的 Bot，記憶頁會說明它們自己的記憶由所有用同一個 agent 的 Bot 共用，Codync 沒辦法關掉。
 
 ### en-US
 - Create bots that run Hermes Agent.
@@ -21,6 +22,7 @@ a version without one gets a generic "Bug fixes and improvements" line. Delete o
 - Live Activities on the Lock Screen show a progress line that fills as the task moves, in the state's color.
 - The account sheet's Computers & settings row now has the same name as the page it opens.
 - Trying again after adding a connector failed uses the key you corrected.
+- For bots that run Hermes Agent or Gemini CLI, Memory explains that the agent's own memory is shared by every bot that runs it and Codync can't turn it off.
 
 ## 2.24.0
 

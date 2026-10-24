@@ -128,6 +128,14 @@ Claude Code's own memory; the rules live in the `codync-mem` crate, and `chat/me
   harness runs its memory as it sets it, and Claude Code's `MEMORY.md` shows read-only in a "Claude Code" section
   (empty until it saves something). An edit to another harness turns the switch off. Using the harness's memory
   instead of Codync's is planned: [harness memory](../plans/harness-memory.md).
+- **Shared by every bot.** Gemini CLI (`~/.gemini/GEMINI.md`) and Hermes Agent (`~/.hermes/memories`) keep one
+  memory for all their sessions that Codync can't turn off (`own_memory::shared`, bot field `harnessMemoryShared`).
+  In place of the switch, "This bot" shows "<harness>'s own memory · Shared" with an info button (the host doesn't
+  read whether the user turned it off in the harness's settings, so the row names no state): every bot on that
+  harness reads and writes the same notes, and so does the harness outside Codync; forgetting in Codync doesn't reach
+  them, Codync can't show them, and a harness setting, where there is one (Hermes Agent's `memory.*` flags; Gemini CLI has none), turns them off for every session at once.
+  The terminal UI says it in the section's note. Kilo Code and Kiro aren't marked: how far their memory is shared
+  isn't confirmed.
 - **The apps** (iPhone, desktop, terminal) show "About you", "This bot", the dream log and Claude Code's notes,
   read-only: the user changes memory by telling the bot in the chat. Each layer shows its `MEMORY.md` facts with
   who wrote them (the `memory` method keeps the shape of the earlier entries: one per fact, `state` active), then
