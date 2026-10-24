@@ -14,19 +14,19 @@ import { VoiceChatSettingsView } from '../settings/VoiceChatSettingsView'
 import { voiceStatus } from '../settings/voice-settings'
 import { stopDictation } from '../thread/dictation'
 import { CallOperator } from './call-operator'
+import { CloudSpeechEngine } from './CloudSpeechEngine'
+import { GeminiLiveEngine } from './GeminiLiveEngine'
+import { OnDeviceEngine } from './OnDeviceEngine'
+import { OpenAIRealtimeEngine } from './OpenAIRealtimeEngine'
+import { countVoiceUsage, fromBase64, onDeviceAvailable, onDeviceUnavailableReason, providerName, transcribeOnHost, VoiceEngine, VoiceSettings, voiceSettingsClosed, type VoiceProvider } from './voice'
+import { watchVoiceCall } from './voice-call'
+import './call.css'
 
 /**
  * Opens the window's own Settings at Voice chat; without it (no Settings screen around) the
  * call bar shows the voice settings in their own sheet.
  */
 export const OpenVoiceSettings = createContext<(() => void) | null>(null)
-import { CloudSpeechEngine } from './CloudSpeechEngine'
-import { GeminiLiveEngine } from './GeminiLiveEngine'
-import { OnDeviceEngine } from './OnDeviceEngine'
-import { OpenAIRealtimeEngine } from './OpenAIRealtimeEngine'
-import { countVoiceUsage, fromBase64, onDeviceAvailable, onDeviceUnavailableReason, providerName, transcribeOnHost, VoiceEngine, VoiceSettings, type VoiceProvider } from './voice'
-import { watchVoiceCall } from './voice-call'
-import './call.css'
 
 /**
  * A voice call with a bot, as Grok Bot does it: a floating bar over the chat, which stays
@@ -51,6 +51,8 @@ export function CallView({ botId, onSpeaking, interrupt, onEnd }: {
   const engine = useRef<VoiceEngine | null>(null)
   /** When the current cloud engine started, for this month's minutes. */
   const cloudStartedAt = useRef<number | null>(null)
+  /** The call settings the current engine was built from. */
+  const engineChoice = useRef('')
   const closed = useRef(false)
   /** What carries the current engine's audio, and whether the call has been counted (once its first engine runs). */
   const engineName = useRef<VoiceCallEngine>('on_device')
@@ -75,6 +77,7 @@ export function CallView({ botId, onSpeaking, interrupt, onEnd }: {
     if (closed.current) return
     // Every engine takes the microphone (and the speech helper) from any dictation in progress.
     stopDictation()
+    engineChoice.current = VoiceSettings.engineChoice(provider)
     if (!provider && !onDeviceAvailable()) return void fallbackFromDevice()
     const op = new CallOperator(store, botId)
     const send = (text: string) => store.send(text, botId)
@@ -118,9 +121,22 @@ export function CallView({ botId, onSpeaking, interrupt, onEnd }: {
         stopWatching = null
       }
     }
+    // A muted call stays muted on the engine that takes over.
+    next.muted = engine.current?.muted === true
     engine.current = next
     setSession(next)
     void next.start()
+  }
+
+  /** After the call settings close: a different engine picked there takes over the call, which goes on. */
+  const switchEngine = () => {
+    const provider = VoiceSettings.provider()
+    if (closed.current || VoiceSettings.engineChoice(provider) === engineChoice.current) return
+    countCloudMinutes()
+    engine.current?.end()
+    setNotice(null)
+    setBlocked(null)
+    begin(provider)
   }
 
   const rememberStatus = async () => {
@@ -131,15 +147,23 @@ export function CallView({ botId, onSpeaking, interrupt, onEnd }: {
     }
   }
 
-  /** No on-device speech here (Linux, or a build without the helper): use a provider with a key, if any. */
+  /**
+   * No on-device speech here (Linux, or a build without the helper): use a provider with a key, if
+   * any. On device stays the pick, so closing the settings unchanged keeps that provider.
+   */
   const fallbackFromDevice = async () => {
+    const picked = engineChoice.current
     const configured = (await rememberStatus())?.providers.find((p) => p.configured)?.provider
-    if (closed.current) return
+    // Ended, or another engine was picked meanwhile.
+    if (closed.current || engineChoice.current !== picked) return
     if (configured) {
       setNotice(`${onDeviceUnavailableReason()} Using ${providerName(configured)}.`)
       begin(configured)
+      engineChoice.current = picked
     } else {
       setBlocked(`${onDeviceUnavailableReason()} Add an OpenAI or Gemini key in call settings.`)
+      // Nothing runs: the next settings close tries again, with a key added there.
+      engineChoice.current = ''
     }
   }
 
@@ -157,6 +181,7 @@ export function CallView({ botId, onSpeaking, interrupt, onEnd }: {
       store.logCall(botId, Math.floor((Date.now() - startedAt) / 1000))
     }
   }, [])
+  useEffect(() => voiceSettingsClosed.subscribe(switchEngine), [])
 
   const phase = session?.phase ?? null
   useEffect(() => {
@@ -178,18 +203,18 @@ export function CallView({ botId, onSpeaking, interrupt, onEnd }: {
   const speaking = phase === 'speaking'
   const muted = session?.muted === true
   const working = bot ? isWorking(bot) : false
-  const statusText =
-    phase === null || phase === 'starting'
-      ? 'Connecting'
-      : phase === 'speaking'
-        ? 'Speaking'
-        : phase === 'failed'
-          ? "Can't listen"
-          : muted
-            ? 'Muted'
-            : working
-              ? 'Working, listening'
-              : 'Listening'
+  const connecting = phase === null || phase === 'starting'
+  const statusText = connecting
+    ? 'Connecting'
+    : phase === 'speaking'
+      ? 'Speaking'
+      : phase === 'failed'
+        ? "Can't listen"
+        : muted
+          ? 'Muted'
+          : working
+            ? 'Working, listening'
+            : 'Listening'
   const failure = blocked ?? (phase === 'failed' ? session?.failure : null)
 
   return (
@@ -205,7 +230,7 @@ export function CallView({ botId, onSpeaking, interrupt, onEnd }: {
           {bot ? <BotAvatar bot={bot} size={34} /> : <span className="call-avatar-empty" />}
         </button>
         <LevelDots
-          sample={() => ({ level: session?.level ?? 0, speaking: session?.phase === 'speaking', working })}
+          sample={() => ({ level: session?.level ?? 0, speaking: session?.phase === 'speaking', working, connecting: connecting && !blocked })}
           color={color}
           width={120}
           label={statusText}

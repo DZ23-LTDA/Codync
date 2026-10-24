@@ -3,14 +3,24 @@ import SwiftUI
 
 /// A dotted line (the call bar, the composer's recording pill): it follows your voice while
 /// listening, ripples while the bot talks, breathes while it works, and rests as faint dots otherwise.
+/// While a call connects it shows an indeterminate progress line instead, and fades back to the dots.
 struct LevelDots: View {
     let level: Float
     let speaking: Bool
     let working: Bool
+    var connecting = false
     let color: Color
     let reduceMotion: Bool
 
     var body: some View {
+        ZStack {
+            dots.opacity(connecting ? 0 : 1)
+            if connecting { ConnectingLine(reduceMotion: reduceMotion).transition(.opacity) }
+        }
+        .animation(Motion.reduced(Motion.fade, reduceMotion), value: connecting)
+    }
+
+    private var dots: some View {
         TimelineView(.animation(paused: reduceMotion)) { context in
             Canvas { canvas, size in
                 let t = context.date.timeIntervalSinceReferenceDate
@@ -33,6 +43,31 @@ struct LevelDots: View {
                     let tint = speaking ? Palette.accent : color
                     canvas.fill(Path(roundedRect: rect, cornerRadius: 1.25), with: .color(tint.opacity(0.5 + 0.5 * amount)))
                 }
+            }
+        }
+    }
+}
+
+/// Indeterminate progress: a short capsule slides left to right along a faint track, on a loop;
+/// with reduced motion it rests at the left.
+private struct ConnectingLine: View {
+    let reduceMotion: Bool
+    /// Seconds for the segment to cross the track.
+    private static let period = 1.4
+
+    var body: some View {
+        TimelineView(.animation(paused: reduceMotion)) { context in
+            Canvas { canvas, size in
+                let mid = size.height / 2
+                let track = CGRect(x: 0, y: mid - 0.75, width: size.width, height: 1.5)
+                canvas.fill(Path(roundedRect: track, cornerRadius: 0.75), with: .color(Palette.accent.opacity(0.15)))
+                let width = size.width / 3
+                let progress = reduceMotion ? 0
+                    : context.date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: Self.period) / Self.period
+                let segment = CGRect(x: reduceMotion ? 0 : -width + progress * (size.width + width), y: mid - 1.75,
+                                     width: width, height: 3.5)
+                canvas.clip(to: Path(CGRect(origin: .zero, size: size)))
+                canvas.fill(Path(roundedRect: segment, cornerRadius: 1.75), with: .color(Palette.accent))
             }
         }
     }

@@ -13,7 +13,9 @@ On iOS, [Open Live Mode in Shortcuts](ios-shortcuts.md) can select a bot and sta
 - UI follows Grok Bot: a floating capsule over the top of the chat (`ThreadView` overlay), and the
   chat stays readable and usable underneath. Left to right: the bot's avatar (pulses while
   speaking; tap it to interrupt), a dotted level line (your voice while listening, a ripple while
-  the bot speaks, a slow breath while it works), gear (call settings), mic (mute), red ✕ (end).
+  the bot speaks, a slow breath while it works; while the engine connects, an indeterminate progress
+  line instead: a short segment sliding along a faint track, still at the left under Reduce Motion,
+  fading back to the dots once it listens), gear (call settings), mic (mute), red ✕ (end).
 - Desktop: the capsule sits 16 CSS pixels below the window top and explicitly excludes itself
   from Electron's window-drag region so the gear, mute and end buttons receive mouse clicks.
   The iPhone places its capsule below native navigation; the terminal has no call controls.
@@ -155,7 +157,14 @@ bring their own provider key; Codync never pays for or resells minutes.
 
 ### Engines
 
-The gear's first section is **Voice engine** (applies from the next call):
+The gear's first section is **Voice engine**. Each client remembers what the running engine was built from
+(engine, mode, models, voice; On device: its language; `engineChoice`). When the voice settings close and that
+differs, the call ends that engine and starts the new one without hanging up: same call, one "Voice chat" line
+at the end, cloud minutes counted up to the switch, mute kept, a fallback notice cleared. A call that fell back
+to On device tries the picked cloud engine again the same way. Desktop and Android check whenever a voice
+settings view closes (the gear, Settings, a computer's row); on the iPhone only the gear is open during a call.
+Where on-device speech is missing (desktop on Linux or Windows), the provider standing in for On device keeps
+running while On device stays picked.
 
 | Engine | Needs | Transport | Code |
 | --- | --- | --- | --- |

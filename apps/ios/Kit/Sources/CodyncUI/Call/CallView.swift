@@ -17,6 +17,8 @@ struct CallView: View {
     @State private var startedAt = Date.now
     /// When the current cloud engine started, for this month's minutes.
     @State private var cloudStartedAt: Date?
+    /// The call settings the current engine was built from.
+    @State private var engineChoice = ""
     /// One line under the bar, e.g. why the call fell back to on-device voice.
     @State private var notice: String?
     @State private var settings = false
@@ -65,6 +67,7 @@ struct CallView: View {
                 begin(cloud: nil)
             }
         }
+        .onChange(of: settings) { _, open in if !open { switchEngine() } }
         .codyncSheet(isPresented: $settings) { VoiceChatSettingsView() }
     }
 
@@ -74,6 +77,7 @@ struct CallView: View {
         if provider != nil, let client = model.client {
             Task { if let status = try? await client.voiceStatus() { VoiceSettings.remember(status) } }
         }
+        engineChoice = VoiceSettings.engineChoice(provider)
         let op = CallOperator(model: model, botId: botId)
         let engine: any VoiceEngine
         if let provider, VoiceSettings.isSpeechMode(provider) {
@@ -115,8 +119,20 @@ struct CallView: View {
                 model.endVoiceCall(callID)
             }
         }
+        // A muted call stays muted on the engine that takes over.
+        engine.muted = session?.muted == true
         session = engine
         Task { await engine.start() }
+    }
+
+    /// After the call settings close: a different engine picked there takes over the call, which goes on.
+    private func switchEngine() {
+        let provider = VoiceSettings.provider
+        guard VoiceSettings.engineChoice(provider) != engineChoice else { return }
+        countCloudMinutes()
+        session?.end()
+        notice = nil
+        begin(cloud: provider)
     }
 
     private func countCloudMinutes() {
@@ -140,7 +156,8 @@ struct CallView: View {
         HStack(spacing: 10) {
             avatar
             LevelDots(level: session?.level ?? 0, speaking: session?.phase == .speaking,
-                          working: bot?.isWorking == true, color: color, reduceMotion: reduceMotion)
+                      working: bot?.isWorking == true, connecting: (session?.phase ?? .starting) == .starting,
+                      color: color, reduceMotion: reduceMotion)
                 .frame(minWidth: Self.dotsWidth, maxWidth: Self.dotsMaxWidth, minHeight: Self.dotsHeight, maxHeight: Self.dotsHeight)
                 .accessibilityLabel(statusText)
             // Audio leaves the phone: say where.

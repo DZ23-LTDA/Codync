@@ -44,6 +44,26 @@ class VoiceEnginesTest {
         assertEquals("61", prefs.values["callUsage.openai.2026-10"])
     }
 
+    @Test fun aCallTakesAnotherEngineOnlyWhenWhatItsEngineIsBuiltFromChanges() {
+        val choices = Prefs().choices; val gemini = VoiceProvider.Gemini
+        assertEquals(choices.engineChoice(null, ""), choices.engineChoice(null, ""))
+        assertNotEquals(choices.engineChoice(null, ""), choices.engineChoice(null, "ja-JP"))
+        assertNotEquals(choices.engineChoice(gemini, ""), choices.engineChoice(VoiceProvider.OpenAI, ""))
+        val seen = mutableListOf(choices.engineChoice(gemini, ""))
+        for (change in listOf<() -> Unit>(
+            { choices.choose(gemini, VoiceChoices.Model.Realtime, "live-9") },
+            { choices.voice(gemini, "Puck") },
+            { choices.speechMode(gemini, true) },
+            { choices.choose(gemini, VoiceChoices.Model.Transcribe, "flash-9") },
+            { choices.choose(gemini, VoiceChoices.Model.Speech, "tts-9") })) {
+            change()
+            val choice = choices.engineChoice(gemini, "")
+            assertEquals(choice, choices.engineChoice(gemini, ""))
+            assertFalse(choice, choice in seen)
+            seen += choice
+        }
+    }
+
     @Test fun utterancesStartAtSpeechEndAtThePauseAndDropCoughs() {
         val detector = UtteranceDetector(); val frame = ByteArray(3_200)
         assertNull(detector.feed(frame, 0f, 0, 1_000))

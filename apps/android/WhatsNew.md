@@ -18,13 +18,15 @@ else a generic "Bug fixes and improvements" line. Delete old sections.
 - 新增聯結器失敗後再試一次，會使用你改好的金鑰。
 - 在設定開啟「顯示思考細節」後，點一下工作中 Bot 的狀態膠囊，就能展開這一輪的思考與步驟。
 - 點對話上方的 Bot 會打開它的詳情、資料庫與設定；「新會話」改到 Bot 列表的長按選單。
+- 通話中在設定換了語音，關掉設定後通話就改用新的語音繼續。
+- 語音通話連線中，通話列會顯示一條跑動的進度線。
 
 ### en-US
-- Bots make artifacts, shown as cards in the chat; message the bot below one to edit it.
-- Each bot's Library holds its artifacts and the chat's files.
+- Bots make artifacts, shown as chat cards; message the bot below one to edit it.
+- Each bot's Library holds its artifacts and chat files.
 - Create bots that run Hermes Agent.
 - Bots hand work to each other without waiting.
-- Computers & settings now matches the page it opens.
 - Retrying a failed connector uses the corrected key.
 - Settings › Show thinking details unfolds a bot's steps.
 - Tap a chat's title for the bot's details; New session moved to the list's touch & hold menu.
+- Change the voice mid-call; it takes over when settings close.

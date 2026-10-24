@@ -18,6 +18,8 @@ internal class VoiceBinding(val id: String, val botId: String, val generation: I
     var engine: VoiceEngine? = null
     /** When the current cloud engine started, for this month's minutes. */
     var cloudSince: Long? = null
+    /** The call settings the current engine was built from. */
+    var choice = ""
     /** The microphone's audio session, so Android silencing it pauses the call. */
     var recording: () -> Int? = { null }
     /** What the voice service sees: the current engine, never the failure it fell back from. */
@@ -62,6 +64,9 @@ private fun AppStore.begin(call: VoiceBinding, provider: VoiceProvider?) {
     // Picks up the computer's newest models for the next call; this one starts right away.
     if (provider != null) contextScope.launch { try { choices.remember(voiceStatus()) } catch (_: Exception) { } }
     val settings = VoicePreferences.load(getApplication())
+    call.choice = choices.engineChoice(provider, callLanguage())
+    // A muted call stays muted on the engine that takes over (what the call last showed).
+    val muted = call.state.value.muted
     val operator = CallOperator(call.botId, object : CallTarget {
         override val bots get() = state.value.bots
         override val entries get() = state.value.entries
@@ -101,6 +106,7 @@ private fun AppStore.begin(call: VoiceBinding, provider: VoiceProvider?) {
         }
     }
     call.engine = engine
+    if (muted) engine.mute(true)
     call.cloudSince = if (provider != null) SystemClock.elapsedRealtime() else null
     contextScope.launch {
         val last = engine.state.first { status ->
@@ -116,12 +122,33 @@ private fun AppStore.begin(call: VoiceBinding, provider: VoiceProvider?) {
             }
             !current || fallingBack || status.phase == VoicePhase.Ended
         }
-        if (provider == null || last.phase != VoicePhase.Failed || voiceBinding !== call) return@launch
-        countCloudMinutes(call)
-        val notice = "${provider.title} isn't available (${last.error ?: "no answer"}). Using on-device voice."
-        mutableState.update { it.copy(voice = it.voice?.takeIf { voice -> voice.id == call.id }?.copy(notice = notice) ?: it.voice) }
-        engine.end(); engine.awaitEnd()
-        if (voiceBinding === call) begin(call, null)
+        if (provider == null || last.phase != VoicePhase.Failed || voiceBinding !== call || call.engine !== engine) return@launch
+        handOver(call, "${provider.title} isn't available (${last.error ?: "no answer"}). Using on-device voice.") { null }
+    }
+}
+
+/** After the call settings close: a different engine picked there takes over the call, which goes on. */
+fun AppStore.switchVoiceEngine() {
+    val call = voiceBinding ?: return
+    val choices = voiceChoices()
+    // No engine: a hand-over is under way; a switch begins what is picked by the time it's done.
+    if (call.engine == null || choices.engineChoice(choices.provider, callLanguage()) == call.choice) return
+    handOver(call, null) { voiceChoices().provider }
+}
+
+/**
+ * Ends the call's engine and, once it has closed, begins `next()` in the same call, unless the call
+ * ended or got an engine meanwhile. The old engine is detached first: its end mustn't reach the
+ * call's state, which would end the call.
+ */
+private fun AppStore.handOver(call: VoiceBinding, notice: String?, next: () -> VoiceProvider?) {
+    val old = call.engine
+    countCloudMinutes(call)
+    call.engine = null
+    mutableState.update { it.copy(voice = it.voice?.takeIf { voice -> voice.id == call.id }?.copy(notice = notice) ?: it.voice) }
+    contextScope.launch {
+        old?.end(); old?.awaitEnd()
+        if (voiceBinding === call && call.engine == null) begin(call, next())
     }
 }
 
