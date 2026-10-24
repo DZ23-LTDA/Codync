@@ -45,7 +45,7 @@ export function ComputersView() {
           <ManagedComputerCard key={store.computer.id} store={store} ssh={sshState.isSSH(store.computer.id)} />
         ))}
 
-        <div>
+        <div className="settings-ssh">
           <SectionHeader title="Over SSH">
             {sshState.config?.access === 'denied' ? (
               <IconButton title="Find computers in your SSH config" icon="magnifyingglass" onClick={() => void sshState.answerConfig('allowed')} />

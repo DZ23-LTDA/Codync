@@ -18,21 +18,24 @@ export function SSHConfigSuggestions({ add }: { add: (host: string) => void }) {
 
   if (ssh.config?.access === 'ask') {
     return (
+      // The buttons line up under the text, the icon with its first line.
       <div className="settings-card settings-appear">
-        <div className="settings-row">
-          <IconSlot width={22} tone="secondary">
+        <HStack align="flex-start" gap={10}>
+          <IconSlot width={22} tone="secondary" className="ssh-config-icon">
             <Icon name="magnifyingglass" size={13} />
           </IconSlot>
-          <VStack grow className="settings-stack">
-            <Text size="callout" weight="medium">{tr('Find computers in your SSH config?')}</Text>
-            <Text size="caption" tone="secondary">
-              {tr('Codync reads ~/.ssh/config on {name} to list its hosts. Nothing is sent anywhere, and nothing connects until you add one.').replaceAll('{name}', tr(thisMac))}
-            </Text>
+          <VStack grow gap={12}>
+            <VStack className="settings-stack">
+              <Text size="callout" weight="medium">{tr('Find computers in your SSH config?')}</Text>
+              <Text size="caption" tone="secondary">
+                {tr('Codync reads ~/.ssh/config on {name} to list its hosts. Nothing is sent anywhere, and nothing connects until you add one.').replaceAll('{name}', tr(thisMac))}
+              </Text>
+            </VStack>
+            <HStack gap={8}>
+              <Button onClick={() => void ssh.answerConfig('allowed')}>Allow</Button>
+              <Button kind="secondary" onClick={() => void ssh.answerConfig('denied')}>Not now</Button>
+            </HStack>
           </VStack>
-        </div>
-        <HStack align="stretch" gap={8}>
-          <Button onClick={() => void ssh.answerConfig('allowed')}>Allow</Button>
-          <Button kind="secondary" onClick={() => void ssh.answerConfig('denied')}>Not now</Button>
         </HStack>
       </div>
     )
