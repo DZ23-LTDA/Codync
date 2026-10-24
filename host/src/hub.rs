@@ -21,6 +21,8 @@ use tokio::sync::{broadcast, watch};
 mod order;
 mod reactions;
 mod sync;
+mod validate;
+pub(crate) use validate::validate;
 
 /// What a bot is doing right now (wire values: `idle` / `working` / `needsInput` / `error`).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize)]
@@ -193,7 +195,7 @@ impl Hub {
     }
 
     /// A group is busy while one of its members works in it: that member's status and activity.
-    fn group_runtime(&self, group: &BotConfig) -> Runtime {
+    pub fn group_runtime(&self, group: &BotConfig) -> Runtime {
         let busy = {
             let runtime = self.runtime.locked();
             group.members.iter().find_map(|m| {
@@ -244,7 +246,7 @@ impl Hub {
         let row = self.store.bot(&id)?.filter(|b| !b.deleted).ok_or_else(|| anyhow!("unknown bot"))?;
         let mut merged = serde_json::to_value(&row.config)?;
         for (k, v) in patch.as_object().into_iter().flatten() {
-            if !matches!(k.as_str(), "id" | "createdAt" | "createdBy") {
+            if !matches!(k.as_str(), "id" | "createdAt" | "createdBy" | "lead") {
                 merged[k] = v.clone();
             }
         }
@@ -285,8 +287,9 @@ impl Hub {
     }
 
     pub fn delete_bot(&self, id: &str) -> Result<()> {
+        crate::chat::lead::may_delete(&self.store, id)?;
         self.routines.disable_bot(&self.store, id)?;
-        self.team.cancel_bot(id);
+        self.team.end_turn(id);
         self.groups.stop(self, id);
         let _ = self.send_cmd(id, Cmd::Shutdown);
         self.bots.locked().remove(id);
@@ -297,15 +300,17 @@ impl Hub {
             let _ =
                 self.events.send(json!({"type": "bot", "rev": rev, "bot": {"id": id, "deleted": true, "rev": rev}}));
         }
-        // Its shared files are unreachable once the bot is deleted.
-        let files = crate::chat::files::root(id);
+        // Its shared files and artifacts are unreachable once the bot is deleted.
+        let folders = [crate::chat::files::root(id), crate::chat::artifacts::root(id)];
         let bot = id.to_owned();
         tokio::task::spawn_blocking(move || {
             crate::chat::memory::files::remove_bot(&bot);
-            if let Err(error) = std::fs::remove_dir_all(&files)
-                && error.kind() != std::io::ErrorKind::NotFound
-            {
-                tracing::warn!(error = %error, "couldn't remove a deleted bot's shared files");
+            for folder in folders {
+                if let Err(error) = std::fs::remove_dir_all(&folder)
+                    && error.kind() != std::io::ErrorKind::NotFound
+                {
+                    tracing::warn!(error = %error, "couldn't remove a deleted bot's shared files or artifacts");
+                }
             }
         });
         // A deleted bot leaves its groups; what it said there stays.
@@ -345,6 +350,13 @@ impl Hub {
 
     fn bot_value(&self, id: &str) -> Option<Value> {
         self.store.bot(id).ok().flatten().map(|r| self.bot_json(&r))
+    }
+
+    /// Saves a change that stamps its own rev and broadcasts the event `save` returns, in rev order.
+    pub fn emit_change(&self, save: impl FnOnce() -> Result<Value>) -> Result<()> {
+        let _g = self.emit_lock.locked();
+        let _ = self.events.send(save()?);
+        Ok(())
     }
 
     /// Bumps the bot's rev and broadcasts its current state.
@@ -456,6 +468,20 @@ impl Hub {
         }
     }
 
+    /// Changes part of an entry and broadcasts it, reading and writing under the emission lock: an edit made
+    /// meanwhile elsewhere (a reaction from another device) isn't written over. `edit` returns `false` to leave the
+    /// entry as it is.
+    pub fn edit_entry(&self, id: &str, edit: impl FnOnce(&mut Entry) -> Result<bool>) -> Result<Entry> {
+        let _g = self.emit_lock.locked();
+        let mut e = self.store.entry(id).ok_or_else(|| anyhow!("unknown message"))?;
+        if !edit(&mut e)? {
+            return Ok(e);
+        }
+        let e = self.store.update_entry(id, &e.data)?.ok_or_else(|| anyhow!("unknown message"))?;
+        let _ = self.events.send(json!({"type": "entry", "rev": e.rev, "entry": e}));
+        Ok(e)
+    }
+
     pub fn set_usage(&self, usage: Usage) {
         let _ = self.events.send(json!({"type": "usage", "usage": usage}));
         *self.usage.locked() = usage;
@@ -481,22 +507,4 @@ impl Hub {
     pub fn phone_connected(&self) -> bool {
         self.phone_clients.load(Ordering::Relaxed) > 0
     }
-}
-
-pub(crate) fn validate(cfg: &BotConfig) -> Result<()> {
-    if cfg.name.trim().is_empty() {
-        bail!("name is required");
-    }
-    if cfg.is_group() {
-        return Ok(());
-    }
-    if !cfg.cwd.is_empty() && !std::path::Path::new(&cfg.cwd).is_dir() {
-        bail!("workspace folder does not exist: {}", cfg.cwd);
-    }
-    if cfg.command.as_deref().map(str::trim).unwrap_or_default().is_empty()
-        && !crate::agent::backends::is_known(&cfg.backend)
-    {
-        bail!("unknown backend {}", cfg.backend);
-    }
-    crate::agent::fallback::check(cfg)
 }

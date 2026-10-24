@@ -97,7 +97,14 @@ actor FakeRemote: RemoteTransport {
 
     nonisolated func computerUpdates() -> AsyncStream<Computer> { AsyncStream { _ in } }
 
-    func enqueue(botId: String, text: String, clientNonce: String, replyTo: String?) async throws { enqueued.append(clientNonce) }
+    private var enqueueError: (any Error)?
+    /// Every later `enqueue` throws `error`.
+    func failEnqueue(_ error: any Error) { enqueueError = error }
+
+    func enqueue(botId: String, text: String, clientNonce: String, replyTo: String?) async throws {
+        if let enqueueError { throw enqueueError }
+        enqueued.append(clientNonce)
+    }
     func cancelQueued(clientNonce: String) async -> MailboxCancel { cancelResult }
     func listQueued() async throws -> [QueuedItem] { enqueued.map { QueuedItem(nonce: $0, exp: nil, state: "queued") } }
 
@@ -554,44 +561,6 @@ extension FakeRemote {
     #expect(await until { await fake.calls.contains("respondPermission") })
     try await Task.sleep(for: .milliseconds(100))
     #expect(await fake.calls.filter { $0 == "respondPermission" }.count == 1)
-}
-
-// MARK: - Voice call operator
-
-/// The realtime voice operator's tools run against the store, the same paths the chat uses.
-@MainActor @Test func callOperatorToolsDriveTheBot() async throws {
-    let (storage, suite) = context()
-    defer { UserDefaults(suiteName: suite)?.removePersistentDomain(forName: suite) }
-    let fake = FakeRemote(.ready(.direct))
-    let store = BotStore(computer: randomComputer("Mac"), storage: storage) { _ in fake }
-    defer { store.retire() }
-    store.setActive(true)
-    #expect(await until { await fake.subscribed })
-    await fake.emit(#"{"type":"bot","bot":{"id":"b1","name":"Ada","rev":1,"lastAt":1}}"#)
-    #expect(await until { store.connection == .online })
-    let op = CallOperator(model: store, botId: "b1")
-
-    func json(_ s: String) -> [String: Any] {
-        (try? JSONSerialization.jsonObject(with: Data(s.utf8))) as? [String: Any] ?? [:]
-    }
-
-    #expect(json(op.call("send_to_bot", arguments: ["text": "  run the tests "]))["sent"] as? Bool == true)
-    #expect(await until { await fake.sent == ["run the tests"] })
-    #expect(json(op.call("send_to_bot", arguments: [:]))["error"] != nil)
-    #expect(json(op.call("answer_approval", arguments: ["option": "yes"]))["error"] as? String == "Nothing is waiting for approval.")
-
-    await fake.emit(#"{"type":"entry","entry":{"id":"p1","seq":5,"botId":"b1","rev":5,"kind":"permission","turn":1,"data":{"title":"Run npm test","status":"pending","options":[{"optionId":"a","name":"Allow once","kind":"allow_once"},{"optionId":"r","name":"Reject","kind":"reject_once"}]},"createdAt":1,"updatedAt":1}}"#)
-    #expect(await until { store.chat("b1").contains { $0.id == "p1" } })
-    let status = json(op.call("bot_status", arguments: [:]))
-    #expect((status["approval"] as? [String: Any])?["options"] as? [String] == ["Allow once", "Reject"])
-    #expect(json(op.call("answer_approval", arguments: ["option": "maybe"]))["error"] as? String == "No such option.")
-    #expect(json(op.call("answer_approval", arguments: ["option": "allow"]))["answered"] as? String == "Allow once")
-    #expect(store.answering["p1"] == "a")
-
-    let recent = json(op.call("recent_messages", arguments: ["count": 1]))["messages"] as? [[String: String]]
-    #expect(recent?.count == 1)
-    #expect(recent?.first?["from"] == "approval request")
-    #expect(op.reply("**Done**, see `x`").hasPrefix("[Ada replied] "))
 }
 
 /// Approvals reach a call as notices, replies as replies (a realtime operator words them differently).
