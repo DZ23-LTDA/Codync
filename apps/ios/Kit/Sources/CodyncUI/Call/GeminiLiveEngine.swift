@@ -258,7 +258,6 @@ final class GeminiLiveEngine: VoiceEngine {
         try session.setActive(true)
         try engine.inputNode.setVoiceProcessingEnabled(true)
         engine.attach(player)
-        engine.connect(player, to: engine.mainMixerNode, format: Self.playFormat)
         // The engine stops itself when it reconfigures (voice processing settling right after the start,
         // a route change such as AirPods); without a restart the microphone goes quiet.
         configObserver = NotificationCenter.default.addObserver(forName: .AVAudioEngineConfigurationChange, object: engine,
@@ -271,8 +270,9 @@ final class GeminiLiveEngine: VoiceEngine {
 
     /// Wires the speaker and taps the microphone for the current hardware, then starts the engine.
     private func runAudio() throws {
-        // Left implicit, the speaker connection predates voice processing: the engine reconfigures
-        // itself right after starting and stops, and once restarted it still plays nothing.
+        // Wired again on every start: after the engine reconfigures, the old connections stay in place but
+        // play nothing, so the player never finishes its buffers and replies wait forever (#214).
+        engine.connect(player, to: engine.mainMixerNode, format: Self.playFormat)
         engine.connect(engine.mainMixerNode, to: engine.outputNode, format: nil)
         let input = engine.inputNode
         input.removeTap(onBus: 0)
@@ -318,7 +318,7 @@ final class GeminiLiveEngine: VoiceEngine {
         level = 0
         phase = .speaking
         let generation = playGeneration
-        player.scheduleBuffer(buffer, completionCallbackType: .dataPlayedBack) { [weak self] _ in
+        player.scheduleBuffer(buffer, completionCallbackType: .dataRendered) { [weak self] _ in
             Task { @MainActor in self?.played(generation) }
         }
     }

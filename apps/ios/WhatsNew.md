@@ -21,7 +21,7 @@ a version without one gets a generic "Bug fixes and improvements" line. Delete o
 - 新增「Open Live Mode」捷徑，選擇 Bot 後直接開啟語音聊天。
 - 新增「Send Text to Bot」捷徑，可選擇 Bot 並傳送文字；預設在背景傳送，也可開啟「Open Chat」顯示對話。
 - 點對話上方的 Bot 會打開它的詳情、資料庫、記憶與設定；「新會話」改到 Bot 列表的長按選單。
-- 用 Gemini 即時語音通話時，Gemini 聽得到你說話並會回答；先前通話可能一直沒有聲音、也沒有回應。
+- 用 Gemini 即時語音通話時，Gemini 聽得到你說話並會回答，也會念出 Bot 的回覆；先前通話可能一直沒有聲音、也沒有回應。
 
 ### en-US
 - Bots can make artifacts: reports, trackers and dashboards you come back to show as a card in the chat. Open one full screen and message the bot below it to change it; it updates in place.
@@ -36,7 +36,7 @@ a version without one gets a generic "Bug fixes and improvements" line. Delete o
 - Use Open Live Mode in Shortcuts to choose a bot and start voice chat.
 - Use Send Text to Bot to choose a bot and send text in the background by default, or enable Open Chat to show the conversation.
 - Tapping the bot at the top of its chat opens its Details, Library, Memory and Settings; New session moved to the bot's touch-and-hold menu in the list.
-- Gemini realtime voice calls hear you and answer; before, a call could stay silent with no reply.
+- Gemini realtime voice calls hear you, answer and read the bot's replies aloud; before, a call could stay silent with no reply.
 
 ## 2.24.0
 
