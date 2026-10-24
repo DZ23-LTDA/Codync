@@ -260,24 +260,31 @@ struct NoticeRow: View {
     }
 }
 
-/// The bot's current activity and elapsed time; a tap unfolds the turn's steps.
+/// The bot's current activity and elapsed time; with thinking details on (Settings), a tap unfolds the turn's steps.
 struct WorkingIndicator: View {
     let bot: Bot
     let steps: [Entry]
-    @State private var open = false
+    @AppStorage(ThinkingDetails.storageKey) private var details = false
+    @State private var expanded = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    private var open: Bool { details && expanded }
 
     var body: some View {
         let shape = RoundedRectangle(cornerRadius: 18, style: .continuous)
         VStack(alignment: .leading, spacing: 0) {
-            Button {
-                withAnimation(Motion.reduced(Motion.layout, reduceMotion)) { open.toggle() }
-            } label: {
-                status.contentShape(Rectangle())
+            if details {
+                Button {
+                    withAnimation(Motion.reduced(Motion.layout, reduceMotion)) { expanded.toggle() }
+                } label: {
+                    status.contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityHint(L10n.tr(open ? "Hide steps" : "Show steps"))
+                .accessibilityValue(open ? "Expanded" : "Collapsed")
+            } else {
+                status
             }
-            .buttonStyle(.plain)
-            .accessibilityHint(L10n.tr(open ? "Hide steps" : "Show steps"))
-            .accessibilityValue(open ? "Expanded" : "Collapsed")
             if open {
                 WorkingSteps(steps: steps)
                     .padding(.top, 12)
@@ -307,10 +314,12 @@ struct WorkingIndicator: View {
                     .font(.footnote.monospacedDigit())
                     .foregroundStyle(Palette.tertiary)
             }
-            Image(systemName: "chevron.right")
-                .font(.caption2.weight(.semibold))
-                .foregroundStyle(Palette.tertiary)
-                .rotationEffect(.degrees(open ? 90 : 0))
+            if details {
+                Image(systemName: "chevron.right")
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(Palette.tertiary)
+                    .rotationEffect(.degrees(open ? 90 : 0))
+            }
         }
     }
 }

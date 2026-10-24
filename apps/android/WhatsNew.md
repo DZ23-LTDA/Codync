@@ -16,7 +16,7 @@ else a generic "Bug fixes and improvements" line. Delete old sections.
 - Bot 之間交辦工作不必等待，對方的回覆會回到發問的 Bot，再由它回覆你。
 - 帳號選單裡的「電腦與設定」和它打開的頁面同名。
 - 新增聯結器失敗後再試一次，會使用你改好的金鑰。
-- Bot 工作中點一下狀態膠囊，就能在對話裡展開這一輪的思考、工具與 MCP 呼叫，太長時在膠囊內捲動。
+- 在設定開啟「顯示思考細節」後，點一下工作中 Bot 的狀態膠囊，就能展開這一輪的思考與步驟。
 - 點對話上方的 Bot 會打開它的詳情、資料庫與設定；「新會話」改到 Bot 列表的長按選單。
 
 ### en-US
@@ -26,5 +26,5 @@ else a generic "Bug fixes and improvements" line. Delete old sections.
 - Bots hand work to each other without waiting.
 - Computers & settings now matches the page it opens.
 - Retrying a failed connector uses the corrected key.
-- Tap a working bot's status pill to see this turn's steps.
+- Settings › Show thinking details unfolds a bot's steps.
 - Tap a chat's title for the bot's details; New session moved to the list's touch & hold menu.

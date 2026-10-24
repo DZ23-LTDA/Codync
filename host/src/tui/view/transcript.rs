@@ -86,7 +86,7 @@ pub(super) fn build_chat(app: &App, b: &Bot, width: usize) -> Built {
     // A turn in flight: who's on it and what they're doing.
     // A message doesn't end the turn: the bot may send several.
     if app.shows_activity(b) {
-        super::activity::activity(&mut out, app, b, &entries, width);
+        super::activity::activity(&mut out, app, b, &entries, width, super::super::details::enabled());
     } else if let Some(group) = b.away().filter(|_| b.busy()) {
         // Busy in a group it's in.
         let place = app.author_name(Some(group));
