@@ -65,6 +65,10 @@ pub enum Cmd {
     Reconfigure(Box<BotConfig>),
     /// The user wants the bot's own agent again (`switchBack`).
     SwitchBack,
+    /// A voice call ended (`chat::calls`): its replies show in the chat again, and dreaming reads it.
+    CallEnded {
+        call: String,
+    },
     Shutdown,
 }
 

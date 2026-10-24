@@ -195,7 +195,7 @@ impl Hub {
     }
 
     /// A group is busy while one of its members works in it: that member's status and activity.
-    fn group_runtime(&self, group: &BotConfig) -> Runtime {
+    pub fn group_runtime(&self, group: &BotConfig) -> Runtime {
         let busy = {
             let runtime = self.runtime.locked();
             group.members.iter().find_map(|m| {

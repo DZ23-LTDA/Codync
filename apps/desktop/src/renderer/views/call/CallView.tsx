@@ -13,7 +13,7 @@ import { useStore } from '../../store/context'
 import { VoiceChatSettingsView } from '../settings/VoiceChatSettingsView'
 import { voiceStatus } from '../settings/voice-settings'
 import { stopDictation } from '../thread/dictation'
-import { CallOperator } from './call-operator'
+import { CallLink } from './call-link'
 import { CloudSpeechEngine } from './CloudSpeechEngine'
 import { GeminiLiveEngine } from './GeminiLiveEngine'
 import { OnDeviceEngine } from './OnDeviceEngine'
@@ -30,8 +30,9 @@ export const OpenVoiceSettings = createContext<(() => void) | null>(null)
 
 /**
  * A voice call with a bot, as Grok Bot does it: a floating bar over the chat, which stays
- * readable underneath. What you say goes out as ordinary messages, its final replies are read
- * aloud, and the chat gets a "Voice chat · 00:16" line when the call ends.
+ * readable underneath. The computer runs the call (`CallLink`): what you say reaches the bot as
+ * the call's messages, its final replies are read aloud, and the call ends as one titled line
+ * ("Release plan · 00:16") that opens its conversation.
  */
 export function CallView({ botId, onSpeaking, interrupt, onEnd }: {
   botId: string
@@ -59,17 +60,15 @@ export function CallView({ botId, onSpeaking, interrupt, onEnd }: {
   const counted = useRef(false)
   const bot = store.bots.get(botId)
   const color = bot ? avatarColor(bot.avatarColor) : null
+  /** The call on the computer, which runs it. */
+  const link = useRef<CallLink | null>(null)
+  link.current ??= new CallLink(store, botId, crypto.randomUUID())
 
   const countCloudMinutes = () => {
     const provider = engine.current?.provider
     if (!provider || cloudStartedAt.current === null) return
     countVoiceUsage((Date.now() - cloudStartedAt.current) / 1000, provider)
     cloudStartedAt.current = null
-  }
-
-  const credential = (provider: VoiceProvider, model: string, voice: string) => async () => {
-    const client = await store.ready()
-    return (await client.call<{ credential: string }>('voiceSession', { provider, model, voice }, 30_000)).credential
   }
 
   /** Starts the engine: a realtime provider on the key kept by the computer, or on-device speech. */
@@ -79,8 +78,8 @@ export function CallView({ botId, onSpeaking, interrupt, onEnd }: {
     stopDictation()
     engineChoice.current = VoiceSettings.engineChoice(provider)
     if (!provider && !onDeviceAvailable()) return void fallbackFromDevice()
-    const op = new CallOperator(store, botId)
-    const send = (text: string) => store.send(text, botId)
+    const call = link.current!
+    const send = (text: string) => store.send(text, botId, { call: call.call })
     let next: VoiceEngine
     if (provider && VoiceSettings.isSpeechMode(provider)) {
       const transcribe = VoiceSettings.transcribeModel(provider)
@@ -95,6 +94,8 @@ export function CallView({ botId, onSpeaking, interrupt, onEnd }: {
         },
         send,
       })
+      // The computer keeps the call, though it carries no voice model.
+      void call.start('speech', provider).catch(() => {})
       cloudStartedAt.current = Date.now()
       engineName.current = 'cloud'
     } else if (provider) {
@@ -102,12 +103,13 @@ export function CallView({ botId, onSpeaking, interrupt, onEnd }: {
       const voice = VoiceSettings.voice(provider)
       next =
         provider === 'openai'
-          ? new OpenAIRealtimeEngine(credential(provider, model, voice), op)
-          : new GeminiLiveEngine(model, voice, credential(provider, model, voice), op)
+          ? new OpenAIRealtimeEngine(model, voice, call)
+          : new GeminiLiveEngine(model, voice, call)
       cloudStartedAt.current = Date.now()
       engineName.current = provider
     } else {
       next = new OnDeviceEngine(send)
+      void call.start('device').catch(() => {})
       engineName.current = 'on_device'
     }
     // Picks up the computer's newest models for the next call; this one starts right away.
@@ -170,6 +172,7 @@ export function CallView({ botId, onSpeaking, interrupt, onEnd }: {
   useEffect(() => {
     const startedAt = Date.now()
     window.codync.speech.setCalling(true)
+    store.beginCall(link.current!.call)
     begin(VoiceSettings.provider())
     return () => {
       window.codync.speech.setCalling(false)
@@ -178,7 +181,7 @@ export function CallView({ botId, onSpeaking, interrupt, onEnd }: {
       countCloudMinutes()
       onSpeaking(false)
       interrupt.current = null
-      store.logCall(botId, Math.floor((Date.now() - startedAt) / 1000))
+      link.current?.end(Math.floor((Date.now() - startedAt) / 1000))
     }
   }, [])
   useEffect(() => voiceSettingsClosed.subscribe(switchEngine), [])

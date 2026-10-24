@@ -233,6 +233,9 @@ impl App {
     /// A chat's entries, in display order.
     pub fn lane(&self, bot: &str) -> Vec<&Entry> {
         let mut v: Vec<&Entry> = self.entries.get(bot).map(|m| m.values().collect()).unwrap_or_default();
+        // What a finished voice call carried shows behind its line (`o`).
+        let ended: HashSet<&str> = v.iter().filter(|e| e.kind == Kind::Notice).filter_map(|e| e.call()).collect();
+        v.retain(|e| e.kind == Kind::Notice || e.call().is_none_or(|c| !ended.contains(c)));
         // A message sent mid-turn belongs after that turn's reply.
         v.sort_by_key(|e| (e.turn, e.seq));
         v

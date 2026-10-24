@@ -10,8 +10,9 @@ import kotlinx.coroutines.flow.*
 import kotlinx.serialization.json.*
 import okhttp3.OkHttpClient
 
-// A voice call with one bot: what you say is sent, its replies are read aloud. The engine is the one
-// picked in the call settings; a cloud engine that can't start or drops mid-call hands over to on-device voice.
+// A voice call with one bot, run by the computer (`HostCallLink`): what you say reaches the bot as the call's
+// messages, its replies are read aloud, and the call ends as one titled line. The engine is the one picked in the
+// call settings; a cloud engine that can't start or drops mid-call hands over to on-device voice.
 
 /** The call in progress: its engine (replaced on a fallback), start times and which replies it has read. */
 internal class VoiceBinding(val id: String, val botId: String, val generation: Int, val startedAt: Long, val replies: VoiceReplyGate) {
@@ -26,6 +27,8 @@ internal class VoiceBinding(val id: String, val botId: String, val generation: I
     val state = MutableStateFlow(VoiceState())
     /** `voice_call_started` (and `callStarted`) went out: once per call, with the engine that got it going. */
     var reported = false
+    /** The call on the computer. */
+    var link: HostCallLink? = null
 }
 
 private val voiceHttp by lazy { OkHttpClient() }
@@ -67,12 +70,7 @@ private fun AppStore.begin(call: VoiceBinding, provider: VoiceProvider?) {
     call.choice = choices.engineChoice(provider, callLanguage())
     // A muted call stays muted on the engine that takes over (what the call last showed).
     val muted = call.state.value.muted
-    val operator = CallOperator(call.botId, object : CallTarget {
-        override val bots get() = state.value.bots
-        override val entries get() = state.value.entries
-        override fun send(text: String) = sendFromCall(call, text)
-        override fun respond(entry: Entry, optionId: String) = this@begin.respond(entry, optionId)
-    })
+    val link = call.link(this)
     call.recording = { null }
     val kind = when {
         provider == null -> VoiceEngineKind.OnDevice
@@ -83,14 +81,15 @@ private fun AppStore.begin(call: VoiceBinding, provider: VoiceProvider?) {
     val engine: VoiceEngine = if (provider == null) {
         val audio = LocalVoiceAudio(getApplication(), VoicePreferences.language(getApplication()))
         call.recording = { audio.recordingSessionId }
+        startCallOnHost(call, "device", null)
         VoiceSession(contextScope, audio, settings) { sendFromCall(call, it) }
     } else {
         val voice = choices.voice(provider)
         val model = choices.model(provider, VoiceChoices.Model.Realtime)
-        val credential: suspend () -> String = { voiceSession(provider, model, voice) }
         fun mic() = AndroidMic(getApplication()).also { mic -> call.recording = { mic.recordingSessionId } }
         when {
             choices.speechMode(provider) -> {
+                startCallOnHost(call, "speech", provider)
                 val transcribe = choices.model(provider, VoiceChoices.Model.Transcribe)
                 val speech = choices.model(provider, VoiceChoices.Model.Speech)
                 CloudSpeechEngine(contextScope, provider, settings, mic(), AndroidClipPlayer, CloudSpeechEngine.Speech(
@@ -99,10 +98,11 @@ private fun AppStore.begin(call: VoiceBinding, provider: VoiceProvider?) {
                     send = { sendFromCall(call, it) }))
             }
             // WebRTC records the microphone itself.
-            provider == VoiceProvider.OpenAI -> OpenAIRealtimeEngine(contextScope, settings, credential, operator, WebRtcPeer(getApplication())) { secret, offer ->
+            provider == VoiceProvider.OpenAI -> OpenAIRealtimeEngine(contextScope, settings, model, voice,
+                choices.model(provider, VoiceChoices.Model.Transcribe), link, WebRtcPeer(getApplication())) { secret, offer ->
                 OpenAIRealtimeEngine.answer(voiceHttp, secret, offer)
             }
-            else -> GeminiLiveEngine(contextScope, settings, model, voice, credential, operator, mic(), AndroidPcmPlayer(), voiceHttp)
+            else -> GeminiLiveEngine(contextScope, settings, model, voice, link, mic(), AndroidPcmPlayer(), voiceHttp)
         }
     }
     call.engine = engine
@@ -170,10 +170,10 @@ private fun AppStore.countCloudMinutes(call: VoiceBinding) {
     voiceChoices().addUsage(provider, (SystemClock.elapsedRealtime() - since) / 1_000)
 }
 
-/** What you said goes out as an ordinary message, unless the call has moved on. */
+/** What you said goes out as the call's message, unless the call has moved on. */
 private fun AppStore.sendFromCall(call: VoiceBinding, text: String) {
     if (state.value.generation != call.generation || state.value.voice?.id != call.id || state.value.loading) return
-    val send = PendingSend(UUID.randomUUID().toString(), call.botId, text, System.currentTimeMillis())
+    val send = PendingSend(UUID.randomUUID().toString(), call.botId, text, System.currentTimeMillis(), call = call.id)
     action("save:" + send.nonce) { savePending(send); deliver(send) }
 }
 
@@ -201,12 +201,11 @@ internal fun AppStore.finishVoice(id: String, error: String? = null) {
     contextScope.launch {
         try {
             engine?.awaitEnd()
-            if (call != null && state.value.generation == call.generation && channel?.state?.value is LinkState.Ready) {
-                val seconds = ((SystemClock.elapsedRealtime() - call.startedAt) / 1_000).coerceAtLeast(0)
-                withTimeoutOrNull(3_000) { hostQuery("logCall", buildJsonObject { put("botId", call.botId); put("seconds", seconds) }, 3_000, call.generation) }
+            if (call != null && state.value.generation == call.generation) {
+                call.link?.end(((SystemClock.elapsedRealtime() - call.startedAt) / 1_000).coerceAtLeast(0))
             }
         } catch (cancelled: CancellationException) { throw cancelled }
-        catch (_: Exception) { /* Duration is best effort; an uncertain log is never retried. */ }
+        catch (_: Exception) { /* The call's line is best effort once the link is gone. */ }
         finally { if (!transportRequired) { connectionJob?.cancel(); graceJob?.cancel(); channel?.close() } }
     }
 }
@@ -251,7 +250,7 @@ internal suspend fun AppStore.voiceStatus(): VoiceStatus = WireJson.decodeFromJs
 internal suspend fun AppStore.voiceModels(provider: VoiceProvider): VoiceModels =
     WireJson.decodeFromJsonElement(hostCall("voiceModels", body("provider" to provider.id), 30_000))
 
-/** A short-lived credential for one call's audio session. */
+/** A short-lived credential, which checks a key in the call settings. */
 internal suspend fun AppStore.voiceSession(provider: VoiceProvider, model: String, voice: String): String =
     hostCall("voiceSession", body("provider" to provider.id, "model" to model, "voice" to voice), 30_000).jsonObject["credential"]
         ?.jsonPrimitive?.contentOrNull ?: throw IOException("${provider.title} didn't start the call.")

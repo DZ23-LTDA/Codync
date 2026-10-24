@@ -81,7 +81,7 @@ host answers and sends it once the host is up.
 | `routine_run` | host | `runRoutine` | — |
 | `routine_retried` | host | `retryRoutineRun` (the retry button on a failed run's notice) | — |
 | `voice_call_started` | host `track` (desktop), iOS, Android | A voice call starts, with the engine it really uses after any fallback | `engine` (`on_device`; `openai`/`gemini` realtime; `cloud`: cloud speech to text and back) |
-| `voice_call_finished` | host | `logCall` | `seconds` |
+| `voice_call_finished` | host | `endCall` (older apps `logCall`) | `seconds` |
 | `remote_screen_opened` | host | `screenPrepare` (each connection, reconnects included) | — |
 | `screen_taken_over` | host | `screenTakeover` (taking control, not handing it back) | — |
 | `connector_installed` | host | `installConnector`; a Composio app once its connection is `active` | `connector` (catalog name, `composio` or `custom`) |

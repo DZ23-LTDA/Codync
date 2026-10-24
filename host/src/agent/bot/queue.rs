@@ -58,6 +58,12 @@ impl Actor {
                 let _ = self.dreamer.send(memory::DreamEvent::Flush);
             }
             Cmd::SwitchBack => self.switch_back().await,
+            Cmd::CallEnded { call } => {
+                if self.turn_call.as_ref() == Some(&call) {
+                    self.turn_call = None;
+                }
+                let _ = self.dreamer.send(memory::DreamEvent::Flush);
+            }
             Cmd::Reconfigure(base) => {
                 let old = std::mem::replace(&mut self.base, *base);
                 // On its own agent the bot takes the new one; on a fallback it keeps that agent (its step may have

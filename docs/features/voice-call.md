@@ -2,8 +2,9 @@
 
 A hands-free call with one bot or group from the iPhone, Android or desktop chat (the waveform button in an empty composer).
 On Linux the desktop app offers only the cloud engines (on-device speech is macOS only). The terminal
-UI has no calls (no audio stack); it shows the "Voice chat · 00:16" notice like every client.
-The bot is the same agent on the computer; the call only changes how you talk to it.
+UI has no calls (no audio stack); it shows a call's line like every client and `o` unfolds its conversation.
+The bot is the same agent on the computer; the call only changes how you talk to it. The host runs every call
+([the call on the host](#the-call-on-the-host)); the clients only carry audio.
 On iOS, [Open Live Mode in Shortcuts](ios-shortcuts.md) can select a bot and start this call directly (no bot: the lead).
 Every other bot waits for you to speak; the [lead bot](lead-bot.md) speaks first: once a call's audio is live the
 apps send `callStarted {botId}` (once per call, only to a lead), and the host has a lead with no turn under way open
@@ -12,7 +13,7 @@ with a sentence or two, read aloud like any reply.
 ## On-device voice
 
 - `apps/ios/Kit/Sources/CodyncUI/Call/` (iPhone) and `apps/desktop/src/renderer/views/call/` (desktop): `CallView` (the call bar) over a `VoiceEngine`; `OnDeviceEngine` is the default audio loop. On the Mac the desktop app runs speech recognition in `codync-speech` (`apps/desktop/native/speech-macos/`, driven by `apps/desktop/src/main/speech.ts`).
-- Android: `CallBar` (`apps/android/app/.../VoiceControls.kt`) over the same `VoiceEngine` set, ported into `apps/android/core` (`VoiceEngine.kt`, `CloudSpeechEngine.kt`, `GeminiLiveEngine.kt`, `OpenAIRealtimeEngine.kt`, `CallOperator.kt`) with the phone's audio in the app (`VoiceAudioPorts.kt`, `WebRtcPeer.kt`). On device is `VoiceSession` (`LocalVoiceAudio.kt`): the call's language (Voice chat settings → Language, the phone's by default) is heard by Android's on-device recognizer on Android 13+, fed the call's own microphone (`PlatformSpeech.kt`; Android asks before downloading a language), with the bundled Vosk model for English where Android has none; each reply is read by an installed offline voice for the language it's written in, and a reply with no installed voice stays in chat with a notice; `VoiceService` (a microphone foreground service) holds audio focus and the Bluetooth/wired route for the call. Settings keys match the iPhone's (`callEngine`, `callMode.<provider>`, …).
+- Android: `CallBar` (`apps/android/app/.../VoiceControls.kt`) over the same `VoiceEngine` set, ported into `apps/android/core` (`VoiceEngine.kt`, `CloudSpeechEngine.kt`, `GeminiLiveEngine.kt`, `OpenAIRealtimeEngine.kt`, `Calls.kt`) with the phone's audio in the app (`VoiceAudioPorts.kt`, `WebRtcPeer.kt`). On device is `VoiceSession` (`LocalVoiceAudio.kt`): the call's language (Voice chat settings → Language, the phone's by default) is heard by Android's on-device recognizer on Android 13+, fed the call's own microphone (`PlatformSpeech.kt`; Android asks before downloading a language), with the bundled Vosk model for English where Android has none; each reply is read by an installed offline voice for the language it's written in, and a reply with no installed voice stays in chat with a notice; `VoiceService` (a microphone foreground service) holds audio focus and the Bluetooth/wired route for the call. Settings keys match the iPhone's (`callEngine`, `callMode.<provider>`, …).
 - UI follows Grok Bot: a floating capsule over the top of the chat (`ThreadView` overlay), and the
   chat stays readable and usable underneath. Left to right: the bot's avatar (pulses while
   speaking; tap it to interrupt), a dotted level line (your voice while listening, a ripple while
@@ -29,15 +30,14 @@ with a sentence or two, read aloud like any reply.
 - Speech → text with `SFSpeechRecognizer` (on-device when the language supports it) in the language
   picked under Voice chat → Language (`callLanguage`; empty follows the system's first language,
   which is often English on bilingual setups). A pause ends an
-  utterance and sends it as an ordinary message (`BotStore.send`), so it takes the normal path:
-  queued while the bot works, folded into its next turn. What you said appears in the chat as your
-  message; the bot's reply appears as its message.
+  utterance and sends it as the call's message (`BotStore.send` with the call's id), so it takes the normal
+  path: queued while the bot works, folded into its next turn. It and the bot's replies show in the call's
+  conversation, not in the chat (below).
 - Each new final reply (`data.final`) is read aloud with `AVSpeechSynthesizer` in the reply's own
   language; markdown and code blocks are dropped (`SpokenText`). The mic pauses while it speaks.
   An approval request is announced, answered in the chat.
 - Gear: voice engine (below), and for On device the pause length before sending (1 / 1.5 / 2.5 s) and reading speed; kept on the phone.
-- Ending the call calls `logCall {botId, seconds}`; the host adds a notice (`callSeconds`) that
-  every client shows as "Voice chat · 00:16".
+- Ending the call calls `endCall` (older apps `logCall`); the call's line is described below.
 - The host receives recognized text; the Cloudflare transport sees encrypted channel frames.
   Codync does not forward microphone audio to the host. Speech recognition may use Apple services
   when on-device recognition is unavailable. `UIBackgroundModes: audio` permits
@@ -238,16 +238,66 @@ shows the provider's name next to the dots whenever audio leaves the device.
 - Audio is not proxied through the host: it would cross the encrypted channel and the relay
   (latency, relay bandwidth). The device streams to the provider directly.
 
-### How the call works
+### The call on the host
 
-The realtime model is an operator in front of the bot, not a replacement for it (`CallOperator`):
+Every call, whatever its engine, is run by the host (`host/src/chat/calls/`, stage 1 of
+[host-owned voice](../plans/voice-architecture.md)); the clients' `CallLink` (iPhone, desktop, Android) only
+carries audio and talks to these methods:
 
-- Session instructions: who the bot is (name, description), that coding is done by the bot, reply
-  in the user's language, keep spoken answers short.
-- Tools the client implements against `BotStore`: `send_to_bot(text)` (an ordinary message, same path
-  as on-device calls), `bot_status()` (status, activity line, pending approval and its options),
-  `recent_messages(count)` (chat-visible entries only), `answer_approval(option)` (only after the
-  user said which; matched by option name).
+- **`startCall`** `{botId, callId, mode: realtime | speech | device, provider?, model?, voice?, language?}` keeps the
+  call (in `kv`, so a host restart loses nothing) and returns `{credential?, instructions, tools}`: a realtime
+  provider's short-lived credential, the voice's instructions and its tools. Called again with the same id when a
+  provider session is resumed or replaced (Gemini's `goAway`, a new OpenAI session), so the background is fresh;
+  the transcript so far stays. On-device and speech-to-text calls start one too (no credential, no voice model).
+- **The instructions** (`calls::context`) put the voice's role first: it is the relay for the bot (or group, with
+  its members), the switchboard operator, not the bot; it passes the user's requests on with `send_to_bot`, tells
+  the user what the bot says and asks for what's missing; it speaks of the bot in the third person and never claims
+  it did or saw something; anything about code, files, the computer or the project goes to the bot even when it
+  thinks it knows. Then the background, as named sections that say where they came from, each capped (about 16k
+  characters in all on Gemini, six tenths of that on OpenAI), empty ones left out: now (the computer's date, time,
+  weekday and offset; the phone's language), about the user (the shared `MEMORY.md` and its notes' names and
+  descriptions, when the bot uses it), this bot (name, description, harness and model, folder and project,
+  permission mode, connectors, skills, computer use, routines; a group's members), what the bot remembers (its
+  `MEMORY.md` and notes index), the project now (git branch, changed files, the last three commits; outside a
+  repository, or without the command line tools on macOS, nothing), current work (status, activity, a pending
+  approval and its options, queued messages, the last failure), the conversation (the last 20 chat messages in
+  spoken form and the titles and gist of the last three calls), the other bots on this computer, and files and
+  artifacts shared in the chat. **All of it goes to the voice provider, on the user's own key.**
+- **`callTool`** `{callId, name, arguments, lines}` → `{result}` runs the voice's tool calls on the host
+  (`calls::tools`): `send_to_bot(text)`, `bot_status()` (a group's: its busy member's), `recent_messages(count)`,
+  `answer_approval(option)` (only after the user said which; matched by option name or id), `stop_bot()`,
+  `search_memory(query)`. A failure is the tool's answer. The engines hold replies while a tool runs, so the model
+  gets each result first.
+- **The user's own words:** `send_to_bot` attaches what the user said since the bot last heard from the call, word
+  for word from the transcript ("[The user's own words on the call: «…»]"), so the bot sees both, and the message
+  is marked `from: voice`: the voice may rephrase or translate, so memory never quotes it.
+- **`callLines`** `{callId, lines: [{from: user | voice, text, at}]}` appends the transcript as it is spoken, turn
+  by turn: Gemini's `inputAudioTranscription` / `outputAudioTranscription`, OpenAI's input transcription and
+  `response.output_audio_transcript.done`. The iPhone and Android turn Chinese into the reader's script first
+  (Gemini answers in Simplified for a Traditional speaker); the desktop can't (no ICU transform in Chromium).
+- **In order** (`CallLink` in each client): `callLines`, `callTool` and `endCall` leave one at a time, and
+  `callTool` and `endCall` carry the lines not sent yet (`lines`, a line still being said included), so a hand-off
+  always has the words it hands on. Lines a request didn't deliver go with the next one. OpenAI writes the user's
+  words down after their turn: a tool call waits up to 2 s for them (`input_audio_buffer.committed` until the
+  transcription arrives or fails).
+- **Hidden in the chat:** everything a call sends the bot carries the call's id (`data.call`), and so do the bot's
+  replies in those turns while the call lasts, a group's members' included (a turn that also answers a typed
+  message stays visible, and a reply after the call ends shows). Every client leaves them out of the chat once the
+  call's line is there, or while this device is on the call (`hidingCalls`); a message that failed to send stays,
+  with Resend. The roster's preview and unread count skip them too. The bot gets them as usual.
+- **`endCall`** `{botId, callId, seconds, lines}` adds the last lines and writes the call's line: a notice with
+  `call`, `callSeconds` and the `transcript`. A call ends once (`call.ended.<id>` in `kv`), so the apps retry it
+  across a reconnect; an ended call can't start again. The call's actors (a group's members) hear `CallEnded`. A one-shot of the bot's harness (`chat::oneshot`) titles it from the conversation, in the user's
+  language, into the notice's `text` ("Voice chat" until then, or when there's nothing to sum up); older apps
+  show the title too. The line shows a waveform, the title and the length; tapping it opens the conversation
+  (iPhone and Android sheets, the desktop `Sheet`, `o` in the terminal): the user's lines, the voice's lines, what
+  it relayed and the bot's messages, in order. `logCall` stays for older apps.
+- **Memory:** dreaming reads the call's line: the user's spoken lines are their own words, the voice's lines and
+  its relayed messages context only, and a call's spoken lines count toward the dream trigger; the call's end
+  asks for a run soon.
+
+### How the voice talks
+
 - Each new final reply is added to the realtime conversation as `[<bot> replied] …` and an approval
   as `[Notice] …` (`BotStore` hands them over as `speak` / `announce`); the model says them,
   shortened for speech. They wait while the model is talking, so they don't cut it off.
@@ -262,8 +312,6 @@ The realtime model is an operator in front of the bot, not a replacement for it 
   speaker again each time: the engine stops itself then, and without both the microphone stays quiet, or the
   player never finishes its buffers so the phase stays "speaking" and the bot's replies are never said.
   A reply counts as played once its buffers are rendered (`.dataRendered`).
-- The chat stays the record: only `send_to_bot` messages and the bot's replies are entries. The
-  operator's small talk isn't saved; the call still ends with the "Voice chat" notice.
 
 ### Failure and cost
 
@@ -289,8 +337,10 @@ buffers never finished, so the phase stayed "speaking" and the bot's reply was n
 answer returned to listening, and several turns in English and Chinese followed, without Gemini hearing itself.
 A route change mid-call (AirPods) is not checked yet.
 
-`StoreTests` cover the operator's tools against a scripted host (send, status with an approval,
-option matching, recent messages) and approvals reaching a call as notices. On Android, `VoiceEnginesTest` (core, JVM) drives
+Host tests (`chat::calls`) cover a call's flow (start, lines, `send_to_bot` with the user's words, the line at the
+end), the voice's instructions (the relay role and the bot's name first, each section present and within its cap,
+OpenAI's smaller share), transcript checks and dreaming over a call. `StoreTests` cover approvals reaching a call
+as notices; each client tests hiding a call's messages and merging its conversation. On Android, `VoiceEnginesTest` (core, JVM) drives
 each engine through fake audio: utterance cutting and clip playback, OpenAI's event sequence and SDP
 exchange (MockWebServer), and a Gemini Live session over a real WebSocket (setup, audio both ways,
 a tool call, a close with the provider's reason). Provider audio isn't

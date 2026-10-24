@@ -102,6 +102,7 @@ pub fn spawn(hub: Arc<Hub>, base: BotConfig) -> BotHandle {
         dreamer,
         turn_text: None,
         turn_entries: Vec::new(),
+        turn_call: None,
         turn_memory_revision: String::new(),
         announce: None,
         turn: None,
@@ -259,6 +260,8 @@ struct Actor {
     turn_text: Option<String>,
     /// The user messages this turn answers (none when it isn't the user's).
     turn_entries: Vec<String>,
+    /// The voice call this turn answers while it lasts: its replies carry it (`chat::calls`).
+    turn_call: Option<String>,
     /// The memory change this turn's notice told the agent about (see `memory::change_notice`).
     turn_memory_revision: String,
     /// A profile update this turn carried, recorded once the agent got it.
@@ -400,6 +403,9 @@ impl Actor {
     /// Adds an entry to the current lane, signed by this bot (a group shows who said it).
     fn add(&self, kind: EntryKind, turn: i64, mut data: Value) -> Option<Entry> {
         data["author"] = self.cfg.id.clone().into();
+        if let (EntryKind::Agent, Some(call)) = (kind, &self.turn_call) {
+            data["call"] = call.clone().into();
+        }
         self.hub.add_entry(&self.lane, kind, turn, &data)
     }
 

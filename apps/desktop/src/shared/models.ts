@@ -1,4 +1,5 @@
 import type { ArtifactCard } from './artifacts'
+import type { CallLine } from './calls'
 
 // Wire types for codync-host (see host/src/api/). Field names match the
 // host's camelCase JSON. Timestamps are epoch milliseconds.
@@ -315,6 +316,13 @@ export interface EntryData {
   /** agent: an artifact the bot published (or updated) in this turn. */
   artifact?: ArtifactCard
   callSeconds?: number
+  /** The voice call it was said in (user), answered during (agent), or that it ends (notice): the chat shows those
+   * messages only in the call's conversation. */
+  call?: string
+  /** user: `voice` when a call's voice wrote it for the user (`send_to_bot`). */
+  from?: string
+  /** notice: what was said on a realtime call, oldest first. */
+  transcript?: CallLine[]
 }
 
 export interface Entry {

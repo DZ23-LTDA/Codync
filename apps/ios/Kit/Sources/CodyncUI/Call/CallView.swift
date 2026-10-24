@@ -3,8 +3,8 @@ import CodyncKit
 import SwiftUI
 
 /// A voice call with a bot, as Grok Bot does it: a floating bar over the chat, which stays
-/// readable underneath. What you say goes out as ordinary messages, its final replies are
-/// read aloud, and the chat gets a "Voice chat · 00:16" line when the call ends.
+/// readable underneath. What you say goes out as messages of the call, its final replies are
+/// read aloud, and the call ends as one titled line ("Release plan · 00:16") that opens its conversation.
 struct CallView: View {
     let botId: String
     @Binding var isSpeaking: Bool
@@ -14,6 +14,8 @@ struct CallView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var session: (any VoiceEngine)?
     @State private var callID = UUID()
+    /// The call on the computer, which runs it; set as the call appears.
+    @State private var link: CallLink?
     @State private var startedAt = Date.now
     /// When the current cloud engine started, for this month's minutes.
     @State private var cloudStartedAt: Date?
@@ -26,6 +28,7 @@ struct CallView: View {
     @State private var reported = false
 
     private var bot: Bot? { model.bots[botId] }
+    private var call: String { callID.uuidString }
     private var color: Color { bot.map { AvatarPalette.color($0.avatarColor) } ?? Palette.accent }
 
     var body: some View {
@@ -42,6 +45,8 @@ struct CallView: View {
         .animation(Motion.reduced(Motion.fade, reduceMotion), value: notice)
         .onAppear {
             startedAt = .now
+            model.beginCall(call)
+            link = CallLink(model: model, botId: botId, call: call)
             begin(cloud: VoiceSettings.provider)
         }
         .onDisappear {
@@ -50,7 +55,7 @@ struct CallView: View {
             isSpeaking = false
             interrupt = nil
             model.endVoiceCall(callID)
-            model.logCall(botId, seconds: Int(Date.now.timeIntervalSince(startedAt)))
+            link?.end(seconds: Int(Date.now.timeIntervalSince(startedAt)))
         }
         .onChange(of: session?.phase) { _, phase in
             isSpeaking = phase == .speaking
@@ -79,7 +84,7 @@ struct CallView: View {
             Task { if let status = try? await client.voiceStatus() { VoiceSettings.remember(status) } }
         }
         engineChoice = VoiceSettings.engineChoice(provider)
-        let op = CallOperator(model: model, botId: botId)
+        guard let link else { return }
         let engine: any VoiceEngine
         if let provider, VoiceSettings.isSpeechMode(provider) {
             let transcribe = VoiceSettings.transcribeModel(provider)
@@ -92,23 +97,22 @@ struct CallView: View {
             engine = CloudSpeechEngine(provider: provider, speech: .init(
                 transcribe: { try await VoiceSettings.inReadersScript(client().voiceTranscribe(provider, model: transcribe, wav: $0)) },
                 speak: { try await client().voiceSpeak(provider, model: speechModel, voice: voice, text: $0) },
-                send: { [model, botId] in model.send($0, to: botId) }
+                send: { [model, botId, call] in model.send($0, to: botId, call: call) }
             ))
+            // The computer keeps the call, though it carries no voice model.
+            Task { _ = try? await link.start("speech", provider: provider) }
             cloudStartedAt = .now
         } else if let provider {
             let chosen = VoiceSettings.model(provider)
             let voice = VoiceSettings.voice(provider)
-            let credential: @MainActor () async throws -> String = { [model] in
-                guard let client = model.client else { throw VoiceError("Not connected to \(model.hostName).") }
-                return try await client.voiceSession(provider, model: chosen, voice: voice)
-            }
             engine = switch provider {
-            case .openAI: OpenAIRealtimeEngine(credential: credential, op: op)
-            case .gemini: GeminiLiveEngine(model: chosen, voice: voice, credential: credential, op: op)
+            case .openAI: OpenAIRealtimeEngine(model: chosen, voice: voice, link: link)
+            case .gemini: GeminiLiveEngine(model: chosen, voice: voice, link: link)
             }
             cloudStartedAt = .now
         } else {
-            engine = OnDeviceEngine { [model, botId] in model.send($0, to: botId) }
+            engine = OnDeviceEngine { [model, botId, call] in model.send($0, to: botId, call: call) }
+            Task { _ = try? await link.start("device") }
         }
         engine.onActivityChanged = { [weak engine, model, botId, callID] active in
             if active {

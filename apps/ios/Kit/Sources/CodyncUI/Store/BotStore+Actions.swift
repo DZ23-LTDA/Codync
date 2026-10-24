@@ -73,7 +73,6 @@ extension BotStore {
         guard bots[botId]?.lead == true else { return }
         perform { try await $0.callStarted(botId) }
     }
-    public func logCall(_ botId: String, seconds: Int) { perform { try await $0.logCall(botId, seconds: seconds) } }
     public func newSession(_ botId: String) { perform { try await $0.newSession(botId) } }
     /// The bot's own agent again, off the fallback it runs on.
     public func switchBack(_ botId: String) { perform(replay: true) { try await $0.switchBack(botId) } }

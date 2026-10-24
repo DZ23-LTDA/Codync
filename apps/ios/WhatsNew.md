@@ -26,6 +26,8 @@ a version without one gets a generic "Bug fixes and improvements" line. Delete o
 - 通話中在設定換了語音（例如從本機換成 Gemini），關掉設定後通話就改用新的語音繼續，不必掛斷重打。
 - 語音通話連線中，通話列會顯示一條左右來回的線，真正連上、聽得到你說話後才換回音量點點。
 - 有多台電腦時，Bot 列表中每台電腦的標題列都有自己的「擴充套件」按鈕，電腦的連線狀態也靠右對齊；擴充套件裡不再能切換電腦。
+- 通話內容不再塞滿聊天：結束後只留一行，標題寫著這通電話在談什麼，點開可以看完整逐字稿；Bot 的記憶也會記住你在通話裡說的話。
+- Gemini 與 OpenAI 的語音是 Bot 的轉接者：它知道你的記憶、Bot 的設定、專案現況和最近的對話，轉給 Bot 時附上你說的原話，也能停止 Bot、查 Bot 的記憶。
 
 ### en-US
 - Every computer has a lead bot, starred on top of the Bots list: it follows up on what you're working on, checks in twice a day for anything worth a reminder or a head start, asks for access to services like Gmail or your calendar when it would help, and speaks first when you call it.
@@ -45,6 +47,8 @@ a version without one gets a generic "Bug fixes and improvements" line. Delete o
 - Pick another voice in the call settings mid-call (on-device to Gemini, say) and the call carries on with it once you close them.
 - While a voice call connects, the call bar shows a line gliding back and forth until the voice can really hear you.
 - With several computers, each computer's heading in the Bots list has its own Extensions button, with its connection status on the right; Extensions no longer switches computers.
+- Calls no longer fill the chat: each one leaves a single line titled with what it was about; tap it for the full transcript. The bot's memory keeps what you said on the call.
+- The Gemini and OpenAI voice relays to your bot: it knows your memory, the bot's setup, the project and the recent conversation, passes your own words along, and can stop the bot or look up what it remembers.
 
 ## 2.24.0
 

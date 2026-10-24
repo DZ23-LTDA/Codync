@@ -184,9 +184,14 @@ impl Entry {
         if self.is_final() { self.data["artifact"]["id"].as_str() } else { None }
     }
 
-    /// A line that folds away a longer text: a handoff (`o` shows it).
+    /// A line that folds away a longer text: a handoff, or a voice call's conversation (`o` shows it).
     pub fn unfolds(&self) -> bool {
-        crate::tui::view::unfoldable(self).is_some()
+        crate::tui::view::unfoldable(self).is_some() || (self.kind == Kind::Notice && self.call().is_some())
+    }
+
+    /// The voice call this was said in, or that this line ends (`chat::calls`).
+    pub fn call(&self) -> Option<&str> {
+        self.data["call"].as_str()
     }
 
     /// A failure notice that offers adding a fallback agent (`A`).

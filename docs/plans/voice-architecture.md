@@ -1,7 +1,7 @@
 # Voice calls owned by the host
 
-Status: in progress (owner's go-ahead, 2026-10-25). Supersedes [voice call transcripts](voice-call-transcripts.md),
-which becomes stage 1 of this plan. Current behavior: [voice call](../features/voice-call.md).
+Status: stage 1 shipped (2.25.0); stages 2–4 planned. Supersedes [voice call transcripts](voice-call-transcripts.md),
+which became stage 1 of this plan. Current behavior: [voice call](../features/voice-call.md#the-call-on-the-host).
 
 A realtime voice model (Gemini Live, OpenAI Realtime) stays in front of the bot: coding agents are text-only and
 slow, so the voice talks and the bot works. What changes is how it hands over. Today each client (iPhone, Android,
@@ -18,7 +18,7 @@ phone / desktop (audio only)        host (all logic)                     the bot
 
 Each stage ships on its own (after-change, merged into `dev`), all clients together.
 
-### 1. The call on the host
+### 1. The call on the host (shipped)
 
 - **`startCall`** `{botId, callId, provider?, model?, voice?, mode}` creates the call and returns everything a
   client needs: the provider credential (realtime and speech modes), the voice's instructions and the tool
@@ -80,5 +80,6 @@ Each stage ships on its own (after-change, merged into `dev`), all clients toget
 
 ## Compatibility
 
-New methods and fields are additive. The phone apps need a host with `startCall`, so they raise `minHost` to the
-release that ships stage 1 (the desktop app bundles its host). `logCall` stays until `minApp` passes it.
+New methods and fields are additive. The apps need a host with `startCall`, so the iPhone, Android and desktop apps
+raise `minHost` to the release that ships stage 1 (a Linux desktop or an SSH computer may run an older host).
+`logCall` stays until `minApp` passes it.
