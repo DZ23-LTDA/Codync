@@ -140,7 +140,6 @@ final class OpenAIRealtimeEngine: VoiceEngine {
 
     fileprivate func opened() {
         guard !ended else { return }
-        dropTimer?.cancel()
         let tools: [[String: Any]] = CallOperator.tools.map {
             ["type": "function", "name": $0.name, "description": $0.description, "parameters": $0.parameters]
         }
@@ -153,13 +152,16 @@ final class OpenAIRealtimeEngine: VoiceEngine {
                 "audio": ["input": ["turn_detection": ["type": "semantic_vad"]]],
             ] as [String: Any],
         ])
-        phase = .listening
-        flush()
     }
 
     fileprivate func received(_ data: Data) {
         guard !ended, let msg = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] else { return }
         switch msg["type"] as? String {
+        // Connected once the session has the instructions and tools, not when the channel opens.
+        case "session.updated" where phase == .starting:
+            dropTimer?.cancel()
+            phase = .listening
+            flush()
         case "input_audio_buffer.speech_started": level = muted ? 0 : 0.7
         case "input_audio_buffer.speech_stopped": level = 0
         case "output_audio_buffer.started": phase = .speaking
@@ -183,7 +185,8 @@ final class OpenAIRealtimeEngine: VoiceEngine {
     }
 
     fileprivate func iceChanged(_ state: RTCIceConnectionState) {
-        guard !ended else { return }
+        // While starting, only a failure counts: the start timer runs until the session is set up.
+        guard !ended, phase != .starting || state == .failed else { return }
         switch state {
         case .connected, .completed: dropTimer?.cancel()
         case .disconnected:

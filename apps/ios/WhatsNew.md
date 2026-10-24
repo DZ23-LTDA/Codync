@@ -23,7 +23,7 @@ a version without one gets a generic "Bug fixes and improvements" line. Delete o
 - 點對話上方的 Bot 會打開它的詳情、資料庫、記憶與設定；「新會話」改到 Bot 列表的長按選單。
 - 用 Gemini 即時語音通話時，Gemini 聽得到你說話並會回答，也會念出 Bot 的回覆；先前通話可能一直沒有聲音、也沒有回應。
 - 通話中在設定換了語音（例如從本機換成 Gemini），關掉設定後通話就改用新的語音繼續，不必掛斷重打。
-- 語音通話連線中，通話列會顯示一條跑動的進度線，連上後才換回音量點點。
+- 語音通話連線中，通話列會顯示一條左右來回的線，真正連上、聽得到你說話後才換回音量點點。
 
 ### en-US
 - Bots can make artifacts: reports, trackers and dashboards you come back to show as a card in the chat. Open one full screen and message the bot below it to change it; it updates in place.
@@ -40,7 +40,7 @@ a version without one gets a generic "Bug fixes and improvements" line. Delete o
 - Tapping the bot at the top of its chat opens its Details, Library, Memory and Settings; New session moved to the bot's touch-and-hold menu in the list.
 - Gemini realtime voice calls hear you, answer and read the bot's replies aloud; before, a call could stay silent with no reply.
 - Pick another voice in the call settings mid-call (on-device to Gemini, say) and the call carries on with it once you close them.
-- While a voice call connects, the call bar shows a moving progress line instead of flat dots.
+- While a voice call connects, the call bar shows a line gliding back and forth until the voice can really hear you.
 
 ## 2.24.0
 

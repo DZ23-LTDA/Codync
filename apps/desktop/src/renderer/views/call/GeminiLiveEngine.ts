@@ -156,7 +156,6 @@ export class GeminiLiveEngine extends VoiceEngine {
       this.ready = true
       this.reconnects = 0
       if (!this.stopMic) void this.startAudio()
-      if (this.phase === 'starting') this.setPhase('listening')
       this.flush()
     }
     const content = msg.serverContent
@@ -225,6 +224,8 @@ export class GeminiLiveEngine extends VoiceEngine {
   }
 
   private captured(pcm: Int16Array, level: number) {
+    // Connected once the microphone delivers after setup, not when the socket opens.
+    if (!this.ended && this.ready && this.phase === 'starting') this.setPhase('listening')
     if (this.ended || this.muted || !this.isActive) return
     this.level = this.phase === 'speaking' ? 0 : level
     this.send({ realtimeInput: { audio: { data: toBase64(new Uint8Array(pcm.buffer)), mimeType: 'audio/pcm;rate=16000' } } })

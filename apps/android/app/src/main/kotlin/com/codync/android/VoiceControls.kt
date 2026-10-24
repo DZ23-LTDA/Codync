@@ -27,7 +27,6 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.DrawScope
-import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.contentDescription
@@ -36,6 +35,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.text.style.TextOverflow
 import com.kyant.shapes.Capsule
+import kotlin.math.PI
+import kotlin.math.cos
 import kotlin.math.sin
 import androidx.core.content.ContextCompat
 import com.codync.android.core.*
@@ -127,14 +128,14 @@ private fun statusText(voice: VoiceState, working: Boolean) = when (voice.phase)
     VoicePhase.Listening -> if (voice.muted) "Muted" else if (working) "Working, listening" else "Listening"
 }
 
-/** Seconds for the connecting segment to cross the track. */
-private const val CONNECTING_PERIOD = 1.4f
+/** Seconds for the connecting segment's trip there and back. */
+private const val CONNECTING_PERIOD = 2.4f
 
 /**
  * The dotted line in the call bar: it follows your voice while listening, ripples while the bot
  * talks, breathes while it works, and rests as faint dots otherwise. While the call connects it shows
- * an indeterminate progress line instead (a short segment sliding along a faint track, resting at the
- * left with reduced motion), and fades back to the dots.
+ * an indeterminate progress line instead (a short segment gliding back and forth along a faint track,
+ * resting at the left with reduced motion), and fades back to the dots.
  */
 @Composable private fun CallLevelDots(level: Float, speaking: Boolean, working: Boolean, connecting: Boolean, color: Color, modifier: Modifier) {
     val still = reduceMotion()
@@ -162,15 +163,14 @@ private const val CONNECTING_PERIOD = 1.4f
     }
 }
 
-/** The connecting line at `alpha`: a faint track and a segment a third its length sliding across it, at the left when `still`. */
+/** The connecting line at `alpha`: a faint track and a segment a third its length gliding back and forth, at the left when `still`. */
 private fun DrawScope.connectingLine(accent: Color, alpha: Float, time: Float, still: Boolean) {
     val mid = size.height / 2
     drawRoundRect(accent.copy(alpha = 0.15f * alpha), Offset(0f, mid - 0.75.dp.toPx()), Size(size.width, 1.5.dp.toPx()),
         CornerRadius(0.75.dp.toPx()))
     val segment = size.width / 3
-    val x = if (still) 0f else -segment + (time % CONNECTING_PERIOD) / CONNECTING_PERIOD * (size.width + segment)
-    clipRect {
-        drawRoundRect(accent.copy(alpha = alpha), Offset(x, mid - 1.75.dp.toPx()), Size(segment, 3.5.dp.toPx()),
-            CornerRadius(1.75.dp.toPx()))
-    }
+    // A cosine turns each end smoothly instead of jumping back to the start.
+    val progress = if (still) 0f else (1 - cos(2 * PI.toFloat() * time / CONNECTING_PERIOD)) / 2
+    drawRoundRect(accent.copy(alpha = alpha), Offset(progress * (size.width - segment), mid - 1.75.dp.toPx()),
+        Size(segment, 3.5.dp.toPx()), CornerRadius(1.75.dp.toPx()))
 }

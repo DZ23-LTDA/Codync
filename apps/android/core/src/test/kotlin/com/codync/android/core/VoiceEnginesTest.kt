@@ -144,7 +144,7 @@ class VoiceEnginesTest {
         val engine = CloudSpeechEngine(backgroundScope, VoiceProvider.Gemini, VoiceSettings(pauseMillis = 1_000), mic,
             { _, _ -> val clip = CompletableDeferred<Unit>().also { playing += it }
                 try { clip.await() } catch (cancelled: CancellationException) { clip.cancel(); throw cancelled } }, speech) { testScheduler.currentTime }
-        runCurrent(); assertEquals(VoicePhase.Listening, engine.state.value.phase)
+        runCurrent(); assertEquals(VoicePhase.Starting, engine.state.value.phase) // Until the microphone delivers.
         val frame = ByteArray(3_200)
         repeat(6) { mic.frames!!(frame, .8f); advanceTimeBy(100); runCurrent() }
         mic.frames!!(frame, 0f); advanceTimeBy(1_100); runCurrent(); mic.frames!!(frame, 0f); runCurrent()
@@ -196,6 +196,8 @@ class VoiceEnginesTest {
         assertEquals("ek_secret" to "offer-sdp", exchanged); assertEquals("answer-sdp", peer.answer); assertEquals(true, peer.micOn)
         engine.speak("Early reply"); runCurrent(); assertTrue(peer.sent.isEmpty()) // Waits for the channel.
         peer.isOpen = true; peer.events!!.opened(); runCurrent()
+        assertEquals(listOf("session.update"), peer.types()); assertEquals(VoicePhase.Starting, engine.state.value.phase)
+        peer.events!!.received("""{"type":"session.updated"}"""); runCurrent()
         assertEquals(listOf("session.update", "conversation.item.create", "response.create"), peer.types())
         assertEquals("[Ada replied] Early reply", peer.sent[1]["item"]!!.jsonObject["content"]!!.jsonArray[0].jsonObject["text"]!!.jsonPrimitive.content)
         assertEquals(VoicePhase.Listening, engine.state.value.phase)
@@ -222,6 +224,17 @@ class VoiceEnginesTest {
         val engine = OpenAIRealtimeEngine(backgroundScope, VoiceSettings(), { "ek" }, CallOperator("ada", Desk(emptyList(), emptyList())), peer) { _, _ -> "sdp" }
         advanceTimeBy(15_001); runCurrent(); engine.awaitEnd()
         assertEquals(VoicePhase.Failed, engine.state.value.phase); assertEquals("Couldn't reach OpenAI.", engine.state.value.error)
+    }
+
+    @Test fun openAIRealtimeStartTimerOutlastsIceUntilTheSessionIsSetUp() = runTest {
+        val peer = Peer()
+        val engine = OpenAIRealtimeEngine(backgroundScope, VoiceSettings(), { "ek" }, CallOperator("ada", Desk(emptyList(), emptyList())), peer) { _, _ -> "sdp" }
+        runCurrent(); peer.isOpen = true; peer.events!!.opened()
+        peer.events!!.ice(RealtimePeer.Ice.Disconnected); advanceTimeBy(5_001); runCurrent()
+        assertEquals(VoicePhase.Starting, engine.state.value.phase) // No 5 s drop timer while starting.
+        peer.events!!.ice(RealtimePeer.Ice.Connected); advanceTimeBy(10_000); runCurrent()
+        assertEquals("Couldn't reach OpenAI.", engine.state.value.error) // ICE alone isn't connected.
+        engine.awaitEnd()
     }
 
     @Test fun openAICallsEndpointPostsTheOfferAndExplainsRefusals() = runBlocking {
@@ -267,9 +280,11 @@ class VoiceEnginesTest {
             assertEquals(4, setup["tools"]!!.jsonArray[0].jsonObject["functionDeclarations"]!!.jsonArray.size)
             engine.speak("Queued before setup")
             server!!.send("""{"setupComplete":{}}""")
-            until { it.phase == VoicePhase.Listening }
             assertEquals("[Ada replied] Queued before setup", next()["clientContent"]!!.jsonObject["turns"]!!.jsonArray[0].jsonObject["parts"]!!.jsonArray[0].jsonObject["text"]!!.jsonPrimitive.content)
+            assertEquals(VoicePhase.Starting, engine.state.value.phase) // Connecting until the microphone delivers.
+            withTimeout(5_000) { while (mic.frames == null) delay(10) }
             mic.frames!!(byteArrayOf(1, 2), .5f)
+            until { it.phase == VoicePhase.Listening }
             assertEquals("audio/pcm;rate=16000", next()["realtimeInput"]!!.jsonObject["audio"]!!.jsonObject["mimeType"]!!.jsonPrimitive.content)
             val audio = Base64.getEncoder().encodeToString(ByteArray(480))
             server!!.send("""{"serverContent":{"modelTurn":{"parts":[{"inlineData":{"mimeType":"audio/pcm;rate=24000","data":"$audio"}}]}}}""")

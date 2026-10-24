@@ -14,8 +14,12 @@ On iOS, [Open Live Mode in Shortcuts](ios-shortcuts.md) can select a bot and sta
   chat stays readable and usable underneath. Left to right: the bot's avatar (pulses while
   speaking; tap it to interrupt), a dotted level line (your voice while listening, a ripple while
   the bot speaks, a slow breath while it works; while the engine connects, an indeterminate progress
-  line instead: a short segment sliding along a faint track, still at the left under Reduce Motion,
-  fading back to the dots once it listens), gear (call settings), mic (mute), red ✕ (end).
+  line instead: a short segment gliding back and forth along a faint track, easing at both ends
+  (white in dark mode, black in light), still at the left under Reduce Motion, fading back to the dots
+  once the call is really connected), gear (call settings), mic (mute), red ✕ (end). Connected means
+  Gemini has answered the setup and the microphone delivers audio; OpenAI has confirmed the
+  instructions and tools (`session.updated`, under the same 15-second start timeout); speech to text
+  hears the microphone. Opening the socket or data channel isn't enough.
 - Desktop: the capsule sits 16 CSS pixels below the window top and explicitly excludes itself
   from Electron's window-drag region so the gear, mute and end buttons receive mouse clicks.
   The iPhone places its capsule below native navigation; the terminal has no call controls.

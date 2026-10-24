@@ -110,7 +110,6 @@ class GeminiLiveEngine(parent: CoroutineScope, settings: VoiceSettings, private 
                 }
                 audioRunning = true
             }
-            if (phase == VoicePhase.Starting) phase(VoicePhase.Listening)
             flush()
         }
         message.objectAt("serverContent")?.let { content ->
@@ -164,6 +163,8 @@ class GeminiLiveEngine(parent: CoroutineScope, settings: VoiceSettings, private 
     }
 
     private fun captured(pcm: ByteArray, level: Float) {
+        // Connected once the microphone delivers after setup, not when the socket opens.
+        if (ready && phase == VoicePhase.Starting) phase(VoicePhase.Listening)
         if (muted || !active) return
         level(if (phase == VoicePhase.Speaking) 0f else level)
         send(buildJsonObject {

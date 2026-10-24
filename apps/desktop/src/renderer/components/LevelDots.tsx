@@ -11,14 +11,14 @@ export interface LevelSample {
 
 /** The gap between dots, in points. */
 const SPACING = 8
-/** Seconds for the connecting segment to cross the track. */
-const PERIOD = 1.4
+/** Seconds for the connecting segment's trip there and back. */
+const PERIOD = 2.4
 
 /**
  * A dotted line that follows your voice while listening, ripples while the other side talks,
  * breathes while work goes on, and rests as faint dots otherwise. While a call connects it shows an
- * indeterminate progress line instead (a short segment sliding along a faint track, resting at the left
- * with reduced motion), and fades back to the dots. `sample` is read every frame.
+ * indeterminate progress line instead (a short segment gliding back and forth along a faint track, resting
+ * at the left with reduced motion), and fades back to the dots. `sample` is read every frame.
  * `color` null is the text color.
  */
 export function LevelDots({ sample, color, width, height = 16, label, className }: {
@@ -81,21 +81,17 @@ export function LevelDots({ sample, color, width, height = 16, label, className 
   return <canvas ref={canvas} role="img" aria-label={label} className={className} style={{ width, height }} />
 }
 
-/** The connecting line: a faint track and a segment a third its length sliding across it (`t` in seconds), resting at the left with reduced motion. */
+/** The connecting line: a faint track and a segment a third its length gliding back and forth (`t` in seconds), resting at the left with reduced motion. */
 function drawConnecting(ctx: CanvasRenderingContext2D, width: number, height: number, t: number, accent: string, reduceMotion: boolean) {
   ctx.fillStyle = withAlpha(accent, 0.15)
   ctx.beginPath()
   ctx.roundRect(0, height / 2 - 0.75, width, 1.5, 0.75)
   ctx.fill()
   const segment = width / 3
-  const x = reduceMotion ? 0 : -segment + ((t % PERIOD) / PERIOD) * (width + segment)
-  ctx.save()
-  ctx.beginPath()
-  ctx.rect(0, 0, width, height)
-  ctx.clip()
+  // A cosine turns each end smoothly instead of jumping back to the start.
+  const progress = reduceMotion ? 0 : (1 - Math.cos((2 * Math.PI * t) / PERIOD)) / 2
   ctx.fillStyle = accent
   ctx.beginPath()
-  ctx.roundRect(x, height / 2 - 1.75, segment, 3.5, 1.75)
+  ctx.roundRect(progress * (width - segment), height / 2 - 1.75, segment, 3.5, 1.75)
   ctx.fill()
-  ctx.restore()
 }

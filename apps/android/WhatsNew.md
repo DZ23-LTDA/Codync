@@ -19,7 +19,7 @@ else a generic "Bug fixes and improvements" line. Delete old sections.
 - 在設定開啟「顯示思考細節」後，點一下工作中 Bot 的狀態膠囊，就能展開這一輪的思考與步驟。
 - 點對話上方的 Bot 會打開它的詳情、資料庫與設定；「新會話」改到 Bot 列表的長按選單。
 - 通話中在設定換了語音，關掉設定後通話就改用新的語音繼續。
-- 語音通話連線中，通話列會顯示一條跑動的進度線。
+- 語音通話連線中，通話列會顯示一條左右來回的線，真正連上後才換回點點。
 
 ### en-US
 - Bots make artifacts, shown as chat cards; message the bot below one to edit it.

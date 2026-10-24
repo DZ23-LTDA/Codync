@@ -192,7 +192,6 @@ final class GeminiLiveEngine: VoiceEngine {
                     return fail("Couldn't use the microphone: \(error.localizedDescription)")
                 }
             }
-            if phase == .starting { phase = .listening }
             flush()
         }
         if let content = msg["serverContent"] as? [String: Any] {
@@ -297,6 +296,8 @@ final class GeminiLiveEngine: VoiceEngine {
     }
 
     private func captured(_ audio: String, level: Float) {
+        // Connected once the microphone delivers after setup, not when the socket opens.
+        if !ended, ready, phase == .starting { phase = .listening }
         guard !ended, !muted, phase.isActive else { return }
         self.level = phase == .speaking ? 0 : level
         send(["realtimeInput": ["audio": ["data": audio, "mimeType": "audio/pcm;rate=16000"]]])

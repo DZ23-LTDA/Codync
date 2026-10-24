@@ -73,7 +73,6 @@ class OpenAIRealtimeEngine(parent: CoroutineScope, settings: VoiceSettings, priv
     }
 
     override fun opened() = hop {
-        dropTimer?.cancel()
         send(buildJsonObject {
             put("type", "session.update")
             putJsonObject("session") {
@@ -83,13 +82,13 @@ class OpenAIRealtimeEngine(parent: CoroutineScope, settings: VoiceSettings, priv
                 putJsonObject("audio") { putJsonObject("input") { putJsonObject("turn_detection") { put("type", "semantic_vad") } } }
             }
         })
-        phase(VoicePhase.Listening)
-        flush()
     }
 
     override fun received(text: String) = hop {
         val message = runCatching { WireJson.parseToJsonElement(text).jsonObject }.getOrNull() ?: return@hop
         when (message.text("type")) {
+            // Connected once the session has the instructions and tools, not when the channel opens.
+            "session.updated" -> if (phase == VoicePhase.Starting) { dropTimer?.cancel(); phase(VoicePhase.Listening); flush() }
             "input_audio_buffer.speech_started" -> level(if (muted) 0f else .7f)
             "input_audio_buffer.speech_stopped" -> level(0f)
             "output_audio_buffer.started" -> if (phase == VoicePhase.Listening) phase(VoicePhase.Speaking)
@@ -112,6 +111,8 @@ class OpenAIRealtimeEngine(parent: CoroutineScope, settings: VoiceSettings, priv
     }
 
     override fun ice(state: RealtimePeer.Ice) = hop {
+        // While starting, only a failure counts: the start timer runs until the session is set up.
+        if (phase == VoicePhase.Starting && state != RealtimePeer.Ice.Failed) return@hop
         when (state) {
             RealtimePeer.Ice.Connected -> dropTimer?.cancel()
             RealtimePeer.Ice.Disconnected -> drop(5_000, "Lost the connection to OpenAI.") { true }

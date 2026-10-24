@@ -127,7 +127,6 @@ export class OpenAIRealtimeEngine extends VoiceEngine {
 
   private opened() {
     if (this.ended) return
-    if (this.dropTimer) clearTimeout(this.dropTimer)
     this.send({
       type: 'session.update',
       session: {
@@ -137,8 +136,6 @@ export class OpenAIRealtimeEngine extends VoiceEngine {
         audio: { input: { turn_detection: { type: 'semantic_vad' } } },
       },
     })
-    this.setPhase('listening')
-    this.flush()
   }
 
   private received(data: string) {
@@ -150,6 +147,13 @@ export class OpenAIRealtimeEngine extends VoiceEngine {
       return
     }
     switch (msg.type) {
+      case 'session.updated':
+        // Connected once the session has the instructions and tools, not when the channel opens.
+        if (this.phase !== 'starting') break
+        if (this.dropTimer) clearTimeout(this.dropTimer)
+        this.setPhase('listening')
+        this.flush()
+        break
       case 'input_audio_buffer.speech_started':
         this.level = this.muted ? 0 : 0.7
         break
@@ -189,7 +193,8 @@ export class OpenAIRealtimeEngine extends VoiceEngine {
   }
 
   private iceChanged(state: RTCIceConnectionState) {
-    if (this.ended) return
+    // While starting, only a failure counts: the start timer runs until the session is set up.
+    if (this.ended || (this.phase === 'starting' && state !== 'failed')) return
     switch (state) {
       case 'connected':
       case 'completed':

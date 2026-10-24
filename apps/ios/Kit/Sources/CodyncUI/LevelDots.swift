@@ -48,12 +48,12 @@ struct LevelDots: View {
     }
 }
 
-/// Indeterminate progress: a short capsule slides left to right along a faint track, on a loop;
-/// with reduced motion it rests at the left.
+/// Indeterminate progress: a short capsule glides back and forth along a faint track, easing in and out
+/// at both ends; with reduced motion it rests at the left. White in dark mode, black in light.
 private struct ConnectingLine: View {
     let reduceMotion: Bool
-    /// Seconds for the segment to cross the track.
-    private static let period = 1.4
+    /// Seconds for one trip there and back.
+    private static let period = 2.4
 
     var body: some View {
         TimelineView(.animation(paused: reduceMotion)) { context in
@@ -62,11 +62,10 @@ private struct ConnectingLine: View {
                 let track = CGRect(x: 0, y: mid - 0.75, width: size.width, height: 1.5)
                 canvas.fill(Path(roundedRect: track, cornerRadius: 0.75), with: .color(Palette.accent.opacity(0.15)))
                 let width = size.width / 3
+                // A cosine turns each end smoothly instead of jumping back to the start.
                 let progress = reduceMotion ? 0
-                    : context.date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: Self.period) / Self.period
-                let segment = CGRect(x: reduceMotion ? 0 : -width + progress * (size.width + width), y: mid - 1.75,
-                                     width: width, height: 3.5)
-                canvas.clip(to: Path(CGRect(origin: .zero, size: size)))
+                    : (1 - cos(2 * .pi * context.date.timeIntervalSinceReferenceDate / Self.period)) / 2
+                let segment = CGRect(x: progress * (size.width - width), y: mid - 1.75, width: width, height: 3.5)
                 canvas.fill(Path(roundedRect: segment, cornerRadius: 1.75), with: .color(Palette.accent))
             }
         }
