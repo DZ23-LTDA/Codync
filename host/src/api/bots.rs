@@ -186,6 +186,11 @@ pub(super) async fn call(hub: &Arc<Hub>, method: &str, b: Value) -> Result<Contr
             }
             json!({"entry": e})
         }
+        // A voice call is on (its audio flows): the lead speaks first.
+        "callStarted" => {
+            crate::chat::lead::call_started(hub, str_arg(&b, "botId")?)?;
+            json!({})
+        }
         // A finished voice call, as a line in the chat ("Voice chat · 0:16").
         "logCall" => {
             let bot = str_arg(&b, "botId")?;

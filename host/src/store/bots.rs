@@ -167,6 +167,7 @@ mod tests {
             fallbacks: vec![],
             self_fallbacks: true,
             pinned: false,
+            lead: false,
             position: 0,
             hidden: false,
             notify: None,

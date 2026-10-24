@@ -237,6 +237,10 @@ public extension HostClient {
         return out
     }
 
+    func callStarted(_ botId: String) async throws {
+        let _: Empty = try await call("callStarted", ["botId": botId])
+    }
+
     func logCall(_ botId: String, seconds: Int) async throws {
         struct Body: Encodable { var botId: String; var seconds: Int }
         let _: Empty = try await call("logCall", Body(botId: botId, seconds: seconds))

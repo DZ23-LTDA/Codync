@@ -59,6 +59,7 @@ struct CallView: View {
             if phase?.isActive == true, !reported, let session {
                 reported = true
                 Analytics.shared.capture(.voiceCallStarted(session.analyticsName))
+                model.callStarted(botId)
             }
             // A cloud engine that can't start or drops mid-call hands over to on-device voice.
             if case .failed(let message) = phase, let provider = session?.provider {

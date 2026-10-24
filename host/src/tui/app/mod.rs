@@ -1,6 +1,7 @@
 //! TUI state and everything that changes it: host events, keys, mouse, replies.
 
 mod analytics;
+mod bot;
 mod editor;
 mod events;
 mod exchange;
@@ -15,9 +16,10 @@ mod slash;
 mod steps;
 mod ui;
 
+pub use bot::{AgentModel, Bot, ModelOption, OwnMemory};
 pub use editor::Editor;
 pub use exchange::{ConversationRow, Exchange, Item, Outcome, conversation, group, rows};
-pub use model::{After, AgentModel, Bot, Entry, Kind, Mark, ModelOption, Msg, OwnMemory, Status};
+pub use model::{After, Entry, Kind, Mark, Msg, Status};
 pub use slash::SlashAction;
 pub(super) use steps::{running_turn, working_steps};
 pub use ui::{
@@ -197,12 +199,12 @@ impl App {
 
     // ---------- derived ----------
 
-    /// Roster order: pinned first, then where the user put them, then most recent (same as the phone).
+    /// Roster order: the lead, pinned bots, then where the user put them, then most recent (same as the phone).
     pub fn roster(&self) -> Vec<&Bot> {
         let mut v: Vec<&Bot> = self.bots.values().filter(|b| !b.hidden).collect();
         v.sort_by(|a, b| {
-            b.pinned
-                .cmp(&a.pinned)
+            a.band()
+                .cmp(&b.band())
                 .then(a.position.cmp(&b.position))
                 .then(b.last_at.cmp(&a.last_at))
                 .then(a.name.cmp(&b.name))

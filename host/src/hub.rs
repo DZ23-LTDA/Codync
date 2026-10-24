@@ -21,6 +21,8 @@ use tokio::sync::{broadcast, watch};
 mod order;
 mod reactions;
 mod sync;
+mod validate;
+pub(crate) use validate::validate;
 
 /// What a bot is doing right now (wire values: `idle` / `working` / `needsInput` / `error`).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize)]
@@ -244,7 +246,7 @@ impl Hub {
         let row = self.store.bot(&id)?.filter(|b| !b.deleted).ok_or_else(|| anyhow!("unknown bot"))?;
         let mut merged = serde_json::to_value(&row.config)?;
         for (k, v) in patch.as_object().into_iter().flatten() {
-            if !matches!(k.as_str(), "id" | "createdAt" | "createdBy") {
+            if !matches!(k.as_str(), "id" | "createdAt" | "createdBy" | "lead") {
                 merged[k] = v.clone();
             }
         }
@@ -285,6 +287,7 @@ impl Hub {
     }
 
     pub fn delete_bot(&self, id: &str) -> Result<()> {
+        crate::chat::lead::may_delete(&self.store, id)?;
         self.routines.disable_bot(&self.store, id)?;
         self.team.end_turn(id);
         self.groups.stop(self, id);
@@ -483,22 +486,4 @@ impl Hub {
     pub fn phone_connected(&self) -> bool {
         self.phone_clients.load(Ordering::Relaxed) > 0
     }
-}
-
-pub(crate) fn validate(cfg: &BotConfig) -> Result<()> {
-    if cfg.name.trim().is_empty() {
-        bail!("name is required");
-    }
-    if cfg.is_group() {
-        return Ok(());
-    }
-    if !cfg.cwd.is_empty() && !std::path::Path::new(&cfg.cwd).is_dir() {
-        bail!("workspace folder does not exist: {}", cfg.cwd);
-    }
-    if cfg.command.as_deref().map(str::trim).unwrap_or_default().is_empty()
-        && !crate::agent::backends::is_known(&cfg.backend)
-    {
-        bail!("unknown backend {}", cfg.backend);
-    }
-    crate::agent::fallback::check(cfg)
 }

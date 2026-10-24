@@ -10,6 +10,7 @@ else a generic "Bug fixes and improvements" line. Delete old sections.
 ## 2.25.0
 
 ### zh-Hant
+- 每台電腦都有一個主助理，固定在列表最上面：它會主動跟進你的事，每天兩次看看有沒有該提醒或能幫忙的，需要時請你授權 Gmail 等服務；打電話給它時由它先開口。
 - Bot 可以做 Artifact：報告、追蹤表、儀表板這類要回來看的內容會以卡片出現在聊天裡，點開看完整內容，直接在下方留言請它改，改好就自動更新。
 - 每個 Bot 的「資料庫」收齊它做的 Artifact，以及聊天裡分享過的檔案和圖片。
 - 可以建立使用 Hermes Agent 的 Bot。
@@ -22,6 +23,7 @@ else a generic "Bug fixes and improvements" line. Delete old sections.
 - 語音通話連線中，通話列會顯示一條左右來回的線，真正連上後才換回點點。
 
 ### en-US
+- Each computer has a lead bot on top of the list: it follows up on your work, checks in twice a day, asks for access like Gmail when it would help, and speaks first when you call it.
 - Bots make artifacts, shown as chat cards; message the bot below one to edit it.
 - Each bot's Library holds its artifacts and chat files.
 - Create bots that run Hermes Agent.

@@ -4,7 +4,10 @@ A hands-free call with one bot or group from the iPhone, Android or desktop chat
 On Linux the desktop app offers only the cloud engines (on-device speech is macOS only). The terminal
 UI has no calls (no audio stack); it shows the "Voice chat · 00:16" notice like every client.
 The bot is the same agent on the computer; the call only changes how you talk to it.
-On iOS, [Open Live Mode in Shortcuts](ios-shortcuts.md) can select a bot and start this call directly.
+On iOS, [Open Live Mode in Shortcuts](ios-shortcuts.md) can select a bot and start this call directly (no bot: the lead).
+Every other bot waits for you to speak; the [lead bot](lead-bot.md) speaks first: once a call's audio is live the
+apps send `callStarted {botId}` (once per call, only to a lead), and the host has a lead with no turn under way open
+with a sentence or two, read aloud like any reply.
 
 ## On-device voice
 

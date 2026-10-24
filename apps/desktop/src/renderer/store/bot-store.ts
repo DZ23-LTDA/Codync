@@ -148,6 +148,12 @@ export class BotStore extends BotSync {
     this.perform((c) => c.call('logCall', { botId, seconds }))
   }
 
+  /** A call's audio is live: the lead speaks first (only a host with leads marks one, so an older host never gets this). */
+  callStarted(botId: string) {
+    if (!this.bots.get(botId)?.lead) return
+    this.perform((c) => c.call('callStarted', { botId }))
+  }
+
   screenTakeover(on: boolean) {
     this.perform(async (c) => {
       this.screen = await c.call<ScreenState>('screenTakeover', { on })

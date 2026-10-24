@@ -1,7 +1,6 @@
 //! Dreaming in the host: when a bot's run starts, what it reads, and running its model on the bot's own harness.
 //! What a run may change is the crate's decision (`codync_mem::dream`).
 
-use crate::LockExt;
 use crate::chat::{naming, oneshot};
 use crate::hub::Hub;
 use crate::store::{BotConfig, Entry, EntryKind, Store};
@@ -20,8 +19,6 @@ const BATCH: usize = 8;
 /// Entries (the user's messages and final replies) one run looks at.
 const READ_LIMIT: i64 = 40;
 const MESSAGE_CHARS: usize = 4_000;
-/// Usage of the bot's plan above which runs wait, so dreaming never spends the user's last headroom.
-const HEADROOM_PERCENT: f64 = 75.0;
 /// How often an idle bot checks whether its daily time review is due.
 const REVIEW_CHECK: Duration = Duration::from_secs(60 * 60);
 
@@ -189,7 +186,8 @@ async fn run(hub: &Arc<Hub>, bot_id: &str) -> Result<Ran> {
     let Some(cfg) = hub.store.bot(bot_id)?.filter(|b| !b.deleted).map(|b| b.config) else {
         return Ok(Ran::Done { more: false });
     };
-    if near_limit(hub, &cfg) {
+    // Dreaming never spends the user's last headroom.
+    if crate::usage::near_limit(hub, &cfg.backend) {
         return Ok(Ran::Later);
     }
     let shared = super::shared(&cfg);
@@ -283,17 +281,6 @@ fn write(hub: &Hub, cfg: &BotConfig, edits: &Edits) -> Result<bool> {
     hub.store.memory_write(|c, _, _| dream::discard_if_empty(c, dream))?;
     tracing::info!(bot = %cfg.id, added = edits.added.len(), removed = edits.removed.len(), files = edits.files.len(), "memory dreamed");
     Ok(whole)
-}
-
-/// Usage of the bot's harness above [`HEADROOM_PERCENT`] in any window.
-fn near_limit(hub: &Hub, cfg: &BotConfig) -> bool {
-    hub.usage
-        .locked()
-        .providers
-        .iter()
-        .filter(|p| p.id == cfg.backend)
-        .flat_map(|p| &p.windows)
-        .any(|w| w.percent > HEADROOM_PERCENT)
 }
 
 /// The entries up to the [`BATCH`]th user message and the replies after it.

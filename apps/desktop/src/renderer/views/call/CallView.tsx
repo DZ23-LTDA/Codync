@@ -188,9 +188,11 @@ export function CallView({ botId, onSpeaking, interrupt, onEnd }: {
     if (!session) return
     onSpeaking(phase === 'speaking')
     interrupt.current = phase === 'speaking' ? () => session.interrupt() : null
+    // Once per call, so an engine taking over doesn't count or open it again.
     if (session.isActive && !counted.current) {
       counted.current = true
       analytics.track({ event: 'voice_call_started', engine: engineName.current })
+      store.callStarted(botId)
     }
     // A cloud engine that can't start or drops mid-call hands over to on-device voice.
     if (phase === 'failed' && session.provider && onDeviceAvailable()) {

@@ -39,7 +39,9 @@ export interface Bot {
   /** Agents of its chain (its own included) resting now; one whose `until` passed isn't. */
   resting: Resting[]
   pinned: boolean
-  /** Where the user dragged it, lowest first (after pinned bots); ties sort by recent activity. */
+  /** The computer's lead bot, which the host makes: first in the roster, never deleted, hidden or pinned. */
+  lead: boolean
+  /** Where the user dragged it, lowest first within its band (`rosterBand`); ties sort by recent activity. */
   position: number
   hidden: boolean
   notify?: boolean | null
@@ -97,6 +99,7 @@ export function normalizeBot(raw: Partial<Bot> & { id: string }): Bot {
     agentStep: raw.agentStep ?? null,
     resting: raw.resting ?? [],
     pinned: raw.pinned ?? false,
+    lead: raw.lead ?? false,
     position: raw.position ?? 0,
     hidden: raw.hidden ?? false,
     notify: raw.notify ?? null,

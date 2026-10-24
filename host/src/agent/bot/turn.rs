@@ -129,9 +129,13 @@ impl Actor {
             self.relay_turn(&lane, entry_ids, text).await;
         }
         // A bot request or room turn isn't resumed after a host restart (the room that waited is gone): a request's
-        // persisted notices are marked interrupted instead of silently repeating work. A reply turn is resumed.
+        // persisted notices are marked interrupted instead of silently repeating work. Nor is a call's opening (the
+        // call is over). A reply turn is resumed.
         self.set_inflight(
-            self.active_request.is_none() && self.active_group.is_none() && self.active_routine.is_none(),
+            self.active_request.is_none()
+                && self.active_group.is_none()
+                && self.active_routine.is_none()
+                && !self.active_prompt,
         );
         // A message the host wrote in the user's place (`from: host`) isn't the user asking.
         let typed = |id: &&String| self.hub.store.entry(id).is_some_and(|e| e.data["from"] != "host");
@@ -340,6 +344,8 @@ impl Actor {
         });
         self.turn = None;
         self.reply_hops = None;
+        // A call's opening is heard on the call: no alert.
+        let opening = std::mem::take(&mut self.active_prompt);
         if self.routine_completion.is_none() {
             self.set_inflight(false);
         }
@@ -369,6 +375,7 @@ impl Actor {
         if !self.stop_requested
             && !delegated
             && !grouped
+            && !opening
             && let Some(kind) = turn_alert(failed, &stop_reason, more || held_back)
         {
             let body = final_text.unwrap_or_else(|| match (kind, reacted) {
@@ -429,6 +436,8 @@ impl Actor {
             TurnSource::Group
         } else if self.active_request.is_some() || self.reply_hops.is_some() {
             TurnSource::Bot
+        } else if self.active_prompt {
+            TurnSource::Host
         } else {
             TurnSource::User
         }

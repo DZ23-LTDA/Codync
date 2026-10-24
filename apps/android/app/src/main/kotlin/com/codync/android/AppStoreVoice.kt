@@ -24,7 +24,7 @@ internal class VoiceBinding(val id: String, val botId: String, val generation: I
     var recording: () -> Int? = { null }
     /** What the voice service sees: the current engine, never the failure it fell back from. */
     val state = MutableStateFlow(VoiceState())
-    /** `voice_call_started` went out: once per call, with the engine that got it going. */
+    /** `voice_call_started` (and `callStarted`) went out: once per call, with the engine that got it going. */
     var reported = false
 }
 
@@ -118,6 +118,7 @@ private fun AppStore.begin(call: VoiceBinding, provider: VoiceProvider?) {
                 if (!call.reported && (status.phase == VoicePhase.Listening || status.phase == VoicePhase.Speaking)) {
                     call.reported = true
                     Analytics.capture(AnalyticsEvent.VoiceCallStarted(kind))
+                    callStarted(call)
                 }
             }
             !current || fallingBack || status.phase == VoicePhase.Ended
@@ -125,6 +126,11 @@ private fun AppStore.begin(call: VoiceBinding, provider: VoiceProvider?) {
         if (provider == null || last.phase != VoicePhase.Failed || voiceBinding !== call || call.engine !== engine) return@launch
         handOver(call, "${provider.title} isn't available (${last.error ?: "no answer"}). Using on-device voice.") { null }
     }
+}
+
+/** The call's audio is live: the lead speaks first (only a host with leads marks one, so an older host never gets this). */
+private fun AppStore.callStarted(call: VoiceBinding) {
+    if (state.value.bots.any { it.id == call.botId && it.lead }) command("callStarted", body("botId" to call.botId), "callStarted:" + call.botId)
 }
 
 /** After the call settings close: a different engine picked there takes over the call, which goes on. */
