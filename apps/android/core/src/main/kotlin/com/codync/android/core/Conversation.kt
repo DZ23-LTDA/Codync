@@ -149,7 +149,7 @@ sealed interface MirrorEvent {
     data class EntryChanged(val entry: Entry) : MirrorEvent
     data class Usage(val value: JsonObject) : MirrorEvent
     data class Screen(val value: JsonObject) : MirrorEvent
-    /** An artifact was published, updated or renamed: live only, never a checkpoint. */
+    /** An artifact was published, updated or renamed (the catch-up replays it too), never a checkpoint. */
     data class ArtifactChanged(val artifact: Artifact) : MirrorEvent
     data object Resync : MirrorEvent
     data object Ignored : MirrorEvent
@@ -163,7 +163,7 @@ sealed interface MirrorEvent {
             "entry" -> EntryChanged(Entry.decode(value.getValue("entry").jsonObject))
             "usage" -> Usage(value.getValue("usage").jsonObject)
             "screen" -> Screen(value.getValue("screen").jsonObject)
-            // Not in the catch-up: one this app can't read is passed over rather than fetching everything again.
+            // One this app can't read is passed over rather than fetching everything again: a card or the Library reads it again.
             "artifact" -> runCatching { ArtifactChanged(Artifact.decode(value.getValue("artifact"))) }.getOrDefault(Ignored)
             "resync" -> Resync
             // Match the existing clients: unknown events do not advance the cursor.

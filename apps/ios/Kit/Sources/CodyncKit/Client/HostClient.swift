@@ -7,7 +7,7 @@ public enum HostEvent: Sendable {
     case entry(Entry)
     case usage(Usage)
     case screen(ScreenState)
-    /// An artifact published or renamed (live only: the catch-up doesn't repeat them).
+    /// An artifact published or renamed (the catch-up replays it too).
     case artifact(Artifact)
     case resync
     /// An event this app version couldn't decode (host newer/older than the app).
@@ -118,7 +118,7 @@ public struct HostClient: Sendable {
         case "screen":
             return (try? d.decode(ScreenWrap.self, from: data)).map { .screen($0.screen) }
         case "artifact":
-            // Not worth a rewind: the catch-up has no artifacts, and the list fetches them anyway.
+            // Not worth a rewind: a card or the Library reads the artifact again.
             return (try? d.decode(ArtifactWrap.self, from: data)).map { .artifact($0.artifact) }
         case "resync":
             return .resync

@@ -79,3 +79,37 @@ async fn incremental_sync_replays_deletions_only_after_the_saved_cursor() {
     assert_eq!(events[1]["rev"], deleted_rev);
     assert_eq!(f.catch_up(deleted_rev).await.len(), 1);
 }
+
+#[tokio::test]
+async fn catch_up_brings_an_artifact_renamed_while_the_client_was_offline() {
+    let f = Fixture::new();
+    f.add_bot("b");
+    let id = uuid::Uuid::new_v4().to_string();
+    let card = f
+        .hub
+        .add_entry(
+            &crate::store::Lane::main("b"),
+            crate::store::EntryKind::Agent,
+            0,
+            &json!({"text": "Artifact: Old", "final": true, "artifact": {"id": id, "title": "Old", "updatedAt": 1}}),
+        )
+        .unwrap();
+    let saved = json!({"id": id, "botId": "b", "title": "Old", "size": 1, "sha256": "x", "createdAt": 1, "updatedAt": 1,
+        "entryId": card.id});
+    f.hub.store.kv_set(&format!("artifact.b.{id}"), &saved.to_string()).unwrap();
+    let cursor = f.hub.store.current_rev();
+    assert_eq!(f.catch_up(cursor).await[1..], [] as [Value; 0], "details without a rev default to 0, never replayed");
+
+    crate::chat::artifacts::api(&f.hub, "renameArtifact", &json!({"botId": "b", "artifactId": id, "title": "New"}))
+        .await
+        .unwrap();
+    let events = f.catch_up(cursor).await;
+    let artifact = events.iter().find(|e| e["type"] == "artifact").expect("the rename is in the catch-up");
+    assert_eq!(artifact["artifact"]["title"], "New");
+    assert!(artifact["rev"].as_i64().unwrap() > cursor);
+    let entry = events.iter().find(|e| e["type"] == "entry").expect("its card was retitled");
+    assert_eq!(entry["entry"]["data"]["text"], "Artifact: New");
+    assert_eq!(entry["entry"]["data"]["artifact"]["title"], "New");
+    assert!(events[1..].windows(2).all(|pair| pair[0]["rev"].as_i64() < pair[1]["rev"].as_i64()), "in rev order");
+    assert_eq!(f.catch_up(f.hub.store.current_rev()).await[1..], [] as [Value; 0]);
+}

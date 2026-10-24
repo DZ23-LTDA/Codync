@@ -16,6 +16,25 @@ export interface Artifact {
   entryId?: string
 }
 
+/** The desktop app loads each artifact from `codync-artifact://<id>/` (`main/artifacts.ts`), an origin of its own. */
+export const ARTIFACT_SCHEME = 'codync-artifact'
+
+/** An artifact frame's address; a card's preview is marked, so it opens nothing. */
+export const artifactFrameURL = (id: string, version: number, preview: boolean) =>
+  `${ARTIFACT_SCHEME}://${id}/?v=${version}${preview ? '&preview' : ''}`
+
+/** An artifact frame's address, a card's or the viewer's. */
+export const isArtifactURL = (url: string | undefined): url is string => !!url?.startsWith(`${ARTIFACT_SCHEME}:`)
+
+/** An artifact's viewer frame: its scheme, without a card's `preview` marker. */
+export const isArtifactViewer = (url: string | undefined) => isArtifactURL(url) && !new URL(url).searchParams.has('preview')
+
+/** How long after a click or a key press a link it follows may open; later, it's a script acting alone. */
+const FOLLOWED_MS = 1000
+
+/** Whether what an artifact opens follows the user: a click or key in the window, after its viewer loaded, just now. */
+export const followsUser = (input: number, loaded: number, now: number) => input > loaded && now - input < FOLLOWED_MS
+
 /** One thing in a chat's Library (`library`): an artifact, a file the bot shared, or one the user attached. */
 export type LibraryItem =
   | { kind: 'artifact'; at: number; artifact: Artifact }

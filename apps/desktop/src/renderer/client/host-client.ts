@@ -67,7 +67,7 @@ export type HostEvent =
   | { type: 'botDeleted'; id: string; rev: number }
   | { type: 'entry'; entry: Entry }
   | { type: 'usage'; usage: Usage }
-  /** An artifact was published, updated or renamed (not part of catch-up: apps fetch the `library` when they show it). */
+  /** An artifact was published, updated or renamed (the catch-up replays it too). */
   | { type: 'artifact'; artifact: Artifact }
   | { type: 'screen'; screen: ScreenState }
   | { type: 'accessRequests'; requests: AccessRequest[] }

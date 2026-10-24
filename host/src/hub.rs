@@ -352,6 +352,13 @@ impl Hub {
         self.store.bot(id).ok().flatten().map(|r| self.bot_json(&r))
     }
 
+    /// Saves a change that stamps its own rev and broadcasts the event `save` returns, in rev order.
+    pub fn emit_change(&self, save: impl FnOnce() -> Result<Value>) -> Result<()> {
+        let _g = self.emit_lock.locked();
+        let _ = self.events.send(save()?);
+        Ok(())
+    }
+
     /// Bumps the bot's rev and broadcasts its current state.
     pub fn emit_bot(&self, id: &str) {
         let _g = self.emit_lock.locked();
