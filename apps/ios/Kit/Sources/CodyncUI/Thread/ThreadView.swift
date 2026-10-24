@@ -67,6 +67,9 @@ public struct ThreadView: View {
     var conversation: some View {
         chrome(chat)
             .readingConversation(botId)
+            .onChange(of: model.voiceCallRequest, initial: true) { _, _ in
+                if model.takeVoiceCallRequest(for: botId) { startShortcutCall() }
+            }
             // The details sheet's Library presents its own downloads.
             .fileExportSheet(model, botId: botId, active: details == nil)
             .codyncSheet(isPresented: $showTrace) {
@@ -88,6 +91,19 @@ public struct ThreadView: View {
                 [DialogAction("New session") { model.newSession(botId) }]
             }
             .deleteBotConfirmation($confirmDelete) { dismiss() }
+    }
+
+    /// Open Live Mode from Shortcuts: closes whatever covers the chat, then starts the call.
+    private func startShortcutCall() {
+        showTrace = false
+        botChat = nil
+        openArtifact = nil
+        editingGroup = false
+        details = nil
+        confirmNewSession = false
+        confirmDelete = nil
+        if model.fileDownloads.export?.botId == botId { model.fileDownloads.dismissExport() }
+        withAnimation(Motion.reduced(Motion.layout, reduceMotion)) { calling = true }
     }
 
     // MARK: rows
