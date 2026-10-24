@@ -249,19 +249,32 @@ fn take_said(store: &Store, call: &str) -> Result<String> {
 /// `endCall`: the rest of the transcript (`raw`), the call's line in the chat, then a title written for it. A call
 /// ends once: an app trying again changes nothing.
 pub fn end(hub: &Arc<Hub>, bot: &str, call: &str, seconds: u64, raw: &Value) -> Result<Option<Entry>> {
-    let s = {
+    end_when(hub, bot, call, raw, |_| Some(seconds))
+}
+
+/// Ends `call` if `length`, asked under the lock that marks it ended, gives its length in seconds; `None` keeps it
+/// going. The sweep decides there, so a call its app resumed meanwhile isn't ended.
+fn end_when(
+    hub: &Arc<Hub>,
+    bot: &str,
+    call: &str,
+    raw: &Value,
+    length: impl FnOnce(Option<&CallState>) -> Option<u64>,
+) -> Result<Option<Entry>> {
+    let (s, seconds) = {
         let _one = STATE.locked();
         if hub.store.kv_get(&ended_key(call)).is_some() {
             return Ok(None);
         }
         let mut s = state(&hub.store, call);
+        let Some(seconds) = length(s.as_ref()) else { return Ok(None) };
         if let Some(s) = s.as_mut() {
             append(s, transcript(raw));
         }
         hub.store.kv_set(&ended_key(call), "1")?;
         hub.store.kv_delete(&state_key(call))?;
         mark_open(&hub.store, call, false)?;
-        s
+        (s, seconds)
     };
     let bot = s.as_ref().map_or(bot, |s| s.bot.as_str()).to_owned();
     let cfg = hub.store.bot(&bot)?.filter(|r| !r.deleted).ok_or_else(|| anyhow!("unknown bot"))?.config;

@@ -257,13 +257,18 @@ pub async fn api(hub: &Arc<Hub>, method: &str, b: &Value) -> Result<Value> {
 
 /// The artifact's newest card takes the new title too: older apps and a cache that never saw the rename show the card's.
 fn retitle_card(hub: &Hub, artifact: &Artifact) {
-    let Some(mut card) = artifact.entry_id.as_deref().and_then(|id| hub.store.entry(id)) else { return };
-    if card.data["artifact"]["id"] != artifact.id.as_str() {
-        return;
+    let Some(id) = artifact.entry_id.as_deref() else { return };
+    let retitled = hub.edit_entry(id, |card| {
+        if card.data["artifact"]["id"] != artifact.id.as_str() {
+            return Ok(false);
+        }
+        card.data["text"] = card_text(&artifact.title).into();
+        card.data["artifact"]["title"] = artifact.title.clone().into();
+        Ok(true)
+    });
+    if let Err(e) = retitled {
+        tracing::info!(artifact = artifact.id, error = format!("{e:#}"), "couldn't retitle the artifact's card");
     }
-    card.data["text"] = card_text(&artifact.title).into();
-    card.data["artifact"]["title"] = artifact.title.clone().into();
-    hub.set_entry(&card.id, &card.data);
 }
 
 /// One chunk of an artifact's HTML, from `offset`.

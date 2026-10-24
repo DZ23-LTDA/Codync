@@ -468,6 +468,20 @@ impl Hub {
         }
     }
 
+    /// Changes part of an entry and broadcasts it, reading and writing under the emission lock: an edit made
+    /// meanwhile elsewhere (a reaction from another device) isn't written over. `edit` returns `false` to leave the
+    /// entry as it is.
+    pub fn edit_entry(&self, id: &str, edit: impl FnOnce(&mut Entry) -> Result<bool>) -> Result<Entry> {
+        let _g = self.emit_lock.locked();
+        let mut e = self.store.entry(id).ok_or_else(|| anyhow!("unknown message"))?;
+        if !edit(&mut e)? {
+            return Ok(e);
+        }
+        let e = self.store.update_entry(id, &e.data)?.ok_or_else(|| anyhow!("unknown message"))?;
+        let _ = self.events.send(json!({"type": "entry", "rev": e.rev, "entry": e}));
+        Ok(e)
+    }
+
     pub fn set_usage(&self, usage: Usage) {
         let _ = self.events.send(json!({"type": "usage", "usage": usage}));
         *self.usage.locked() = usage;

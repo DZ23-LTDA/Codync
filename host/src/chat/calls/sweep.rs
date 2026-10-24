@@ -1,7 +1,7 @@
 //! Calls whose app went away (a crash, a phone switched off): the host keeps the calls in progress and ends one
 //! nothing happened on for a long while, writing its line, so what it carried never stays hidden without one.
 
-use super::{STATE, end, state};
+use super::{CallState, STATE, end_when, state};
 use crate::LockExt;
 use crate::hub::{BotStatus, Hub};
 use crate::store::{Store, now_ms};
@@ -50,16 +50,22 @@ fn sweep(hub: &Arc<Hub>, now: i64) {
             }
             continue;
         };
-        let last = s.last.max(s.started).max(newest_entry(&hub.store, &s.bot, &call));
-        if now - last < ABANDONED_MS || busy(hub, &s.bot) {
-            continue;
-        }
-        let seconds = u64::try_from((last - s.started) / 1000).unwrap_or(0);
-        tracing::info!(call, bot = s.bot, "ending a call its app abandoned");
-        if let Err(e) = end(hub, &s.bot, &call, seconds, &Value::Null) {
-            tracing::warn!(call, error = format!("{e:#}"), "couldn't end an abandoned call");
+        // Decided under the lock that ends it: its app may have resumed it since the read above.
+        match end_when(hub, &s.bot, &call, &Value::Null, |s| abandoned(hub, &call, s?, now)) {
+            Ok(Some(_)) => tracing::info!(call, bot = s.bot, "ended a call its app abandoned"),
+            Ok(None) => {}
+            Err(e) => tracing::warn!(call, error = format!("{e:#}"), "couldn't end an abandoned call"),
         }
     }
+}
+
+/// How long the call lasted, if nothing happened on it for [`ABANDONED_MS`] by `now` and its bot isn't at work.
+fn abandoned(hub: &Hub, call: &str, s: &CallState, now: i64) -> Option<u64> {
+    let last = s.last.max(s.started).max(newest_entry(&hub.store, &s.bot, call));
+    if now - last < ABANDONED_MS || busy(hub, &s.bot) {
+        return None;
+    }
+    Some(u64::try_from((last - s.started) / 1000).unwrap_or(0))
 }
 
 /// When the call's newest message or reply was written (0 for none): the bot answering it is work on the call.
@@ -105,6 +111,22 @@ mod tests {
         let lines = hub.store.history(&id, i64::MAX, 10).unwrap();
         assert!(lines.iter().any(|e| e.data["call"] == "gone" && e.data["callSeconds"].is_number()), "with its line");
         assert_eq!(open_calls(&hub.store), Vec::<String>::new());
+    }
+
+    #[tokio::test]
+    async fn a_call_resumed_before_the_sweep_ends_it_stays_open() {
+        let (hub, id) = hub_with_bot();
+        heard(&hub.store, &id, "back").unwrap();
+        let later = now_ms() + ABANDONED_MS + 1;
+        // What the sweep read first: quiet for long enough.
+        let read = state(&hub.store, "back").unwrap();
+        assert!(abandoned(&hub, "back", &read, later).is_some());
+        // Its app speaks again before the sweep takes the lock to end it.
+        let mut resumed = state(&hub.store, "back").unwrap();
+        resumed.last = later;
+        save(&hub.store, "back", &resumed).unwrap();
+        let ended = end_when(&hub, &id, "back", &Value::Null, |s| abandoned(&hub, "back", s?, later)).unwrap();
+        assert!(ended.is_none() && is_live(&hub.store, "back"), "decided on the call as it is under the lock");
     }
 
     #[tokio::test]
