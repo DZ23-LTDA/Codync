@@ -22,9 +22,19 @@ Each stage ships on its own (after-change, merged into `dev`), all clients toget
 
 - **`startCall`** `{botId, callId, provider?, model?, voice?, mode}` creates the call and returns everything a
   client needs: the provider credential (realtime and speech modes), the voice's instructions and the tool
-  declarations. The host writes the instructions: the bot's profile (name, description, group members), what the
-  bot's memory holds for this user (the shared "yours" `MEMORY.md` and the bot's `MEMORY.md`, size-capped), the
-  last few chat messages in spoken form and the bot's status. On-device calls get a call too (no credential).
+  declarations. On-device calls get a call too (no credential). The host writes the instructions, rules first, then
+  the background as named sections, each capped (about 16k characters in all, less where the provider's context is
+  smaller), empty ones left out, refreshed when the provider session is resumed or replaced:
+  1. Now: the computer's date, time, weekday and time zone; the user's language.
+  2. About the user: the shared "yours" `MEMORY.md` and its notes' names and descriptions.
+  3. This bot: name, description, harness and model, folder and project, permission mode, connectors and skills,
+     computer use, routines; for a group, every member.
+  4. What the bot remembers: its `MEMORY.md` and notes index.
+  5. The project now: git branch, changed files, the last commits (skipped outside a repository).
+  6. Current work: status, activity, a pending approval and its options, queued messages, the last failure.
+  7. The conversation: the last ~20 chat messages in spoken form, and the titles and gist of recent calls.
+  8. The other bots on this computer.
+  9. Artifacts and files recently shared in the chat (titles).
 - **`callTool`** `{callId, name, arguments}` runs the voice's tool calls on the host: `send_to_bot`, `bot_status`,
   `recent_messages`, `answer_approval`, `stop_bot`, `search_memory`. The clients' `CallOperator`s go.
 - **`callLines`** `{callId, lines: [{from: user | voice, text, at}]}` appends the transcript as it is spoken (both
