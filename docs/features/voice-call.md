@@ -241,6 +241,9 @@ The realtime model is an operator in front of the bot, not a replacement for it 
 - Gemini connections are replaced before the server's limit: `goAway` closes the socket and the
   session resumes on a fresh token with its resumption handle; context window compression lifts the
   15-minute audio session cap.
+- On iPhone the Gemini engine wires its speaker output explicitly and restarts its audio engine on
+  `AVAudioEngineConfigurationChange` (voice processing settling right after the start, a route change
+  such as AirPods): the engine stops itself then, and the microphone would stay quiet with no error.
 - The chat stays the record: only `send_to_bot` messages and the bot's replies are entries. The
   operator's small talk isn't saved; the call still ends with the "Voice chat" notice.
 
@@ -258,6 +261,12 @@ On 2026-10-04 the OpenAI path was checked with a real key from a Mac (aiortc dri
 client secret → `/v1/realtime/calls` SDP → `oai-events` sequence): session update with the four tools,
 a spoken reply, and `send_to_bot` called for a Chinese request. The iOS Simulator's voice-processing
 audio unit can abort with an RPC timeout when WebRTC starts its audio; use a physical iPhone for audio.
+
+On 2026-10-25 the iPhone Gemini path (#214) was checked on the iOS Simulator with a real key: speech
+played through the Mac's speakers reached Gemini, which answered aloud and called `send_to_bot`, and
+the bot's reply came back into the chat. The Simulator doesn't cancel echo, so Gemini also hears its own
+voice there; echo cancellation needs a physical iPhone. A physical iPhone and a route change mid-call
+(AirPods) are not checked yet.
 
 `StoreTests` cover the operator's tools against a scripted host (send, status with an approval,
 option matching, recent messages) and approvals reaching a call as notices. On Android, `VoiceEnginesTest` (core, JVM) drives

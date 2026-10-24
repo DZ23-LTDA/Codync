@@ -38,7 +38,8 @@ final class GeminiLiveEngine: VoiceEngine {
     private var reconnects = 0
     private let engine = AVAudioEngine()
     private let player = AVAudioPlayerNode()
-    private var audioRunning = false
+    private var audioStarted = false
+    private var configObserver: (any NSObjectProtocol)?
     /// Buffers scheduled and not played yet; bumping the generation drops late callbacks.
     private var queued = 0
     private var playGeneration = 0
@@ -114,12 +115,14 @@ final class GeminiLiveEngine: VoiceEngine {
         socket?.cancel(with: .normalClosure, reason: nil)
         socket = nil
         stopPlayback()
-        if audioRunning {
+        if let configObserver { NotificationCenter.default.removeObserver(configObserver) }
+        configObserver = nil
+        if audioStarted {
             engine.inputNode.removeTap(onBus: 0)
             engine.stop()
-            audioRunning = false
+            audioStarted = false
         }
-            try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+        try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
     }
 
     func interrupt() {
@@ -182,7 +185,7 @@ final class GeminiLiveEngine: VoiceEngine {
         if msg["setupComplete"] != nil {
             ready = true
             reconnects = 0
-            if !audioRunning {
+            if !audioStarted {
                 do {
                     try startAudio()
                 } catch {
@@ -250,13 +253,29 @@ final class GeminiLiveEngine: VoiceEngine {
     // MARK: audio
 
     private func startAudio() throws {
-            let session = AVAudioSession.sharedInstance()
-            try session.setCategory(.playAndRecord, mode: .voiceChat, options: [.defaultToSpeaker, .allowBluetoothHFP])
-            try session.setActive(true)
-        let input = engine.inputNode
-        try input.setVoiceProcessingEnabled(true)
+        let session = AVAudioSession.sharedInstance()
+        try session.setCategory(.playAndRecord, mode: .voiceChat, options: [.defaultToSpeaker, .allowBluetoothHFP])
+        try session.setActive(true)
+        try engine.inputNode.setVoiceProcessingEnabled(true)
         engine.attach(player)
         engine.connect(player, to: engine.mainMixerNode, format: Self.playFormat)
+        // The engine stops itself when it reconfigures (voice processing settling right after the start,
+        // a route change such as AirPods); without a restart the microphone goes quiet.
+        configObserver = NotificationCenter.default.addObserver(forName: .AVAudioEngineConfigurationChange, object: engine,
+                                                                queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.restartAudio() }
+        }
+        try runAudio()
+        audioStarted = true
+    }
+
+    /// Wires the speaker and taps the microphone for the current hardware, then starts the engine.
+    private func runAudio() throws {
+        // Left implicit, the speaker connection predates voice processing: the engine reconfigures
+        // itself right after starting and stops, and once restarted it still plays nothing.
+        engine.connect(engine.mainMixerNode, to: engine.outputNode, format: nil)
+        let input = engine.inputNode
+        input.removeTap(onBus: 0)
         let format = try MicTap.format(of: input)
         input.installTap(onBus: 0, bufferSize: 2048, format: format, block: MicTap.pcm16k(from: format) { [weak self] pcm, level in
             let audio = pcm.base64EncodedString()
@@ -265,7 +284,16 @@ final class GeminiLiveEngine: VoiceEngine {
         engine.prepare()
         try engine.start()
         player.play()
-        audioRunning = true
+    }
+
+    private func restartAudio() {
+        guard audioStarted, !ended, !engine.isRunning else { return }
+        log.info("gemini audio engine reconfigured; restarting")
+        do {
+            try runAudio()
+        } catch {
+            fail("Couldn't use the microphone: \(error.localizedDescription)")
+        }
     }
 
     private func captured(_ audio: String, level: Float) {
@@ -306,9 +334,10 @@ final class GeminiLiveEngine: VoiceEngine {
     private func stopPlayback() {
         playGeneration += 1
         queued = 0
-        if audioRunning {
+        if audioStarted {
             player.stop()
-            player.play()
+            // A stopped engine (mid-restart, or failing) would throw; restarting plays the player again.
+            if engine.isRunning { player.play() }
         }
     }
 
