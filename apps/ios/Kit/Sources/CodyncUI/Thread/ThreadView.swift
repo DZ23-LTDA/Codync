@@ -15,6 +15,7 @@ public struct ThreadView: View {
     /// The message the composer's next send quotes.
     @State var replyingTo: Entry?
     @State var botChat: BotChatTarget?
+    @State var openArtifact: ArtifactTarget?
     @State var editingGroup = false
     @State var details: DetailsRequest?
     @State var confirmNewSession = false
@@ -66,18 +67,18 @@ public struct ThreadView: View {
     var conversation: some View {
         chrome(chat)
             .readingConversation(botId)
-            .codyncSheet(item: Binding<FileDownloads.Export?>(get: {
-                guard let item = model.fileDownloads.export, item.botId == botId else { return nil }
-                return item
-            }, set: { if $0 == nil { model.fileDownloads.dismissExport() } })) { item in
-                FileExportSheet(url: item.url) { model.fileDownloads.dismissExport() }
-            }
+            // The details sheet's Library presents its own downloads.
+            .fileExportSheet(model, botId: botId, active: details == nil)
             .codyncSheet(isPresented: $showTrace) {
                 TraceView(botId: botId)
             }
             .codyncSheet(item: $botChat) { BotConversationView(botId: botId, peerId: $0.id) }
+            .codyncSheet(item: $openArtifact) { ArtifactView(target: $0) }
             .codyncSheet(item: $details) { request in
-                BotDetailsView(botId: request.botId ?? botId, request: request)
+                BotDetailsView(botId: request.botId ?? botId, request: request) { artifact in
+                    details = nil
+                    openArtifact = artifact
+                }
             }
             .codyncSheet(isPresented: $editingGroup) {
                 if let bot { GroupEditorView(group: bot) }
@@ -105,7 +106,8 @@ public struct ThreadView: View {
                         // An update card takes the composer's place, so there's nothing to reply with.
                         reply: e.isReplyable && model.mismatch == nil ? { reply(to: e) } : nil,
                         // In a group, the bot whose agent failed.
-                        addFallback: { details = DetailsRequest(botId: e.data.author ?? e.botId) })
+                        addFallback: { details = DetailsRequest(botId: e.data.author ?? e.botId) },
+                        openArtifact: { openArtifact = ArtifactTarget(botId: e.botId, id: $0.id, title: $0.title) })
                     .equatable()
             }
         }
@@ -198,6 +200,11 @@ public struct ThreadView: View {
         items.append(MenuItem("Routines", icon: "clock.arrow.circlepath") {
             openRoutine(nil)
         })
+        if model.hasLibrary {
+            items.append(MenuItem("Library", icon: "books.vertical") {
+                withAnimation(Motion.reduced(Motion.layout, reduceMotion)) { details = DetailsRequest(tab: .library) }
+            })
+        }
         items.append(MenuItem("New session", icon: "arrow.counterclockwise") { confirmNewSession = true })
         items.append(MenuItem("Delete bot", icon: "trash", destructive: true, divider: true) { confirmDelete = bot })
         return items
