@@ -1,17 +1,13 @@
 package com.codync.android
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -23,7 +19,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -38,28 +33,26 @@ import com.codync.android.design.*
 import com.kyant.shapes.RoundedRectangle
 
 /**
- * A chat's Library, in a sheet over it (docs/features/artifacts.md): the artifacts its bot published and the files shared in
- * it, newest first by day. Each opens as it does in the chat.
+ * A chat's Library, on its bot's details (docs/features/artifacts.md): the artifacts its bot published and the files shared
+ * in it, newest first by day. Each opens as it does in the chat.
  */
-@Composable internal fun LibrarySheet(bot: Bot, state: AppState, store: AppStore, open: (OpenArtifact) -> Unit) {
+@Composable internal fun LibraryView(bot: Bot, state: AppState, store: AppStore, open: (OpenArtifact) -> Unit) {
     val online = state.actualConnection is LinkState.Ready
     AnalyticsOnAppear(AnalyticsEvent.ScreenViewed(AnalyticsScreen.Library))
     LaunchedEffect(bot.id, online) { if (online) store.loadLibrary(bot.id) }
     val items = state.artifacts.library(bot.id, state.library[bot.id].orEmpty())
     var renaming by remember { mutableStateOf<Artifact?>(null) }
     var image by remember { mutableStateOf<Attachment?>(null) }
-    Column(Modifier.fillMaxSize().background(Palette.background)) {
-        ModalHeader("Library")
+    Column(Modifier.fillMaxWidth()) {
         when {
-            items.isNotEmpty() -> Column(Modifier.verticalScroll(rememberScrollState()).padding(start = 20.dp, end = 20.dp, bottom = 20.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            items.isNotEmpty() -> Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 for ((period, members) in LibraryPeriod.sections(items)) Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text(tr(period.title), Modifier.padding(start = 2.dp).semantics { heading() }, style = Type.system(15f).semibold, color = Palette.text)
-                    Column(Modifier.fillMaxWidth().clip(RoundedRectangle(16.dp)).background(Palette.surface)) {
+                    SectionHeading(period.title, Modifier.padding(start = 2.dp))
+                    Column(Modifier.fillMaxWidth().cardGroup()) {
                         for ((index, item) in members.withIndex()) {
                             if (index > 0) Hairline(Modifier.padding(horizontal = 16.dp))
                             when (item) {
-                                is LibraryItem.ArtifactItem -> ArtifactRow(item.artifact, { open(OpenArtifact(item.artifact.id, item.artifact.title, item.artifact.entryId)) },
+                                is LibraryItem.ArtifactItem -> ArtifactRow(item.artifact, { open(OpenArtifact(bot.id, item.artifact.id, item.artifact.title, item.artifact.entryId)) },
                                     { renaming = item.artifact }) { store.shareArtifact(bot.id, item.artifact.id, item.artifact.title) }
                                 is LibraryItem.FileItem -> FileRow(item, bot.id, state, store)
                                 is LibraryItem.AttachmentItem -> AttachmentRow(item.file, bot.id, state, store) { image = item.file }

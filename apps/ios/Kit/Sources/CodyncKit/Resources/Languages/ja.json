@@ -1190,5 +1190,6 @@
   "More actions": "その他の操作",
   "Library": "ライブラリ",
   "Library is empty": "ライブラリは空です",
-  "Artifacts {name} makes and files shared in this chat show here.": "{name} が作ったアーティファクトと、このチャットで共有したファイルがここに表示されます。"
+  "Artifacts {name} makes and files shared in this chat show here.": "{name} が作ったアーティファクトと、このチャットで共有したファイルがここに表示されます。",
+  "{name}, view details": "{name}、詳細を表示"
 }

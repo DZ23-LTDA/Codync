@@ -61,24 +61,20 @@ import com.kyant.shapes.Capsule
 
 /**
  * One endless conversation with a bot or a group, as iOS `ThreadView`: only deliberate messages
- * show; tool calls and thinking live in "Full conversation". `editFallbacks` opens a bot's settings at its fallbacks.
+ * show; tool calls and thinking live in "Full conversation". `editGroup` opens a group's editor (its details).
  */
-@Composable fun ChatScreen(state: AppState, store: AppStore, edit: (Bot) -> Unit, editFallbacks: (Bot) -> Unit = edit) {
+@Composable fun ChatScreen(state: AppState, store: AppStore, editGroup: (Bot) -> Unit) {
     val bot = state.bots.firstOrNull { it.id == state.selectedBot } ?: return
-    key(state.contextId, state.generation, bot.id) { ThreadView(bot, state, store, edit, editFallbacks) }
+    key(state.contextId, state.generation, bot.id) { ThreadView(bot, state, store, editGroup) }
 }
 
-@Composable private fun ThreadView(bot: Bot, state: AppState, store: AppStore, edit: (Bot) -> Unit, editFallbacks: (Bot) -> Unit) {
+@Composable private fun ThreadView(bot: Bot, state: AppState, store: AppStore, editGroup: (Bot) -> Unit) {
     AnalyticsOnAppear(AnalyticsEvent.ScreenViewed(AnalyticsScreen.Chat))
     val context = LocalContext.current
-    var confirmNewSession by remember { mutableStateOf(false) }
-    var confirmDelete by remember { mutableStateOf(false) }
-    var routines by remember { mutableStateOf(false) }
-    // The routine the sheet opens on (a run's notice), or none for the list.
-    var routineId by remember { mutableStateOf<String?>(null) }
-    val openRoutine = { id: String? -> routineId = id; routines = true }
-    var library by remember { mutableStateOf(false) }
-    // The artifact open full size, over the chat and its Library.
+    // The bot's details sheet and the page it opens on.
+    var details by remember(bot.id) { mutableStateOf<DetailsRequest?>(null) }
+    val openRoutine = { id: String -> details = DetailsRequest(routineId = id) }
+    // The artifact open full size, over the chat and its details.
     var viewing by remember(bot.id) { mutableStateOf<OpenArtifact?>(null) }
     // The bot whose conversation with this one is open.
     var peer by remember(bot.id) { mutableStateOf<String?>(null) }
@@ -101,7 +97,7 @@ import com.kyant.shapes.Capsule
         // Down to just above the header's bottom; the bottom one stops under Jump to latest.
         ScrollEdge(Edge.Top, top + 84.dp)
         ScrollEdge(Edge.Bottom, with(density) { composerHeight.toDp() } + 4.dp, Modifier.align(Alignment.BottomCenter))
-        ThreadHeader(bot, state, store, edit, { store.showTrace(true) }, { openRoutine(null) }, { library = true }, { confirmNewSession = true }, { confirmDelete = true })
+        ThreadHeader(bot, state, store) { if (bot.kind == "group") editGroup(bot) else details = DetailsRequest() }
         // The call floats over the chat under the header, as on iOS; the chat stays readable and usable.
         AnimatedVisibility(state.voice != null, Modifier.padding(top = top + 54.dp),
             enter = fadeIn(Motion.fade()) + slideInVertically(Motion.layoutOffset) { -it }, exit = fadeOut(Motion.fade()) + slideOutVertically(Motion.layoutOffset) { -it }) {
@@ -121,17 +117,7 @@ import com.kyant.shapes.Capsule
     }) {
         Transcript(bot, chatState, store, connect, PaddingValues(start = 16.dp, end = 16.dp, top = top + 60.dp,
             bottom = with(density) { composerHeight.toDp() } + 8.dp), indicatorTop = top + 50.dp, openRoutine = openRoutine, reply = reply,
-            addFallback = editFallbacks, openArtifact = { viewing = it }) { peer = it }
-    }
-    CodyncDialog("Start a new session?", confirmNewSession, { confirmNewSession = false },
-        message = "The conversation stays here, but the agent starts with a fresh context.") {
-        listOf(DialogAction("New session") { store.command("newSession", body("botId" to bot.id)) })
-    }
-    CodyncDialog("Delete ${bot.name}?", confirmDelete, { confirmDelete = false },
-        message = if (bot.kind == "group") "Its bots and their own chats stay." else "Files it changed on your computer stay as they are.") {
-        listOf(DialogAction(if (bot.kind == "group") "Delete group chat" else "Delete bot and its conversation", destructive = true) {
-            store.deleteBot(bot) { store.openBot(null) }
-        })
+            addFallback = { details = DetailsRequest(botId = it.id) }, openArtifact = { viewing = it }) { peer = it }
     }
     CodyncDialog("Microphone access is off", micDenied, { micDenied = false },
         message = "Allow the microphone in Android settings to talk to your bot.") {
@@ -141,50 +127,28 @@ import com.kyant.shapes.Capsule
         AnalyticsOnAppear(AnalyticsEvent.ScreenViewed(AnalyticsScreen.Trace))
         TraceView(bot, state)
     }
-    CodyncSheet(routines, { routines = false }) {
-        AnalyticsOnAppear(AnalyticsEvent.ScreenViewed(AnalyticsScreen.Routines))
-        RoutinesScreen(bot, state, store, routineId)
+    CodyncSheet(details, { details = null }) { request ->
+        val shown = state.bots.firstOrNull { it.id == (request.botId ?: bot.id) }
+        if (shown != null) BotDetailsView(shown, request, state, store) { viewing = it }
     }
-    CodyncSheet(library, { library = false }) { LibrarySheet(bot, state, store) { viewing = it } }
-    ArtifactLayer(viewing) { ArtifactViewer(it, bot, state, store) { viewing = null } }
+    ArtifactLayer(viewing) { open ->
+        state.bots.firstOrNull { it.id == open.botId }?.let { owner -> ArtifactViewer(open, owner, state, store) { viewing = null } }
+    }
     CodyncSheet(peer, { peer = null }) { BotConversationView(bot, it, state, store) }
     CodyncSheet(app, { app = null; setupEntry = null }) { ComposioConnectSheet(it, state, store, setupEntry) { store.refreshPlugins() } }
     CodyncSheet(connector, { connector = null; setupEntry = null }) { InstallConnectorSheet(it, state, store, setupEntry) }
 }
 
-/** The glass back button, the title (its menu holds the bot's actions) and the connection under it. */
-@Composable private fun ThreadHeader(bot: Bot, state: AppState, store: AppStore, edit: (Bot) -> Unit, trace: () -> Unit,
-    routines: () -> Unit, library: () -> Unit, newSession: () -> Unit, delete: () -> Unit) {
+/** The glass back button, the title (tapping it opens the bot's details) and the connection under it. */
+@Composable private fun ThreadHeader(bot: Bot, state: AppState, store: AppStore, openDetails: () -> Unit) {
     Box(Modifier.fillMaxWidth().statusBarsPadding().padding(top = 6.dp).padding(horizontal = 16.dp).height(44.dp)) {
         val (source, pressed) = rememberPress()
         Box(Modifier.align(Alignment.CenterStart).size(44.dp).glass(Capsule(), pressed = pressed)
             .then(Modifier.plainButton { store.openBot(null) }).semantics { contentDescription = "Back" }, contentAlignment = Alignment.Center) {
             Symbol("chevron.left", size = 32.dp, tint = Palette.text)
         }
-        val host = state.computers.firstOrNull()?.name.orEmpty()
-        val connected = tr(connectionLabel(state))
-        DropdownMenu({ buildList {
-            add(MenuItem("$host · $connected", enabled = false))
-            add(MenuItem("Reconnect", icon = "arrow.clockwise") { store.reconnect() })
-            add(MenuItem("Details", icon = "info.circle", divider = true) { edit(bot) })
-            add(MenuItem("Full conversation", icon = "list.bullet.rectangle", action = trace))
-            val pin = MenuItem(if (bot.pinned) "Unpin" else "Pin", icon = "pin") {
-                store.command("updateBot", kotlinx.serialization.json.buildJsonObject {
-                    put("id", kotlinx.serialization.json.JsonPrimitive(bot.id)); put("pinned", kotlinx.serialization.json.JsonPrimitive(!bot.pinned))
-                }, "roster:" + bot.id)
-            }
-            if (bot.kind == "group") {
-                add(MenuItem("Edit group", icon = "person.2") { edit(bot) }); add(pin)
-                add(MenuItem("Delete group", icon = "trash", destructive = true, divider = true, action = delete))
-            } else {
-                add(MenuItem("Edit profile", icon = "pencil") { edit(bot) }); add(pin)
-                add(MenuItem("Routines", icon = "clock.arrow.circlepath", action = routines))
-                // An older host has no Library.
-                if (hasLibrary(state.hello?.text("version"))) add(MenuItem("Library", icon = "books.vertical", action = library))
-                add(MenuItem("New session", icon = "arrow.counterclockwise", action = newSession))
-                add(MenuItem("Delete bot", icon = "trash", destructive = true, divider = true, action = delete))
-            }
-        } }, Modifier.align(Alignment.Center), label = "${bot.name} actions") {
+        val label = tr("{name}, view details").replace("{name}", bot.name)
+        Box(Modifier.align(Alignment.Center).plainButton(action = openDetails).semantics { contentDescription = label }) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp)) {
                     BotAvatar(bot, state.bots, 22.dp)
@@ -236,7 +200,7 @@ import com.kyant.shapes.Capsule
     val items = chatItems(entries, pending)
     val working = bot.isWorking(bot.id) && state.connection is LinkState.Ready
     val more = bot.id !in state.historyComplete
-    // Pull to refresh reconnects, like Reconnect in the title menu, until the link is back.
+    // Pull to refresh reconnects, like Reconnect in the roster's computer menu, until the link is back.
     ConversationList(items.lastOrNull()?.id, entries.lastOrNull()?.rev, working, padding, store::refreshConnection, indicatorTop) {
         if (more) item("earlier") {
             Box(Modifier.fillMaxWidth().padding(vertical = 14.dp).clearAndSetSemantics { contentDescription = "Loading earlier messages" },

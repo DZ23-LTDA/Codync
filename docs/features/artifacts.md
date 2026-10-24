@@ -77,8 +77,7 @@ All four clients show the same things; layout follows each platform.
   its card in the chat. An image the user sent shows a thumbnail and opens full size; other files they sent show their
   name and size. Empty: "Library is empty" / "Artifacts {name} makes and files shared in this chat show here."
   - Desktop: a Library tab in the conversation details panel (Details · Library · Memory · Settings).
-  - iPhone: the same tab in the bot's details sheet; Library in the chat's menu opens it there.
-  - Android: Library in the chat's menu (beside Routines), a sheet with the list.
+  - iPhone and Android: the same tab in the bot's details sheet, which tapping the chat's title opens.
 - **Terminal UI**: a card is a `▤ Artifact: <title>` line. On the selected message, `o` opens the artifact in the
   computer's browser (its HTML written to a temporary file) and `f` saves `<title>.html` to Downloads, like files.
   The Library is a tab of the bot's pages (`L`, ⇧← ⇧→): `↵`/`o` opens an artifact in the browser, `f` saves any row to

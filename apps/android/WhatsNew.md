@@ -17,12 +17,14 @@ else a generic "Bug fixes and improvements" line. Delete old sections.
 - 帳號選單裡的「電腦與設定」和它打開的頁面同名。
 - 新增聯結器失敗後再試一次，會使用你改好的金鑰。
 - Bot 工作中點一下狀態膠囊，就能在對話裡展開這一輪的思考、工具與 MCP 呼叫，太長時在膠囊內捲動。
+- 點對話上方的 Bot 會打開它的詳情、資料庫與設定；「新會話」改到 Bot 列表的長按選單。
 
 ### en-US
-- Bots can make artifacts: reports, trackers and dashboards you come back to show as a card in the chat. Open one full screen and message the bot below it to change it; it updates in place.
-- Each bot's Library collects its artifacts and the files and images shared in the chat.
+- Bots make artifacts, shown as cards in the chat; message the bot below one to edit it.
+- Each bot's Library holds its artifacts and the chat's files.
 - Create bots that run Hermes Agent.
-- Bots hand work to each other without waiting; the answer comes back to the bot that asked, which then replies to you.
-- The account sheet's Computers & settings row now has the same name as the page it opens.
-- Trying again after adding a connector failed uses the key you corrected.
-- While a bot works, tap its status pill to unfold this turn's thinking, tool and MCP calls right in the chat; a long turn scrolls inside the pill.
+- Bots hand work to each other without waiting.
+- Computers & settings now matches the page it opens.
+- Retrying a failed connector uses the corrected key.
+- Tap a working bot's status pill to see this turn's steps.
+- Tap a chat's title for the bot's details; New session moved to the list's touch & hold menu.

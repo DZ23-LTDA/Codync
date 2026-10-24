@@ -1190,5 +1190,6 @@
   "More actions": "작업 더 보기",
   "Library": "라이브러리",
   "Library is empty": "라이브러리가 비어 있습니다",
-  "Artifacts {name} makes and files shared in this chat show here.": "{name}이(가) 만든 아티팩트와 이 채팅에서 공유한 파일이 여기에 표시됩니다."
+  "Artifacts {name} makes and files shared in this chat show here.": "{name}이(가) 만든 아티팩트와 이 채팅에서 공유한 파일이 여기에 표시됩니다.",
+  "{name}, view details": "{name}, 세부 정보 보기"
 }

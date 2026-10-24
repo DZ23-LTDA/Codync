@@ -10,7 +10,6 @@ public struct ThreadView: View {
 
     public init(botId: String) { self.botId = botId }
     @Environment(BotStore.self) var model
-    @Environment(\.dismiss) var dismiss
     @State var showTrace = false
     /// The message the composer's next send quotes.
     @State var replyingTo: Entry?
@@ -18,8 +17,6 @@ public struct ThreadView: View {
     @State var openArtifact: ArtifactTarget?
     @State var editingGroup = false
     @State var details: DetailsRequest?
-    @State var confirmNewSession = false
-    @State var confirmDelete: Bot?
     @State var calling = false
     @State var callSpeaking = false
     @State var interruptCall: (() -> Void)?
@@ -86,11 +83,6 @@ public struct ThreadView: View {
             .codyncSheet(isPresented: $editingGroup) {
                 if let bot { GroupEditorView(group: bot) }
             }
-            .codyncDialog("Start a new session?", isPresented: $confirmNewSession,
-                          message: "The conversation stays here, but the agent starts with a fresh context.") {
-                [DialogAction("New session") { model.newSession(botId) }]
-            }
-            .deleteBotConfirmation($confirmDelete) { dismiss() }
     }
 
     /// Open Live Mode from Shortcuts: closes whatever covers the chat, then starts the call.
@@ -100,8 +92,6 @@ public struct ThreadView: View {
         openArtifact = nil
         editingGroup = false
         details = nil
-        confirmNewSession = false
-        confirmDelete = nil
         if model.fileDownloads.export?.botId == botId { model.fileDownloads.dismissExport() }
         withAnimation(Motion.reduced(Motion.layout, reduceMotion)) { calling = true }
     }
@@ -195,35 +185,10 @@ public struct ThreadView: View {
         }
     }
 
-    func openRoutine(_ id: String?) {
+    func openRoutine(_ id: String) {
         withAnimation(Motion.reduced(Motion.layout, reduceMotion)) {
             details = DetailsRequest(tab: .details, routineId: id)
         }
-    }
-
-    var menuItems: [MenuItem] {
-        var items = [MenuItem("Full conversation", icon: "list.bullet.rectangle") { showTrace = true }]
-        if let bot, bot.isGroup {
-            items.append(MenuItem("Edit group", icon: "person.2") { editingGroup = true })
-            items.append(MenuItem(bot.pinned ? "Unpin" : "Pin", icon: "pin") { model.setPinned(bot, !bot.pinned) })
-            items.append(MenuItem("Delete group", icon: "trash", destructive: true, divider: true) { confirmDelete = bot })
-            return items
-        }
-        if let bot {
-            items.append(MenuItem("Settings", icon: "gearshape") { openSettings() })
-            items.append(MenuItem(bot.pinned ? "Unpin" : "Pin", icon: "pin") { model.setPinned(bot, !bot.pinned) })
-        }
-        items.append(MenuItem("Routines", icon: "clock.arrow.circlepath") {
-            openRoutine(nil)
-        })
-        if model.hasLibrary {
-            items.append(MenuItem("Library", icon: "books.vertical") {
-                withAnimation(Motion.reduced(Motion.layout, reduceMotion)) { details = DetailsRequest(tab: .library) }
-            })
-        }
-        items.append(MenuItem("New session", icon: "arrow.counterclockwise") { confirmNewSession = true })
-        items.append(MenuItem("Delete bot", icon: "trash", destructive: true, divider: true) { confirmDelete = bot })
-        return items
     }
 }
 
@@ -403,7 +368,7 @@ extension ThreadView {
         }
     }
 
-    /// The system navigation bar: the title pill holds the bot's actions; the corner is the computer.
+    /// The system navigation bar: the title opens the bot's details; the corner is the computer.
     func chrome(_ content: some View) -> some View {
         content
             .navigationBarTitleDisplayMode(.inline)
@@ -421,23 +386,10 @@ extension ThreadView {
             }
     }
 
+    /// Like Grok Bot: the bot at the top opens its details (a group's editor for a group).
     var header: some View {
-        // Like Grok Bot: the title pill holds the bot's actions; the corner is the computer.
-        Menu {
-            Text("\(model.hostName) · \(L10n.tr(model.connectionLabel))")
-            Button(L10n.tr("Reconnect"), systemImage: "arrow.clockwise") { model.restartStream() }
-            Divider()
-            Button(L10n.tr("Details"), systemImage: "info.circle", action: openDetails)
-            ForEach(menuItems) { item in
-                if item.divider { Divider() }
-                Button(role: item.destructive ? .destructive : nil, action: item.action) {
-                    if let icon = item.icon { Label(L10n.tr(item.title), systemImage: icon) } else { Text(L10n.tr(item.title)) }
-                }
-            }
-        } label: {
-            title
-        }
-        .accessibilityLabel("\(bot?.name ?? "Conversation") actions")
+        Button(action: openDetails) { title }
+            .accessibilityLabel(L10n.tr("{name}, view details").replacingOccurrences(of: "{name}", with: bot?.name ?? ""))
     }
 
     private func openDetails() {
@@ -451,9 +403,5 @@ extension ThreadView {
             model.screenRequest = operating ? ScreenRequest(watching: botId) : ScreenRequest()
         }
         .symbolEffect(.pulse, options: .repeating, isActive: operating)
-    }
-
-    func openSettings() {
-        details = DetailsRequest(tab: .settings)
     }
 }

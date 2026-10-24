@@ -1190,5 +1190,6 @@
   "More actions": "Más acciones",
   "Library": "Biblioteca",
   "Library is empty": "La biblioteca está vacía",
-  "Artifacts {name} makes and files shared in this chat show here.": "Los artefactos que crea {name} y los archivos compartidos en este chat aparecen aquí."
+  "Artifacts {name} makes and files shared in this chat show here.": "Los artefactos que crea {name} y los archivos compartidos en este chat aparecen aquí.",
+  "{name}, view details": "{name}, ver detalles"
 }

@@ -1190,5 +1190,6 @@
   "More actions": "更多操作",
   "Library": "資料庫",
   "Library is empty": "資料庫還是空的",
-  "Artifacts {name} makes and files shared in this chat show here.": "{name} 做的 Artifact，和這個對話裡分享的檔案，都會出現在這裡。"
+  "Artifacts {name} makes and files shared in this chat show here.": "{name} 做的 Artifact，和這個對話裡分享的檔案，都會出現在這裡。",
+  "{name}, view details": "{name}，檢視詳情"
 }

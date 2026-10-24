@@ -1,8 +1,9 @@
 # Routines
 
 Routines belong to an agent bot and are usually created by talking to it ("I want
-a routine that…"). Every agent receives the built-in `routines` MCP server. The desktop
-conversation details panel and the iPhone's **More → Routines** show a compact list
+a routine that…"). Every agent receives the built-in `routines` MCP server. The Details page
+of the bot's details (the desktop's details panel; the phones' details sheet, which tapping the
+chat's title or a routine's notice opens) shows a compact list
 (name, schedule, on/off switch). The header's chat button puts "I want a routine
 that " in the composer; **+** opens the form for doing it by hand. A row opens
 the same form filled in, with delete and test run beside Save; the row's switch

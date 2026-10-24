@@ -1190,5 +1190,6 @@
   "More actions": "Weitere Aktionen",
   "Library": "Mediathek",
   "Library is empty": "Die Mediathek ist leer",
-  "Artifacts {name} makes and files shared in this chat show here.": "Artefakte von {name} und in diesem Chat geteilte Dateien erscheinen hier."
+  "Artifacts {name} makes and files shared in this chat show here.": "Artefakte von {name} und in diesem Chat geteilte Dateien erscheinen hier.",
+  "{name}, view details": "{name}, Details anzeigen"
 }

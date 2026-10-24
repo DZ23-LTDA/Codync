@@ -30,6 +30,9 @@ fun AppStore.saveBot(draft: BotDraft, onSaved: () -> Unit) = action("editor") {
     onSaved()
 }
 
+/** A saved bot's settings from its details, saved as they're edited: the chat stays where it is. */
+fun AppStore.saveSettings(draft: BotDraft) = command("updateBot", draft.body(), "settings:" + draft.id)
+
 fun AppStore.saveGroup(draft: GroupDraft, onSaved: () -> Unit) = action("editor") {
     val payload = draft.body(state.value.bots)
     val active = ready()

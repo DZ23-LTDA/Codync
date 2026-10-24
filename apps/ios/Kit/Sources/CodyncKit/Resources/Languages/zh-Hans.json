@@ -1190,5 +1190,6 @@
   "More actions": "更多操作",
   "Library": "资料库",
   "Library is empty": "资料库还是空的",
-  "Artifacts {name} makes and files shared in this chat show here.": "{name} 做的 Artifact，和这个对话里分享的文件，都会出现在这里。"
+  "Artifacts {name} makes and files shared in this chat show here.": "{name} 做的 Artifact，和这个对话里分享的文件，都会出现在这里。",
+  "{name}, view details": "{name}，查看详情"
 }

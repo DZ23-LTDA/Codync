@@ -37,8 +37,11 @@ import com.codync.android.core.artifactDraftKey
 import com.codync.android.core.artifactQuote
 import com.codync.android.design.*
 
-/** The artifact a viewer shows, with what's known before its details arrive: a title, and the card to reply to. */
-internal data class OpenArtifact(val id: String, val title: String, val entryId: String?)
+/**
+ * The artifact a viewer shows, with what's known before its details arrive: a title, and the card to reply to. `botId`: the
+ * bot that owns it, not always the chat's (a group member's Library, from the group).
+ */
+internal data class OpenArtifact(val botId: String, val id: String, val title: String, val entryId: String?)
 
 /**
  * `content` over everything while `open` is set, sliding up like a full-screen cover; it keeps its artifact while it slides

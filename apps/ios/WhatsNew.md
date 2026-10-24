@@ -20,6 +20,7 @@ a version without one gets a generic "Bug fixes and improvements" line. Delete o
 - Bot 工作中點一下狀態膠囊，就能在對話裡展開這一輪的思考、工具與 MCP 呼叫，太長時在膠囊內捲動。
 - 新增「Open Live Mode」捷徑，選擇 Bot 後直接開啟語音聊天。
 - 新增「Send Text to Bot」捷徑，可選擇 Bot 並傳送文字；預設在背景傳送，也可開啟「Open Chat」顯示對話。
+- 點對話上方的 Bot 會打開它的詳情、資料庫、記憶與設定；「新會話」改到 Bot 列表的長按選單。
 
 ### en-US
 - Bots can make artifacts: reports, trackers and dashboards you come back to show as a card in the chat. Open one full screen and message the bot below it to change it; it updates in place.
@@ -33,6 +34,7 @@ a version without one gets a generic "Bug fixes and improvements" line. Delete o
 - While a bot works, tap its status pill to unfold this turn's thinking, tool and MCP calls right in the chat; a long turn scrolls inside the pill.
 - Use Open Live Mode in Shortcuts to choose a bot and start voice chat.
 - Use Send Text to Bot to choose a bot and send text in the background by default, or enable Open Chat to show the conversation.
+- Tapping the bot at the top of its chat opens its Details, Library, Memory and Settings; New session moved to the bot's touch-and-hold menu in the list.
 
 ## 2.24.0
 
