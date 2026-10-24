@@ -360,7 +360,8 @@ extension ThreadView {
         // Offline, "working" is only what the computer last said; don't show it as live.
         if let bot, working {
             rows.append(ConversationRow("working") {
-                WorkingIndicator(bot: bot)
+                // Each turn starts folded.
+                WorkingIndicator(bot: bot, steps: Entry.workingSteps(model.chat(botId)))
                     .id(bot.startedAt)
                     .padding(.top, 6)
             })
