@@ -9,35 +9,24 @@ import { useTr } from '../../lib/use-language'
 import { useFollowEnd } from './follow-end'
 import { TraceRow } from './TraceView'
 
-/** The bot's current activity and elapsed time; once the turn has steps, a click unfolds them. */
+/** The bot's current activity and elapsed time; a click unfolds the turn's steps. */
 export function WorkingIndicator({ bot, steps }: { bot: Bot; steps: Entry[] }) {
   const tr = useTr()
   const waiting = needsInput(bot)
-  const [expanded, setExpanded] = useState(false)
-  const unfoldable = steps.length > 0
-  const open = expanded && unfoldable
-  const status = (
-    <HStack as="span" gap={8}>
-      <ThinkingOrb state={waiting ? 'listening' : 'working'} size={16} color={waiting ? 'var(--warning)' : 'var(--secondary)'} />
-      <Text size="subheadline" tone={waiting ? 'attention' : 'secondary'} truncate grow>{tr(bot.activity || 'Working…')}</Text>
-      {bot.startedAt ? <Timer since={bot.startedAt} /> : null}
-      {unfoldable ? (
-        <span className={`disclosure-chevron${open ? ' open' : ''}`}>
-          <Icon name="chevron.right" size={10} weight="semibold" />
-        </span>
-      ) : null}
-    </HStack>
-  )
+  const [open, setOpen] = useState(false)
   return (
     <VStack align="flex-start" className="agent-inset">
       <div className={open ? 'working expanded' : 'working'}>
-        {unfoldable ? (
-          <button className="working-toggle" onClick={() => setExpanded((x) => !x)} aria-expanded={open} title={tr(open ? 'Hide steps' : 'Show steps')}>
-            {status}
-          </button>
-        ) : (
-          status
-        )}
+        <button className="working-toggle" onClick={() => setOpen((x) => !x)} aria-expanded={open} title={tr(open ? 'Hide steps' : 'Show steps')}>
+          <HStack as="span" gap={8}>
+            <ThinkingOrb state={waiting ? 'listening' : 'working'} size={16} color={waiting ? 'var(--warning)' : 'var(--secondary)'} />
+            <Text size="subheadline" tone={waiting ? 'attention' : 'secondary'} truncate grow>{tr(bot.activity || 'Working…')}</Text>
+            {bot.startedAt ? <Timer since={bot.startedAt} /> : null}
+            <span className={`disclosure-chevron${open ? ' open' : ''}`}>
+              <Icon name="chevron.right" size={10} weight="semibold" />
+            </span>
+          </HStack>
+        </button>
         <Reveal show={open}>
           <WorkingSteps steps={steps} />
         </Reveal>
@@ -46,12 +35,15 @@ export function WorkingIndicator({ bot, steps }: { bot: Bot; steps: Entry[] }) {
   )
 }
 
-/** The turn's thinking, narration, tool calls and plan in a bounded box that follows new steps until the reader scrolls up. */
+/** The turn's thinking, narration, tool calls and plan in a bounded box that follows new steps until the reader scrolls
+ * up. A turn can have none yet: Claude's thinking text arrives as its thinking ends. */
 function WorkingSteps({ steps }: { steps: Entry[] }) {
+  const tr = useTr()
   const follow = useFollowEnd()
   return (
     <div ref={follow.ref} className="working-steps" onScroll={follow.onScroll}>
       <VStack gap={10}>
+        {steps.length === 0 ? <Text tone="tertiary">{tr('Nothing yet.')}</Text> : null}
         {steps.map((e) => <TraceRow key={e.id} entry={e} unfolded />)}
       </VStack>
     </div>

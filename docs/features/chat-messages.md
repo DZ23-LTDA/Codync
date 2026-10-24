@@ -67,15 +67,19 @@ reads as **Typing…** (`activity()` in `agent/bot/tool_entry.rs`). The activity
 animated orb, a short status and elapsed time, in a pill no wider than an agent bubble whose status
 truncates to one line. Replies arrive as complete messages.
 
-Once the running turn has steps, the pill ends in a chevron and a tap (click) unfolds them inside it:
+The pill ends in a chevron, and a tap (click) unfolds the running turn's steps inside it:
 the turn's thinking text, narration (never a `(pass)`), tool calls (MCP tools included) and plan, in order, with each
 tool's output and diffs one more tap away. The pill widens to an agent bubble's width, the steps
 scroll inside it past 280 pt and follow new ones until the reader scrolls up, and each turn starts
 folded; the pill leaves with the turn. The host sets `bookkeeping` on every tool entry: `true` for
 the bot's own bookkeeping (a `send_message` call, a `memory` MCP call, or a call naming a file in a
 memory folder the bot sees), which the steps leave out, as the working line does. A host older than
-2.25.0 sets none, so its tool calls stay out of the steps too. A turn with no steps yet (some agents
-send no thinking text) shows no chevron.
+2.25.0 sets none, so its tool calls stay out of the steps too. A turn with no steps yet unfolds to
+**Nothing yet.**: some agents send no thinking text, and Claude's arrives only as its thinking ends.
+Claude Code leaves an SDK session's thinking text out unless asked, so Claude bots start with
+summaries shown (`--thinking-display summarized`, through `claudeCode.options.extraArgs` in
+`agent/bot/launch.rs`). Whether Claude thinks stays the user's Claude Code setting; when it does, a
+short thought's summary arrives in one piece when the thinking ends, a long one's in parts.
 
 Full conversation remains available from the conversation menu. It contains narration, all
 thoughts, tools and previous turns, and follows new steps until the reader scrolls up.

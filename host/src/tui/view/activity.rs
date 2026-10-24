@@ -19,25 +19,22 @@ pub(super) fn activity(out: &mut Built, app: &App, bot: &Bot, entries: &[&Entry]
     gap(out);
     out.lines.push(Line::from(Span::styled(format!(" {}", bot.name), name_style(&bot.color))));
     let steps = working_steps(entries);
-    let open = !steps.is_empty()
-        && app.steps_open.as_ref().is_some_and(|(id, turn)| id == &bot.id && Some(*turn) == running_turn(entries));
+    let open = app.steps_open.as_ref().is_some_and(|(id, turn)| id == &bot.id && Some(*turn) == running_turn(entries));
     let text = if bot.activity.is_empty() { tr("Working…") } else { tr(&bot.activity) };
-    let mut row = vec![
+    out.buttons.push((out.lines.len(), 0, u(width), Click::Steps));
+    out.lines.push(Line::from(vec![
         Span::styled(format!(" {} ", spin(app)), t.secondary),
         Span::styled(truncate(text.as_ref(), width.saturating_sub(8)), t.secondary),
-    ];
-    if !steps.is_empty() {
-        row.push(Span::styled(if open { "  v" } else { "  >" }, t.dim));
-        out.buttons.push((out.lines.len(), 0, u(width), Click::Steps));
-    }
-    out.lines.push(Line::from(row));
-    let hint = if steps.is_empty() {
-        "   t full conversation".to_owned()
-    } else {
-        format!("   {} steps so far · > {} · t full conversation", steps.len(), if open { "hide" } else { "show" })
-    };
+        Span::styled(if open { "  v" } else { "  >" }, t.dim),
+    ]));
+    let hint =
+        format!("   {} steps so far · > {} · t full conversation", steps.len(), if open { "hide" } else { "show" });
     out.lines.push(Line::from(Span::styled(hint, t.dim)));
     if open {
+        // Claude's thinking text arrives as its thinking ends, so a turn can have no steps yet.
+        if steps.is_empty() {
+            out.lines.push(Line::from(Span::styled(format!("   {}", tr("Nothing yet.")), t.dim)));
+        }
         let mut lines = vec![];
         for e in steps {
             push_step(&mut lines, app, e, width, false);
@@ -116,14 +113,16 @@ mod tests {
     }
 
     #[test]
-    fn a_turn_without_steps_offers_only_full_conversation() {
+    fn a_turn_without_steps_unfolds_to_nothing_yet() {
         let (tx, _) = tokio::sync::mpsc::unbounded_channel();
         let mut app = App::new(Client::new("http://127.0.0.1:1", None), tx, String::new());
-        app.on_msg(Msg::Event(json!({"type": "bot", "bot": {"id": "bot", "name": "Bot", "activity": ""}})));
+        app.on_msg(Msg::Event(json!({"type": "bot", "bot": {"id": "bot", "name": "Bot", "activity": "Thinking…"}})));
         let entries =
             [Entry { id: "u".into(), seq: 1, turn: 1, kind: Kind::User, data: json!({"text": "hi"}), created_at: 0 }];
-        let (text, buttons) = render(&app, &entries);
-        assert!(text.contains("Working…") && text.contains("t full conversation") && !text.contains("> show"));
-        assert_eq!(buttons, 0);
+        let (folded, buttons) = render(&app, &entries);
+        assert!(folded.contains("Thinking…  >") && folded.contains("> show") && !folded.contains("Nothing yet."));
+        assert_eq!(buttons, 1);
+        app.steps_open = Some(("bot".into(), 1));
+        assert!(render(&app, &entries).0.contains("Nothing yet."));
     }
 }

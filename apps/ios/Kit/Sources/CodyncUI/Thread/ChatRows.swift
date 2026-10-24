@@ -260,29 +260,24 @@ struct NoticeRow: View {
     }
 }
 
-/// The bot's current activity and elapsed time; once the turn has steps, a tap unfolds them.
+/// The bot's current activity and elapsed time; a tap unfolds the turn's steps.
 struct WorkingIndicator: View {
     let bot: Bot
     let steps: [Entry]
-    @State private var expanded = false
+    @State private var open = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
-        let open = expanded && !steps.isEmpty
         let shape = RoundedRectangle(cornerRadius: 18, style: .continuous)
         VStack(alignment: .leading, spacing: 0) {
-            if steps.isEmpty {
-                status(open: false)
-            } else {
-                Button {
-                    withAnimation(Motion.reduced(Motion.layout, reduceMotion)) { expanded.toggle() }
-                } label: {
-                    status(open: open).contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .accessibilityHint(L10n.tr(open ? "Hide steps" : "Show steps"))
-                .accessibilityValue(open ? "Expanded" : "Collapsed")
+            Button {
+                withAnimation(Motion.reduced(Motion.layout, reduceMotion)) { open.toggle() }
+            } label: {
+                status.contentShape(Rectangle())
             }
+            .buttonStyle(.plain)
+            .accessibilityHint(L10n.tr(open ? "Hide steps" : "Show steps"))
+            .accessibilityValue(open ? "Expanded" : "Collapsed")
             if open {
                 WorkingSteps(steps: steps)
                     .padding(.top, 12)
@@ -299,7 +294,7 @@ struct WorkingIndicator: View {
         .padding(.trailing, 40)
     }
 
-    private func status(open: Bool) -> some View {
+    private var status: some View {
         HStack(spacing: 8) {
             ThinkingOrb(state: bot.needsInput ? .listening : .working, size: 16, color: bot.needsInput ? Palette.warning : Palette.secondary)
             Text(L10n.tr(bot.activity.isEmpty ? "Working…" : bot.activity))
@@ -312,18 +307,17 @@ struct WorkingIndicator: View {
                     .font(.footnote.monospacedDigit())
                     .foregroundStyle(Palette.tertiary)
             }
-            if !steps.isEmpty {
-                Image(systemName: "chevron.right")
-                    .font(.caption2.weight(.semibold))
-                    .foregroundStyle(Palette.tertiary)
-                    .rotationEffect(.degrees(open ? 90 : 0))
-            }
+            Image(systemName: "chevron.right")
+                .font(.caption2.weight(.semibold))
+                .foregroundStyle(Palette.tertiary)
+                .rotationEffect(.degrees(open ? 90 : 0))
         }
     }
 }
 
 /// The turn's thinking, narration, tool calls and plan: hugs them, scrolls once they're taller than
 /// 280 points, and keeps the newest in view. One scroll view, so what the reader unfolds stays unfolded.
+/// A turn can have none yet: Claude's thinking text arrives as its thinking ends.
 private struct WorkingSteps: View {
     let steps: [Entry]
 
@@ -331,6 +325,7 @@ private struct WorkingSteps: View {
         CappedHeight(max: 280) {
             ScrollView {
                 VStack(alignment: .leading, spacing: 10) {
+                    if steps.isEmpty { Text(L10n.tr("Nothing yet.")).foregroundStyle(Palette.tertiary) }
                     ForEach(steps) { TraceRow(entry: $0, unfolded: true) }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)

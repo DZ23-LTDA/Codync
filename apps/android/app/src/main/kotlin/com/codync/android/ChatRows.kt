@@ -374,17 +374,15 @@ internal val Entry.botReactions: Map<String, List<String>> get() =
     }
 }
 
-/** The bot's current activity and elapsed time; once the turn has steps, a tap unfolds them. */
+/** The bot's current activity and elapsed time; a tap unfolds the turn's steps. */
 @Composable internal fun WorkingIndicator(bot: Bot, steps: List<Entry>) {
     val needs = bot.status == "needsInput"
     // Each turn starts folded.
-    var expanded by remember(bot.startedAt) { mutableStateOf(false) }
-    val open = expanded && steps.isNotEmpty()
+    var open by remember(bot.startedAt) { mutableStateOf(false) }
     val turn by animateFloatAsState(if (open) 90f else 0f, Motion.layout(), label = "Chevron")
     val action = tr(if (open) "Hide steps" else "Show steps")
     val state = tr(if (open) "Expanded" else "Collapsed")
-    val toggle = if (steps.isEmpty()) Modifier else Modifier.clickable(role = Role.Button, onClickLabel = action) { expanded = !expanded }
-        .semantics { stateDescription = state }
+    val toggle = Modifier.clickable(role = Role.Button, onClickLabel = action) { open = !open }.semantics { stateDescription = state }
     Column(Modifier.fillMaxWidth().padding(top = 6.dp, end = 40.dp)) {
         Column(Modifier.then(if (open) Modifier.fillMaxWidth() else Modifier).animateContentSize(Motion.layoutSize)
             .clip(RoundedRectangle(18.dp)).background(Palette.bubbleAgent).padding(horizontal = 16.dp, vertical = 12.dp)) {
@@ -394,7 +392,7 @@ internal val Entry.botReactions: Map<String, List<String>> get() =
                 Text(tr(bot.activity.ifEmpty { "Working…" }), Modifier.weight(1f, fill = open), style = Type.subheadline,
                     color = if (needs) Palette.warning else Palette.secondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 bot.startedAt?.let { Elapsed(it) }
-                if (steps.isNotEmpty()) Symbol("chevron.right", Modifier.rotate(turn), size = 13.dp, tint = Palette.tertiary)
+                Symbol("chevron.right", Modifier.rotate(turn), size = 13.dp, tint = Palette.tertiary)
             }
             AnimatedVisibility(open, enter = fadeIn(Motion.fade()) + expandVertically(Motion.layoutSize),
                 exit = fadeOut(Motion.fade()) + shrinkVertically(Motion.layoutSize)) { WorkingSteps(steps) }
@@ -403,7 +401,7 @@ internal val Entry.botReactions: Map<String, List<String>> get() =
 }
 
 /** The turn's thinking, narration, tool calls and plan: hugs them, scrolls past 280 dp, and follows new steps until
- *  the reader scrolls up. */
+ *  the reader scrolls up. A turn can have none yet: Claude's thinking text arrives as its thinking ends. */
 @Composable private fun WorkingSteps(steps: List<Entry>) {
     val scroll = rememberScrollState()
     var follow by remember { mutableStateOf(true) }
@@ -415,6 +413,7 @@ internal val Entry.botReactions: Map<String, List<String>> get() =
         scroll.scrollTo(scroll.maxValue)
     }
     Column(Modifier.padding(top = 12.dp).heightIn(max = 280.dp).verticalScroll(scroll), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        if (steps.isEmpty()) Text(tr("Nothing yet."), style = Type.body, color = Palette.tertiary)
         for (entry in steps) key(entry.id) { TraceRow(entry, unfolded = true) }
     }
 }

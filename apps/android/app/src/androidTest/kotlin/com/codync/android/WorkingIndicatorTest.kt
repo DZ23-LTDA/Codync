@@ -40,7 +40,17 @@ class WorkingIndicatorTest {
         compose.onNodeWithText("npm test").assertDoesNotExist()
     }
 
-    @Test fun activityWithoutStepsIsNotClickableAndUpdatesWithoutMovingHistory() {
+    /** Claude's thinking text arrives as its thinking ends, so the activity unfolds before the turn has steps. */
+    @Test fun activityUnfoldsBeforeTheTurnHasSteps() {
+        compose.mainClock.autoAdvance = false
+        compose.setContent { Hosted { WorkingIndicator(Bot("bot", "Bot", status = "working", activity = "Thinking…"), emptyList()) } }
+        compose.mainClock.advanceTimeBy(1000)
+        compose.onNodeWithText("Thinking…").performClick()
+        compose.mainClock.advanceTimeBy(1000)
+        compose.onNodeWithText("Nothing yet.").assertIsDisplayed()
+    }
+
+    @Test fun activityUpdatesWithoutMovingHistory() {
         // The live orb runs a frame loop; advance motion explicitly instead of waiting for it to stop.
         compose.mainClock.autoAdvance = false
         val activity = mutableStateOf("Working…")
@@ -57,14 +67,14 @@ class WorkingIndicatorTest {
         }
         compose.mainClock.advanceTimeBy(1000)
         compose.waitForIdle()
-        compose.onNodeWithText("Working…").assertIsDisplayed().assertHasNoClickAction()
+        compose.onNodeWithText("Working…").assertIsDisplayed()
         compose.runOnIdle {
             assertFalse(list.canScrollForward)
             activity.value = "Searching files…"
         }
         compose.mainClock.advanceTimeBy(1000)
         compose.waitForIdle()
-        compose.onNodeWithText("Searching files…").assertIsDisplayed().assertHasNoClickAction()
+        compose.onNodeWithText("Searching files…").assertIsDisplayed()
         compose.runOnIdle { assertFalse(list.canScrollForward) }
         compose.onNodeWithTag("conversation").performTouchInput { swipeDown() }
         compose.mainClock.advanceTimeBy(1000)
