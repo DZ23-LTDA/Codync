@@ -128,9 +128,9 @@ private fun AppStore.begin(call: VoiceBinding, provider: VoiceProvider?) {
     }
 }
 
-/** The call's audio is live: the lead speaks first (only a host with leads marks one, so an older host never gets this). */
+/** The call's audio is live: the lead speaks first, on the call (only a host with leads marks one, so an older host never gets this). */
 private fun AppStore.callStarted(call: VoiceBinding) {
-    if (state.value.bots.any { it.id == call.botId && it.lead }) command("callStarted", body("botId" to call.botId), "callStarted:" + call.botId)
+    if (state.value.bots.any { it.id == call.botId && it.lead }) command("callStarted", body("botId" to call.botId, "callId" to call.id), "callStarted:" + call.botId)
 }
 
 /** After the call settings close: a different engine picked there takes over the call, which goes on. */

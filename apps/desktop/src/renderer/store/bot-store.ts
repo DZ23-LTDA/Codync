@@ -148,14 +148,6 @@ export class BotStore extends BotSync {
     this.perform((c) => c.call('switchBack', { botId }), true)
   }
 
-  /** The calls this window is on: what they carry stays out of the chat until their line arrives (`hidingCalls`). */
-  readonly liveCalls = new Set<string>()
-
-  beginCall(call: string) {
-    this.liveCalls.add(call)
-    this.changed()
-  }
-
   /** A finished call's line, with the rest of its transcript; the chat then shows the call's messages behind it. */
   async endCall(botId: string, call: string, seconds: number, lines: CallLine[]) {
     try {
@@ -165,14 +157,13 @@ export class BotStore extends BotSync {
     } catch (error) {
       this.lastError = error instanceof Error ? error.message : String(error)
     }
-    this.liveCalls.delete(call)
-    this.changed()
   }
 
   /** A call's audio is live: the lead speaks first (only a host with leads marks one, so an older host never gets this). */
-  callStarted(botId: string) {
+  callStarted(botId: string, call: string) {
     if (!this.bots.get(botId)?.lead) return
-    this.perform((c) => c.call('callStarted', { botId }))
+    // Its opening is the call's, like everything said on it.
+    this.perform((c) => c.call('callStarted', { botId, callId: call }))
   }
 
   screenTakeover(on: boolean) {
@@ -356,6 +347,11 @@ export class BotStore extends BotSync {
     this.changed()
     const draft: GroupDraft = { id: group.id, kind: 'group', name, description: group.description, members, pinned: group.pinned }
     this.perform((c) => c.call('updateBot', draft), true)
+  }
+
+  /** What a voice call carried, from the computer: the loaded chat may not reach back to it. */
+  async callEntries(botId: string, call: string): Promise<Entry[]> {
+    return (await (await this.ready()).call<{ entries: Entry[] }>('callEntries', { botId, callId: call })).entries
   }
 
   /** The history between a bot and one peer. Never upserted: old notices would break `loadOlder`'s paging. */

@@ -80,11 +80,14 @@ public struct CallLine: Codable, Hashable, Sendable {
     public var from: String
     public var text: String
     public var at: Int64?
+    /// The app's id for the line: one sent again (its first answer lost) is kept once.
+    public var id: String?
 
-    public init(from: String, text: String, at: Int64?) {
+    public init(from: String, text: String, at: Int64?, id: String? = nil) {
         self.from = from
         self.text = text
         self.at = at
+        self.id = id
     }
 }
 

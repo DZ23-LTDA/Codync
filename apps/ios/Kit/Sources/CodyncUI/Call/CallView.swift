@@ -45,7 +45,6 @@ struct CallView: View {
         .animation(Motion.reduced(Motion.fade, reduceMotion), value: notice)
         .onAppear {
             startedAt = .now
-            model.beginCall(call)
             link = CallLink(model: model, botId: botId, call: call)
             begin(cloud: VoiceSettings.provider)
         }
@@ -64,7 +63,7 @@ struct CallView: View {
             if phase?.isActive == true, !reported, let session {
                 reported = true
                 Analytics.shared.capture(.voiceCallStarted(session.analyticsName))
-                model.callStarted(botId)
+                model.callStarted(botId, call: call)
             }
             // A cloud engine that can't start or drops mid-call hands over to on-device voice.
             if case .failed(let message) = phase, let provider = session?.provider {

@@ -168,12 +168,14 @@ pub(super) async fn call(hub: &Arc<Hub>, method: &str, b: Value) -> Result<Contr
             // Said on a voice call (on-device or speech to text): the apps show it in the call's conversation.
             if let Some(call) = b["call"].as_str() {
                 data["call"] = crate::chat::calls::checked(call)?.into();
+                crate::chat::calls::heard(&hub.store, bot, call)?;
             }
             json!({"entry": crate::chat::messages::post(hub, &row.config, data)?})
         }
         // A voice call is on (its audio flows): the lead speaks first.
         "callStarted" => {
-            crate::chat::lead::call_started(hub, str_arg(&b, "botId")?)?;
+            let call = b["callId"].as_str().map(crate::chat::calls::checked).transpose()?;
+            crate::chat::lead::call_started(hub, str_arg(&b, "botId")?, call)?;
             json!({})
         }
         // A finished voice call from an app older than `endCall`, as a line in the chat ("Voice chat · 0:16").
@@ -200,6 +202,12 @@ pub(super) async fn call(hub: &Arc<Hub>, method: &str, b: Value) -> Result<Contr
                 &b["lines"],
             )?;
             json!({})
+        }
+        // What a call carried, for its conversation: the chat an app holds may not reach back that far.
+        "callEntries" => {
+            let bot = str_arg(&b, "botId")?;
+            let call = crate::chat::calls::checked(str_arg(&b, "callId")?)?;
+            json!({"entries": hub.store.call_entries(bot, call, crate::chat::calls::CALL_ENTRIES)?})
         }
         "endCall" => {
             let call = crate::chat::calls::checked(str_arg(&b, "callId")?)?;

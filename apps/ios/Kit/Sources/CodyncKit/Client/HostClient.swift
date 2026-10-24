@@ -140,6 +140,13 @@ public extension HostClient {
         return res.entries
     }
 
+    /// What a voice call carried, from the computer: the chat this device holds may not reach back to it.
+    func callEntries(botId: String, call: String) async throws -> [Entry] {
+        struct Res: Decodable { var entries: [Entry] }
+        let res: Res = try await self.call("callEntries", ["botId": botId, "callId": call])
+        return res.entries
+    }
+
     /// The newest 200 bot-to-bot notices between a bot's chat and a peer, oldest first.
     func botConversation(botId: String, peerId: String) async throws -> [Entry] {
         struct Res: Decodable { var entries: [Entry] }
@@ -238,8 +245,9 @@ public extension HostClient {
         return out
     }
 
-    func callStarted(_ botId: String) async throws {
-        let _: Empty = try await call("callStarted", ["botId": botId])
+    /// A call's audio is live: a lead opens it, and its opening is the call's.
+    func callStarted(_ botId: String, call: String) async throws {
+        let _: Empty = try await self.call("callStarted", ["botId": botId, "callId": call])
     }
 
     // MARK: voice calls (host/src/chat/calls)

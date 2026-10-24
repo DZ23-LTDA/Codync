@@ -283,8 +283,7 @@ const Transcript = memo(function Transcript({ botId, openTrace, onReply, openRou
   // Rebuilt only when this chat changes: the store replaces a chat's list on every change.
   const entries = store.allEntries(botId)
   // What voice calls carried shows in each call's conversation, not in the chat.
-  const liveCalls = [...store.liveCalls].join()
-  const all = useMemo(() => buildChat(hidingCalls(entries, store.liveCalls)), [entries, liveCalls])
+  const all = useMemo(() => buildChat(hidingCalls(entries)), [entries])
   const steps = useMemo(() => workingSteps(entries), [entries])
   // The newest 40 items first; older pages come in near the top.
   const [firstShown, setFirstShown] = useState<string | null>(null)
@@ -324,7 +323,7 @@ const Transcript = memo(function Transcript({ botId, openTrace, onReply, openRou
     if (at === 0) {
       const anchor = list[0]?.id
       await store.loadOlder(botId)
-      list = buildChat(hidingCalls(store.allEntries(botId), store.liveCalls))
+      list = buildChat(hidingCalls(store.allEntries(botId)))
       at = anchor ? Math.max(0, list.findIndex((i) => i.id === anchor)) : 0
     }
     if (at > 0) setFirstShown(list[Math.max(0, at - PAGE)]!.id)

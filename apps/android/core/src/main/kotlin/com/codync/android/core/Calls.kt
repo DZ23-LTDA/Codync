@@ -59,15 +59,16 @@ data class CallTool(val name: String, val description: String, val parameters: J
     })
 }
 
-/** One line of a call: what the user said (`user`) or the voice answered (`voice`), with when (ms). */
-@Serializable data class CallLine(val from: String, val text: String, val at: Long? = null)
+/** One line of a call: what the user said (`user`) or the voice answered (`voice`), with when (ms) and the phone's
+ * id for it (one sent again, its first answer lost, is kept once). */
+@Serializable data class CallLine(val from: String, val text: String, val at: Long? = null, val id: String? = null)
 
 /**
  * What was said on a realtime call, the pieces of a turn joined, until it goes to the computer ([drain]); [turnEnded]
  * says a turn is over.
  */
 class CallTranscript(private val clock: () -> Long = System::currentTimeMillis, private val script: (String) -> String = { it },
-    private val turnEnded: () -> Unit) {
+    private val newId: () -> String = { java.util.UUID.randomUUID().toString() }, private val turnEnded: () -> Unit) {
     private val lines = mutableListOf<CallLine>()
     private var open = false
 
@@ -75,7 +76,7 @@ class CallTranscript(private val clock: () -> Long = System::currentTimeMillis, 
         if (piece.isEmpty()) return
         val last = lines.lastOrNull()
         if (open && last?.from == from) lines[lines.lastIndex] = last.copy(text = last.text + piece)
-        else { endTurn(); lines += CallLine(from, piece, clock()); open = true }
+        else { endTurn(); lines += CallLine(from, piece, clock(), newId()); open = true }
     }
 
     fun endTurn() { open = false; turnEnded() }
@@ -102,10 +103,14 @@ data class CallMessage(val speaker: Speaker, val text: String) {
 /** The voice call it was said in (user), answered during (agent), or that it ends (notice). */
 val Entry.call: String? get() = data.text("call")
 
-/** Without what voice calls carried: the messages of a call that has its line, or of a call this phone is on. */
-fun List<Entry>.hidingCalls(live: Set<String>): List<Entry> {
-    val ended = filter { it.kind == "notice" }.mapNotNull { it.call }.toSet()
-    return filter { it.kind == "notice" || it.call?.let { call -> call !in ended && call !in live } ?: true }
+/** Without what voice calls carry, whichever device the call is on: it shows behind the call's line, which the computer
+ * writes when the call ends or its app went away. A file or an artifact the bot sent stays, to be opened. */
+fun List<Entry>.hidingCalls(): List<Entry> = filter { it.kind == "notice" || it.call == null || it.files.isNotEmpty() || it.artifact != null }
+
+/** With a call's own entries (`callEntries`), which the chat may not hold: each entry once, the chat's copy first. */
+fun List<Entry>.withCallEntries(fetched: List<Entry>): List<Entry> {
+    val held = mapTo(HashSet()) { it.id }
+    return this + fetched.filter { it.id !in held }
 }
 
 /** A call's conversation, oldest first: what was said (the voice's transcript) and the messages it carried. */

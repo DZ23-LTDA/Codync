@@ -172,7 +172,6 @@ export function CallView({ botId, onSpeaking, interrupt, onEnd }: {
   useEffect(() => {
     const startedAt = Date.now()
     window.codync.speech.setCalling(true)
-    store.beginCall(link.current!.call)
     begin(VoiceSettings.provider())
     return () => {
       window.codync.speech.setCalling(false)
@@ -195,7 +194,7 @@ export function CallView({ botId, onSpeaking, interrupt, onEnd }: {
     if (session.isActive && !counted.current) {
       counted.current = true
       analytics.track({ event: 'voice_call_started', engine: engineName.current })
-      store.callStarted(botId)
+      store.callStarted(botId, link.current!.call)
     }
     // A cloud engine that can't start or drops mid-call hands over to on-device voice.
     if (phase === 'failed' && session.provider && onDeviceAvailable()) {

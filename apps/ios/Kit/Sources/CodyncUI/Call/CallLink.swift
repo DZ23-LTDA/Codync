@@ -64,7 +64,7 @@ final class CallLink {
             lines[last].text += piece
         } else {
             endTurn()
-            lines.append(CallLine(from: from, text: piece, at: Int64(Date.now.timeIntervalSince1970 * 1000)))
+            lines.append(CallLine(from: from, text: piece, at: Int64(Date.now.timeIntervalSince1970 * 1000), id: UUID().uuidString))
             open = true
         }
     }
@@ -109,7 +109,7 @@ final class CallLink {
         lines.removeFirst(taken.count)
         return taken.compactMap { line in
             let text = VoiceSettings.inReadersScript(line.text.trimmingCharacters(in: .whitespacesAndNewlines))
-            return text.isEmpty ? nil : CallLine(from: line.from, text: text, at: line.at)
+            return text.isEmpty ? nil : CallLine(from: line.from, text: text, at: line.at, id: line.id)
         }
     }
 

@@ -1208,5 +1208,7 @@
   "Each computer has its own. Open them with the button on the computer's heading.": "每台電腦都有自己的一份，用電腦標題列上的按鈕打開。",
   "Nothing was said on this call.": "這通電話沒有說話。",
   "Open the call": "打開這通電話",
-  "Opens the call": "打開這通電話"
+  "Opens the call": "打開這通電話",
+  "Loading the call": "正在載入這通電話",
+  "Couldn't load the call.": "無法載入這通電話。"
 }

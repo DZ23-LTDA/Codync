@@ -324,7 +324,7 @@ extension ThreadView {
     /// revealed steadily as it's written.
     var transcript: some View {
         // What voice calls carried shows in each call's conversation, not in the chat.
-        let items = ChatItem.build(model.chat(botId).hidingCalls(live: model.liveCalls))
+        let items = ChatItem.build(model.chat(botId).hidingCalls())
         var rows: [ConversationRow] = []
         if moreOnComputer {
             rows.append(ConversationRow("earlier") {

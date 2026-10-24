@@ -112,11 +112,11 @@ class VoiceEnginesTest {
 
     @Test fun aCallsTranscriptJoinsEachTurnAndItsMessagesHideBehindItsLine() {
         var now = 0L
-        val transcript = CallTranscript({ ++now }, { it.uppercase() }) { }
+        val transcript = CallTranscript({ ++now }, { it.uppercase() }, { "l$now" }) { }
         transcript.add("user", "看一下 "); transcript.add("user", "git"); transcript.add("voice", " Checking.")
-        assertEquals("the line being said stays", listOf(CallLine("user", "看一下 GIT", 1)), transcript.drain(withOpen = false))
+        assertEquals("the line being said stays", listOf(CallLine("user", "看一下 GIT", 1, "l1")), transcript.drain(withOpen = false))
         transcript.restore(listOf(CallLine("user", "AGAIN", 0)))
-        assertEquals(listOf(CallLine("user", "AGAIN", 0), CallLine("voice", "CHECKING.", 2)), transcript.drain(withOpen = true))
+        assertEquals(listOf(CallLine("user", "AGAIN", 0), CallLine("voice", "CHECKING.", 2, "l2")), transcript.drain(withOpen = true))
         assertTrue(transcript.drain(withOpen = true).isEmpty())
 
         val line = entry("n1", 9, "notice", { put("text", "Git"); put("callSeconds", 26); put("call", "c")
@@ -127,9 +127,18 @@ class VoiceEnginesTest {
             entry("u2", 4, "user", { put("text", "on this phone"); put("call", "live") }),
             entry("x1", 5, "user", { put("text", "typed") }), line,
         ).map { it.copy(createdAt = it.seq) }
-        assertEquals(listOf("x1", "n1"), entries.hidingCalls(setOf("live")).map(Entry::id))
+        assertEquals(listOf("x1", "n1"), entries.hidingCalls().map(Entry::id))
+        val file = entry("f1", 10, "agent", { put("text", "log.txt (3 bytes)"); put("final", true); put("call", "c")
+            putJsonArray("files") { addJsonObject { put("id", "f"); put("name", "log.txt"); put("size", 3); put("sha256", "") } } })
+        assertEquals("a file the call brought stays, to be opened", listOf("x1", "n1", "f1"), (entries + file).hidingCalls().map(Entry::id))
         assertEquals(listOf("User: 看一下 git", "VoiceToBot: check git", "Bot: Clean"),
             entries.callConversation(line).map { "${it.speaker}: ${it.text}" })
+        // A call older than the chat the phone holds: its own entries, fetched, fill in the conversation once each.
+        val old = listOf(line)
+        assertTrue(old.callConversation(line).size == 1)
+        val fetched = entries.filter { it.call == "c" && it.kind != "notice" }
+        assertEquals(old.callConversation(line).size + 2, old.withCallEntries(fetched).callConversation(line).size)
+        assertEquals(entries.size, entries.withCallEntries(fetched).size)
         val declarations = runBlocking { Link().start(VoiceProvider.Gemini, "m", "v") }.tools.map(CallTool::gemini)
         assertNull(declarations.first { it["name"]!!.jsonPrimitive.content == "bot_status" }["parameters"])
         assertEquals("STRING", declarations[0]["parameters"]!!.jsonObject["properties"]!!.jsonObject["text"]!!.jsonObject["type"]!!.jsonPrimitive.content)

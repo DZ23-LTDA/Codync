@@ -7,8 +7,8 @@ The bot is the same agent on the computer; the call only changes how you talk to
 ([the call on the host](#the-call-on-the-host)); the clients only carry audio.
 On iOS, [Open Live Mode in Shortcuts](ios-shortcuts.md) can select a bot and start this call directly (no bot: the lead).
 Every other bot waits for you to speak; the [lead bot](lead-bot.md) speaks first: once a call's audio is live the
-apps send `callStarted {botId}` (once per call, only to a lead), and the host has a lead with no turn under way open
-with a sentence or two, read aloud like any reply.
+apps send `callStarted {botId, callId}` (once per call, only to a lead), and the host has a lead with no turn under
+way open with a sentence or two, read aloud like any reply and part of the call (its reply carries the call's id).
 
 ## On-device voice
 
@@ -271,27 +271,34 @@ carries audio and talks to these methods:
 - **The user's own words:** `send_to_bot` attaches what the user said since the bot last heard from the call, word
   for word from the transcript ("[The user's own words on the call: «…»]"), so the bot sees both, and the message
   is marked `from: voice`: the voice may rephrase or translate, so memory never quotes it.
-- **`callLines`** `{callId, lines: [{from: user | voice, text, at}]}` appends the transcript as it is spoken, turn
+- **`callLines`** `{callId, lines: [{from: user | voice, text, at, id}]}` appends the transcript as it is spoken, turn
   by turn: Gemini's `inputAudioTranscription` / `outputAudioTranscription`, OpenAI's input transcription and
   `response.output_audio_transcript.done`. The iPhone and Android turn Chinese into the reader's script first
   (Gemini answers in Simplified for a Traditional speaker); the desktop can't (no ICU transform in Chromium).
 - **In order** (`CallLink` in each client): `callLines`, `callTool` and `endCall` leave one at a time, and
   `callTool` and `endCall` carry the lines not sent yet (`lines`, a line still being said included), so a hand-off
-  always has the words it hands on. Lines a request didn't deliver go with the next one. OpenAI writes the user's
+  always has the words it hands on. Lines a request didn't deliver go with the next one; each line carries the app's
+  id, and the host keeps a line once, so a request whose answer was lost can go again. OpenAI writes the user's
   words down after their turn: a tool call waits up to 2 s for them (`input_audio_buffer.committed` until the
   transcription arrives or fails).
 - **Hidden in the chat:** everything a call sends the bot carries the call's id (`data.call`), and so do the bot's
   replies in those turns while the call lasts, a group's members' included (a turn that also answers a typed
-  message stays visible, and a reply after the call ends shows). Every client leaves them out of the chat once the
-  call's line is there, or while this device is on the call (`hidingCalls`); a message that failed to send stays,
-  with Resend. The roster's preview and unread count skip them too. The bot gets them as usual.
+  message stays visible, and a reply after the call ends shows). Every client leaves them out of the chat whichever
+  device the call is on (`hidingCalls`): they show behind the call's line; a message that failed to send stays,
+  with Resend, and so does a file or an artifact the bot sent, to be opened. A call whose app went away (killed,
+  offline) still gets its line: the host keeps the open calls (`calls.open` in `kv`) and ends one nothing happened
+  on for 2 hours: no lines from its app, no message or reply of it, its bot not at work (`chat::calls::sweep`). The
+  roster's preview and unread count skip them too. The bot gets them as usual.
 - **`endCall`** `{botId, callId, seconds, lines}` adds the last lines and writes the call's line: a notice with
   `call`, `callSeconds` and the `transcript`. A call ends once (`call.ended.<id>` in `kv`), so the apps retry it
   across a reconnect; an ended call can't start again. The call's actors (a group's members) hear `CallEnded`. A one-shot of the bot's harness (`chat::oneshot`) titles it from the conversation, in the user's
   language, into the notice's `text` ("Voice chat" until then, or when there's nothing to sum up); older apps
   show the title too. The line shows a waveform, the title and the length; tapping it opens the conversation
   (iPhone and Android sheets, the desktop `Sheet`, `o` in the terminal): the user's lines, the voice's lines, what
-  it relayed and the bot's messages, in order. `logCall` stays for older apps.
+  it relayed and the bot's messages, in order. The chat an app holds may not reach back to an older call (the
+  desktop mirror keeps the newest 200 entries), so opening the conversation fetches the call's own messages,
+  `callEntries {botId, callId}` → the newest 500, and merges them with the loaded chat, each entry once; it shows
+  a spinner until they arrive and the error if they can't. `logCall` stays for older apps.
 - **Memory:** dreaming reads the call's line: the user's spoken lines are their own words, the voice's lines and
   its relayed messages context only, and a call's spoken lines count toward the dream trigger; the call's end
   asks for a run soon.

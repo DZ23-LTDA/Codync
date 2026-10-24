@@ -82,6 +82,16 @@ async fn replies_are_the_calls_while_it_lasts() {
     let after = wait_for(&host, &bot, 2, reply).await;
     assert!(after["data"]["call"].is_null(), "after the call, replies show in the chat: {after}");
     assert!(tool(&host, "c1", "bot_status", json!({})).await["error"].is_string(), "an ended call runs no tools");
+
+    // Its conversation, whatever part of the chat an app holds: the call's messages and replies only.
+    let carried = host.call("callEntries", json!({"botId": bot, "callId": "c1"})).await["entries"].clone();
+    let kinds: Vec<(&str, &str)> = carried
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|e| (e["kind"].as_str().unwrap(), e["data"]["call"].as_str().unwrap()))
+        .collect();
+    assert_eq!(kinds, [("user", "c1"), ("user", "c1"), ("agent", "c1"), ("user", "c1")], "{carried}");
 }
 
 #[tokio::test]

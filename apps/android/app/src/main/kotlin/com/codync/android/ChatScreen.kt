@@ -138,7 +138,7 @@ import com.kyant.shapes.Capsule
         state.bots.firstOrNull { it.id == open.botId }?.let { owner -> ArtifactViewer(open, owner, state, store) { viewing = null } }
     }
     CodyncSheet(peer, { peer = null }) { BotConversationView(bot, it, state, store) }
-    CodyncSheet(callLine, { callLine = null }) { CallConversationView(bot.id, it, state) }
+    CodyncSheet(callLine, { callLine = null }) { CallConversationView(bot.id, it, state, store) }
     CodyncSheet(app, { app = null; setupEntry = null }) { ComposioConnectSheet(it, state, store, setupEntry) { store.refreshPlugins() } }
     CodyncSheet(connector, { connector = null; setupEntry = null }) { InstallConnectorSheet(it, state, store, setupEntry) }
 }
@@ -200,7 +200,7 @@ import com.kyant.shapes.Capsule
     indicatorTop: Dp, openRoutine: (String) -> Unit, reply: (Entry) -> Unit, addFallback: (Bot) -> Unit, openArtifact: (OpenArtifact) -> Unit,
     openCall: (String) -> Unit, openPeer: (String) -> Unit) {
     // What voice calls carried shows in each call's conversation, not in the chat.
-    val entries = state.entries.filter { it.botId == bot.id && it.isChat }.hidingCalls(setOfNotNull(state.voice?.id))
+    val entries = state.entries.filter { it.botId == bot.id && it.isChat }.hidingCalls()
     // A call's message that failed to send stays here, to be sent again.
     val pending = state.pending.filter { it.botId == bot.id && (it.call == null || it.status == SendStatus.Failed) }
     val items = chatItems(entries, pending)

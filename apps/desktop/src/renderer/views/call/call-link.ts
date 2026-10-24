@@ -69,7 +69,7 @@ export class CallLink {
       last.text += piece
     } else {
       this.endTurn()
-      this.lines.push({ from, text: piece, at: Date.now() })
+      this.lines.push({ from, text: piece, at: Date.now(), id: crypto.randomUUID() })
       this.open = true
     }
   }

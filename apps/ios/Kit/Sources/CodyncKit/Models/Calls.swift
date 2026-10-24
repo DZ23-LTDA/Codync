@@ -31,14 +31,20 @@ public struct CallMessage: Hashable, Sendable {
 }
 
 public extension Array where Element == Entry {
-    /// Without what voice calls carried: the messages of a call that has its line, or of a call this device is on.
-    /// One that failed to send stays, to be sent again.
-    func hidingCalls(live: Set<String>) -> [Entry] {
-        let ended = Set(compactMap { $0.kind == "notice" ? $0.data.call : nil })
-        return filter { e in
-            guard e.kind != "notice", e.data.status != "failed", let call = e.data.call else { return true }
-            return !ended.contains(call) && !live.contains(call)
+    /// Without what voice calls carry, whichever device the call is on: it shows behind the call's line, which the
+    /// computer writes when the call ends or its app went away. One that failed to send stays, to be sent again, and a
+    /// file or an artifact the bot sent, to be opened.
+    func hidingCalls() -> [Entry] {
+        filter { e in
+            e.kind == "notice" || e.data.call == nil || e.data.status == "failed" || e.data.files?.isEmpty == false
+                || e.data.artifact != nil
         }
+    }
+
+    /// With a call's own entries (`callEntries`), which the chat may not hold: each entry once, the chat's copy first.
+    func withCallEntries(_ fetched: [Entry]) -> [Entry] {
+        let held = Set(map(\.id))
+        return self + fetched.filter { !held.contains($0.id) }
     }
 
     /// A call's conversation, oldest first: what was said (the voice's transcript) and the messages it carried.

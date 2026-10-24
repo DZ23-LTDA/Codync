@@ -7,7 +7,10 @@
 
 pub mod context;
 mod project;
+mod sweep;
 pub mod tools;
+
+pub use sweep::sweep_loop;
 
 use crate::LockExt;
 use crate::agent::bot::Cmd;
@@ -17,6 +20,7 @@ use anyhow::{Result, anyhow, bail};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::sync::{Arc, Mutex};
+use sweep::mark_open;
 
 const MAX_LINES: usize = 500;
 const MAX_LINE_CHARS: usize = 2_000;
@@ -25,6 +29,8 @@ const TITLE_SOURCE_CHARS: usize = 8_000;
 const MAX_TITLE_CHARS: usize = 60;
 /// The call line's text until a title is written.
 pub const UNTITLED: &str = "Voice chat";
+/// The most of a call's messages the host reads or hands an app (`callEntries`), newest first.
+pub const CALL_ENTRIES: i64 = 500;
 
 /// One read-modify-write of a call's state at a time (lines and hand-offs arrive together).
 static STATE: Mutex<()> = Mutex::new(());
@@ -37,13 +43,16 @@ pub enum Speaker {
     Voice,
 }
 
-/// One line of what was said on a call, with when (ms, the app's clock).
+/// One line of what was said on a call, with when (ms, the app's clock) and the app's id for it, so a line sent
+/// again (its first answer was lost) is kept once.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CallLine {
     pub from: Speaker,
     pub text: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub at: Option<i64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub id: Option<String>,
 }
 
 /// A call in progress, kept in `kv` so a host restart or a dropped client loses nothing: its bot, the transcript
@@ -54,6 +63,16 @@ struct CallState {
     lines: Vec<CallLine>,
     handoff: usize,
     started: i64,
+    /// When the call last heard from its app.
+    #[serde(default)]
+    last: i64,
+}
+
+impl CallState {
+    fn new(bot: &str) -> Self {
+        let now = now_ms();
+        Self { bot: bot.to_owned(), lines: Vec::new(), handoff: 0, started: now, last: now }
+    }
 }
 
 /// What carries a call's voice: a realtime provider, speech to text and back, or the device's own speech.
@@ -87,9 +106,38 @@ fn save(store: &Store, call: &str, s: &CallState) -> Result<()> {
     store.kv_set(&state_key(call), &serde_json::to_string(s)?)
 }
 
+/// A call's state for an update, made (and kept among the open calls) when a message of it arrives first (its
+/// `startCall` lost); `None` once it ended.
+fn begun(store: &Store, bot: &str, call: &str) -> Result<Option<CallState>> {
+    if store.kv_get(&ended_key(call)).is_some() {
+        return Ok(None);
+    }
+    if let Some(mut s) = state(store, call) {
+        s.last = now_ms();
+        return Ok(Some(s));
+    }
+    mark_open(store, call, true)?;
+    Ok(Some(CallState::new(bot)))
+}
+
+/// A message said on call `call` reached `bot`'s chat (`send`): the call is alive, and the host knows of it even
+/// if its `startCall` never came.
+pub fn heard(store: &Store, bot: &str, call: &str) -> Result<()> {
+    let _one = STATE.locked();
+    match begun(store, bot, call)? {
+        Some(s) if s.bot == bot => save(store, call, &s),
+        _ => Ok(()),
+    }
+}
+
 /// The call's bot, if the call is in progress.
 fn bot_of(store: &Store, call: &str) -> Option<String> {
     state(store, call).map(|s| s.bot)
+}
+
+/// Whether `call` is in progress (started, not ended).
+pub fn is_live(store: &Store, call: &str) -> bool {
+    store.kv_get(&ended_key(call)).is_none() && state(store, call).is_some()
 }
 
 /// The call a turn answers: the one every message it answers came from, while that call lasts. A typed message
@@ -121,15 +169,22 @@ fn transcript(raw: &Value) -> Vec<CallLine> {
                 from: line.from,
                 text: crate::agent::acp::truncate(text, MAX_LINE_CHARS),
                 at: line.at,
+                id: line.id.filter(|id| checked(id).is_ok()),
             })
         })
         .take(MAX_LINES)
         .collect()
 }
 
-/// Adds what was just said to the call, keeping its last [`MAX_LINES`].
+/// Adds what was just said to the call, keeping its last [`MAX_LINES`]. A line it already has (an app sending it
+/// again) is skipped.
 fn append(s: &mut CallState, lines: Vec<CallLine>) {
-    s.lines.extend(lines);
+    for line in lines {
+        if line.id.is_some() && s.lines.iter().any(|l| l.id == line.id) {
+            continue;
+        }
+        s.lines.push(line);
+    }
     let over = s.lines.len().saturating_sub(MAX_LINES);
     s.lines.drain(..over);
     // What the bot heard moves with the lines dropped from the front.
@@ -145,16 +200,10 @@ pub async fn start(hub: &Arc<Hub>, b: &Value) -> Result<Value> {
     let cfg = hub.store.bot(bot)?.filter(|r| !r.deleted).ok_or_else(|| anyhow!("unknown bot"))?.config;
     {
         let _one = STATE.locked();
-        if hub.store.kv_get(&ended_key(call)).is_some() {
-            bail!("that call has ended");
-        }
-        match state(&hub.store, call) {
+        match begun(&hub.store, bot, call)? {
             Some(s) if s.bot != bot => bail!("that call belongs to another bot"),
-            Some(_) => {}
-            None => {
-                let s = CallState { bot: bot.to_owned(), lines: Vec::new(), handoff: 0, started: now_ms() };
-                save(&hub.store, call, &s)?;
-            }
+            Some(s) => save(&hub.store, call, &s)?,
+            None => bail!("that call has ended"),
         }
     }
     let provider = b["provider"].as_str().map(crate::voice::Provider::parse).transpose()?;
@@ -179,6 +228,7 @@ pub fn add_lines(store: &Store, call: &str, raw: &Value) -> Result<()> {
     }
     let _one = STATE.locked();
     let mut s = state(store, call).ok_or_else(|| anyhow!("no such call"))?;
+    s.last = now_ms();
     append(&mut s, lines);
     save(store, call, &s)
 }
@@ -187,6 +237,7 @@ pub fn add_lines(store: &Store, call: &str, raw: &Value) -> Result<()> {
 fn take_said(store: &Store, call: &str) -> Result<String> {
     let _one = STATE.locked();
     let mut s = state(store, call).ok_or_else(|| anyhow!("no such call"))?;
+    s.last = now_ms();
     let unheard = s.lines.get(s.handoff..).unwrap_or_default();
     let said =
         unheard.iter().filter(|l| l.from == Speaker::User).map(|l| l.text.as_str()).collect::<Vec<_>>().join(" ");
@@ -209,6 +260,7 @@ pub fn end(hub: &Arc<Hub>, bot: &str, call: &str, seconds: u64, raw: &Value) -> 
         }
         hub.store.kv_set(&ended_key(call), "1")?;
         hub.store.kv_delete(&state_key(call))?;
+        mark_open(&hub.store, call, false)?;
         s
     };
     let bot = s.as_ref().map_or(bot, |s| s.bot.as_str()).to_owned();
@@ -249,7 +301,7 @@ fn conversation(store: &Store, bot: &str, line: &Entry) -> Vec<(String, String)>
             (l.at.unwrap_or(line.created_at), who.to_owned(), l.text)
         })
         .collect();
-    for e in store.call_entries(bot, call).unwrap_or_default() {
+    for e in store.call_entries(bot, call, CALL_ENTRIES).unwrap_or_default() {
         let who = writer(&e).unwrap_or("Bot");
         said.push((e.created_at, who.to_owned(), e.data["text"].as_str().unwrap_or_default().to_owned()));
     }
@@ -377,7 +429,7 @@ mod tests {
         let sent = tools::call(&hub, "c1", "send_to_bot", &json!({"text": "Make the home page blue"}), &unsent).await;
         // No bot actor runs in this test, so delivery fails; the message is in the chat all the same.
         assert!(sent["error"].is_string() || sent["sent"] == true);
-        let relayed = hub.store.call_entries(&id, "c1").unwrap();
+        let relayed = hub.store.call_entries(&id, "c1", CALL_ENTRIES).unwrap();
         assert_eq!(relayed.len(), 1);
         assert_eq!(relayed[0].data["from"], "voice");
         let text = relayed[0].data["text"].as_str().unwrap();
@@ -393,6 +445,19 @@ mod tests {
         assert!(start(&hub, &json!({"botId": id, "callId": "c1", "mode": "device"})).await.is_err());
         assert!(of_turn(&hub.store, &[relayed[0].id.clone()]).is_none(), "its replies show again");
         assert!(tools::call(&hub, "c1", "bot_status", &json!({}), &Value::Null).await["error"].is_string());
+    }
+
+    #[test]
+    fn a_line_sent_again_is_kept_once() {
+        let store = Store::open(std::path::Path::new(":memory:")).unwrap();
+        heard(&store, "b", "c1").unwrap();
+        let batch = json!([{"from": "user", "text": "hi", "at": 1, "id": "l1"}, {"from": "voice", "text": "Hello.", "id": "l2"}]);
+        add_lines(&store, "c1", &batch).unwrap();
+        // The answer to the first send was lost, so the app sends the batch again, and one more line.
+        add_lines(&store, "c1", &batch).unwrap();
+        add_lines(&store, "c1", &json!([{"from": "user", "text": "hi", "id": "l3"}])).unwrap();
+        let lines: Vec<String> = state(&store, "c1").unwrap().lines.iter().map(|l| l.text.clone()).collect();
+        assert_eq!(lines, ["hi", "Hello.", "hi"], "repeats skipped, a new line with the same words kept");
     }
 
     #[test]
