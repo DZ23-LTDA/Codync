@@ -179,7 +179,9 @@ compact rail exposes the same action by tooltip and accessible name (the selecte
 computer, or this one). Extensions belongs to one computer and has no computer switcher:
 with several computers the capsule goes away and each computer heading carries its own
 Extensions button (`square.grid.2x2`, always shown, while that computer is reachable).
-Logos represent examples, not connected status.
+The first time the roster shows several computers, a tip card at its top says Extensions
+moved to each computer (`ExtensionsMovedTip.tsx`); dismissing it, or opening Extensions from
+a heading, hides it for good on that device. Logos represent examples, not connected status.
 
 This is a desktop sidebar treatment across macOS, Linux and Windows. iOS keeps its
 native navigation and per-computer Extensions entries (each computer's row in Settings, and
