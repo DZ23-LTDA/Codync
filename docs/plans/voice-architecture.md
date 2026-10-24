@@ -22,7 +22,10 @@ Each stage ships on its own (after-change, merged into `dev`), all clients toget
 
 - **`startCall`** `{botId, callId, provider?, model?, voice?, mode}` creates the call and returns everything a
   client needs: the provider credential (realtime and speech modes), the voice's instructions and the tool
-  declarations. On-device calls get a call too (no credential). The host writes the instructions, rules first, then
+  declarations. On-device calls get a call too (no credential). The rules open with the voice's role: it is the
+  relay between the user and the bot, not the bot; it passes requests to the bot, tells the user what the bot says
+  and asks for what's missing, speaks of the bot in the third person ("I'll ask Echo"), never claims work as its
+  own, and sends anything about code, files or the computer to the bot even when it thinks it knows. The host writes the instructions, rules first, then
   the background as named sections, each capped (about 16k characters in all, less where the provider's context is
   smaller), empty ones left out, refreshed when the provider session is resumed or replaced:
   1. Now: the computer's date, time, weekday and time zone; the user's language.
