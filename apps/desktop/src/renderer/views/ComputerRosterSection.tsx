@@ -1,4 +1,5 @@
 import { useRef, type ReactNode } from 'react'
+import { IconButton } from '../components/Controls'
 import { Icon } from '../components/Icon'
 import type { pointerDrag } from '../lib/pointer-drag'
 import { useTr } from '../lib/use-language'
@@ -18,11 +19,13 @@ interface Props {
   drag: ReturnType<typeof pointerDrag>
   toggle: () => void
   move: (id: string, target: string) => void
+  /** This computer's own Extensions; absent while it can't be reached. */
+  openExtensions?: () => void
   notice: ReactNode
   children: ReactNode
 }
 
-export function ComputerRosterSection({ store, compact, collapsed, previous, next, lifted, drag, toggle, move, notice, children }: Props) {
+export function ComputerRosterSection({ store, compact, collapsed, previous, next, lifted, drag, toggle, move, openExtensions, notice, children }: Props) {
   const section = useRef<HTMLElement>(null)
   const id = store.computer.id
   useSlide(section)
@@ -42,6 +45,7 @@ export function ComputerRosterSection({ store, compact, collapsed, previous, nex
           }}>
           <ComputerHeadingLabel store={store} compact={compact} collapsed={collapsed} />
         </button>
+        {openExtensions && !compact ? <IconButton className="computer-roster-extensions" title="Extensions" icon="square.grid.2x2" size={24} onClick={openExtensions} /> : null}
       </div>
       {notice}
       <div className={`computer-roster-content ${collapsed ? 'collapsed' : ''}`} inert={collapsed} aria-hidden={collapsed}>
@@ -57,7 +61,12 @@ export function ComputerHeadingLabel({ store, compact, collapsed }: { store: Bot
   return (
     <>
       <ComputerBadge computer={store.computer} size={20} />
-      {!compact ? <span className="computer-roster-label"><strong>{store.hostName}</strong><span className={store.shownConnection.kind === 'online' ? '' : 'warning'}>{tr(store.connectionLabel)}</span></span> : null}
+      {!compact ? (
+        <span className="computer-roster-label">
+          <strong>{store.hostName}</strong>
+          <span className={`computer-roster-status ${store.shownConnection.kind === 'online' ? '' : 'warning'}`}>{tr(store.connectionLabel)}</span>
+        </span>
+      ) : null}
       <span className={`computer-roster-chevron ${collapsed ? 'collapsed' : ''}`}><Icon name="chevron.down" size={9} /></span>
     </>
   )

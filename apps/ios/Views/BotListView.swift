@@ -225,7 +225,8 @@ struct BotListView: View {
         return VStack(spacing: 0) {
             // Not synced while it needs an update: "No bots yet" wouldn't be true.
             ComputerSection(store: store, empty: store.mismatch == nil && !roster.contains { $0.ref.computerId == id },
-                            collapsed: folded || collapsedIDs.contains(id), toggle: { toggleCollapsed(id) }, move: move)
+                            collapsed: folded || collapsedIDs.contains(id), toggle: { toggleCollapsed(id) }, move: move,
+                            extensions: store.connection == .online && store.mismatch == nil ? { app.marketplace = id } : nil)
                 .contentShape(Rectangle())
                 .onTapGesture { toggleCollapsed(id) }
             updateCard(store)
@@ -339,6 +340,8 @@ private struct ComputerSection: View {
     let collapsed: Bool
     let toggle: () -> Void
     let move: (ComputerID, Int) -> Void
+    /// This computer's own Extensions; nil while it can't be reached.
+    let extensions: (() -> Void)?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -365,6 +368,7 @@ private struct ComputerSection: View {
         .accessibilityActions {
             Button(L10n.tr("Move up")) { move(store.computer.id, -1) }
             Button(L10n.tr("Move down")) { move(store.computer.id, 1) }
+            if let extensions { Button(L10n.tr("Extensions"), action: extensions) }
         }
     }
 
@@ -375,6 +379,8 @@ private struct ComputerSection: View {
                 .font(.footnote.weight(.semibold))
                 .foregroundStyle(Palette.secondary)
                 .lineLimit(1)
+            // The connection sits at the trailing edge, before the heading's buttons.
+            Spacer(minLength: 8)
             Text(L10n.tr(store.statusText))
                 .font(.footnote)
                 .foregroundStyle(store.isOffline ? Palette.warning : Palette.tertiary)
@@ -383,12 +389,24 @@ private struct ComputerSection: View {
             if store.connection == .online {
                 RouteIcon(route: store.hostRoute).font(.caption2).foregroundStyle(Palette.tertiary)
             }
-            Spacer(minLength: 8)
             Image(systemName: "chevron.down")
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(Palette.tertiary)
                 .rotationEffect(.degrees(collapsed ? -90 : 0))
                 .accessibilityHidden(true)
+            if let extensions {
+                // After the chevron, as on the desktop; sized like it so the heading stays one light line.
+                Button(action: extensions) {
+                    Image(systemName: "square.grid.2x2")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(Palette.secondary)
+                        .frame(width: 28, height: 22)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.borderless)
+                .accessibilityLabel(L10n.tr("Extensions"))
+                .help(L10n.tr("Extensions"))
+            }
         }
         .padding(.vertical, 6)
         .padding(.horizontal, 8)

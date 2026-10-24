@@ -34,10 +34,12 @@ interface Lift {
   seq: number
 }
 
-export function BotRoster({ roster, compact, onContext }: {
+export function BotRoster({ roster, compact, onContext, openExtensions }: {
   roster: ReturnType<typeof useComputerRoster>
   compact: boolean
   onContext: (bot: Bot, store: BotStore, x: number, y: number) => void
+  /** A computer's own Extensions, from its heading. */
+  openExtensions: (computerId: string) => void
 }) {
   const app = useApp()
   const selected = app.selection
@@ -212,6 +214,7 @@ export function BotRoster({ roster, compact, onContext }: {
     if (!roster.grouped) return <div key={computer.id}>{notice}{rows}</div>
     return (
       <ComputerRosterSection key={computer.id} store={store} compact={compact}
+        openExtensions={store.shownConnection.kind === 'online' && !store.mismatch ? () => openExtensions(computer.id) : undefined}
         collapsed={sectionDrag !== null || roster.collapsed.includes(computer.id)} toggle={() => roster.toggle(computer.id)}
         previous={roster.sections[index - 1]?.computer.id} next={roster.sections[index + 1]?.computer.id}
         lifted={sectionDrag?.id === computer.id && lift !== null}

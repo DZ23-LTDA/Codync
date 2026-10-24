@@ -58,8 +58,18 @@
   white-space: nowrap;
 }
 
+/* The connection sits at the trailing edge, before the chevron. */
+.computer-roster-label > .computer-roster-status {
+  margin-left: auto;
+}
+
 .computer-roster-label > .warning {
   color: var(--attention);
+}
+
+/* A computer's own Extensions, always beside its heading. */
+.computer-roster-extensions {
+  flex: none;
 }
 
 .computer-roster-chevron {

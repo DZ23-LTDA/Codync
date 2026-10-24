@@ -620,8 +620,6 @@
   "Node.js isn't on {name}": "Node.js は {name} にありません",
   "Couldn't load more connectors.": "これ以上コネクタをロードできませんでした。",
   "Couldn't load skills.": "スキルをロードできませんでした。",
-  "Switch computer": "コンピューターを切り替える",
-  "Computer: {name}": "コンピューター: {name}",
   "not installed": "インストールされていません",
   "needs Node.js": "Node.jsが必要",
   "signed in": "サインインしました",

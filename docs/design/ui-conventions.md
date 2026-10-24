@@ -172,15 +172,18 @@ connection-request API flows. These checks do not authenticate real third-party 
 
 ### Desktop app connections footer
 
-The expanded desktop roster ends in one floating row: the account avatar and a
-“Extensions” capsule with example service logos. A masked, layered blur softens
+The expanded desktop roster ends in one floating row: the account avatar and, with one
+computer, a “Extensions” capsule with example service logos. A masked, layered blur softens
 roster content behind it; bottom scroll padding keeps the last bot reachable. The
-compact rail exposes the same action by tooltip and accessible name. This entry
-opens Extensions with Apps first, retaining agents, MCP connectors,
-skills and computer switching. Logos represent examples, not connected status.
+compact rail exposes the same action by tooltip and accessible name (the selected bot's
+computer, or this one). Extensions belongs to one computer and has no computer switcher:
+with several computers the capsule goes away and each computer heading carries its own
+Extensions button (`square.grid.2x2`, always shown, while that computer is reachable).
+Logos represent examples, not connected status.
 
 This is a desktop sidebar treatment across macOS, Linux and Windows. iOS keeps its
-native navigation and per-computer Extensions entry in Settings; the TUI
+native navigation and per-computer Extensions entries (each computer's row in Settings, and
+each computer heading in the Bots list with several computers); the TUI
 keeps its keyboard Extensions action and connector tabs. Neither has this persistent
 desktop footer or supports the same layered backdrop material; no capabilities or
 connection permissions change.

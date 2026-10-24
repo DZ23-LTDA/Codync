@@ -620,8 +620,6 @@
   "Node.js isn't on {name}": "{name} 上没有 Node.js",
   "Couldn't load more connectors.": "无法加载更多连接器。",
   "Couldn't load skills.": "无法加载技能。",
-  "Switch computer": "切换电脑",
-  "Computer: {name}": "电脑：{name}",
   "not installed": "未安装",
   "needs Node.js": "需要 Node.js",
   "signed in": "已登录",

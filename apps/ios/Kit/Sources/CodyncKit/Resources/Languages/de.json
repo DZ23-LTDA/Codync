@@ -620,8 +620,6 @@
   "Node.js isn't on {name}": "Node.js ist nicht auf {name}",
   "Couldn't load more connectors.": "Weitere Konnektoren konnten nicht geladen werden.",
   "Couldn't load skills.": "Skills konnten nicht geladen werden.",
-  "Switch computer": "Computer wechseln",
-  "Computer: {name}": "Computer: {name}",
   "not installed": "nicht installiert",
   "needs Node.js": "benötigt Node.js",
   "signed in": "angemeldet",
