@@ -5,5 +5,3 @@ dist/
 src/renderer/public/symbols/
 native/speech-macos/.build/
 resources/account-config.json
-# Clerk dev-instance secret key for tools/dev-account.mjs
-.env.local
