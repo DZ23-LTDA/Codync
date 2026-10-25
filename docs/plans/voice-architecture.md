@@ -79,8 +79,7 @@ replayed end to end in the iPhone and desktop tests (its events are).
 ### 4. Platform
 
 Shipped in 2.26.0 ([the call on the system](../features/voice-call.md#the-call-on-the-system)). CallKit stays off where
-the App Store storefront is mainland China's. OpenAI's WebRTC audio isn't handed to CallKit's session activation
-(`useManualAudio`); it still activates the session itself.
+the App Store storefront is mainland China's.
 
 - iPhone: CallKit for the call (lock screen, Dynamic Island, AirPods controls, interruptions handled by the system),
   and the bot's progress in the call's Live Activity.

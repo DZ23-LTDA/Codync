@@ -1,6 +1,7 @@
 import AVFoundation
 import Foundation
 import os
+@preconcurrency import WebRTC
 
 private let log = Logger(subsystem: "com.pokai.Codync", category: "Call")
 
@@ -29,22 +30,59 @@ enum AudioInterruption {
     case ended(shouldResume: Bool)
 }
 
-/// Who lets go of a call's audio session: the call's engine, or the system when it runs the call (CallKit activates the
-/// session itself and deactivates it once the call ends; an engine deactivating it mid-call would cut the audio).
+/// The call's audio session, set up the same way for every engine. Under CallKit the system activates it (and
+/// deactivates it as its call ends or is held), and WebRTC's audio runs only while it's active; otherwise the engines
+/// activate and release it.
 @MainActor
 enum CallAudioSession {
-    /// A CallKit call carries the audio (`SystemCall`).
-    static var systemRuns = false
+    /// The category options of every engine's audio, WebRTC's too.
+    static let options: AVAudioSession.CategoryOptions = [.defaultToSpeaker, .allowBluetoothHFP]
+
+    /// A CallKit call carries the audio (`CallKitCalls`). WebRTC then waits for the system's activation
+    /// (`useManualAudio`) instead of activating the session itself, and deactivating it as a connection closes.
+    static var systemRuns = false {
+        didSet {
+            let webRTC = RTCAudioSession.sharedInstance()
+            webRTC.isAudioEnabled = false
+            webRTC.useManualAudio = systemRuns
+        }
+    }
+
+    /// Sets the call's category; CallKit activates the session it finds configured.
+    static func configure() throws {
+        try AVAudioSession.sharedInstance().setCategory(.playAndRecord, mode: .voiceChat, options: options)
+    }
+
+    /// Before an engine's audio starts or resumes: the session set up, and active unless the system activates it.
+    static func activate() throws {
+        try configure()
+        guard !systemRuns else { return }
+        try AVAudioSession.sharedInstance().setActive(true)
+    }
 
     /// After an engine stops: deactivates the session unless the system runs the call.
     static func release() {
         guard !systemRuns else { return }
         try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
     }
+
+    /// CallKit activated the session (the call started, or came off hold): WebRTC's audio may run.
+    static func systemActivated(_ session: AVAudioSession) {
+        let webRTC = RTCAudioSession.sharedInstance()
+        webRTC.audioSessionDidActivate(session)
+        webRTC.isAudioEnabled = true
+    }
+
+    /// CallKit deactivated the session (held, or ended).
+    static func systemDeactivated(_ session: AVAudioSession) {
+        let webRTC = RTCAudioSession.sharedInstance()
+        webRTC.audioSessionDidDeactivate(session)
+        webRTC.isAudioEnabled = false
+    }
 }
 
 extension Notification.Name {
-    /// CallKit put the call on hold (`held` true: a phone call took over) or took it off hold.
+    /// CallKit put the call on hold (`held` true: a phone call took over) or gave it its audio back after one.
     static let callHeld = Notification.Name("CodyncCallHeld")
 }
 
@@ -100,9 +138,7 @@ final class VoiceProcessingAudio: CallAudio {
 
     func start(mic: @escaping @MainActor (String, Float) -> Void) throws {
         self.mic = mic
-        let session = AVAudioSession.sharedInstance()
-        try session.setCategory(.playAndRecord, mode: .voiceChat, options: [.defaultToSpeaker, .allowBluetoothHFP])
-        try session.setActive(true)
+        try CallAudioSession.activate()
         try engine.inputNode.setVoiceProcessingEnabled(true)
         engine.attach(player)
         // The engine stops itself when it reconfigures; without a restart the microphone goes quiet.
@@ -137,7 +173,7 @@ final class VoiceProcessingAudio: CallAudio {
     }
 
     func resume() throws {
-        try AVAudioSession.sharedInstance().setActive(true)
+        try CallAudioSession.activate()
         if !engine.isRunning { try run() }
     }
 

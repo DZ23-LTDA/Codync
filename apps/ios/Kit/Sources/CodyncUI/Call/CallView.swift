@@ -29,7 +29,7 @@ struct CallView: View {
     /// Each engine's `voice_call_quality`.
     @State private var quality = CallQuality()
     /// The call as the system shows it (CallKit); nil where CallKit isn't offered (mainland China) or it refused.
-    @State private var system: SystemCall?
+    @State private var system: CallKitCall?
     /// The bot's Live Activity showing the call.
     @State private var activity: CallActivity?
     /// The call view went away (before its engine may have started).
@@ -157,7 +157,7 @@ struct CallView: View {
             if active {
                 model.beginVoiceCall(callID, hear: { [weak engine, activity] cue in
                     engine?.hear(cue)
-                    if cue.kind == .progress { activity?.progress(cue.text) }
+                    activity?.heard(cue)
                 }, end: { [weak engine] in engine?.end() })
             } else {
                 model.endVoiceCall(callID)

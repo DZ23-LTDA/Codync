@@ -12,7 +12,8 @@ import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import com.codync.android.core.*
 import kotlinx.coroutines.*
-import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.combine
 
 /** The call the UI shows; `notice` is the line under the bar, e.g. why it fell back to on-device voice. */
 data class VoiceCallViewState(val id: String, val botId: String, val state: VoiceState = VoiceState(), val notice: String? = null)
@@ -90,13 +91,9 @@ class VoiceService : Service() {
                 receivers = true
                 val call = request.store.attachVoice(request.id, request.botId) ?: throw IllegalStateException("The active account changed")
                 session = call
-                // At most one notification update a second: progress lines can come quickly.
-                scope.launch { combine(call.state, call.progress, ::Pair).conflate().collect { (state, progress) ->
+                scope.launch { combine(call.state, call.progress, ::Pair).collectLatest { (state, progress) ->
                     if (state.phase in listOf(VoicePhase.Failed, VoicePhase.Ended)) end(state.error)
-                    else {
-                        getSystemService(NotificationManager::class.java).notify(NOTIFICATION, notification(state, progress))
-                        delay(1_000)
-                    }
+                    else getSystemService(NotificationManager::class.java).notify(NOTIFICATION, notification(state, progress))
                 } }
             } catch (_: Exception) { end("Couldn't start voice chat. Check microphone access and Android's audio settings.") }
         } else if (id == callId) {

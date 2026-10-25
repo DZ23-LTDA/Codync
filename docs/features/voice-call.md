@@ -370,18 +370,25 @@ carries audio and talks to these methods:
 
 - iPhone: a call is a CallKit outgoing call to the bot (`SystemCall.swift`, one `CXProvider`, audio only, not in
   Recents): it shows on the Lock Screen and in the Dynamic Island, ends or mutes from there and from AirPods, and a
-  phone call holds it (`CXSetHeldCallAction` pauses the engine the way an interruption does, and taking it off hold
-  resumes). CallKit activates the audio session: the engine starts once it has (at most 1.5 s later where it never
-  does, as on the Simulator), and the engines leave deactivating it to CallKit (`CallAudioSession`). The call reports
-  connected once the engine reaches ready. Where CallKit refuses the call, it goes on without it.
+  phone call holds it (`CXSetHeldCallAction` pauses the engine the way an interruption does; off hold, it resumes once
+  CallKit has activated the audio session again). CallKit activates and deactivates the audio session
+  (`CallAudioSession`): the engine starts once it has (at most 1.5 s later where it never does, as on the Simulator),
+  the engines set the session up but neither activate nor deactivate it, and OpenAI's WebRTC audio runs only while
+  CallKit has it active (`useManualAudio`, `audioSessionDidActivate`/`DidDeactivate`), so a reconnect or an engine
+  switch doesn't cut the call's audio. The call reports connected once the engine reaches ready. CallKit ending the
+  call before that (the Simulator does at once), refusing it or resetting leaves the call going on without it.
 - CallKit isn't allowed in apps offered in mainland China's App Store: with the storefront `CHN` (or, without a
   storefront, the region `CN`) the call keeps the app's own audio session, as before (`SystemCallPolicy`).
 - iPhone Live Activity: while a call is on, the bot's activity shows it (`ContentState.call`: connecting, listening,
-  speaking, paused; `callStartedAt` for its length) and the bot's latest progress line from the computer
-  (`CallActivity`). It uses the bot's activity if one is up and starts one for the call otherwise (ended with the
-  call). The computer never sets these fields; the app's own updates keep them.
+  speaking, paused; `callStartedAt` for its length) and the bot's latest progress line from the computer until its
+  reply (`CallActivity`). It uses the bot's activity if one is up and starts one for the call otherwise; a task sent
+  during the call replaces the call's own activity with one the computer can update. The computer never sets the call
+  fields: the app keeps them in memory and merges them into every update, puts them back after a push from the
+  computer replaces the state, and gives the call its own activity again when the computer's last push ends the
+  task's. When the call ends, an activity whose bot is idle or failed ends (at once if the call started it, else a
+  minute later) and one with a task under way stays without the call.
 - Android: the call's foreground notification shows its state and the bot's latest progress line (cleared by its
-  reply), updated in place at most once a second, with Mute and End call.
+  reply), updated in place, with Mute and End call.
 - The desktop and the terminal have no system call UI to join.
 
 ### Failure and cost

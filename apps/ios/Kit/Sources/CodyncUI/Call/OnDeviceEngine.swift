@@ -84,13 +84,11 @@ final class OnDeviceEngine: VoiceEngine {
             return fail("Speech recognition isn't available for this language right now.", .provider)
         }
         guard !ended else { return }
-            do {
-                let audio = AVAudioSession.sharedInstance()
-                try audio.setCategory(.playAndRecord, mode: .voiceChat, options: [.defaultToSpeaker, .allowBluetoothHFP])
-                try audio.setActive(true)
-            } catch {
-                return fail("Couldn't start audio: \(error.localizedDescription)", .microphone)
-            }
+        do {
+            try CallAudioSession.activate()
+        } catch {
+            return fail("Couldn't start audio: \(error.localizedDescription)", .microphone)
+        }
         // A route change (AirPods) stops the engine mid-utterance: listen again on the new microphone.
         events = AudioSessionEvents(engine: engine, interrupted: { [weak self] in self?.interrupted($0) },
                                     reconfigured: { [weak self] in
@@ -104,7 +102,7 @@ final class OnDeviceEngine: VoiceEngine {
     /// listening again.
     func resume() {
         guard !ended, phase == .interrupted else { return }
-        try? AVAudioSession.sharedInstance().setActive(true)
+        try? CallAudioSession.activate()
         listen()
         guard !unsaid.isEmpty else { return }
         let waiting = unsaid.joined(separator: "\n\n")
@@ -132,7 +130,7 @@ final class OnDeviceEngine: VoiceEngine {
         events = nil
         stopListening()
         synthesizer.stopSpeaking(at: .immediate)
-            CallAudioSession.release()
+        CallAudioSession.release()
     }
 
     /// Reads a reply aloud (the bot's final message), pausing the microphone meanwhile.

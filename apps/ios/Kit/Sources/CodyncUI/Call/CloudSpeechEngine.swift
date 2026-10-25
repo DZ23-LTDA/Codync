@@ -82,9 +82,7 @@ final class CloudSpeechEngine: VoiceEngine {
         }
         guard !ended else { return }
         do {
-            let session = AVAudioSession.sharedInstance()
-            try session.setCategory(.playAndRecord, mode: .voiceChat, options: [.defaultToSpeaker, .allowBluetoothHFP])
-            try session.setActive(true)
+            try CallAudioSession.activate()
             try runMic()
             audioRunning = true
         } catch {
@@ -115,7 +113,7 @@ final class CloudSpeechEngine: VoiceEngine {
     func resume() {
         guard !ended, phase == .interrupted else { return }
         do {
-            try AVAudioSession.sharedInstance().setActive(true)
+            try CallAudioSession.activate()
             try runMic()
         } catch {
             return fail("Couldn't use the microphone: \(error.localizedDescription)", .microphone)
@@ -148,7 +146,7 @@ final class CloudSpeechEngine: VoiceEngine {
             engine.stop()
             audioRunning = false
         }
-            CallAudioSession.release()
+        CallAudioSession.release()
     }
 
     func interrupt() {

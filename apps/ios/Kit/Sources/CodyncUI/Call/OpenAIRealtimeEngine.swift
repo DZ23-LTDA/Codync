@@ -78,9 +78,10 @@ final class OpenAIRealtimeEngine: VoiceEngine {
     }
 
     private func connect(secret: String) async throws {
-            let audio = RTCAudioSessionConfiguration.webRTC()
-            audio.categoryOptions = [.defaultToSpeaker, .allowBluetoothHFP]
-            RTCAudioSessionConfiguration.setWebRTC(audio)
+        // Under CallKit, WebRTC's audio waits for the system's activation (`CallAudioSession`).
+        let audio = RTCAudioSessionConfiguration.webRTC()
+        audio.categoryOptions = CallAudioSession.options
+        RTCAudioSessionConfiguration.setWebRTC(audio)
 
         let config = RTCConfiguration()
         config.sdpSemantics = .unifiedPlan

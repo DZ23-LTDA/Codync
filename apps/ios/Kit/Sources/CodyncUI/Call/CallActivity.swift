@@ -1,36 +1,57 @@
 import ActivityKit
 import CodyncKit
 import Foundation
+import os
+
+private let log = Logger(subsystem: "com.pokai.Codync", category: "Call")
 
 /// The bot's Live Activity while this phone is on a call with it: the call's state and length, and the bot's latest
 /// progress from the computer. Uses the bot's activity if one is up (a task it was given), else starts one for the call.
+/// The call's fields live here: every update of the activity merges them in (`withCall`), and they go back on after
+/// the computer's pushes, which replace its state without them.
 @MainActor
 public final class CallActivity {
-    /// Bots this phone is on a call with now: an activity's call fields outlive a killed app otherwise.
-    private static var live: Set<String> = []
+    public typealias State = BotActivityAttributes.ContentState
 
-    /// Whether this phone is on a call with the bot (the activity's call fields are current).
-    public static func isLive(botId: String) -> Bool { live.contains(botId) }
+    /// The calls this phone is on, by bot.
+    private static var calls: [String: CallActivity] = [:]
 
     private let attributes: BotActivityAttributes
     private let startedAt = Date.now
-    /// The activity this call started itself (none was up), ended with the call.
+    /// The activity this call started itself (none was up): the computer can't update it.
     private var ownID: String?
-    private var call: String?
+    private var call: CallState?
+    /// The computer's latest progress line, until the bot's reply.
     private var progress: String?
+    /// The activity followed for the computer's updates, and the tasks following it.
+    private var followed: (id: String, tasks: [Task<Void, Never>])?
 
     init(bot: Bot, computerId: ComputerID, link: URL?) {
         attributes = BotActivityAttributes(bot: bot, computerId: computerId, link: link)
-        Self.live.insert(bot.id)
+        Self.calls[bot.id] = self
+    }
+
+    /// Whether this phone is on a call with the bot.
+    public static func isLive(botId: String) -> Bool { calls[botId] != nil }
+
+    /// Whether a call started this activity itself.
+    public static func started(_ activity: Activity<BotActivityAttributes>) -> Bool {
+        calls[activity.attributes.botId]?.ownID == activity.id
+    }
+
+    /// `state` with the fields of the call this phone is on with the bot, or with none.
+    public static func withCall(_ state: State, botId: String) -> State {
+        let live = calls[botId]
+        return merge(state, call: live?.call, since: live?.startedAt)
     }
 
     /// `ContentState.call` for a phase: nil once the call can't go on.
-    static func state(_ phase: VoicePhase) -> String? {
+    static func state(_ phase: VoicePhase) -> CallState? {
         switch phase {
-        case .starting, .reconnecting: "connecting"
-        case .listening: "listening"
-        case .speaking: "speaking"
-        case .interrupted: "paused"
+        case .starting, .reconnecting: .connecting
+        case .listening: .listening
+        case .speaking: .speaking
+        case .interrupted: .paused
         case .failed: nil
         }
     }
@@ -42,51 +63,86 @@ public final class CallActivity {
         show()
     }
 
-    /// What the bot is doing, from the computer's progress cues.
-    func progress(_ text: String) {
-        progress = text
-        show()
+    /// What the computer said on the call: its progress shows until the bot's reply.
+    func heard(_ cue: CallCue) {
+        switch cue.kind {
+        case .progress:
+            progress = cue.text
+            show(activity: cue.text)
+        case .reply: progress = nil
+        case .notice: break
+        }
     }
 
     func end() {
         call = nil
-        Self.live.remove(attributes.botId)
+        followed?.tasks.forEach { $0.cancel() }
+        followed = nil
+        // A newer call with the bot keeps the activity.
+        guard Self.calls[attributes.botId] === self else { return }
+        Self.calls[attributes.botId] = nil
         let (botId, computerId, own) = (attributes.botId, attributes.computerId, ownID)
         Task.detached {
-            guard let activity = Self.find(botId: botId, computerId: computerId) else { return }
-            if activity.id == own {
-                await activity.end(nil, dismissalPolicy: .immediate)
-            } else {
-                var state = activity.content.state
-                state.call = nil
-                state.callStartedAt = nil
-                await activity.update(.init(state: state, staleDate: activity.content.staleDate))
-            }
+            guard let activity = BotActivityAttributes.shown(botId: botId, computerId: computerId) else { return }
+            await Self.callEnded(on: activity, dismissNow: activity.id == own)
         }
     }
 
-    private func show() {
+    /// A call is over on `activity`: one whose bot has nothing left to show ends (at once with `dismissNow`), and one
+    /// with a task under way goes on without the call.
+    public nonisolated static func callEnded(on activity: Activity<BotActivityAttributes>, dismissNow: Bool) async {
+        let state = merge(activity.content.state, call: nil, since: nil)
+        if ["idle", "completed", "error"].contains(state.status) {
+            await activity.end(.init(state: state, staleDate: nil), dismissalPolicy: dismissNow ? .immediate : .after(.now + 60))
+        } else {
+            await activity.update(.init(state: state, staleDate: .now + 15 * 60))
+        }
+    }
+
+    nonisolated static func merge(_ state: State, call: CallState?, since: Date?) -> State {
+        var state = state
+        state.call = call
+        state.callStartedAt = call == nil ? nil : since
+        return state
+    }
+
+    /// Puts the call on the bot's activity, with `activity` as its line if given, or starts one for the call.
+    private func show(activity text: String? = nil) {
         let (botId, computerId) = (attributes.botId, attributes.computerId)
-        let (call, startedAt, progress) = (call, startedAt, progress)
-        if Self.find(botId: botId, computerId: computerId) == nil {
-            guard call != nil, UserDefaults.standard.object(forKey: "liveActivitiesEnabled") as? Bool ?? true,
-                  ActivityAuthorizationInfo().areActivitiesEnabled else { return }
-            let state = BotActivityAttributes.ContentState(status: "idle", activity: progress ?? "", startedAt: nil,
-                                                           call: call, callStartedAt: startedAt)
-            ownID = try? Activity.request(attributes: attributes, content: .init(state: state, staleDate: nil), pushType: nil).id
-            return
-        }
+        guard Self.calls[botId] === self else { return }
+        guard let shown = BotActivityAttributes.shown(botId: botId, computerId: computerId) else { return start() }
+        follow(shown)
+        let (call, startedAt) = (call, startedAt)
         Task.detached {
-            guard let activity = Self.find(botId: botId, computerId: computerId) else { return }
-            var state = activity.content.state
-            state.call = call
-            state.callStartedAt = startedAt
-            if let progress { state.activity = progress }
-            await activity.update(.init(state: state, staleDate: nil))
+            guard let activity = BotActivityAttributes.shown(botId: botId, computerId: computerId) else { return }
+            var state = Self.merge(activity.content.state, call: call, since: startedAt)
+            if let text { state.activity = text }
+            guard state != activity.content.state else { return }
+            await activity.update(.init(state: state, staleDate: activity.content.staleDate))
         }
     }
 
-    private nonisolated static func find(botId: String, computerId: ComputerID) -> Activity<BotActivityAttributes>? {
-        Activity<BotActivityAttributes>.activities.first { $0.attributes.botId == botId && $0.attributes.computerId == computerId }
+    private func start() {
+        guard call != nil, BotActivityAttributes.mayStart else { return }
+        let state = Self.merge(.init(status: "idle", activity: progress ?? "", startedAt: nil), call: call, since: startedAt)
+        do {
+            let activity = try Activity.request(attributes: attributes, content: .init(state: state, staleDate: nil), pushType: nil)
+            ownID = activity.id
+            follow(activity)
+        } catch {
+            log.error("Live activity for the call not started: \(error.localizedDescription, privacy: .public)")
+        }
+    }
+
+    /// Follows the activity showing the call: a push from the computer replaces its state without the call's fields,
+    /// which go back on, and its last one ends it, which gives the call its own activity (one the user swiped away
+    /// stays away).
+    private func follow(_ activity: Activity<BotActivityAttributes>) {
+        guard followed?.id != activity.id else { return }
+        followed?.tasks.forEach { $0.cancel() }
+        followed = (activity.id, [
+            Task { [weak self] in for await _ in activity.contentUpdates { self?.show() } },
+            Task { [weak self] in for await state in activity.activityStateUpdates where state == .ended { self?.show() } },
+        ])
     }
 }

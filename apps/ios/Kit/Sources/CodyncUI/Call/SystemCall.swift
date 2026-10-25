@@ -6,24 +6,6 @@ import os
 
 private let log = Logger(subsystem: "com.pokai.Codync", category: "Call")
 
-/// The call as the system shows it (CallKit): on the Lock Screen and in the Dynamic Island, ended or muted from there
-/// or from AirPods, held by a phone call, with the audio session the system activates for it.
-@MainActor
-protocol SystemCall: AnyObject {
-    /// The system ended the call (Lock Screen, Dynamic Island, AirPods, another call answered instead).
-    var onEnd: (() -> Void)? { get set }
-    /// The system muted or unmuted the call.
-    var onMute: ((Bool) -> Void)? { get set }
-    /// The call reached its voice.
-    func connected()
-    /// The app muted or unmuted the call.
-    func setMuted(_ muted: Bool)
-    /// The app hung up.
-    func end()
-    /// Returns once the system activated the call's audio session, or after a moment if it doesn't (the Simulator).
-    func audioReady() async
-}
-
 /// Where CallKit may carry calls: not in apps offered in mainland China's App Store, which doesn't allow CallKit.
 enum SystemCallPolicy {
     static func allowed(storefront: String?, region: String?) -> Bool {
@@ -57,7 +39,7 @@ final class CallKitCalls: NSObject {
         provider.setDelegate(self, queue: nil)
     }
 
-    func start(id: UUID, name: String) -> SystemCall {
+    func start(id: UUID, name: String) -> CallKitCall {
         current?.systemEnded()
         let call = CallKitCall(id: id, calls: self)
         current = call
@@ -66,10 +48,8 @@ final class CallKitCalls: NSObject {
         controller.request(CXTransaction(action: start)) { error in
             guard let error else { return }
             Task { @MainActor in
-                // The call goes on without the system's (the Simulator, CallKit unavailable).
                 log.info("CallKit didn't take the call: \(error.localizedDescription, privacy: .public)")
-                call.declined()
-                self.finished(call)
+                self.drop(call)
             }
         }
         return call
@@ -85,8 +65,15 @@ final class CallKitCalls: NSObject {
         }
     }
 
+    /// CallKit refused the call or lost it (the Simulator, CallKit unavailable, its daemon restarted): the call goes
+    /// on without the system's.
+    private func drop(_ call: CallKitCall) {
+        call.declined()
+        finished(call)
+    }
+
     /// The call is over for CallKit (ended, or never taken): the engines manage the audio session again.
-    fileprivate func finished(_ call: CallKitCall) {
+    private func finished(_ call: CallKitCall) {
         call.systemEnded()
         guard current === call else { return }
         current = nil
@@ -95,31 +82,20 @@ final class CallKitCalls: NSObject {
 }
 
 extension CallKitCalls: @preconcurrency CXProviderDelegate {
-    /// CallKit dropped its calls (its daemon restarted, or it isn't available): the call goes on without the system's.
     func providerDidReset(_ provider: CXProvider) {
-        guard let current else { return }
-        current.declined()
-        finished(current)
+        if let current { drop(current) }
     }
 
     func provider(_ provider: CXProvider, perform action: CXStartCallAction) {
-        // CallKit activates the session it finds configured.
-        try? AVAudioSession.sharedInstance().setCategory(.playAndRecord, mode: .voiceChat,
-                                                         options: [.defaultToSpeaker, .allowBluetoothHFP])
+        do { try CallAudioSession.configure() } catch {
+            log.error("call audio category: \(error.localizedDescription, privacy: .public)")
+        }
         provider.reportOutgoingCall(with: action.callUUID, startedConnectingAt: nil)
         action.fulfill()
     }
 
     func provider(_ provider: CXProvider, perform action: CXEndCallAction) {
-        if let current, current.id == action.callUUID {
-            // An end before the call ever got its audio or connected is CallKit dropping it (the Simulator ends
-            // calls right after starting them): the call goes on without the system's.
-            if !current.live {
-                log.info("CallKit ended the call before it connected; going on without it")
-                current.declined()
-            }
-            finished(current)
-        }
+        if let current, current.id == action.callUUID { finished(current) }
         action.fulfill()
     }
 
@@ -129,45 +105,66 @@ extension CallKitCalls: @preconcurrency CXProviderDelegate {
     }
 
     func provider(_ provider: CXProvider, perform action: CXSetHeldCallAction) {
-        NotificationCenter.default.post(name: .callHeld, object: nil, userInfo: ["held": action.isOnHold])
+        if let current, current.id == action.callUUID { current.held(action.isOnHold) }
         action.fulfill()
     }
 
+    // Every activation has its deactivation, also after the call is over: WebRTC counts them.
     func provider(_ provider: CXProvider, didActivate audioSession: AVAudioSession) {
+        CallAudioSession.systemActivated(audioSession)
         current?.audioActivated()
     }
 
-    func provider(_ provider: CXProvider, didDeactivate audioSession: AVAudioSession) {}
+    func provider(_ provider: CXProvider, didDeactivate audioSession: AVAudioSession) {
+        CallAudioSession.systemDeactivated(audioSession)
+        current?.audioDeactivated()
+    }
 }
 
+/// The call as the system shows it (CallKit): on the Lock Screen and in the Dynamic Island, ended or muted from there
+/// or from AirPods, held by a phone call, with the audio session the system activates for it.
 @MainActor
-final class CallKitCall: SystemCall {
+final class CallKitCall {
+    /// The system ended the call (Lock Screen, Dynamic Island, AirPods, another call answered instead).
     var onEnd: (() -> Void)?
+    /// The system muted or unmuted the call.
     var onMute: ((Bool) -> Void)?
     let id: UUID
     private weak var calls: CallKitCalls?
     private var over = false
     /// The call got its audio session or connected: from here an end from the system is the user's.
-    fileprivate private(set) var live = false
-    private var audioActive = false
+    private var live = false
+    private var audio = Audio.awaited
+    /// Taken off hold while the system still had its audio: the engine picks up once it's back.
+    private var resumesOnAudio = false
     private var waiting: [CheckedContinuation<Void, Never>] = []
 
-    fileprivate init(id: UUID, calls: CallKitCalls) {
+    /// How long `audioReady` waits for the system's activation (it never comes on the Simulator).
+    static var audioTimeout: Duration = .seconds(1.5)
+
+    /// The call's audio session as the system hands it over.
+    private enum Audio { case awaited, active, takenAway }
+
+    /// `calls` is nil only in tests.
+    init(id: UUID, calls: CallKitCalls? = nil) {
         self.id = id
         self.calls = calls
     }
 
+    /// The call reached its voice.
     func connected() {
         guard !over else { return }
         live = true
         calls?.connected(self)
     }
 
+    /// The app muted or unmuted the call.
     func setMuted(_ muted: Bool) {
         guard !over else { return }
         calls?.request(CXSetMutedCallAction(call: id, muted: muted))
     }
 
+    /// The app hung up.
     func end() {
         guard !over else { return }
         over = true
@@ -175,38 +172,60 @@ final class CallKitCall: SystemCall {
         resumeWaiting()
     }
 
+    /// Returns once the system activated the call's audio session, or after `audioTimeout` if it doesn't.
     func audioReady() async {
-        guard !audioActive, !over else { return }
+        guard audio == .awaited, !over else { return }
         Task { [weak self] in
-            try? await Task.sleep(for: .seconds(1.5))
+            try? await Task.sleep(for: Self.audioTimeout)
             self?.resumeWaiting()
         }
         await withCheckedContinuation { waiting.append($0) }
     }
 
-    fileprivate func audioActivated() {
-        audioActive = true
+    func audioActivated() {
+        audio = .active
         live = true
         resumeWaiting()
+        if resumesOnAudio {
+            resumesOnAudio = false
+            Self.post(held: false)
+        }
+    }
+
+    func audioDeactivated() {
+        audio = .takenAway
+    }
+
+    /// CallKit held the call (a phone call took over) or took it off hold: the engine pauses at once, and picks up
+    /// again once the system has given the audio back, so it doesn't start on a session that isn't active.
+    func held(_ onHold: Bool) {
+        resumesOnAudio = !onHold && audio == .takenAway
+        if !resumesOnAudio { Self.post(held: onHold) }
     }
 
     /// CallKit refused the call: it goes on without the system's.
-    fileprivate func declined() {
+    func declined() {
         over = true
         resumeWaiting()
     }
 
-    /// CallKit ended the call; the app hangs up too unless it started the ending.
-    fileprivate func systemEnded() {
+    /// CallKit ended the call. Before the call ever got its audio or connected, that's CallKit dropping it (the
+    /// Simulator ends calls right after starting them) and the call goes on without the system's; after, the app
+    /// hangs up too unless it started the ending.
+    func systemEnded() {
         resumeWaiting()
         guard !over else { return }
         over = true
-        onEnd?()
+        if live { onEnd?() } else { log.info("CallKit ended the call before it connected; going on without it") }
     }
 
     private func resumeWaiting() {
         let continuations = waiting
         waiting = []
         for continuation in continuations { continuation.resume() }
+    }
+
+    private static func post(held: Bool) {
+        NotificationCenter.default.post(name: .callHeld, object: nil, userInfo: ["held": held])
     }
 }
