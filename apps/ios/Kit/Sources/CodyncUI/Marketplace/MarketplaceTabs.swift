@@ -71,7 +71,8 @@ extension MarketplaceView {
         } else {
             ItemGrid {
                 ForEach(connectors.items.items) { c in
-                    MarketRow(title: c.title, subtitle: c.description ?? c.name, added: c.installed) {
+                    MarketRow(title: c.title, subtitle: c.description ?? c.name, added: c.installed,
+                              open: c.installed ? nil : { viewingConnector = c }) {
                         ServiceLogo(website: c.website, name: c.title, registryName: c.name)
                     } add: {
                         installing = c

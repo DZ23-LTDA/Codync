@@ -80,7 +80,7 @@ Some agents run through an adapter that needs Node.js, such as Claude Code, Code
 
 ### Signing in
 
-The **Sign in** step shows whether the agent is signed in on that computer, with **Check again** to ask again. If it isn't, the sheet lists the ways to sign in:
+The **Sign in** step shows whether the agent is signed in on that computer, with **Check again** to ask again. Opening the sheet never downloads an agent: a registry agent that hasn't run on the computer yet shows **Set up**, which downloads it if needed and then checks its sign-in. If it isn't signed in, the sheet lists the ways to sign in:
 
 - **Sign in** (agents Codync knows by name): runs the agent's own sign-in command in a terminal on the computer. You type into it from your device, and links open on your device.
 - **The agent's own options:** each agent advertises its methods. Some run in a terminal, some open a browser on the computer, and some ask for API keys.

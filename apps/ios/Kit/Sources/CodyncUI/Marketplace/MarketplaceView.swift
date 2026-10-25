@@ -13,6 +13,7 @@ public struct MarketplaceView: View {
     @State var loadingSkills = true
     @State var error: String?
     @State var installing: MarketConnector?
+    @State var viewingConnector: MarketConnector?
     @State var busySkill: String?
     @State var addingConnector = false
     @State var writingSkill = false
@@ -65,6 +66,9 @@ public struct MarketplaceView: View {
         }
         .codyncSheet(item: $installing) { item in
             InstallConnectorSheet(item: item) { Task { await loadConnectors() } }
+        }
+        .codyncSheet(item: $viewingConnector) { item in
+            InstallConnectorSheet(item: item, addsAtOnce: false) { Task { await loadConnectors() } }
         }
         .codyncSheet(isPresented: $showCredentials) { CredentialsView() }
         .codyncSheet(isPresented: $addingConnector) { CustomConnectorSheet() }

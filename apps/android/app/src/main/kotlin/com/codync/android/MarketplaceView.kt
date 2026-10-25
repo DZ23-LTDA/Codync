@@ -74,6 +74,7 @@ import kotlinx.coroutines.launch
     var loadingSkills by remember { mutableStateOf(true) }
     var error by remember { mutableStateOf<String?>(null) }
     var installing by remember { mutableStateOf<MarketConnector?>(null) }
+    var viewingConnector by remember { mutableStateOf<MarketConnector?>(null) }
     var busySkill by remember { mutableStateOf<String?>(null) }
     var addingConnector by remember { mutableStateOf(false) }
     var writingSkill by remember { mutableStateOf(false) }
@@ -127,7 +128,8 @@ import kotlinx.coroutines.launch
                 else -> {
                     val rows = connectors.items.items
                     items(rows, key = { it.name }) { c ->
-                        MarketRow(c.title, c.description ?: c.name, c.installed, icon = { ServiceLogo(c.website, c.title, c.name) }) { installing = c }
+                        MarketRow(c.title, c.description ?: c.name, c.installed, open = if (c.installed) null else ({ viewingConnector = c }),
+                            icon = { ServiceLogo(c.website, c.title, c.name) }) { installing = c }
                     }
                     connectors.cursor?.let { cursor -> item { LoadMoreRow(cursor, connectors.error != null) { connectors.loadMore() } } }
                 }
@@ -187,6 +189,7 @@ import kotlinx.coroutines.launch
         Box(Modifier.align(Alignment.TopEnd).padding(8.dp)) { IconButton("Close", "xmark", action = dismiss) }
     }
     CodyncSheet(installing, { installing = null }) { InstallConnectorSheet(it, state, store) { submit() } }
+    CodyncSheet(viewingConnector, { viewingConnector = null }) { InstallConnectorSheet(it, state, store, addsAtOnce = false) { submit() } }
     CodyncSheet(showCredentials, { showCredentials = false }) { CredentialsView(state, store) }
     CodyncSheet(addingConnector, { addingConnector = false }) { CustomConnectorSheet(state, store) }
     CodyncSheet(viewingSkill, { viewingSkill = null }) { SkillSheet(it, state, store) }

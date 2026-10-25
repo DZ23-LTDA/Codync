@@ -45,11 +45,12 @@ export function AgentsPanel({ agents, query, needsNode, onAddNode, onAgent }: {
   )
 }
 
-export function ConnectorsPanel({ catalog, query, onAddConnector, onInstall }: {
+export function ConnectorsPanel({ catalog, query, onAddConnector, onInstall, onView }: {
   catalog: ConnectorCatalog<MarketConnector>
   query: string
   onAddConnector: () => void
   onInstall: (connector: MarketConnector) => void
+  onView: (connector: MarketConnector) => void
 }) {
   const tr = useTr()
   const rows = catalog.items.items
@@ -79,6 +80,7 @@ export function ConnectorsPanel({ catalog, query, onAddConnector, onInstall }: {
                   added={c.installed}
                   icon={<ServiceLogo website={c.website} name={c.title} registryName={c.name} />}
                   onAdd={() => onInstall(c)}
+                  onOpen={c.installed ? undefined : () => onView(c)}
                 />
               ))}
             </ItemGrid>

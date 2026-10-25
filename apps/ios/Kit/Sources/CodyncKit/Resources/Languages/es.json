@@ -1231,5 +1231,8 @@
   "On a call · Speaking": "En llamada · Hablando",
   "Call paused": "Llamada en pausa",
   "You're up to date": "Todo está al día",
-  "Codync {version} is currently the newest version available.": "Codync {version} es la versión más reciente disponible."
+  "Codync {version} is currently the newest version available.": "Codync {version} es la versión más reciente disponible.",
+  "Install it first.": "Instálalo primero.",
+  "Not set up on {name} yet.": "Aún no está configurado en {name}.",
+  "Downloads {name} on {host} if it needs to, then checks its sign-in.": "Descarga {name} en {host} si hace falta y luego comprueba su inicio de sesión."
 }

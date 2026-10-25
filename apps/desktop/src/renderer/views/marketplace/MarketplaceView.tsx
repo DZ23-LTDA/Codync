@@ -44,6 +44,7 @@ export function MarketplaceView() {
   const [loadingSkills, setLoadingSkills] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [installing, setInstalling] = useState<MarketConnector | null>(null)
+  const [viewingConnector, setViewingConnector] = useState<MarketConnector | null>(null)
   const [busySkill, setBusySkill] = useState<string | null>(null)
   const [addingConnector, setAddingConnector] = useState(false)
   const [writingSkill, setWritingSkill] = useState(false)
@@ -173,6 +174,7 @@ export function MarketplaceView() {
               query={query}
               onAddConnector={() => setAddingConnector(true)}
               onInstall={setInstalling}
+              onView={setViewingConnector}
             />
           ) : (
             <SkillsPanel
@@ -200,6 +202,9 @@ export function MarketplaceView() {
       <SlideStack base={page} top={showCredentials ? <CredentialsView onBack={() => setShowCredentials(false)} /> : showInstalled ? <InstalledView back={() => setShowInstalled(false)} /> : null} />
       <FormSheet open={installing !== null} onClose={() => setInstalling(null)}>
         {installing ? <InstallConnectorSheet key={installing.name} item={installing} done={() => void connectors.reload()} /> : null}
+      </FormSheet>
+      <FormSheet open={viewingConnector !== null} onClose={() => setViewingConnector(null)}>
+        {viewingConnector ? <InstallConnectorSheet key={viewingConnector.name} item={viewingConnector} addsAtOnce={false} done={() => void connectors.reload()} /> : null}
       </FormSheet>
       <FormSheet open={addingConnector} onClose={() => setAddingConnector(false)}>
         <CustomConnectorSheet />
