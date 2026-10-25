@@ -17,6 +17,14 @@ else a generic "Bug fixes and improvements" line. Delete old sections.
 - Bots can ask bots on your other computers once they share a network.
 - ChatGPT or Claude can give your bots tasks through the Codync connector.
 
+## 2.27.1
+
+### zh-Hant
+- 主助理的頭像右下角新增金色星星；點一下詳細頁的星星，即可了解它如何追蹤目標、協調 bots 與定時關心進度。
+
+### en-US
+- Your lead agent now has a gold star on its avatar. Tap the larger star in its details to learn how it follows your goals, coordinates bots, and checks in.
+
 ## 2.27.0
 
 ### zh-Hant

@@ -16,6 +16,14 @@ a version without one gets a generic "Bug fixes and improvements" line. Delete o
 - Once your computers share a network (codync-host network on each), a bot can ask a bot on another computer; the chat names that bot and its computer.
 - Add Codync to ChatGPT or Claude as a connector to give your bots tasks from there; the bot's chat shows Message from Cloud assistant.
 
+## 2.27.1
+
+### zh-Hant
+- 主助理的頭像右下角新增金色星星；點一下詳細頁的星星，即可了解它如何追蹤目標、協調 bots 與定時關心進度。
+
+### en-US
+- Your lead agent now has a gold star on its avatar. Tap the larger star in its details to learn how it follows your goals, coordinates bots, and checks in.
+
 ## 2.27.0
 
 ### zh-Hant
