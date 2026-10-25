@@ -3017,6 +3017,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c01a35be3ed37558c8db69554419f24eff8a63599b54f711bbe3863ec727c47d"
 dependencies = [
  "aes-gcm",
+ "aws-lc-rs",
  "bytes",
  "derive_more",
  "enum-assoc",
@@ -4942,6 +4943,7 @@ version = "0.13.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d52efb639344a7c6adb8e62c6f3d2c19c001ff1b79a5041ba1c6ed42e19c6aa5"
 dependencies = [
+ "aws-lc-rs",
  "base64 0.22.1",
  "bytes",
  "futures-core",
