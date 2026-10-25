@@ -223,6 +223,9 @@ export interface SharedFile extends Attachment { sha256: string }
 export const isImageName = (name: string) =>
   ['png', 'jpg', 'jpeg', 'heic', 'gif', 'webp', 'tiff', 'bmp'].includes(name.split('.').pop()?.toLowerCase() ?? '')
 
+/** A shared image small enough to show in the chat (the whole file is fetched for it). */
+export const showsAsImage = (file: SharedFile) => isImageName(file.name) && file.size <= 20 * 1024 * 1024
+
 export interface ConnectionRequest {
   [key: string]: unknown
 }
