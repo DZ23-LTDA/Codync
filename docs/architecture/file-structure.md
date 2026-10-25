@@ -89,7 +89,7 @@ Codync/
 | CLI and background service | `host/src/main.rs`, `service/` |
 | API, caller permissions, event ordering | `host/src/api/`, `hub.rs` |
 | SQLite transcript, bots, lanes and sessions | `host/src/store/` (`entries.rs`, `bots.rs`, `model.rs`, `devices.rs`, `schema.rs`) |
-| Agent process, ACP, queue and session lifecycle | `host/src/agent/bot/` (`launch.rs`, `queue.rs`, `session.rs`, `turn.rs`, `updates.rs`), `acp.rs` |
+| Agent process, ACP, queue and session lifecycle | `host/src/agent/bot/` (`launch.rs`, `queue.rs`, `session.rs`, `turn.rs`, `updates.rs`), `acp.rs` (+ `acp/codebuddy.rs`, CodeBuddy's ACP extensions) |
 | Compaction timing and rollover | `host/src/agent/bot/compaction.rs`, the handoff card in `host/src/chat/handoff.rs`; the rules in `codync-mem`'s `compaction.rs` |
 | Group room turns / bot-to-bot requests | `host/src/chat/group.rs` / `team.rs` |
 | Voice calls (the call, the voice's instructions and tools, transcripts, call lines) | `host/src/chat/calls/` (`mod.rs`, `context.rs`, `project.rs` the git state, `tools.rs`, `announce.rs` what the voice hears while the call lasts, `speech.rs` text as a voice says it); the user's messages it relays go through `host/src/chat/messages.rs` like typed ones; clients' `CallLink` (iPhone `CodyncUI/Call/CallLink.swift`, desktop `views/call/call-link.ts`, Android `core/Calls.kt` + `HostCallLink.kt`) and call rows (`CallRows`); the call on the iPhone's Lock Screen (`CodyncUI/Call/CallActivity.swift`, the Live Activity) and Android's call notification (`VoiceService.kt`) |
@@ -97,7 +97,7 @@ Codync/
 | Prompt snapshots and memory | `host/src/chat/context.rs`, `memory/` (`api.rs` the apps' read-only view, `tools.rs` and `file_tools.rs` the MCP tools, `files.rs` the folders and scan, `turns.rs` which bot's turn a found change is credited to, `file_api.rs`, `dream.rs`, `import.rs`); the rules in `host/crates/memory` (`codync-mem`: files and facts in `files/`, dreaming in `dream/`, tombstones in `store.rs`, the old entries in `legacy.rs`); harnesses' own memory turned off in `host/src/agent/own_memory.rs` |
 | Identity, encryption and direct channel | `host/src/remote/identity.rs`, `crypto.rs`, `channel.rs` |
 | Host cloud state and relay connection | `host/src/remote/cloud.rs`, `cloud_url.rs`, `relay.rs` |
-| Agent discovery, sign-in, setup terminal, Node.js for npm agents | `host/src/agent/backends.rs` (+ `backends/sign_in.rs`, `backends/search_path.rs`), `registry.rs`, `auth.rs`, `term.rs`, `node.rs` |
+| Agent discovery, sign-in, setup terminal, Node.js for npm agents | `host/src/agent/backends.rs` (+ `backends/catalog.rs` the known harnesses, `backends/sign_in.rs`, `backends/search_path.rs`, `backends/workbuddy.rs` the CLI inside the WorkBuddy app), `registry.rs`, `auth.rs` (+ `auth/agent.rs` starting an agent and its own sign-in, `auth/models.rs`), `term.rs`, `node.rs` |
 | Fast mode (session config option) | `host/src/agent/config.rs`, `agent/bot/fast_mode.rs` |
 | Marketplace, Composio, connector OAuth | `host/src/market/` |
 | Skills a bot writes (`save_skill`) | `host/src/chat/skills.rs`, stored by `host/src/market/skills.rs` |

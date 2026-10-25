@@ -15,6 +15,7 @@ a version without one gets a generic "Bug fixes and improvements" line. Delete o
 - 聯結器翻到還沒載入的頁面時，會從 MCP Registry 接著載入。
 - 「憑證」移到上方電腦名稱旁；「自定義聯結器」和「自己的技能」放在各自分類的列表上方。
 - 電腦使用自建中繼時，設定和連線狀態會顯示該中繼的地址，不再一律寫成 Cloudflare。
+- 可以建立使用 WorkBuddy 的 Bot：Codync 會使用 WorkBuddy 桌面 App 內附的 CLI，並在聊天裡請你登入。
 
 ### en-US
 - Images a bot sends now show right in the chat; tap one to see it full size, no download needed.
@@ -23,6 +24,7 @@ a version without one gets a generic "Bug fixes and improvements" line. Delete o
 - Connectors keep loading from the MCP Registry as you page past what's loaded.
 - Credentials sits beside the computer's name at the top, and Custom connector and Your own skill sit above their lists.
 - When a computer uses a private relay, Settings and connection status show that relay's address instead of always saying Cloudflare.
+- Create bots that run WorkBuddy: Codync uses the CLI inside the WorkBuddy desktop app and asks you to sign in from the chat.
 
 ## 2.26.1
 
