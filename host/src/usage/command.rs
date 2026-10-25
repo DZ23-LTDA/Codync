@@ -32,6 +32,7 @@ pub(super) async fn output(
         && let Some(mut input) = child.stdin.take()
     {
         use tokio::io::AsyncWriteExt;
+        // A CLI that didn't get its command prints no usage: the empty answer below reads as no reading.
         let _ = input.write_all(text.as_bytes()).await;
     }
     let done = tokio::time::timeout(timeout, child.wait_with_output()).await.ok()?.ok()?;

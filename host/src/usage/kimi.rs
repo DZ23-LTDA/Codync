@@ -67,6 +67,8 @@ fn capture(bin: &Path, dir: &Path) -> Option<String> {
     let mut trusted = false;
     let mut answered = false;
     let mut changed = Instant::now();
+    // Writes to the terminal are best effort: one that fails leaves the screen without a usage
+    // panel, so the loop runs out at `WAIT` and the screen reads as no plan lines.
     while started.elapsed() < WAIT {
         while let Ok(chunk) = rx.try_recv() {
             raw.extend_from_slice(&chunk);
