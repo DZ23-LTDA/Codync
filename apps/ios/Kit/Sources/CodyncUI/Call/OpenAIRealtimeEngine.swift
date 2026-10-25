@@ -143,6 +143,14 @@ final class OpenAIRealtimeEngine: VoiceEngine {
         flush()
     }
 
+    /// Only the newest progress waits to be said.
+    func progress(_ text: String) {
+        guard !ended, !phase.isFailed else { return }
+        pending.removeAll { $0.hasPrefix(CallLink.progressTag) }
+        pending.append(link.progress(text))
+        flush()
+    }
+
     // MARK: events
 
     fileprivate func opened() {

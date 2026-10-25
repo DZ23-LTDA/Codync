@@ -1,6 +1,6 @@
 # Voice calls owned by the host
 
-Status: stage 1 shipped (2.25.0); stages 2–4 planned. Supersedes [voice call transcripts](voice-call-transcripts.md),
+Status: stage 1 shipped (2.25.0), stage 2 (2.26.0); stages 3–4 planned. Supersedes [voice call transcripts](voice-call-transcripts.md),
 which became stage 1 of this plan. Current behavior: [voice call](../features/voice-call.md#the-call-on-the-host).
 
 A realtime voice model (Gemini Live, OpenAI Realtime) stays in front of the bot: coding agents are text-only and
@@ -53,7 +53,7 @@ Each stage ships on its own (after-change, merged into `dev`), all clients toget
 - **Memory:** dreaming reads the transcript; the user's spoken lines are the user's own words, the voice's lines and
   the voice-written `send_to_bot` text are context only. A call's user lines count toward the dream trigger.
 
-### 2. The bot's work reaches the call
+### 2. The bot's work reaches the call (shipped)
 
 - The host pushes what the voice should say to the client holding the call (a `call` event, which older clients
   ignore): the bot's final replies, approvals waiting, failures, and short progress while it works ("running the

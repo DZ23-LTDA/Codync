@@ -46,9 +46,8 @@ way open with a sentence or two, read aloud like any reply and part of the call 
   foreground/background transitions. Ending or failing the last call releases that
   connection when backgrounded, restoring normal push delivery. Removing the computer
   or switching accounts ends its calls and closes the transport.
-- Final replies and approval notices are delivered from the store's incoming events
-  directly to the audio session, rather than waiting for a SwiftUI view update.
-  Replayed final replies and other bots' replies are not read into this call.
+- What to say arrives from the computer as the call's `call` events (see "How the voice talks"), delivered from
+  the store's incoming events directly to the audio session, rather than waiting for a SwiftUI view update.
 
 ## Dictation
 
@@ -305,9 +304,27 @@ carries audio and talks to these methods:
 
 ### How the voice talks
 
-- Each new final reply is added to the realtime conversation as `[<bot> replied] …` and an approval
-  as `[Notice] …` (`BotStore` hands them over as `speak` / `announce`); the model says them,
-  shortened for speech. They wait while the model is talking, so they don't cut it off.
+- The host decides what the voice hears while the call lasts (`chat::calls::announce`, one watcher per call): each
+  new final reply in the bot's chat (one already final when the call began isn't; one that began before it and
+  finishes during it is), an approval card waiting, a failure notice, and the bot's activity line while it works:
+  at most one progress line every 15 s, only when it changed, and "<bot> is still working" after 45 s with nothing
+  said. It sends each as a `call` event `{call, owner, kind: reply | notice | progress, text, seq}`, worded for the
+  call's mode as `startCall` last gave it: a realtime voice gets replies shortened for speech, approvals with their
+  options ("Mika needs the user's approval: … (options: …)") and progress; an on-device or speech-to-text call gets
+  replies as written (its engine shortens them), approvals for the listener ("Mika needs your approval in the chat:
+  …") and no progress. In a group, replies and notices name the member. `api::events` delivers each cue only to the
+  device that holds the call (`owner`, its device key, set from the caller on `startCall`); older apps ignore the
+  event type.
+- Each cue's `seq` rises through the call (from the clock, so across host restarts too). The host keeps the call's
+  last 10 replies and notices and adds them to that device's catch-up when its event stream reconnects; the app
+  skips any `seq` it already heard (kept per call, across engine switches). A watcher that missed hub events
+  rereads the chat's latest entries.
+- The watcher starts with `startCall` and runs until `endCall`. As the host starts it watches again every call
+  started in the last day (`rewatch`). A call none of its app's requests (`startCall`, `callLines`, `callTool`, a
+  message said on it) touched for 2 hours stops being watched; the next one starts it again.
+- The app hands each cue to its engine (`hear`): realtime voices get `[<bot> replied] …`, `[Notice] …` and
+  `[Progress] …` (only the newest progress waits); on-device and speech-to-text calls read replies and notices
+  aloud. They wait while the model is talking, so they don't cut it off.
 - Barge-in is the provider's voice activity detection (OpenAI semantic VAD; Gemini's automatic
   VAD, with the voice-processing input cancelling the device's own playback). Tapping the avatar
   cancels the response locally.
@@ -346,8 +363,14 @@ A route change mid-call (AirPods) is not checked yet.
 
 Host tests (`chat::calls`) cover a call's flow (start, lines, `send_to_bot` with the user's words, the line at the
 end), the voice's instructions (the relay role and the bot's name first, each section present and within its cap,
-OpenAI's smaller share), transcript checks and dreaming over a call. `StoreTests` cover approvals reaching a call
-as notices; each client tests hiding a call's messages and merging its conversation. On Android, `VoiceEnginesTest` (core, JVM) drives
+OpenAI's smaller share), transcript checks and dreaming over a call. `chat::calls::announce` tests cover what the
+voice hears: new replies, approvals and failures said once, a reply unfinished when the call began, a group's
+member named, the wording per call mode, progress rate-limited with a "still working" after a silence, and the
+replies and notices kept for the device holding the call; `api::events` tests check that only that device gets
+them, and `calls_e2e` that an on-device call hears its approval and reply. `StoreTests` (iPhone) hand each cue to
+the call once, also when a reconnect replays it after an engine switch; the desktop tests parse cues
+(`parseCallCue`) and Android's decode them (`CallCue`). Each client tests hiding a call's messages and merging its
+conversation. On Android, `VoiceEnginesTest` (core, JVM) drives
 each engine through fake audio: utterance cutting and clip playback, OpenAI's event sequence and SDP
 exchange (MockWebServer), and a Gemini Live session over a real WebSocket (setup, audio both ways,
 a tool call, a close with the provider's reason). Provider audio isn't

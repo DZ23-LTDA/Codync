@@ -113,12 +113,9 @@ struct CallView: View {
             engine = OnDeviceEngine { [model, botId, call] in model.send($0, to: botId, call: call) }
             Task { _ = try? await link.start("device") }
         }
-        engine.onActivityChanged = { [weak engine, model, botId, callID] active in
+        engine.onActivityChanged = { [weak engine, model, callID] active in
             if active {
-                model.beginVoiceCall(callID, botId: botId,
-                                     speak: { [weak engine] in engine?.speak(reply: $0) },
-                                     announce: { [weak engine] in engine?.announce($0) },
-                                     end: { [weak engine] in engine?.end() })
+                model.beginVoiceCall(callID, hear: { [weak engine] in engine?.hear($0) }, end: { [weak engine] in engine?.end() })
             } else {
                 model.endVoiceCall(callID)
             }

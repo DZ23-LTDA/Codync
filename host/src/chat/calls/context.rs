@@ -1,6 +1,7 @@
 //! What the voice of a call hears before it speaks: its rules, then the background as named sections, each capped,
 //! empty ones left out, each saying where it came from. It goes to the voice provider, on the user's own key.
 
+use super::speech::spoken;
 use super::tools::{runtime, waiting};
 use crate::hub::{BotStatus, Hub};
 use crate::store::{BotConfig, Entry, EntryKind, Lane};
@@ -69,6 +70,8 @@ word for word. Never do the work or invent results.
 - Call answer_approval only after the user has clearly said which option to pick.
 - Messages starting with [{name} replied] or [Notice] come from the computer: tell the user what they say, shortened \
 for speech (no code blocks, no long lists, no URLs).
+- Messages starting with [Progress] come from the computer while {name} works: the latest one answers \"what is \
+{name} doing?\"; mention it briefly if the user is waiting, never make up progress or results.
 - Speak the user's language. Keep spoken answers short and natural.
 - The background below is for context: use it, don't read it out."
     )
@@ -267,17 +270,19 @@ fn conversation(hub: &Hub, cfg: &BotConfig, recent: &[Entry]) -> String {
             let gist = e.data["transcript"].as_array().into_iter().flatten().find(|l| l["from"] == "user");
             let gist =
                 gist.and_then(|l| l["text"].as_str()).map(|t| format!(": \"{}\"", spoken(t, 120))).unwrap_or_default();
-            format!(
-                "- {} ({}){gist}",
-                e.data["text"].as_str().unwrap_or(super::UNTITLED),
-                crate::chat::memory::ymd(e.created_at)
-            )
+            format!("- {} ({}){gist}", e.data["text"].as_str().unwrap_or(super::UNTITLED), local_time(e.created_at))
         })
         .collect();
     if !calls.is_empty() {
         lines.push(format!("Earlier calls with this bot:\n{}", calls.join("\n")));
     }
     lines.join("\n")
+}
+
+/// When something happened, on this computer's clock (as "Now" reads).
+fn local_time(ms: i64) -> String {
+    chrono::DateTime::from_timestamp_millis(ms)
+        .map_or_else(|| "unknown date".into(), |t| t.with_timezone(&chrono::Local).format("%Y-%m-%d %H:%M").to_string())
 }
 
 fn others(hub: &Hub, cfg: &BotConfig) -> String {
@@ -313,38 +318,6 @@ fn shared(recent: &[Entry]) -> String {
         }
     }
     titles.join("\n")
-}
-
-/// Text as speech can carry it: code blocks and links named, not read, markdown marks dropped, capped.
-pub fn spoken(text: &str, max: usize) -> String {
-    let mut out = String::new();
-    let mut in_code = false;
-    for line in text.lines() {
-        if line.trim_start().starts_with("```") {
-            if !in_code {
-                out.push_str(" (code) ");
-            }
-            in_code = !in_code;
-            continue;
-        }
-        if in_code {
-            continue;
-        }
-        let words: Vec<String> = line
-            .split_whitespace()
-            .map(|w| {
-                if w.starts_with("http://") || w.starts_with("https://") {
-                    "(link)".to_owned()
-                } else {
-                    w.trim_matches(['*', '`', '#', '>', '_']).to_owned()
-                }
-            })
-            .filter(|w| !w.is_empty())
-            .collect();
-        out.push_str(&words.join(" "));
-        out.push(' ');
-    }
-    crate::agent::acp::truncate(out.split_whitespace().collect::<Vec<_>>().join(" ").as_str(), max)
 }
 
 #[cfg(test)]
@@ -482,11 +455,19 @@ pub(super) mod tests {
     }
 
     #[test]
-    fn speech_names_code_and_links() {
-        assert_eq!(
-            spoken("**Done.** See https://x.dev\n```\nlet a = 1;\n```\n- `cargo test` passed", 200),
-            "Done. See (link) (code) - cargo test passed"
+    fn earlier_calls_are_dated_on_this_computers_clock() {
+        let hub = hub();
+        let cfg = bot("b-clock", "Mika", "/tmp");
+        hub.store.save_bot(&cfg).unwrap();
+        let data =
+            json!({"text": "Release plan", "callSeconds": 30, "transcript": [{"from": "user", "text": "ship it"}]});
+        let call = hub.store.insert_entry(&Lane::main(&cfg.id), EntryKind::Notice, 1, &data).unwrap();
+        let recent = hub.store.history(&cfg.id, i64::MAX, RECENT).unwrap();
+        let local = chrono::DateTime::from_timestamp_millis(call.created_at).unwrap().with_timezone(&chrono::Local);
+        let section = conversation(&hub, &cfg, &recent);
+        assert!(
+            section.contains(&format!("- Release plan ({}): \"ship it\"", local.format("%Y-%m-%d %H:%M"))),
+            "{section}"
         );
-        assert!(spoken(&"word ".repeat(500), 50).chars().count() <= 51);
     }
 }

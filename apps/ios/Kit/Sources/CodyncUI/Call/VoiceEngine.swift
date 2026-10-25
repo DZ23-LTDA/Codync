@@ -32,9 +32,23 @@ protocol VoiceEngine: AnyObject, Observable {
     func speak(reply: String)
     /// A notice from the computer (an approval is waiting) to say.
     func announce(_ notice: String)
+    /// What the bot is doing while it works, from the computer: for a realtime voice to mention.
+    func progress(_ text: String)
 }
 
 extension VoiceEngine {
+    /// What the computer tells the call's voice, handed to the method that says it.
+    func hear(_ cue: CallCue) {
+        switch cue.kind {
+        case .reply: speak(reply: cue.text)
+        case .notice: announce(cue.text)
+        case .progress: progress(cue.text)
+        }
+    }
+
+    /// Engines that read replies aloud have nothing to say about progress.
+    func progress(_ text: String) {}
+
     /// The engine's name in analytics.
     var analyticsName: AnalyticsEvent.VoiceEngine {
         if self is CloudSpeechEngine { return .cloud }

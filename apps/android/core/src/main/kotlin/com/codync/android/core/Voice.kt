@@ -3,8 +3,6 @@ package com.codync.android.core
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.*
-import kotlinx.serialization.json.booleanOrNull
-import kotlinx.serialization.json.jsonPrimitive
 import java.io.IOException
 
 class VoiceUnavailable(message: String) : IOException(message)
@@ -40,32 +38,6 @@ object SpokenText {
             if (end < text.length && text[end - 1].isHighSurrogate() && text[end].isLowSurrogate()) end--
             result.add(text.substring(offset, end)); offset = end
         }
-        return result
-    }
-}
-
-/** Something a call says: a bot's reply, or a notice from the computer. */
-data class VoiceCue(val text: String, val notice: Boolean = false)
-
-/** Only newly finalized replies are spoken. The mirror remains the history owner. */
-class VoiceReplyGate(private val botId: String, private val startRev: Long, initial: List<Entry>) {
-    private var previous = initial.associateBy(Entry::id)
-    fun observe(entries: List<Entry>, bots: List<Bot>): List<VoiceCue> {
-        val result = mutableListOf<VoiceCue>()
-        val group = bots.firstOrNull { it.id == botId }?.kind == "group"
-        for (entry in entries) {
-            if (entry.botId != botId || entry.rev <= startRev) continue
-            val before = previous[entry.id]
-            val author = entry.data.text("author")?.let { id -> bots.firstOrNull { it.id == id }?.name }
-            if (entry.kind == "agent" && entry.data["final"]?.jsonPrimitive?.booleanOrNull == true &&
-                before?.data?.get("final")?.jsonPrimitive?.booleanOrNull != true && entry.text.isNotBlank())
-                result.add(VoiceCue(if (group && author != null) "$author: ${entry.text}" else entry.text))
-            if (entry.kind == "permission" && entry.status == "pending" && before?.status != "pending") {
-                val name = author ?: bots.firstOrNull { it.id == botId && !group }?.name ?: "A bot"
-                result.add(VoiceCue("$name needs your approval in the chat.", notice = true))
-            }
-        }
-        previous = entries.associateBy(Entry::id)
         return result
     }
 }

@@ -15,6 +15,17 @@ interface VoiceEngine {
     fun speak(markdown: String): Boolean
     /** A notice from the computer (an approval is waiting) to say. */
     fun announce(notice: String)
+    /** What the bot is doing while it works, from the computer: for a realtime voice to mention (engines that read
+     * replies aloud have nothing to say about it). */
+    fun progress(text: String) {}
+    /** What the computer tells the call's voice, handed to the method that says it. */
+    fun hear(cue: CallCue) {
+        when (cue.kind) {
+            CallCue.Kind.Reply -> speak(cue.text)
+            CallCue.Kind.Notice -> announce(cue.text)
+            CallCue.Kind.Progress -> progress(cue.text)
+        }
+    }
     fun mute(value: Boolean)
     fun settings(value: VoiceSettings)
     /** Android audio focus: false pauses the call's audio, true resumes it. */

@@ -14,9 +14,11 @@ import okhttp3.OkHttpClient
 // messages, its replies are read aloud, and the call ends as one titled line. The engine is the one picked in the
 // call settings; a cloud engine that can't start or drops mid-call hands over to on-device voice.
 
-/** The call in progress: its engine (replaced on a fallback), start times and which replies it has read. */
-internal class VoiceBinding(val id: String, val botId: String, val generation: Int, val startedAt: Long, val replies: VoiceReplyGate) {
+/** The call in progress: its engine (replaced on a fallback) and start times. */
+internal class VoiceBinding(val id: String, val botId: String, val generation: Int, val startedAt: Long) {
     var engine: VoiceEngine? = null
+    /** The newest cue the call heard (`CallCue.seq`), kept across engines: a replayed one isn't said again. */
+    var heard = 0L
     /** When the current cloud engine started, for this month's minutes. */
     var cloudSince: Long? = null
     /** The call settings the current engine was built from. */
@@ -52,9 +54,7 @@ fun AppStore.startVoice(botId: String, expectedGeneration: Int = state.value.gen
 internal fun AppStore.attachVoice(id: String, botId: String): VoiceBinding? {
     val call = state.value.voice ?: return null
     if (call.id != id || call.botId != botId || voiceGeneration != state.value.generation || state.value.loading || voiceBinding != null) return null
-    val entries = state.value.entries
-    val head = maxOf(state.value.hello?.get("rev")?.jsonPrimitive?.longOrNull ?: 0, entries.maxOfOrNull(Entry::rev) ?: 0)
-    val binding = VoiceBinding(id, botId, state.value.generation, SystemClock.elapsedRealtime(), VoiceReplyGate(botId, head, entries))
+    val binding = VoiceBinding(id, botId, state.value.generation, SystemClock.elapsedRealtime())
     voiceBinding = binding
     begin(binding, voiceChoices().provider)
     connect()
@@ -177,12 +177,15 @@ private fun AppStore.sendFromCall(call: VoiceBinding, text: String) {
     action("save:" + send.nonce) { savePending(send); deliver(send) }
 }
 
-/** New final replies and approval notices for the call to say. */
-internal fun AppStore.speakToCall(entries: List<Entry>, bots: List<Bot>) {
+/** What the computer tells the call's voice (host chat/calls/announce), each cue once: the engine only says it. */
+internal fun AppStore.hearCalls(events: List<MirrorEvent>) {
     val call = voiceBinding ?: return
-    if (bots.none { it.id == call.botId && !it.deleted }) { endVoice("Voice chat ended because its bot was removed."); return }
-    val engine = call.engine
-    for (cue in call.replies.observe(entries, bots)) if (cue.notice) engine?.announce(cue.text) else engine?.speak(cue.text)
+    for (cue in events.filterIsInstance<MirrorEvent.Call>().map { it.cue }) {
+        val engine = call.engine
+        if (cue.call != call.id || cue.seq <= call.heard || engine == null) continue
+        call.heard = cue.seq
+        engine.hear(cue)
+    }
 }
 
 fun AppStore.endVoice(error: String? = null) {

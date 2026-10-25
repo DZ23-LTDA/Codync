@@ -1,4 +1,4 @@
-import type { CallLink, CallSession } from './call-link'
+import { PROGRESS_TAG, type CallLink, type CallSession } from './call-link'
 import { errorMessage, fromBase64, micPCM16k, toBase64, VoiceEngine } from './voice'
 
 const URL_BASE = 'wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContentConstrained'
@@ -137,6 +137,14 @@ export class GeminiLiveEngine extends VoiceEngine {
   announce(notice: string) {
     if (this.ended || this.phase === 'failed') return
     this.pending.push(this.link.notice(notice))
+    this.flush()
+  }
+
+  /** Only the newest progress waits to be said. */
+  progress(text: string) {
+    if (this.ended || this.phase === 'failed') return
+    this.pending = this.pending.filter((p) => !p.startsWith(PROGRESS_TAG))
+    this.pending.push(this.link.progress(text))
     this.flush()
   }
 

@@ -63,6 +63,8 @@ class OpenAIRealtimeEngine(parent: CoroutineScope, settings: VoiceSettings, priv
         return true
     }
     override fun announce(notice: String) = hop { pending += link.notice(notice); flush() }
+    /** Only the newest progress waits to be said. */
+    override fun progress(text: String) = hop { pending.removeAll { it.startsWith(PROGRESS_TAG) }; pending += link.progress(text); flush() }
     override fun mute(value: Boolean) = hop {
         mutable.update { it.copy(muted = value, level = if (value) 0f else it.level) }
         if (phase != VoicePhase.Interrupted) peer.mic(!value)

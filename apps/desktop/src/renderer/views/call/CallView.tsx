@@ -1,4 +1,5 @@
 import type { VoiceCallEngine } from '@shared/analytics'
+import type { CallCue } from '@shared/calls'
 import { isWorking } from '@shared/models'
 import { createContext, useContext, useEffect, useRef, useState } from 'react'
 import { BotAvatar } from '../../components/Avatar'
@@ -19,7 +20,6 @@ import { GeminiLiveEngine } from './GeminiLiveEngine'
 import { OnDeviceEngine } from './OnDeviceEngine'
 import { OpenAIRealtimeEngine } from './OpenAIRealtimeEngine'
 import { countVoiceUsage, fromBase64, onDeviceAvailable, onDeviceUnavailableReason, providerName, transcribeOnHost, VoiceEngine, VoiceSettings, voiceSettingsClosed, type VoiceProvider } from './voice'
-import { watchVoiceCall } from './voice-call'
 import './call.css'
 
 /**
@@ -114,14 +114,11 @@ export function CallView({ botId, onSpeaking, interrupt, onEnd }: {
     }
     // Picks up the computer's newest models for the next call; this one starts right away.
     if (provider) void rememberStatus()
-    let stopWatching: (() => void) | null = null
+    // The computer decides what the voice hears (host chat/calls/announce); the engine only says it.
+    const hear = (cue: CallCue) => next.hear(cue)
     next.onActivityChanged = (active) => {
-      if (active && !stopWatching) {
-        stopWatching = watchVoiceCall(store, botId, { speak: (t) => next.speak(t), announce: (t) => next.announce(t) })
-      } else if (!active && stopWatching) {
-        stopWatching()
-        stopWatching = null
-      }
+      if (active) store.callCues.set(call.call, hear)
+      else if (store.callCues.get(call.call) === hear) store.callCues.delete(call.call)
     }
     // A muted call stays muted on the engine that takes over.
     next.muted = engine.current?.muted === true

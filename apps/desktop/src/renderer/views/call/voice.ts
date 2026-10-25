@@ -1,4 +1,5 @@
 import type { HostClient } from '../../client/host-client'
+import type { CallCue } from '@shared/calls'
 import { Observable } from '../../lib/observable'
 import {
   addVoiceUsage,
@@ -128,6 +129,16 @@ export abstract class VoiceEngine extends Observable {
   abstract speak(reply: string): void
   /** A notice from the computer (an approval is waiting) to say. */
   abstract announce(notice: string): void
+  /** What the bot is doing while it works, from the computer: for a realtime voice to mention (engines that read
+   * replies aloud have nothing to say about it). */
+  progress(_text: string) {}
+
+  /** What the computer tells the call's voice, handed to the method that says it. */
+  hear(cue: CallCue) {
+    if (cue.kind === 'reply') this.speak(cue.text)
+    else if (cue.kind === 'notice') this.announce(cue.text)
+    else this.progress(cue.text)
+  }
 }
 
 export const errorMessage = (e: unknown) => (e instanceof Error ? e.message : String(e))
