@@ -294,8 +294,9 @@ pub fn call(hub: &Arc<Hub>, from: &str, name: &str, args: &Value) -> Result<Valu
         "list_bots" => directory::list(hub, from, args, &[]),
         "message_bot" => {
             let to = args["botId"].as_str().ok_or_else(|| anyhow!("botId is required"))?;
-            // A bot's address name works as well as its id.
-            let to = hub.network.bot_for(to).unwrap_or_else(|| to.to_owned());
+            // A bot's address name works as well as its id, also as `name@` this computer.
+            let handle = to.rsplit_once('@').map_or(to, |(name, _)| name);
+            let to = hub.network.bot_for(handle).unwrap_or_else(|| to.to_owned());
             let message = args["message"].as_str().unwrap_or_default().trim();
             message_bot(hub, &source, &to, message)
         }

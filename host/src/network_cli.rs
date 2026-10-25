@@ -7,7 +7,8 @@ use serde_json::{Value, json};
 
 #[derive(clap::Args)]
 pub struct NetworkArgs {
-    #[arg(long, default_value_t = crate::service::DEFAULT_PORT)]
+    /// The running host's port (also after the action).
+    #[arg(long, global = true, default_value_t = crate::service::DEFAULT_PORT)]
     port: u16,
     #[command(subcommand)]
     action: Option<Action>,
