@@ -154,11 +154,12 @@ internal fun chatItems(entries: List<Entry>, pending: List<PendingSend>): List<C
 internal class ConnectionRequestActions(val openApp: (String, ComposioApp) -> Unit, val install: (String, MarketConnector) -> Unit)
 
 /** Who wrote a message in a group: their avatar and name in their color. */
-@Composable internal fun AuthorLabel(botId: String?, state: AppState) {
+/** A message's author: one of this computer's bots, or `name` (a bot on another computer). */
+@Composable internal fun AuthorLabel(botId: String?, state: AppState, name: String? = null) {
     val bot = state.bots.firstOrNull { it.id == botId }
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         if (bot != null) CharacterAvatar(bot.avatarShape, bot.avatarColor, 26.dp)
-        Text(bot?.name ?: "A deleted bot", style = Type.subheadline.medium, color = bot?.let { AvatarPalette.tint(it.avatarColor) } ?: Palette.secondary)
+        Text(bot?.name ?: name ?: "A deleted bot", style = Type.subheadline.medium, color = bot?.let { AvatarPalette.tint(it.avatarColor) } ?: Palette.secondary)
     }
 }
 

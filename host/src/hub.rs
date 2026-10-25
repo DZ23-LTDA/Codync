@@ -75,6 +75,8 @@ pub struct Hub {
     pub routines: crate::routines::Routines,
     pub team: crate::chat::team::Requests,
     pub groups: crate::chat::group::Rooms,
+    /// The user's other computers (codync-network), once this one is in a network.
+    pub network: crate::network::Network,
     pub store: Store,
     pub host_id: String,
     pub identity: Identity,
@@ -118,6 +120,7 @@ impl Hub {
             routines: crate::routines::Routines::default(),
             team: crate::chat::team::Requests::default(),
             groups: crate::chat::group::Rooms::default(),
+            network: crate::network::Network::default(),
             store,
             host_id,
             identity,
@@ -368,6 +371,8 @@ impl Hub {
         {
             let _ = self.events.send(json!({"type": "bot", "rev": v["rev"], "bot": v}));
         }
+        // The other computers see this computer's bots as they are now.
+        crate::network::publish(self);
     }
 
     pub fn set_runtime(&self, id: &str, f: impl FnOnce(&mut Runtime)) {

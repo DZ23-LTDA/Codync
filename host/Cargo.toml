@@ -2,16 +2,16 @@
 name = "codync-host"
 version = "2.26.2"
 edition = "2024"
-# let-chains (`if let … && let …`) need 1.88.
-rust-version = "1.88"
+# iroh (codync-network) needs 1.91.
+rust-version = "1.91"
 default-run = "codync-host"
 description = "Runs your coding-agent bots and serves the Codync apps"
 license = "Apache-2.0"
 repository = "https://github.com/leepokai/Codync"
 
-# The memory crate builds here and is mirrored to its own repository (docs/design/bot-memory.md#packaging).
+# The memory and network crates build here; memory is mirrored to its own repository (docs/design/bot-memory.md#packaging).
 [workspace]
-members = ["crates/memory"]
+members = ["crates/memory", "crates/network"]
 
 [dependencies]
 anyhow = "1.0.104"
@@ -21,6 +21,7 @@ chacha20poly1305 = "0.11.0"
 chrono = "0.4.45"
 chrono-tz = "0.10.4"
 codync-mem = { path = "crates/memory" }
+codync-network = { path = "crates/network" }
 clap = { version = "4.6.7", features = ["derive", "env"] }
 croner = "3"
 crossterm = { version = "0.29", features = ["event-stream"] }

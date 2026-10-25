@@ -13,10 +13,12 @@ use super::style::{person, theme};
 use super::time::when;
 use super::transcript::name_style;
 
-fn name_and_color(app: &App, id: &str) -> (String, String) {
-    app.bots
-        .get(id)
-        .map_or_else(|| ("A deleted bot".to_owned(), "gray".to_owned()), |b| (b.name.clone(), b.color.clone()))
+/// A bot of this computer by its own name; another computer's by the name its exchanges carry.
+fn name_and_color(app: &App, id: &str, remote: Option<&str>) -> (String, String) {
+    app.bots.get(id).map_or_else(
+        || (remote.unwrap_or("A deleted bot").to_owned(), "gray".to_owned()),
+        |b| (b.name.clone(), b.color.clone()),
+    )
 }
 
 pub(super) fn bot_chat(buf: &mut Buffer, area: Rect, app: &App, c: &BotChatSheet) {
@@ -26,9 +28,10 @@ pub(super) fn bot_chat(buf: &mut Buffer, area: Rect, app: &App, c: &BotChatSheet
     if inner.height < 5 {
         return;
     }
+    let remote = remote_name(app, c);
     let mut pill = vec![Span::raw(" ")];
     for (i, id) in [&c.bot, &c.peer].into_iter().enumerate() {
-        let (name, color) = name_and_color(app, id);
+        let (name, color) = name_and_color(app, id, remote.as_deref().filter(|_| *id == c.peer));
         if i == 1 {
             pill.push(Span::styled(" ⇄ ", t.dim));
         }
@@ -50,6 +53,12 @@ pub(super) fn bot_chat(buf: &mut Buffer, area: Rect, app: &App, c: &BotChatSheet
     }
 }
 
+/// The peer's name when it is on another computer, from the exchanges with it.
+fn remote_name(app: &App, c: &BotChatSheet) -> Option<String> {
+    let fetched = c.fetched.as_deref().unwrap_or_default();
+    conversation(&c.bot, fetched, app.entries.get(&c.bot), &c.peer).into_iter().find_map(|x| x.peer_name)
+}
+
 fn body_lines(app: &App, c: &BotChatSheet, width: usize) -> Vec<Line<'static>> {
     let t = theme();
     let Some(fetched) = &c.fetched else {
@@ -57,6 +66,8 @@ fn body_lines(app: &App, c: &BotChatSheet, width: usize) -> Vec<Line<'static>> {
     };
     let live = app.entries.get(&c.bot);
     let exchanges = conversation(&c.bot, fetched, live, &c.peer);
+    let remote = exchanges.iter().find_map(|x| x.peer_name.clone());
+    let remote_for = |id: &str| remote.as_deref().filter(|_| id == c.peer);
     if exchanges.is_empty() {
         return vec![Line::from(Span::styled(" No messages yet.", t.dim))];
     }
@@ -74,7 +85,7 @@ fn body_lines(app: &App, c: &BotChatSheet, width: usize) -> Vec<Line<'static>> {
             ConversationRow::Message { author, text, shows_author } => {
                 if shows_author {
                     out.push(Line::default());
-                    let (name, color) = name_and_color(app, &author);
+                    let (name, color) = name_and_color(app, &author, remote_for(&author));
                     out.push(Line::from(vec![
                         Span::raw(" "),
                         person(app, &author),
@@ -90,7 +101,7 @@ fn body_lines(app: &App, c: &BotChatSheet, width: usize) -> Vec<Line<'static>> {
                     let detail = if detail.is_empty() { "Didn't complete.".to_owned() } else { detail };
                     out.extend(md::wrap(&[Span::styled(detail, t.red)], width, &[Span::raw(" ")], &[Span::raw(" ")]));
                 } else {
-                    let (name, _) = name_and_color(app, &awaiting);
+                    let (name, _) = name_and_color(app, &awaiting, remote_for(&awaiting));
                     out.push(Line::from(Span::styled(format!(" Waiting for {name}…"), t.dim)));
                 }
             }

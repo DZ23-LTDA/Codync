@@ -16,6 +16,7 @@ a version without one gets a generic "Bug fixes and improvements" line. Delete o
 - 「憑證」移到上方電腦名稱旁；「自定義聯結器」和「自己的技能」放在各自分類的列表上方。
 - 電腦使用自建中繼時，設定和連線狀態會顯示該中繼的地址，不再一律寫成 Cloudflare。
 - 可以建立使用 WorkBuddy 的 Bot：Codync 會使用 WorkBuddy 桌面 App 內附的 CLI，並在聊天裡請你登入。
+- 你的電腦連成一個網路後（在電腦上執行 codync-host network），Bot 可以請其他電腦上的 Bot 幫忙；聊天裡會寫出對方 Bot 和它在哪台電腦。
 
 ### en-US
 - Images a bot sends now show right in the chat; tap one to see it full size, no download needed.
@@ -25,6 +26,7 @@ a version without one gets a generic "Bug fixes and improvements" line. Delete o
 - Credentials sits beside the computer's name at the top, and Custom connector and Your own skill sit above their lists.
 - When a computer uses a private relay, Settings and connection status show that relay's address instead of always saying Cloudflare.
 - Create bots that run WorkBuddy: Codync uses the CLI inside the WorkBuddy desktop app and asks you to sign in from the chat.
+- Once your computers share a network (codync-host network on each), a bot can ask a bot on another computer; the chat names that bot and its computer.
 
 ## 2.26.1
 

@@ -13,7 +13,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Duration;
 
-const POLL_EVERY: Duration = Duration::from_secs(5 * 60);
+const POLL_EVERY: Duration = Duration::from_mins(5);
 /// Usage of a plan above which background work (dreaming, the lead's check-ins) waits.
 const HEADROOM_PERCENT: f64 = 75.0;
 
@@ -103,7 +103,7 @@ pub async fn refresh(hub: &Hub) {
 async fn claude_cli_usage() -> Option<Vec<Window>> {
     let bin = crate::agent::backends::which("claude")?;
     let out = tokio::time::timeout(
-        Duration::from_secs(60),
+        Duration::from_mins(1),
         tokio::process::Command::new(bin)
             .args(["-p", "/usage", "--output-format", "json", "--no-session-persistence"])
             .current_dir(dirs::home_dir()?)

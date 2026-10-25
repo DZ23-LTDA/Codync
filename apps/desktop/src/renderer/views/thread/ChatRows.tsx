@@ -78,13 +78,14 @@ function LivePermission({ entry }: { entry: Entry }) {
 }
 
 /** Who wrote a message in a group: their avatar and name in their color. */
-export function AuthorLabel({ botId }: { botId?: string | null }) {
+/** A message's author: one of this computer's bots, or `name` (a bot on another computer). */
+export function AuthorLabel({ botId, name }: { botId?: string | null; name?: string }) {
   const store = useStore()
   const bot = botId ? store.bots.get(botId) : undefined
   return (
     <HStack gap={8}>
       {bot ? <BotAvatar bot={bot} size={26} animated={false} /> : null}
-      <Text size="subheadline" weight="medium" tone="secondary" style={bot ? { color: avatarColor(bot.avatarColor) } : undefined}>{store.authorName(botId)}</Text>
+      <Text size="subheadline" weight="medium" tone="secondary" style={bot ? { color: avatarColor(bot.avatarColor) } : undefined}>{bot ? store.authorName(botId) : (name ?? store.authorName(botId))}</Text>
     </HStack>
   )
 }

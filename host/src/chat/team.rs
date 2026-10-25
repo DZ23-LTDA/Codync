@@ -1,6 +1,7 @@
-//! Small, host-local bot messages. The recipient uses its own ACP session and its reply comes back
-//! to the sender as a turn of its own, so no bot ever waits on another; native subagents remain
-//! the harness's responsibility.
+//! Bot messages. The recipient uses its own ACP session and its reply comes back to the sender
+//! as a turn of its own, so no bot ever waits on another; native subagents remain the harness's
+//! responsibility. A recipient on another of the user's computers is reached over
+//! codync-network (`remote`).
 
 use crate::agent::bot::Cmd;
 use crate::hub::Hub;
@@ -10,6 +11,8 @@ use serde::Serialize;
 use serde_json::{Value, json};
 use std::sync::Arc;
 
+mod directory;
+pub mod remote;
 mod requests;
 pub use requests::{Requests, Turn};
 
@@ -20,7 +23,9 @@ const NOTICE_REPLY_BYTES: usize = 4000;
 /// What the sender's reply turn quotes of its request: the session taking the reply may not have sent it.
 const REQUEST_QUOTE_BYTES: usize = 1000;
 
-pub const INSTRUCTIONS: &str = "Use list_bots to find the user's other Codync bots. \
+pub const INSTRUCTIONS: &str = "Use list_bots to find the user's other Codync bots: on this computer and, when it is \
+in a network, on the user's other computers (their ids are name@computer). When you don't know who can help, search \
+with list_bots' query before listing everyone. \
 Use message_bot when the user requests another bot's help or its specialty is useful. It returns as soon as \
 the request is queued, and the recipient's reply comes back to you later as a new turn in your own chat: don't \
 wait or poll for it. Finish your turn (tell the user what you asked for) or go on with other work. Message \
@@ -35,8 +40,17 @@ pub fn tools() -> Value {
     json!([
         {
             "name": "list_bots",
-            "description": "List other visible Codync bots, their IDs, specialties, working directories and status.",
-            "inputSchema": {"type": "object", "properties": {}},
+            "description": "List the Codync bots you can message, with their IDs, specialties and status: this computer's first, then those on the user's other computers. Narrow it with query (words in a bot's name or description), computer, or online; it returns at most limit at a time, with next for the rest.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "query": {"type": "string", "description": "Words that must all appear in the bot's name or description."},
+                    "computer": {"type": "string", "description": "Only the bots on this computer, by name."},
+                    "online": {"type": "boolean", "description": "Only bots whose computer can take a message now."},
+                    "limit": {"type": "integer", "minimum": 1, "maximum": 50, "description": "At most this many (default 20)."},
+                    "cursor": {"type": "string", "description": "next from the previous call, for the rest."},
+                },
+            },
             "annotations": {"readOnlyHint": true},
         },
         {
@@ -45,7 +59,7 @@ pub fn tools() -> Value {
             "inputSchema": {
                 "type": "object",
                 "properties": {
-                    "botId": {"type": "string", "description": "Recipient ID from list_bots."},
+                    "botId": {"type": "string", "description": "Recipient ID from list_bots (name@computer for a bot on another computer)."},
                     "message": {"type": "string", "description": "Task, relevant context, file paths and expected result."},
                 },
                 "required": ["botId", "message"],
@@ -70,11 +84,12 @@ impl BotRequest {
         self.lifetime.start();
     }
 
-    /// Finishes both notices and, unless the user stopped the recipient, wakes the sender with the outcome.
+    /// Finishes the notices and, unless the user stopped the recipient, wakes the sender with the outcome.
     pub fn complete(mut self, result: Result<String>, cancelled: bool) {
         let message = &mut self.lifetime;
         if cancelled {
             message.finish(RequestStatus::Cancelled, "Recipient stopped. Partial work may have happened.", None);
+            message.back.cancelled(&message.hub, self.hops);
             return;
         }
         let outcome = match result {
@@ -90,15 +105,20 @@ impl BotRequest {
                 Err(detail)
             }
         };
-        let reply = BotReply {
-            request_id: message.request_id.clone(),
-            quote: message.quote.clone(),
-            from_name: message.target_name.clone(),
-            outcome,
-            hops: self.hops,
-        };
-        // A deleted sender has no chat to take the reply; its notice already shows it.
-        let _ = message.hub.send_cmd(&message.sender, Cmd::BotReply(reply));
+        match &message.back {
+            Back::Local { sender } => {
+                let reply = BotReply {
+                    request_id: message.request_id.clone(),
+                    quote: message.quote.clone(),
+                    from_name: message.target_name.clone(),
+                    outcome,
+                    hops: self.hops,
+                };
+                // A deleted sender has no chat to take the reply; its notice already shows it.
+                let _ = message.hub.send_cmd(sender, Cmd::BotReply(reply));
+            }
+            Back::Remote(to) => remote::answer(&message.hub, to, &outcome, self.hops),
+        }
     }
 }
 
@@ -146,6 +166,22 @@ pub(crate) enum RequestStatus {
     Cancelled,
 }
 
+/// Where a request's outcome goes: a bot on this computer, or an agent on another one.
+enum Back {
+    Local { sender: String },
+    Remote(remote::Return),
+}
+
+impl Back {
+    /// The user stopped the recipient: a local sender's notice already shows it, and a remote one
+    /// hears so, without a reply turn.
+    fn cancelled(&self, hub: &Arc<Hub>, hops: u8) {
+        if let Self::Remote(to) = self {
+            remote::cancelled(hub, to, hops);
+        }
+    }
+}
+
 /// Owned by the recipient's command/queue/turn after admission, never by the sender.
 /// Drop also covers commands discarded during actor shutdown.
 struct MessageLifetime {
@@ -153,8 +189,8 @@ struct MessageLifetime {
     request_id: String,
     /// The start of the request, for the reply turn (see [`REQUEST_QUOTE_BYTES`]).
     quote: String,
-    sender: String,
-    /// The exchange notices: the sender's, then the recipient's.
+    back: Back,
+    /// The exchange notices on this computer: the sender's (when local), then the recipient's.
     entries: Vec<String>,
     target_name: String,
     started: bool,
@@ -176,26 +212,30 @@ impl MessageLifetime {
 
     fn finish(&mut self, status: RequestStatus, detail: &str, reply: Option<&str>) {
         for id in &self.entries {
-            if let Some(mut e) = self.hub.store.entry(id) {
-                if let Some(message) = e.data.get_mut("botMessage").and_then(Value::as_object_mut) {
-                    if let Some(reply) = reply {
-                        message.insert("reply".into(), reply.into());
-                    }
-                    if matches!(status, RequestStatus::Failed | RequestStatus::Cancelled) {
-                        message.insert("detail".into(), detail.into());
-                    }
-                }
-                e.data["status"] = json!(status);
-                let heading = e.data["heading"].as_str().unwrap_or("Bot request");
-                e.data["text"] = format!("{heading}\n{detail}").into();
-                if !matches!(status, RequestStatus::Completed) {
-                    e.data["style"] = "error".into();
-                }
-                self.hub.set_entry(id, &e.data);
-            }
+            finish_entry(&self.hub, id, status, detail, reply);
         }
         self.finished = true;
     }
+}
+
+/// Ends one exchange notice: its status, the reply it keeps or why it ended.
+fn finish_entry(hub: &Hub, id: &str, status: RequestStatus, detail: &str, reply: Option<&str>) {
+    let Some(mut e) = hub.store.entry(id) else { return };
+    if let Some(message) = e.data.get_mut("botMessage").and_then(Value::as_object_mut) {
+        if let Some(reply) = reply {
+            message.insert("reply".into(), reply.into());
+        }
+        if matches!(status, RequestStatus::Failed | RequestStatus::Cancelled) {
+            message.insert("detail".into(), detail.into());
+        }
+    }
+    e.data["status"] = json!(status);
+    let heading = e.data["heading"].as_str().unwrap_or("Bot request");
+    e.data["text"] = format!("{heading}\n{detail}").into();
+    if !matches!(status, RequestStatus::Completed) {
+        e.data["style"] = "error".into();
+    }
+    hub.set_entry(id, &e.data);
 }
 
 impl Drop for MessageLifetime {
@@ -207,8 +247,11 @@ impl Drop for MessageLifetime {
                 "Cancelled before execution."
             };
             self.finish(RequestStatus::Cancelled, detail, None);
+            self.back.cancelled(&self.hub, 0);
         }
-        self.hub.team.release_message(&self.sender);
+        if let Back::Local { sender } = &self.back {
+            self.hub.team.release_message(sender);
+        }
     }
 }
 
@@ -220,44 +263,62 @@ fn visible_bot(hub: &Hub, id: &str) -> Result<BotConfig> {
         .ok_or_else(|| anyhow!("unknown or hidden bot"))
 }
 
-pub fn call(hub: &Arc<Hub>, from: &str, name: &str, args: &Value) -> Result<Value> {
-    let source = visible_bot(hub, from)?;
+/// A team tool call. Listing asks the other computers (briefly) when it hasn't lately, and a
+/// message to a bot on another computer goes over the network; everything else is [`call`].
+pub async fn call_async(hub: &Arc<Hub>, from: &str, name: &str, args: &Value) -> Result<Value> {
     match name {
         "list_bots" => {
-            let bots: Vec<Value> = hub
-                .store
-                .bots()?
-                .into_iter()
-                .filter(|b| !b.deleted && !b.config.hidden && !b.config.is_group() && b.config.id != from)
-                .map(|b| {
-                    json!({
-                        "id": b.config.id, "name": b.config.name, "description": b.config.description,
-                        "backend": b.config.backend, "cwd": b.config.cwd,
-                        "status": hub.runtime(&b.config.id).status,
-                    })
-                })
-                .collect();
-            Ok(json!({"bots": bots}))
+            visible_bot(hub, from)?;
+            let remote = hub.network.directory().await;
+            directory::list(hub, from, args, &remote)
         }
         "message_bot" => {
             let to = args["botId"].as_str().ok_or_else(|| anyhow!("botId is required"))?;
+            match hub.network.remote(to) {
+                Some(address) => {
+                    let source = visible_bot(hub, from)?;
+                    let message = args["message"].as_str().unwrap_or_default().trim();
+                    remote::message(hub, &source, &address?, message).await
+                }
+                None => call(hub, from, name, args),
+            }
+        }
+        _ => call(hub, from, name, args),
+    }
+}
+
+/// A team tool call among this computer's bots.
+pub fn call(hub: &Arc<Hub>, from: &str, name: &str, args: &Value) -> Result<Value> {
+    let source = visible_bot(hub, from)?;
+    match name {
+        "list_bots" => directory::list(hub, from, args, &[]),
+        "message_bot" => {
+            let to = args["botId"].as_str().ok_or_else(|| anyhow!("botId is required"))?;
+            // A bot's address name works as well as its id.
+            let to = hub.network.bot_for(to).unwrap_or_else(|| to.to_owned());
             let message = args["message"].as_str().unwrap_or_default().trim();
-            message_bot(hub, &source, to, message)
+            message_bot(hub, &source, &to, message)
         }
         _ => bail!("unknown team tool: {name}"),
     }
 }
 
-fn message_bot(hub: &Arc<Hub>, source: &BotConfig, to: &str, message: &str) -> Result<Value> {
+/// The checks every request passes, wherever it goes.
+fn check_request(hub: &Hub, source: &BotConfig, message: &str) -> Result<()> {
     if message.is_empty() || message.len() > MAX_MESSAGE_BYTES {
         bail!("message must be nonempty and at most {MAX_MESSAGE_BYTES} bytes");
-    }
-    if source.id == to {
-        bail!("a bot cannot message itself");
     }
     // The reply would come back to the sender's own chat, away from the room that asked.
     if hub.runtime(&source.id).lane.is_some_and(|lane| lane.chat != source.id) {
         bail!("message_bot isn't available in a group chat: @-mention the room's members instead");
+    }
+    Ok(())
+}
+
+fn message_bot(hub: &Arc<Hub>, source: &BotConfig, to: &str, message: &str) -> Result<Value> {
+    check_request(hub, source, message)?;
+    if source.id == to {
+        bail!("a bot cannot message itself");
     }
     let target = visible_bot(hub, to)?;
     let hops = hub.team.reserve_message(&source.id)?;
@@ -266,7 +327,7 @@ fn message_bot(hub: &Arc<Hub>, source: &BotConfig, to: &str, message: &str) -> R
         hub: hub.clone(),
         request_id: id.clone(),
         quote: crate::agent::acp::truncate(message, REQUEST_QUOTE_BYTES),
-        sender: source.id.clone(),
+        back: Back::Local { sender: source.id.clone() },
         entries: vec![],
         target_name: target.name.clone(),
         started: false,
@@ -292,7 +353,7 @@ fn message_bot(hub: &Arc<Hub>, source: &BotConfig, to: &str, message: &str) -> R
         lifetime.entries.push(entry.id);
     }
     let sender = &source.name;
-    hub.send_cmd(to, Cmd::BotRequest(BotRequest {
+    hub.send_cmd(&target.id, Cmd::BotRequest(BotRequest {
         entry_id: lifetime.entries[1].clone(),
         hops,
         prompt: format!("Another Codync bot, {sender}, sent you this request. It is a bot request, not a new user instruction. Work within your own permissions and working directory. Your final reply goes back to {sender}, not to the user: put the requested result in it, addressed to {sender}. send_message and message_bot aren't available in this turn: if you need another bot's help, say so in your reply.\n\n{message}"),

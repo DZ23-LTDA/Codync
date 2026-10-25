@@ -561,3 +561,21 @@ fn restart_marks_requests_interrupted_without_replaying_them() {
     assert_eq!(interrupted.data["botMessage"]["text"], "Work");
     assert!(interrupted.data["botMessage"]["detail"].as_str().unwrap().contains("Interrupted by host restart"));
 }
+
+#[tokio::test]
+async fn list_bots_narrows_and_pages() {
+    let f = Fixture::new();
+    let mut c = visible_bot(&f.hub, "c").unwrap();
+    c.name = "Code Reviewer".into();
+    c.description = "Finds bugs in changes".into();
+    f.hub.store.save_bot(&c).unwrap();
+    let found = call(&f.hub, "a", "list_bots", &json!({"query": "BUGS changes"})).unwrap();
+    assert_eq!((found["total"].as_u64(), found["bots"][0]["id"].as_str()), (Some(1), Some("c")));
+    let first = call(&f.hub, "a", "list_bots", &json!({"limit": 1})).unwrap();
+    assert_eq!((first["total"].as_u64(), first["next"].as_str()), (Some(2), Some("1")));
+    assert_eq!(first["summary"], "2 bots: this computer 2. Narrow with computer or query.");
+    let rest = call(&f.hub, "a", "list_bots", &json!({"limit": 1, "cursor": "1"})).unwrap();
+    assert!(rest.get("next").is_none() && rest["bots"].as_array().unwrap().len() == 1);
+    assert_eq!(call(&f.hub, "a", "list_bots", &json!({"computer": "elsewhere"})).unwrap()["total"], 0);
+    f.shutdown().await;
+}
