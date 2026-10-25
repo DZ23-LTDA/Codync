@@ -91,11 +91,15 @@ fn flag(command: &str, name: &str) -> Option<String> {
     None
 }
 
+/// macOS `pgrep -a` includes ancestors and prints only pids. `-lf` prints the pid
+/// and the full argument list. Linux `-a -f` is the command that does the same.
 #[cfg(unix)]
 fn processes() -> Vec<(u32, String)> {
-    let Ok(out) = std::process::Command::new("pgrep").args(["-a", "-f", "language_server|agy"]).output() else {
-        return Vec::new();
-    };
+    #[cfg(target_os = "macos")]
+    let args: &[&str] = &["-lf", "language_server|agy"];
+    #[cfg(not(target_os = "macos"))]
+    let args: &[&str] = &["-a", "-f", "language_server|agy"];
+    let Ok(out) = std::process::Command::new("pgrep").args(args).output() else { return Vec::new() };
     String::from_utf8_lossy(&out.stdout)
         .lines()
         .filter_map(|line| {
@@ -149,9 +153,11 @@ fn listen_ports(pid: u32) -> Vec<u16> {
         .collect()
 }
 
+#[cfg(unix)]
 fn ports_in(text: &str) -> Vec<u16> {
     let mut ports = Vec::new();
-    for token in text.split(|c: char| !c.is_ascii_digit() && c != ':') {
+    // Keep the IPv6 brackets, so `[::1]:port` stays one address instead of a stray port 1.
+    for token in text.split(|c: char| !c.is_ascii_digit() && c != ':' && c != '[' && c != ']') {
         let Some(port) = token.rsplit(':').next().filter(|s| !s.is_empty()) else { continue };
         if token.contains(':')
             && let Ok(port) = port.parse()
@@ -260,5 +266,14 @@ mod tests {
         assert_eq!(flag(line, "--csrf_token").as_deref(), Some("secret"));
         assert_eq!(flag(line, "--extension_server_port").as_deref(), Some("1234"));
         assert!(!is_antigravity("agy --help"));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_listen_line_keeps_the_port_once() {
+        let text = "codync-host 123 user 10u IPv4 TCP 127.0.0.1:19223 (LISTEN)\n\
+                    codync-host 123 user 11u IPv6 TCP [::1]:19223 (LISTEN)\n\
+                    codync-host 123 user 12u IPv4 TCP *:43122 (LISTEN)\n";
+        assert_eq!(ports_in(text), vec![19223, 43122]);
     }
 }

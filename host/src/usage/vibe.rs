@@ -1,7 +1,12 @@
-//! Today's tokens and cost from Mistral Vibe's session logs. There is no plan
+//! Tokens and cost from Mistral Vibe's session logs. There is no plan
 //! percent here — that lives behind a browser cookie — so these are notes,
 //! not limit bars.
+//!
+//! A `messages.jsonl` line with a time and a token or cost count contributes
+//! only when that time is today, including a session opened yesterday. A
+//! session with no such lines counts only when its folder started today.
 
+use serde_json::Value;
 use std::path::Path;
 
 use super::Window;
@@ -13,43 +18,127 @@ pub(super) fn collect() -> Option<Vec<Window>> {
     }
     let now = crate::store::now_ms();
     let start = local_midnight(now)?;
+    Some(windows_in(&root, start, now))
+}
+
+fn windows_in(root: &Path, start: i64, now: i64) -> Vec<Window> {
     let mut tokens = 0.0;
     let mut cost = 0.0;
-    let mut any = false;
-    let entries = std::fs::read_dir(&root).ok()?;
+    let mut from_stamp = false;
+    let mut from_dated = false;
+    let Some(entries) = std::fs::read_dir(root).ok() else { return Vec::new() };
+    let end = now.saturating_add(86_400_000);
     for entry in entries.filter_map(Result::ok) {
         let name = entry.file_name();
         let Some(name) = name.to_str() else { continue };
         let Some(at) = session_ms(name) else { continue };
-        if at < start || at > now.saturating_add(86_400_000) {
+        if let Some((session_tokens, session_cost)) = dated_usage(&entry.path().join("messages.jsonl"), start, end) {
+            if session_tokens > 0.0 || session_cost > 0.0 {
+                from_dated = true;
+                tokens += session_tokens;
+                cost += session_cost;
+            }
             continue;
         }
-        let meta = entry.path().join("meta.json");
-        let Some((session_tokens, session_cost)) = read_meta(&meta) else { continue };
-        any = true;
-        tokens += session_tokens;
-        cost += session_cost;
+        if !(start..=end).contains(&at) {
+            continue;
+        }
+        let Some((session_tokens, session_cost)) = read_meta(&entry.path().join("meta.json")) else { continue };
+        if session_tokens > 0.0 || session_cost > 0.0 {
+            from_stamp = true;
+            tokens += session_tokens;
+            cost += session_cost;
+        }
     }
-    any.then(|| notes(tokens, cost))
+    notes(tokens, cost, from_stamp && !from_dated)
 }
 
-fn notes(tokens: f64, cost: f64) -> Vec<Window> {
+/// Today's totals when the file has dated usage lines. `None` when it does not,
+/// so the session total can be used for a folder started today.
+fn dated_usage(path: &Path, start: i64, end: i64) -> Option<(f64, f64)> {
+    let text = std::fs::read_to_string(path).ok()?;
+    let mut saw = false;
+    let mut tokens = 0.0;
+    let mut cost = 0.0;
+    for line in text.lines() {
+        let line = line.trim();
+        if line.is_empty() {
+            continue;
+        }
+        let Ok(value) = serde_json::from_str::<Value>(line) else { continue };
+        let Some(record) = usage_record(&value) else { continue };
+        saw = true;
+        let Some(at) = record.at else { continue };
+        if !(start..=end).contains(&at) {
+            continue;
+        }
+        tokens += record.tokens;
+        cost += record.cost;
+    }
+    saw.then_some((tokens, cost))
+}
+
+struct Dated {
+    at: Option<i64>,
+    tokens: f64,
+    cost: f64,
+}
+
+fn usage_record(value: &Value) -> Option<Dated> {
+    let tokens = token_count(value);
+    let cost = json_f64(&value["cost"]).or_else(|| json_f64(&value["usage"]["cost"]));
+    if tokens.is_none() && cost.is_none() {
+        return None;
+    }
+    Some(Dated { at: message_time(value), tokens: tokens.unwrap_or(0.0), cost: cost.unwrap_or(0.0) })
+}
+
+fn token_count(value: &Value) -> Option<f64> {
+    let usage = value.get("usage").filter(|v| v.is_object()).unwrap_or(value);
+    if let Some(total) = json_f64(&usage["total_tokens"]) {
+        return Some(total);
+    }
+    let prompt = json_f64(&usage["prompt_tokens"]);
+    let completion = json_f64(&usage["completion_tokens"]);
+    if prompt.is_none() && completion.is_none() {
+        return json_f64(&usage["tokens"]);
+    }
+    Some(prompt.unwrap_or(0.0) + completion.unwrap_or(0.0))
+}
+
+fn message_time(value: &Value) -> Option<i64> {
+    let stamp = ["created_at", "timestamp"].iter().find_map(|key| value.get(*key).filter(|v| !v.is_null()))?;
+    if let Some(text) = stamp.as_str() {
+        return chrono::DateTime::parse_from_rfc3339(text).ok().map(|t| t.timestamp_millis());
+    }
+    let n = stamp.as_i64().or_else(|| stamp.as_f64().and_then(super::finite_i64))?;
+    Some(if n > 100_000_000_000 { n } else { n.saturating_mul(1000) })
+}
+
+#[allow(clippy::cast_precision_loss)]
+fn json_f64(value: &Value) -> Option<f64> {
+    value.as_f64().or_else(|| value.as_i64().map(|n| n as f64))
+}
+
+fn notes(tokens: f64, cost: f64, stamp_only: bool) -> Vec<Window> {
+    let (token_label, cost_label) =
+        if stamp_only { ("Tokens · started today", "Cost · started today") } else { ("Tokens today", "Cost today") };
     let mut windows = Vec::new();
     if tokens > 0.0 {
-        windows.push(Window::note("tokens", "Tokens today", token_text(tokens)));
+        windows.push(Window::note("tokens", token_label, token_text(tokens)));
     }
     if cost > 0.0 {
-        windows.push(Window::note("cost", "Cost today", format!("${cost:.2}")));
+        windows.push(Window::note("cost", cost_label, format!("${cost:.2}")));
     }
     windows
 }
 
 fn read_meta(path: &Path) -> Option<(f64, f64)> {
     let text = std::fs::read_to_string(path).ok()?;
-    let value: serde_json::Value = serde_json::from_str(&text).ok()?;
+    let value: Value = serde_json::from_str(&text).ok()?;
     let stats = &value["stats"];
-    let tokens = stats["session_total_llm_tokens"].as_f64().unwrap_or(0.0);
-    let cost = stats["session_cost"].as_f64().unwrap_or(0.0);
+    let tokens = json_f64(&stats["session_total_llm_tokens"]).unwrap_or(0.0);
+    let cost = json_f64(&stats["session_cost"]).unwrap_or(0.0);
     Some((tokens, cost))
 }
 
@@ -102,8 +191,60 @@ mod tests {
                 .and_utc()
                 .timestamp_millis()
         );
-        let notes = notes(1_500_000.0, 1.5);
-        assert_eq!(notes[0].text.as_deref(), Some("1.5M tokens"));
-        assert_eq!(notes[1].text.as_deref(), Some("$1.50"));
+        let rows = notes(1_500_000.0, 1.5, false);
+        assert_eq!(rows[0].label, "Tokens today");
+        assert_eq!(rows[0].text.as_deref(), Some("1.5M tokens"));
+        assert_eq!(rows[1].text.as_deref(), Some("$1.50"));
+        assert_eq!(notes(1.0, 0.0, true)[0].label, "Tokens · started today");
+    }
+
+    #[test]
+    fn a_session_opened_yesterday_counts_only_todays_lines() {
+        let now = chrono::NaiveDate::from_ymd_opt(2026, 10, 25)
+            .unwrap()
+            .and_hms_opt(12, 0, 0)
+            .unwrap()
+            .and_utc()
+            .timestamp_millis();
+        let start = local_midnight(now).unwrap();
+        let today = chrono::DateTime::from_timestamp_millis(start + 3_600_000).unwrap().to_rfc3339();
+        let yesterday = chrono::DateTime::from_timestamp_millis(start - 3_600_000).unwrap().to_rfc3339();
+        let root = std::env::temp_dir().join(format!("codync-vibe-dated-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        let dir = root.join("session_20200101_000000");
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("meta.json"), r#"{"stats":{"session_total_llm_tokens":9999,"session_cost":99}}"#)
+            .unwrap();
+        std::fs::write(
+            dir.join("messages.jsonl"),
+            format!(
+                "{{\"role\":\"assistant\",\"content\":\"old\"}}\n{{\"created_at\":{yesterday:?},\"prompt_tokens\":100,\"completion_tokens\":0,\"cost\":1}}\n{{\"created_at\":{today:?},\"prompt_tokens\":10,\"completion_tokens\":5,\"cost\":0.25}}\n"
+            ),
+        )
+        .unwrap();
+        let windows = windows_in(&root, start, now);
+        let _ = std::fs::remove_dir_all(&root);
+        assert_eq!(windows[0].label, "Tokens today");
+        assert_eq!(windows[0].text.as_deref(), Some("15 tokens"));
+        assert_eq!(windows[1].text.as_deref(), Some("$0.25"));
+    }
+
+    #[test]
+    fn a_stamp_only_session_from_yesterday_adds_nothing() {
+        let now = chrono::NaiveDate::from_ymd_opt(2026, 10, 25)
+            .unwrap()
+            .and_hms_opt(12, 0, 0)
+            .unwrap()
+            .and_utc()
+            .timestamp_millis();
+        let start = local_midnight(now).unwrap();
+        let root = std::env::temp_dir().join(format!("codync-vibe-stamp-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        let dir = root.join("session_20200101_000000");
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("meta.json"), r#"{"stats":{"session_total_llm_tokens":50,"session_cost":1}}"#).unwrap();
+        let windows = windows_in(&root, start, now);
+        let _ = std::fs::remove_dir_all(&root);
+        assert_eq!(windows, []);
     }
 }

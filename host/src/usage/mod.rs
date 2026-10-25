@@ -93,13 +93,27 @@ impl Window {
 }
 
 impl Usage {
-    /// Replaces `new` windows (by id) in provider `id`, keeping the provider's other windows.
+    /// One window at a time, for Claude's status line and rate-limit events.
+    /// The provider's other windows stay.
     fn merge(&mut self, id: &'static str, name: &'static str, source: &'static str, new: Vec<Window>) {
         let mut windows = self.providers.iter().find(|p| p.id == id).map(|p| p.windows.clone()).unwrap_or_default();
         windows.retain(|w| !new.iter().any(|n| n.id == w.id));
         windows.extend(new);
         windows.sort_by(|a, b| a.id.cmp(&b.id));
         self.providers.retain(|p| p.id != id);
+        self.providers.push(Provider { id, name, windows, source, updated_at: crate::store::now_ms() });
+        self.providers.sort_by_key(|p| p.id);
+    }
+
+    /// A probe's full reading. Windows it no longer reports are dropped, and an
+    /// empty reading removes the provider.
+    fn replace(&mut self, id: &'static str, name: &'static str, source: &'static str, new: Vec<Window>) {
+        self.providers.retain(|p| p.id != id);
+        if new.is_empty() {
+            return;
+        }
+        let mut windows = new;
+        windows.sort_by(|a, b| a.id.cmp(&b.id));
         self.providers.push(Provider { id, name, windows, source, updated_at: crate::store::now_ms() });
         self.providers.sort_by_key(|p| p.id);
     }
@@ -176,9 +190,10 @@ pub(super) fn finite_i64(n: f64) -> Option<i64> {
 }
 
 fn apply(hub: &Hub, windows: Option<Vec<Window>>, id: &'static str, name: &'static str, source: &'static str) {
-    if let Some(windows) = windows.filter(|windows| !windows.is_empty()) {
-        merge(hub, id, name, source, windows);
-    }
+    let Some(windows) = windows else { return };
+    let mut usage = hub.usage.locked().clone();
+    usage.replace(id, name, source, windows);
+    hub.set_usage(usage);
 }
 
 #[cfg(test)]
@@ -200,6 +215,22 @@ mod tests {
         assert_eq!((c.windows.len(), c.source), (2, "statusline"));
         assert!((c.windows[0].percent - 12.0).abs() < f64::EPSILON, "five_hour updated");
         assert_eq!(serde_json::to_value(&u).unwrap()["providers"][0]["windows"][1]["resetsAt"], Value::Null);
+    }
+
+    #[test]
+    fn a_full_reading_drops_windows_the_probe_no_longer_reports() {
+        let mut u = Usage::default();
+        u.replace(
+            "cursor",
+            "Cursor",
+            "Cursor",
+            vec![Window::new("monthly", "Monthly", 40.0, None), Window::note("on_demand", "On-Demand", "$1")],
+        );
+        u.replace("cursor", "Cursor", "Cursor", vec![Window::note("unlimited", "Monthly", "Unlimited")]);
+        assert_eq!(u.providers[0].windows.len(), 1);
+        assert_eq!(u.providers[0].windows[0].id, "unlimited");
+        u.replace("cursor", "Cursor", "Cursor", Vec::new());
+        assert_eq!(u.providers, []);
     }
 
     #[test]

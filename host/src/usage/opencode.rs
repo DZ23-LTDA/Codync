@@ -50,10 +50,14 @@ fn from_db(path: &Path) -> Option<Vec<Window>> {
                 integer(row, 4),
                 number(row, 5),
                 integer(row, 7),
+                integer(row, 8),
             ))
         })
         .ok()?;
-    let (now_ms, five_hour, oldest, weekly, week_end, monthly, month_end) = row;
+    let (now_ms, five_hour, oldest, weekly, week_end, monthly, month_end, go_messages) = row;
+    if go_messages.unwrap_or(0) == 0 {
+        return None;
+    }
     let now_ms = now_ms?;
     let five_reset = oldest.unwrap_or(now_ms).saturating_add(18_000_000);
     Some(vec![
@@ -115,5 +119,25 @@ mod tests {
         assert!((windows[1].percent - 20.0).abs() < 0.01, "week {}", windows[1].percent);
         assert!((windows[2].percent - 10.0).abs() < 0.01, "month {}", windows[2].percent);
         assert!(windows[0].resets_at.is_some());
+    }
+
+    #[test]
+    fn another_providers_messages_are_not_a_go_plan() {
+        let path = std::env::temp_dir().join(format!("codync-opencode-other-{}.db", std::process::id()));
+        let _ = std::fs::remove_file(&path);
+        let conn = Connection::open(&path).unwrap();
+        conn.execute("CREATE TABLE session_message (id TEXT, data TEXT, type TEXT, time_created INTEGER)", []).unwrap();
+        let millis = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_millis();
+        let now = i64::try_from(millis).unwrap();
+        let data = format!(r#"{{"cost":6,"time":{{"created":{now}}},"model":{{"providerID":"anthropic"}}}}"#);
+        conn.execute(
+            "INSERT INTO session_message (id, data, type, time_created) VALUES ('m', ?1, 'assistant', ?2)",
+            rusqlite::params![data, now],
+        )
+        .unwrap();
+        drop(conn);
+        let windows = from_db(&path);
+        let _ = std::fs::remove_file(&path);
+        assert!(windows.is_none());
     }
 }

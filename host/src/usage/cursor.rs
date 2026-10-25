@@ -32,8 +32,7 @@ pub(super) async fn collect() -> Option<Vec<Window>> {
         return None;
     }
     let body: Value = response.json().await.ok()?;
-    let windows = parse(&body);
-    (!windows.is_empty()).then_some(windows)
+    Some(parse(&body))
 }
 
 fn db_path() -> Option<PathBuf> {
