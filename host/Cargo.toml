@@ -100,6 +100,11 @@ lto = "thin"
 codegen-units = 1
 strip = true
 
+# The host hashes its own binary before it listens (`service::capture_binary_identity`). Unoptimized,
+# SHA-256 over a debug build (500 MB on Linux) takes long enough that test hosts miss their 30 s start.
+[profile.dev.package.sha2]
+opt-level = 3
+
 # The host Codync Dev bundles (apps/desktop/tools/native-host.mjs): optimized like a release, but
 # a host change rebuilds in about 25 s instead of 80 s per architecture.
 [profile.dev-app]
