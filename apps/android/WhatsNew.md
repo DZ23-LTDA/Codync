@@ -7,6 +7,14 @@ released version's section; a version without one gets the PRs' "What's New: And
 else a generic "Bug fixes and improvements" line. Delete old sections.
 -->
 
+## 2.26.2
+
+### zh-Hant
+- Bot 傳來的圖片會直接顯示在聊天裡，點一下可以放大看，不用先下載。
+
+### en-US
+- Images a bot sends now show right in the chat; tap one to see it full size, no download needed.
+
 ## 2.26.0
 
 ### zh-Hant
