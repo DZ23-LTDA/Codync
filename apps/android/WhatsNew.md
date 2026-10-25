@@ -15,6 +15,7 @@ else a generic "Bug fixes and improvements" line. Delete old sections.
 - 擴充套件一次顯示一個分類：智慧體、聯結器或技能，每個列表都分頁。點列表兩側的圓形按鈕或左右滑動翻頁，每頁可選 6、10、20 或 50 筆。
 - 電腦使用自建中繼時，設定和連線狀態會顯示該中繼的地址，不再一律寫成 Cloudflare。
 - 可以建立使用 WorkBuddy 的 Bot，在聊天裡登入即可。
+- 用量也會顯示這台電腦上其他 agent 的額度。Cursor 會用本機登入向 cursor.com 查詢。
 
 ### en-US
 - Images a bot sends now show right in the chat; tap one to see it full size, no download needed.
@@ -22,6 +23,7 @@ else a generic "Bug fixes and improvements" line. Delete old sections.
 - Extensions shows Agents, Connectors or Skills in pages: tap the round buttons or swipe, 6 to 50 per page.
 - A private relay shows its address in Settings and status.
 - Bots can run WorkBuddy; sign in from the chat.
+- Adds other agents' limits. Cursor asks cursor.com.
 
 ## 2.26.0
 
