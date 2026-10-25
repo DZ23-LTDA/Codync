@@ -89,7 +89,6 @@ const TOOLS = [
     annotations: { readOnlyHint: true, openWorldHint: false },
   },
 ];
-const HOST_TOOLS = new Set(["list_bots", "message_bot", "read_replies"]);
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -233,7 +232,7 @@ async function tool(c: Ctx, user: string, name: string, args: Record<string, unk
     return { computers: all.map((x) => ({ name: x.name, online: !!x.online, lastSeenAt: x.last_seen_at })) };
   }
   if (!all.length) throw new ToolError("No computer is in this Codync account yet: sign in to Codync on a computer first.");
-  if (!HOST_TOOLS.has(name)) throw new ToolError(`Unknown tool: ${name}`);
+  // Every other tool (`mcp` takes only listed ones) is the computer's to answer.
   const { computer: wanted, ...rest } = args;
   const online = all.filter((x) => x.online);
   // Every online computer answers a listing that names none.

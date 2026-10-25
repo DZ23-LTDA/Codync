@@ -14,7 +14,7 @@ struct BotMessageRow: View {
 
     var body: some View {
         let peer = model.bots[group.peerId]
-        let name = peer == nil ? group.peerName ?? model.authorName(group.peerId) : model.authorName(group.peerId)
+        let name = model.authorName(group.peerId, fallback: group.peerName)
         let failed = group.failed
         Button(action: open) {
             HStack(spacing: 6) {
@@ -58,7 +58,7 @@ struct BotPairTitle: View {
     }
 
     private func name(_ id: String) -> String {
-        model.bots[id] == nil && id == peerId ? peerName ?? model.authorName(id) : model.authorName(id)
+        model.authorName(id, fallback: id == peerId ? peerName : nil)
     }
 
     private func side(_ id: String) -> some View {
@@ -84,7 +84,7 @@ struct BotConversationView: View {
     var body: some View {
         let exchanges = exchanges
         let rows = BotConversationRow.build(exchanges)
-        let peerName = exchanges.lazy.compactMap(\.peerName).first
+        let peerName = exchanges.peerName
         VStack(spacing: 0) {
             ModalHeader { BotPairTitle(botId: botId, peerId: peerId, peerName: peerName) }
             ScrollView {
@@ -116,7 +116,7 @@ struct BotConversationView: View {
 
     /// A bot of this computer by its own name; the peer on another computer by the name its exchanges carry.
     private func name(_ id: String, peerName: String?) -> String {
-        model.bots[id] == nil && id == peerId ? peerName ?? model.authorName(id) : model.authorName(id)
+        model.authorName(id, fallback: id == peerId ? peerName : nil)
     }
 
     @ViewBuilder private func rowView(_ row: BotConversationRow, peerName: String?) -> some View {

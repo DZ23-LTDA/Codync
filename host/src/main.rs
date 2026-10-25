@@ -327,6 +327,8 @@ fn write_token_file(token: &str) -> Result<()> {
 
 #[tokio::main]
 async fn main() -> Result<()> {
+    // Every TLS connection (the relay, HTTPS) uses aws-lc-rs, also in builds that have ring too.
+    let _ = rustls::crypto::aws_lc_rs::default_provider().install_default();
     let cli = Cli::parse();
     match cli.cmd.unwrap_or(Sub::Serve { port: service::DEFAULT_PORT, bind: "0.0.0.0".into() }) {
         Sub::Serve { port, bind } => serve(&bind, port).await,

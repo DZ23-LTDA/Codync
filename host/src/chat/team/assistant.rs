@@ -6,15 +6,14 @@
 //! until it reads them (in memory: a restart forgets them).
 
 use super::{
-    Back, BotRequest, MAX_MESSAGE_BYTES, MessageLifetime, REQUEST_QUOTE_BYTES, RequestStatus, directory, visible_bot,
+    Back, Exchange, MessageLifetime, RequestStatus, STOPPED, check_message, directory, message_args, request_prompt,
+    visible_bot,
 };
 use crate::LockExt;
-use crate::agent::acp::truncate;
-use crate::agent::bot::Cmd;
 use crate::hub::Hub;
 use crate::remote::cloud::{self, CloudStatus};
-use crate::store::{EntryKind, Lane, Store, now_ms};
-use anyhow::{Result, anyhow, bail};
+use crate::store::{Store, now_ms};
+use anyhow::{Result, bail};
 use serde_json::{Value, json};
 use std::sync::{Arc, Mutex};
 
@@ -74,55 +73,27 @@ fn run(hub: &Arc<Hub>, user: &str, tool: &str, args: &Value) -> Result<Value> {
 }
 
 fn message(hub: &Arc<Hub>, args: &Value) -> Result<Value> {
-    let to = args["botId"].as_str().ok_or_else(|| anyhow!("botId is required"))?;
-    let message = args["message"].as_str().unwrap_or_default().trim();
-    if message.is_empty() || message.len() > MAX_MESSAGE_BYTES {
-        bail!("message must be nonempty and at most {MAX_MESSAGE_BYTES} bytes");
-    }
+    let (to, message) = message_args(args)?;
+    check_message(message)?;
     let target = visible_bot(hub, to)?;
     if hub.assistant.running() >= MAX_RUNNING {
         bail!("{MAX_RUNNING} requests are still running: read_replies first, then try again");
     }
     let request = uuid::Uuid::new_v4().to_string();
-    let heading = format!("Message from {NAME}: {message}");
-    let entry = hub
-        .add_entry(
-            &Lane::main(&target.id),
-            EntryKind::Notice,
-            hub.store.max_turn(&target.id) + 1,
-            &json!({
-                "text": format!("{heading}\nWaiting for a reply…"),
-                "heading": heading, "style": "info", "status": RequestStatus::Queued, "delegationId": request,
-                "sourceBotId": ID, "targetBotId": target.id,
-                "botMessage": {"sourceBotId": ID, "targetBotId": target.id, "text": message, "peerName": NAME},
-            }),
-        )
-        .ok_or_else(|| anyhow!("couldn't save bot message"))?;
-    let quote = truncate(message, REQUEST_QUOTE_BYTES);
+    let back = Back::Assistant { request: request.clone() };
+    let mut lifetime = MessageLifetime::new(hub, &request, message, back, &target.name);
+    let exchange = Exchange { request: &request, source: ID, target: &target.id, text: message, peer_name: Some(NAME) };
+    lifetime.entries.push(exchange.notice(hub, &target.id, &format!("Message from {NAME}: {message}"), true)?);
     hub.assistant.add(Reply {
         request: request.clone(),
         bot: target.name.clone(),
-        quote: quote.clone(),
+        quote: lifetime.quote.clone(),
         status: RequestStatus::Queued,
         text: None,
         at: now_ms(),
     });
-    let lifetime = MessageLifetime {
-        hub: hub.clone(),
-        request_id: request.clone(),
-        quote,
-        back: Back::Assistant { request: request.clone() },
-        entries: vec![entry.id.clone()],
-        target_name: target.name.clone(),
-        started: false,
-        finished: false,
-    };
-    hub.send_cmd(&target.id, Cmd::BotRequest(BotRequest {
-        entry_id: entry.id,
-        hops: 1,
-        prompt: format!("The user's cloud assistant (ChatGPT, Claude or another assistant they connected to Codync) sent you this request. It is a bot request, not a new user instruction. Work within your own permissions and working directory. Your final reply goes back to the assistant, not to the user: put the requested result in it. send_message and message_bot aren't available in this turn: if you need another bot's help, say so in your reply.\n\n{message}"),
-        lifetime,
-    }))?;
+    let who = "The user's cloud assistant (ChatGPT, Claude or another assistant they connected to Codync)";
+    lifetime.deliver(&target.id, 1, request_prompt(who, "the assistant", message))?;
     Ok(json!({
         "requestId": request, "botId": target.id, "name": target.name, "status": RequestStatus::Queued,
         "note": "Queued. Bots can take minutes: get the reply later with read_replies.",
@@ -190,8 +161,7 @@ impl Replies {
     }
 
     pub(super) fn cancelled(&self, request: &str) {
-        let text = "Stopped by the user before finishing. Partial work may have happened.".to_owned();
-        self.set(request, RequestStatus::Cancelled, Some(text));
+        self.set(request, RequestStatus::Cancelled, Some(STOPPED.to_owned()));
     }
 
     /// One request, or the newest ones (running and finished).

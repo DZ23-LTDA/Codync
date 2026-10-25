@@ -90,7 +90,7 @@ struct AuthorLabel: View {
         let bot = botId.flatMap { model.bots[$0] }
         HStack(spacing: 8) {
             if let bot { CharacterAvatar(bot: bot, size: 26, animated: false) }
-            Text(bot == nil ? name ?? model.authorName(botId) : model.authorName(botId))
+            Text(model.authorName(botId, fallback: name))
                 .font(.subheadline.weight(.medium))
                 .foregroundStyle(bot.map { AvatarPalette.color($0.avatarColor) } ?? Palette.secondary)
         }

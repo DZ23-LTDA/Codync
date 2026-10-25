@@ -4,6 +4,7 @@ The user's computers join one private network, and a bot on one messages a bot o
 computer already do ([bot collaboration](bot-collaboration.md)). The network is the `codync-network` crate
 (`host/crates/network`, its own [README](../../host/crates/network/README.md)): peer to peer over QUIC
 ([iroh](https://iroh.computer)), with no Codync server involved. It is off until the user creates or joins a network.
+Why it is built this way, the options weighed and what comes next: [design](../design/computer-network.md).
 
 ## Set it up
 
@@ -38,10 +39,20 @@ A removed computer stays removed; it rejoins only with a new key. `--cascade` al
 admitted (a stolen one). Every computer compares rosters with the others when it starts and every 6 hours, so one
 that was off learns of a removal.
 
+- **Recovery wins.** Only the root removes the current owner, and an owner that a later owner (or the root)
+  removed with `--cascade` removes and promotes no one, whatever time it signs with: a stolen owner can't undo its
+  replacement with backdated entries.
+- **The log stays small.** Every copy keeps only entries that can count: none by a computer the log never let in,
+  no admissions, promotions or removals by plain members, each computer's newest location only, and at most 256
+  entries per computer. So the whole roster always fits in the one frame (1 MiB) a hello carries it in.
+
 ## Bots across computers
 
 - Every visible bot is offered under its **address name** (`Code Reviewer` → `code-reviewer`, a second
-  `reviewer` → `reviewer-2`); from another computer it is `code-reviewer@desk`.
+  `reviewer` → `reviewer-2`); from another computer it is `code-reviewer@desk`. The host keeps every name it ever
+  gave out (kv `network_handles`), so a name never moves to another bot: a letter on its way to a renamed or
+  deleted bot can't reach the wrong one. What the network offers is published after each bot is created, changed
+  or deleted.
 - `list_bots` lists this computer's bots, then the other computers' (ids `name@computer`, `status` online/away),
   filtered by `query`, `computer`, `online`, and paged by `limit` (default 20, at most 50) and `cursor`. A listing
   past the limit adds `summary` (bots per computer). What other computers offer is cached for a minute and refreshed
@@ -50,6 +61,8 @@ that was off learns of a removal.
   recipient computer turns it into a bot request in that bot's chat (its notice says "Message from Lead on laptop"),
   and its outcome goes back as a letter that names the request (`reply_to`, `meta.codync` = `completed`, `failed` or
   `cancelled`). The sender's notice ends and the sender gets the usual reply turn; a cancelled one wakes no one.
+  A request for a bot that went away after its computer took the letter comes back `failed`. An answer may come
+  from a bot the computer no longer offers (renamed or deleted while it worked).
 - Exchange notices carry `botMessage.peerName` ("Reviewer on desk") for the bot on the other computer, whose id
   isn't in this computer's bot list; every client shows that name in the row, the pair sheet and its author labels.
 - A letter to a computer that is away waits in the sender's outbox for up to a day. The chain's hop limit counts
@@ -57,9 +70,9 @@ that was off learns of a removal.
   8 handoffs per chain, a burst of 5 messages per pair of agents then one every 2 minutes, the same words twice in
   10 minutes refused. A letter that isn't a request (a notice, or a reply nobody waits for after a restart) shows as
   a "Note from …" notice in the bot's chat.
-- Agents that aren't Codync bots use the same letters: the standalone `codync-network` daemon (one node per
-  computer without a Codync host) offers Claude Code sessions (their inbox socket) and Codex threads
-  (`codex queue`), see the crate README.
+- Agents that aren't Codync bots use the same letters: the standalone `codync-network` daemon offers Claude Code
+  sessions (their inbox socket) and Codex threads (`codex queue`), see the crate README. It keeps its own key in
+  `~/.codync-network` (the host's is `~/.codync/network`), so beside a host it is a computer of its own.
 
 ## Not yet
 
@@ -78,4 +91,4 @@ that was off learns of a removal.
 - `host/src/chat/team/remote.rs`, `directory.rs`: requests and replies across computers, `list_bots`.
 - `host/src/network_cli.rs`: `codync-host network`.
 - `host/tests/network_e2e.rs`: two real hosts in one network, a bot messaging a bot on the other computer through
-  approval and back.
+  approval and back, and a request its recipient's user stops and one that fails.

@@ -44,16 +44,14 @@ import kotlinx.coroutines.launch
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 
-private fun AppState.authorName(id: String): String = bots.firstOrNull { it.id == id }?.name ?: "A deleted bot"
-
-/** A bot of this computer by its own name; a peer on another computer by the name its exchanges carry. */
-private fun AppState.peerName(id: String, peerId: String, remoteName: String?): String =
-    if (bots.none { it.id == id } && id == peerId && remoteName != null) remoteName else authorName(id)
+/** A bot's name; [fallback] for one that isn't this computer's (a bot on another computer). */
+internal fun AppState.authorName(id: String?, fallback: String? = null): String =
+    bots.firstOrNull { it.id == id }?.name ?: fallback ?: "A deleted bot"
 
 /** The compact line a bot-to-bot exchange leaves in the chat; tapping it opens the conversation (iOS `BotMessageRow`). */
 @Composable internal fun BotMessageRow(group: BotExchangeGroup, state: AppState, open: () -> Unit) {
     val peer = state.bots.firstOrNull { it.id == group.peerId }
-    val name = state.peerName(group.peerId, group.peerId, group.peerName)
+    val name = state.authorName(group.peerId, group.peerName)
     val ink = if (group.failed) Palette.danger else Palette.secondary
     Row(Modifier.fillMaxWidth().padding(top = 2.dp).plainButton(action = open)
         .semantics(mergeDescendants = true) { contentDescription = "${group.title} $name${if (group.failed) ", failed" else ""}" }
@@ -79,8 +77,9 @@ private fun AppState.peerName(id: String, peerId: String, remoteName: String?): 
     }
     val exchanges = BotExchange.conversation(fetched.orEmpty(), state.entries.filter { it.botId == bot.id }, peerId)
     val rows = BotConversationRow.build(exchanges)
+    // A peer on another computer goes by the name its exchanges carry.
     val remoteName = exchanges.firstNotNullOfOrNull { it.peerName }
-    val name = { id: String -> state.peerName(id, peerId, remoteName) }
+    val name = { id: String -> state.authorName(id, remoteName.takeIf { id == peerId }) }
     val list = rememberLazyListState()
     LaunchedEffect(rows.size) { if (rows.isNotEmpty()) list.scrollToItem(rows.lastIndex) }
     Column(Modifier.fillMaxSize().background(Palette.background)) {

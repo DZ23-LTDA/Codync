@@ -62,6 +62,8 @@ On the first computer, create the network. That computer becomes its owner:
 codync-host network create desk
 ```
 
+On a Mac where you installed the app from the disk image rather than with Homebrew, `codync-host` is inside the app: run `/Applications/Codync.app/Contents/Resources/codync-host network …` instead, here and below.
+
 It prints a **recovery code** once. Keep it in a password manager: it makes another computer the owner if this one is lost (`codync-host network recover <code>`).
 
 Then add each other computer with a one-time invite, good for an hour while the inviting computer stays on:

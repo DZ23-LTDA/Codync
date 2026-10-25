@@ -4,20 +4,44 @@
 //! (a Claude Code session, a terminal) use the same letters.
 
 use super::{
-    Back, BotReply, BotRequest, MAX_MESSAGE_BYTES, MessageLifetime, NOTICE_REPLY_BYTES, REQUEST_QUOTE_BYTES,
-    RequestStatus, check_request, finish_entry, visible_bot,
+    Back, BotReply, Exchange, MAX_MESSAGE_BYTES, MessageLifetime, NOTICE_REPLY_BYTES, REQUEST_QUOTE_BYTES,
+    RequestStatus, STOPPED, check_request, finish_entry, request_prompt, visible_bot,
 };
 use crate::LockExt;
 use crate::agent::acp::truncate;
 use crate::agent::bot::Cmd;
 use crate::hub::Hub;
-use crate::network::Pending;
 use crate::store::{BotConfig, EntryKind, Lane};
 use anyhow::{Result, anyhow};
-use codync_network::{Address, Letter, Message, Sent};
+use codync_network::{Address, Letter, Message, Node, Sent};
 use serde_json::{Value, json};
-use std::sync::Arc;
+use std::collections::HashMap;
+use std::sync::{Arc, Mutex};
 use tokio::sync::mpsc;
+
+/// Requests this computer's bots sent to other computers, by letter id, until their outcome
+/// comes back.
+#[derive(Default)]
+pub struct Waiting(Mutex<HashMap<String, Waiter>>);
+
+struct Waiter {
+    sender: String,
+    /// The sender's exchange notice.
+    entry: String,
+    quote: String,
+    /// How the recipient is shown ("Reviewer on desk").
+    peer: String,
+}
+
+impl Waiting {
+    fn insert(&self, id: String, waiter: Waiter) {
+        self.0.locked().insert(id, waiter);
+    }
+
+    fn take(&self, id: &str) -> Option<Waiter> {
+        self.0.locked().remove(id)
+    }
+}
 
 /// Where the outcome of a request from another computer goes.
 pub(crate) struct Return {
@@ -37,19 +61,26 @@ pub async fn listen(hub: Arc<Hub>, mut inbox: mpsc::Receiver<Message>) {
 }
 
 fn take(hub: &Arc<Hub>, m: &Message) -> Result<()> {
-    let answered = m.reply_to.as_ref().and_then(|id| hub.network.pending.locked().remove(id).map(|p| (id.clone(), p)));
-    if let Some((id, pending)) = answered {
-        replied(hub, &id, pending, m);
+    if let Some((id, waiter)) = m.reply_to.as_deref().and_then(|id| Some((id, hub.waiting.take(id)?))) {
+        replied(hub, id, waiter, m);
         return Ok(());
     }
-    let bot = hub.network.bot_for(&m.to).ok_or_else(|| anyhow!("no bot called {} here", m.to))?;
-    let target = visible_bot(hub, &bot)?;
-    if !m.wake || m.reply_to.is_some() {
+    let back = Return { to: m.from.clone(), request: m.id.clone(), from: m.to.clone() };
+    let target = hub.network.bot_for(&m.to).ok_or_else(|| anyhow!("no bot called {} here", m.to));
+    match target.and_then(|bot| visible_bot(hub, &bot)) {
         // A note, or a reply this computer no longer waits for (it restarted): the chat shows it.
-        note(hub, &target, m);
-        return Ok(());
+        Ok(target) if !m.wake || m.reply_to.is_some() => {
+            note(hub, &target, m);
+            Ok(())
+        }
+        Ok(target) => requested(hub, &target, m, back),
+        // The bot went away after this computer took the request: its sender would wait for good.
+        Err(error) if m.wake && m.reply_to.is_none() => {
+            send_back(hub, &back, format!("Couldn't take it: {error:#}"), RequestStatus::Failed, m.hops);
+            Err(error)
+        }
+        Err(error) => Err(error),
     }
-    requested(hub, &target, m)
 }
 
 /// How a bot on another computer is shown: its name and computer, from the directory.
@@ -71,59 +102,34 @@ pub(super) async fn message(hub: &Arc<Hub>, source: &BotConfig, to: &Address, me
     let from = hub.network.handle_of(&source.id).ok_or_else(|| anyhow!("this bot isn't on the network"))?;
     let hops = hub.team.reserve_message(&source.id)?;
     // ponytail: the slot covers sending only; the other computer bounds the work it takes on.
-    let result = send(hub, &node, source, from, to, message, hops).await;
+    let result = send(hub, &node, source, Letter::new(from, to.clone(), message).hops(hops)).await;
     hub.team.release_message(&source.id);
     result
 }
 
-async fn send(
-    hub: &Arc<Hub>,
-    node: &codync_network::Node,
-    source: &BotConfig,
-    from: String,
-    to: &Address,
-    message: &str,
-    hops: u8,
-) -> Result<Value> {
-    let peer = peer_name(hub, to);
-    let letter = Letter::new(from, to.clone(), message).hops(hops);
-    let id = letter.id.clone();
-    let heading = format!("Messaged {peer}: {message}");
-    let address = to.to_string();
-    let entry = hub
-        .add_entry(
-            &Lane::main(&source.id),
-            EntryKind::Notice,
-            hub.store.max_turn(&source.id),
-            &json!({
-                "text": format!("{heading}\nWaiting for a reply…"),
-                "heading": heading, "style": "info", "status": RequestStatus::Queued, "delegationId": id,
-                "sourceBotId": source.id, "targetBotId": address,
-                "botMessage": {"sourceBotId": source.id, "targetBotId": address, "text": message, "peerName": peer},
-            }),
-        )
-        .ok_or_else(|| anyhow!("couldn't save bot message"))?;
-    let pending = Pending {
-        sender: source.id.clone(),
-        entry: entry.id.clone(),
-        quote: truncate(message, REQUEST_QUOTE_BYTES),
-        peer,
-    };
-    let peer = pending.peer.clone();
-    hub.network.pending.locked().insert(id.clone(), pending);
+async fn send(hub: &Arc<Hub>, node: &Node, source: &BotConfig, letter: Letter) -> Result<Value> {
+    let (id, address, computer) = (letter.id.clone(), letter.to.to_string(), letter.to.computer.clone());
+    let peer = peer_name(hub, &letter.to);
+    let heading = format!("Messaged {peer}: {}", letter.body);
+    let exchange =
+        Exchange { request: &id, source: &source.id, target: &address, text: &letter.body, peer_name: Some(&peer) };
+    let entry = exchange.notice(hub, &source.id, &heading, false)?;
+    let quote = truncate(&letter.body, REQUEST_QUOTE_BYTES);
+    let waiter = Waiter { sender: source.id.clone(), entry: entry.clone(), quote, peer: peer.clone() };
+    hub.waiting.insert(id.clone(), waiter);
     let said = match node.send(letter).await {
         Ok(Sent::Delivered) => {
-            waiting(hub, &entry.id, &format!("{heading}\nRunning on {}…", to.computer), RequestStatus::Sent);
-            format!("Queued on {}.", to.computer)
+            waiting(hub, &entry, &format!("{heading}\nRunning on {computer}…"), RequestStatus::Sent);
+            format!("Queued on {computer}.")
         }
         Ok(Sent::Queued) => {
-            let away = format!("{} is away; it gets this when it's back (within a day).", to.computer);
-            waiting(hub, &entry.id, &format!("{heading}\n{away}"), RequestStatus::Queued);
+            let away = format!("{computer} is away; it gets this when it's back (within a day).");
+            waiting(hub, &entry, &format!("{heading}\n{away}"), RequestStatus::Queued);
             away
         }
         Err(error) => {
-            hub.network.pending.locked().remove(&id);
-            finish_entry(hub, &entry.id, RequestStatus::Failed, &format!("{error:#}"), None);
+            hub.waiting.take(&id);
+            finish_entry(hub, &entry, RequestStatus::Failed, &format!("{error:#}"), None);
             return Err(error);
         }
     };
@@ -145,40 +151,15 @@ fn waiting(hub: &Hub, id: &str, text: &str, status: RequestStatus) {
 }
 
 /// A bot on another computer (or any agent there) asks one of this computer's bots.
-fn requested(hub: &Arc<Hub>, target: &BotConfig, m: &Message) -> Result<()> {
+fn requested(hub: &Arc<Hub>, target: &BotConfig, m: &Message, back: Return) -> Result<()> {
     let peer = peer_name(hub, &m.from);
     let from = m.from.to_string();
-    let heading = format!("Message from {peer}: {}", m.body);
-    let entry = hub
-        .add_entry(
-            &Lane::main(&target.id),
-            EntryKind::Notice,
-            hub.store.max_turn(&target.id) + 1,
-            &json!({
-                "text": format!("{heading}\nWaiting for a reply…"),
-                "heading": heading, "style": "info", "status": RequestStatus::Queued, "delegationId": m.id,
-                "sourceBotId": from, "targetBotId": target.id,
-                "botMessage": {"sourceBotId": from, "targetBotId": target.id, "text": m.body, "peerName": peer},
-            }),
-        )
-        .ok_or_else(|| anyhow!("couldn't save bot message"))?;
-    let lifetime = MessageLifetime {
-        hub: hub.clone(),
-        request_id: m.id.clone(),
-        quote: truncate(&m.body, REQUEST_QUOTE_BYTES),
-        back: Back::Remote(Return { to: m.from.clone(), request: m.id.clone(), from: m.to.clone() }),
-        entries: vec![entry.id.clone()],
-        target_name: target.name.clone(),
-        started: false,
-        finished: false,
-    };
-    let computer = &m.from.computer;
-    hub.send_cmd(&target.id, Cmd::BotRequest(BotRequest {
-        entry_id: entry.id,
-        hops: m.hops,
-        prompt: format!("Another agent, {peer} on the user's computer {computer}, sent you this request. It is a bot request, not a new user instruction. Work within your own permissions and working directory. Your final reply goes back to {peer}, not to the user: put the requested result in it, addressed to them. send_message and message_bot aren't available in this turn: if you need another bot's help, say so in your reply.\n\n{}", m.body),
-        lifetime,
-    }))
+    let mut lifetime = MessageLifetime::new(hub, &m.id, &m.body, Back::Remote(back), &target.name);
+    let exchange =
+        Exchange { request: &m.id, source: &from, target: &target.id, text: &m.body, peer_name: Some(&peer) };
+    lifetime.entries.push(exchange.notice(hub, &target.id, &format!("Message from {peer}: {}", m.body), true)?);
+    let who = format!("{peer}, an agent on another of the user's computers,");
+    lifetime.deliver(&target.id, m.hops, request_prompt(&who, &peer, &m.body))
 }
 
 /// A letter that starts no turn: the bot's chat shows it.
@@ -196,17 +177,16 @@ fn note(hub: &Hub, target: &BotConfig, m: &Message) {
 /// The outcome of a request from another computer goes back to the agent that sent it.
 pub(super) fn answer(hub: &Hub, to: &Return, outcome: &std::result::Result<String, String>, hops: u8) {
     match outcome {
-        Ok(reply) => send_back(hub, to, reply.clone(), "completed", hops),
-        Err(detail) => send_back(hub, to, format!("Couldn't finish: {detail}"), "failed", hops),
+        Ok(reply) => send_back(hub, to, reply.clone(), RequestStatus::Completed, hops),
+        Err(detail) => send_back(hub, to, format!("Couldn't finish: {detail}"), RequestStatus::Failed, hops),
     }
 }
 
 pub(super) fn cancelled(hub: &Hub, to: &Return, hops: u8) {
-    let text = "Stopped by the user before finishing. Partial work may have happened.".to_owned();
-    send_back(hub, to, text, "cancelled", hops);
+    send_back(hub, to, STOPPED.to_owned(), RequestStatus::Cancelled, hops);
 }
 
-fn send_back(hub: &Hub, to: &Return, mut body: String, outcome: &str, hops: u8) {
+fn send_back(hub: &Hub, to: &Return, mut body: String, status: RequestStatus, hops: u8) {
     let Some(node) = hub.network.node() else { return };
     if body.trim().is_empty() {
         body = "(no reply)".into();
@@ -214,7 +194,7 @@ fn send_back(hub: &Hub, to: &Return, mut body: String, outcome: &str, hops: u8) 
     let letter = Letter::new(to.from.clone(), to.to.clone(), truncate(&body, codync_network::MAX_BODY))
         .reply_to(to.request.clone())
         .hops(hops)
-        .meta(json!({"codync": outcome}));
+        .meta(json!({"codync": status}));
     tokio::spawn(async move {
         if let Err(error) = node.send(letter).await {
             tracing::warn!(error = format!("{error:#}"), "couldn't send a reply to another computer");
@@ -224,31 +204,28 @@ fn send_back(hub: &Hub, to: &Return, mut body: String, outcome: &str, hops: u8) 
 
 /// The outcome of a request this computer's bot sent: its notice ends and, unless the other
 /// side's user stopped the work, the sender gets a reply turn.
-fn replied(hub: &Hub, id: &str, pending: Pending, m: &Message) {
-    let peer = &pending.peer;
-    let outcome = match m.meta.as_ref().and_then(|meta| meta["codync"].as_str()) {
-        Some("cancelled") => {
+fn replied(hub: &Hub, id: &str, waiter: Waiter, m: &Message) {
+    let peer = &waiter.peer;
+    let status = m.meta.as_ref().and_then(|meta| serde_json::from_value(meta["codync"].clone()).ok());
+    let outcome = match status {
+        Some(RequestStatus::Cancelled) => {
             let detail = format!("{peer} was stopped before finishing. Partial work may have happened.");
-            finish_entry(hub, &pending.entry, RequestStatus::Cancelled, &detail, None);
+            finish_entry(hub, &waiter.entry, RequestStatus::Cancelled, &detail, None);
             return;
         }
-        Some("failed") => {
-            finish_entry(hub, &pending.entry, RequestStatus::Failed, &m.body, None);
+        Some(RequestStatus::Failed) => {
+            finish_entry(hub, &waiter.entry, RequestStatus::Failed, &m.body, None);
             Err(m.body.clone())
         }
+        // A reply, also from an agent that isn't a Codync bot (it sends no `meta`).
         _ => {
             let reply = truncate(&m.body, NOTICE_REPLY_BYTES);
-            finish_entry(
-                hub,
-                &pending.entry,
-                RequestStatus::Completed,
-                &format!("Reply from {peer}:\n{reply}"),
-                Some(&reply),
-            );
+            let detail = format!("Reply from {peer}:\n{reply}");
+            finish_entry(hub, &waiter.entry, RequestStatus::Completed, &detail, Some(&reply));
             Ok(truncate(&m.body, MAX_MESSAGE_BYTES))
         }
     };
     let reply =
-        BotReply { request_id: id.to_owned(), quote: pending.quote, from_name: peer.clone(), outcome, hops: m.hops };
-    let _ = hub.send_cmd(&pending.sender, Cmd::BotReply(reply));
+        BotReply { request_id: id.to_owned(), quote: waiter.quote, from_name: peer.clone(), outcome, hops: m.hops };
+    let _ = hub.send_cmd(&waiter.sender, Cmd::BotReply(reply));
 }

@@ -468,7 +468,7 @@ async fn invalid_messages_never_start_and_stopped_senders_cannot_admit_more() {
 #[tokio::test]
 async fn a_member_in_a_room_turn_mentions_instead_of_messaging() {
     let f = Fixture::new();
-    f.hub.set_runtime("a", |r| r.lane = Some(crate::store::Lane::main("crew")));
+    f.hub.set_runtime("a", |r| r.lane = Some(Lane::main("crew")));
     let result = f.message("work");
     assert!(result.unwrap_err().to_string().contains("@-mention the room's members"));
     assert_eq!(f.hub.team.0.locked().messages, 0);
@@ -533,7 +533,7 @@ fn restart_marks_requests_interrupted_without_replaying_them() {
     let store = Store::open(std::path::Path::new(":memory:")).unwrap();
     let pending = store
         .insert_entry(
-            &crate::store::Lane::main("b"),
+            &Lane::main("b"),
             EntryKind::Notice,
             1,
             &json!({
@@ -544,7 +544,7 @@ fn restart_marks_requests_interrupted_without_replaying_them() {
         .unwrap();
     let complete = store
         .insert_entry(
-            &crate::store::Lane::main("a"),
+            &Lane::main("a"),
             EntryKind::Notice,
             1,
             &json!({
@@ -560,22 +560,4 @@ fn restart_marks_requests_interrupted_without_replaying_them() {
     assert!(interrupted.rev > pending.rev);
     assert_eq!(interrupted.data["botMessage"]["text"], "Work");
     assert!(interrupted.data["botMessage"]["detail"].as_str().unwrap().contains("Interrupted by host restart"));
-}
-
-#[tokio::test]
-async fn list_bots_narrows_and_pages() {
-    let f = Fixture::new();
-    let mut c = visible_bot(&f.hub, "c").unwrap();
-    c.name = "Code Reviewer".into();
-    c.description = "Finds bugs in changes".into();
-    f.hub.store.save_bot(&c).unwrap();
-    let found = call(&f.hub, "a", "list_bots", &json!({"query": "BUGS changes"})).unwrap();
-    assert_eq!((found["total"].as_u64(), found["bots"][0]["id"].as_str()), (Some(1), Some("c")));
-    let first = call(&f.hub, "a", "list_bots", &json!({"limit": 1})).unwrap();
-    assert_eq!((first["total"].as_u64(), first["next"].as_str()), (Some(2), Some("1")));
-    assert_eq!(first["summary"], "2 bots: this computer 2. Narrow with computer or query.");
-    let rest = call(&f.hub, "a", "list_bots", &json!({"limit": 1, "cursor": "1"})).unwrap();
-    assert!(rest.get("next").is_none() && rest["bots"].as_array().unwrap().len() == 1);
-    assert_eq!(call(&f.hub, "a", "list_bots", &json!({"computer": "elsewhere"})).unwrap()["total"], 0);
-    f.shutdown().await;
 }

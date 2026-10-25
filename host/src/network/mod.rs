@@ -11,34 +11,33 @@ use crate::hub::Hub;
 use anyhow::{Context, Result, anyhow, bail};
 use codync_network::{Address, Agent, Connector, Node, Peer, Reach};
 use serde_json::{Value, json};
+use std::collections::HashMap;
 use std::path::PathBuf;
-use std::sync::{Arc, Mutex, RwLock};
+use std::sync::{Arc, Mutex, OnceLock};
 use std::time::{Duration, Instant};
 
 pub use handles::handle;
 
 const KV_CONNECTOR: &str = "network_connector";
+/// Every address name ever given to one of this computer's bots (name → bot id).
+const KV_HANDLES: &str = "network_handles";
 /// How long what the other computers offer is good for before a listing asks them again.
 const FRESH_FOR: Duration = Duration::from_mins(1);
 /// How long a listing waits for computers it has never heard from.
 const FIRST_LOOK: Duration = Duration::from_secs(5);
 
-/// A request one of this computer's bots sent to another computer, until its reply comes.
-pub struct Pending {
-    pub sender: String,
-    /// The sender's exchange notice.
-    pub entry: String,
-    pub quote: String,
-    pub peer: String,
-}
-
 #[derive(Default)]
 pub struct Network {
-    node: RwLock<Option<Arc<Node>>>,
-    /// Outgoing requests by letter id.
-    pub pending: Mutex<std::collections::HashMap<String, Pending>>,
+    node: OnceLock<Arc<Node>>,
     asked: Mutex<Option<Instant>>,
     handles: Mutex<handles::Handles>,
+}
+
+/// Who a `message_bot` request is for.
+pub enum Recipient {
+    /// One of this computer's bots, by id (whether it exists is the caller's to check).
+    Here(String),
+    There(Address),
 }
 
 fn dir() -> PathBuf {
@@ -47,12 +46,7 @@ fn dir() -> PathBuf {
 
 impl Network {
     pub fn node(&self) -> Option<Arc<Node>> {
-        self.node.read().unwrap_or_else(std::sync::PoisonError::into_inner).clone()
-    }
-
-    /// This computer's bot behind an address name, if any.
-    pub fn bot_for(&self, handle: &str) -> Option<String> {
-        self.handles.locked().bot(handle)
+        self.node.get().cloned()
     }
 
     /// The address name of one of this computer's bots.
@@ -64,35 +58,46 @@ impl Network {
     /// and waited for (briefly) the first time.
     pub async fn directory(&self) -> Vec<Peer> {
         let Some(node) = self.node() else { return Vec::new() };
-        let asked = *self.asked.locked();
-        match asked {
-            None => {
-                *self.asked.locked() = Some(Instant::now());
-                let _ = tokio::time::timeout(FIRST_LOOK, node.peers()).await;
+        let (first, stale) = {
+            let mut asked = self.asked.locked();
+            let first = asked.is_none();
+            let stale = asked.is_none_or(|at| at.elapsed() >= FRESH_FOR);
+            if stale {
+                *asked = Some(Instant::now());
             }
-            Some(at) if at.elapsed() >= FRESH_FOR => {
-                *self.asked.locked() = Some(Instant::now());
-                let refresh = node.clone();
-                tokio::spawn(async move { refresh.peers().await });
-            }
-            Some(_) => {}
+            (first, stale)
+        };
+        if first {
+            let _ = tokio::time::timeout(FIRST_LOOK, node.peers()).await;
+        } else if stale {
+            let refresh = node.clone();
+            tokio::spawn(async move { refresh.peers().await });
         }
         node.directory().into_iter().filter(|p| !p.me).collect()
     }
 
-    /// Where a bot name points when it isn't one of this computer's: `name@computer`, or a bare
-    /// name exactly one other computer offers.
-    pub fn remote(&self, name: &str) -> Option<Result<Address>> {
-        let node = self.node()?;
-        if !name.contains('@') && self.bot_for(name).is_some() {
-            return None;
+    /// Where `name` points: a bot id, an address name, `name@` this computer or a bare name none of
+    /// its bots has are this computer's; `name@computer`, or a bare name one other computer offers,
+    /// is a bot there.
+    pub fn recipient(&self, name: &str) -> Result<Recipient> {
+        let (handle, computer) = name.rsplit_once('@').map_or((name, None), |(handle, c)| (handle, Some(c)));
+        let here = self.handles.locked().bot(handle);
+        let local = Ok(Recipient::Here(here.clone().unwrap_or_else(|| name.to_owned())));
+        let Some(node) = self.node() else { return local };
+        if computer.is_none() && here.is_some() {
+            return local;
         }
-        let address = node.resolve(name);
-        match &address {
-            Ok(a) if node.name().as_deref() == Some(&a.computer) => None,
-            Err(_) if !name.contains('@') => None,
-            _ => Some(address),
+        match node.resolve(name) {
+            Ok(address) if node.name().as_deref() == Some(&address.computer) => local,
+            Ok(address) => Ok(Recipient::There(address)),
+            Err(_) if computer.is_none() => local,
+            Err(error) => Err(error),
         }
+    }
+
+    /// This computer's bot behind an address name, if any.
+    pub fn bot_for(&self, handle: &str) -> Option<String> {
+        self.handles.locked().bot(handle)
     }
 }
 
@@ -113,25 +118,34 @@ async fn boot(hub: &Arc<Hub>) -> Result<Arc<Node>> {
     let connector: Connector = hub.store.kv_get(KV_CONNECTOR).as_deref().unwrap_or("public").parse()?;
     let (node, inbox) = Node::start(&dir(), &connector).await.context("couldn't start the network")?;
     let node = Arc::new(node);
-    *hub.network.node.write().unwrap_or_else(std::sync::PoisonError::into_inner) = Some(node.clone());
+    hub.network.node.set(node.clone()).map_err(|_| anyhow!("the network is already starting; try again"))?;
     publish(hub);
     tokio::spawn(crate::chat::team::remote::listen(hub.clone(), inbox));
     tracing::info!(computer = node.name().as_deref().unwrap_or("(none yet)"), "network on");
     Ok(node)
 }
 
-/// Offers this computer's visible bots to the network, under their address names.
+/// Offers this computer's visible bots to the network, under their address names. Called after
+/// every change to a bot's name, description or visibility.
 pub fn publish(hub: &Hub) {
     let Some(node) = hub.network.node() else { return };
-    let bots: Vec<_> = hub
-        .store
-        .bots()
-        .unwrap_or_default()
-        .into_iter()
-        .filter(|b| !b.deleted && !b.config.hidden && !b.config.is_group())
-        .map(|b| b.config)
-        .collect();
-    let handles = handles::Handles::of(bots.iter().map(|b| (b.id.clone(), b.name.clone())));
+    let bots = match crate::chat::team::visible_bots(&hub.store) {
+        Ok(bots) => bots,
+        Err(error) => {
+            tracing::warn!(error = format!("{error:#}"), "couldn't offer the bots to the network");
+            return;
+        }
+    };
+    let mut handles = hub.network.handles.locked();
+    let mut given: HashMap<String, String> =
+        hub.store.kv_get(KV_HANDLES).and_then(|v| serde_json::from_str(&v).ok()).unwrap_or_default();
+    let before = given.len();
+    *handles = handles::Handles::of(bots.iter().map(|b| (b.id.clone(), b.name.clone())), &mut given);
+    if given.len() != before
+        && let Err(error) = hub.store.kv_set(KV_HANDLES, &json!(given).to_string())
+    {
+        tracing::warn!(error = format!("{error:#}"), "couldn't save the bots' address names");
+    }
     let agents: Vec<(Agent, Reach)> = bots
         .iter()
         .filter_map(|b| {
@@ -139,7 +153,7 @@ pub fn publish(hub: &Hub) {
             Some((Agent { id, name: b.name.clone(), about: b.description.clone() }, Reach::App))
         })
         .collect();
-    *hub.network.handles.locked() = handles;
+    drop(handles);
     node.set_agents(agents);
 }
 

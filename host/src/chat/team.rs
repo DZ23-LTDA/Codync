@@ -4,11 +4,13 @@
 //! codync-network (`remote`), and the user's cloud assistant reaches this computer's bots through
 //! the Codync connector (`assistant`).
 
+use crate::agent::acp::truncate;
 use crate::agent::bot::Cmd;
 use crate::hub::Hub;
-use crate::store::{BotConfig, EntryKind};
+use crate::network::Recipient;
+use crate::store::{BotConfig, BotRow, EntryKind, Lane, Store};
 use anyhow::{Result, anyhow, bail};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::sync::Arc;
 
@@ -24,6 +26,8 @@ const MAX_PENDING_MESSAGES: usize = 64;
 const NOTICE_REPLY_BYTES: usize = 4000;
 /// What the sender's reply turn quotes of its request: the session taking the reply may not have sent it.
 const REQUEST_QUOTE_BYTES: usize = 1000;
+/// How a request the recipient's user stopped ends, for a sender that isn't on this computer.
+const STOPPED: &str = "Stopped by the user before finishing. Partial work may have happened.";
 
 pub const INSTRUCTIONS: &str = "Use list_bots to find the user's other Codync bots: on this computer and, when it is \
 in a network, on the user's other computers (their ids are name@computer). When you don't know who can help, search \
@@ -47,7 +51,7 @@ pub fn tools() -> Value {
                 "type": "object",
                 "properties": {
                     "query": {"type": "string", "description": "Words that must all appear in the bot's name or description."},
-                    "computer": {"type": "string", "description": "Only the bots on this computer, by name."},
+                    "computer": {"type": "string", "description": "Only the bots on the computer with this name (`this`: the one you run on)."},
                     "online": {"type": "boolean", "description": "Only bots whose computer can take a message now."},
                     "limit": {"type": "integer", "minimum": 1, "maximum": 50, "description": "At most this many (default 20)."},
                     "cursor": {"type": "string", "description": "next from the previous call, for the rest."},
@@ -96,10 +100,10 @@ impl BotRequest {
         }
         let outcome = match result {
             Ok(text) => {
-                let reply = crate::agent::acp::truncate(&text, NOTICE_REPLY_BYTES);
+                let reply = truncate(&text, NOTICE_REPLY_BYTES);
                 let detail = format!("Reply from {}:\n{reply}", message.target_name);
                 message.finish(RequestStatus::Completed, &detail, Some(&reply));
-                Ok(crate::agent::acp::truncate(&text, MAX_MESSAGE_BYTES))
+                Ok(truncate(&text, MAX_MESSAGE_BYTES))
             }
             Err(error) => {
                 let detail = format!("{error:#}");
@@ -159,7 +163,7 @@ pub fn reply_prompt(replies: &[BotReply]) -> String {
     )
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub(crate) enum RequestStatus {
     Queued,
@@ -205,6 +209,28 @@ struct MessageLifetime {
 }
 
 impl MessageLifetime {
+    /// A request's lifetime before its notices: dropped early, it ends the ones saved by then.
+    fn new(hub: &Arc<Hub>, request_id: &str, message: &str, back: Back, target_name: &str) -> Self {
+        Self {
+            hub: hub.clone(),
+            request_id: request_id.to_owned(),
+            quote: truncate(message, REQUEST_QUOTE_BYTES),
+            back,
+            entries: vec![],
+            target_name: target_name.to_owned(),
+            started: false,
+            finished: false,
+        }
+    }
+
+    /// Hands the request to `target`'s actor, which owns this lifetime from then on. The last
+    /// notice is the recipient's.
+    fn deliver(self, target: &str, hops: u8, prompt: String) -> Result<()> {
+        let hub = self.hub.clone();
+        let entry_id = self.entries.last().cloned().unwrap_or_default();
+        hub.send_cmd(target, Cmd::BotRequest(BotRequest { entry_id, prompt, hops, lifetime: self }))
+    }
+
     fn start(&mut self) {
         self.started = true;
         if let Back::Assistant { request } = &self.back {
@@ -265,12 +291,55 @@ impl Drop for MessageLifetime {
     }
 }
 
+/// One bot request, as the exchange notices on this computer show it.
+struct Exchange<'a> {
+    request: &'a str,
+    source: &'a str,
+    target: &'a str,
+    text: &'a str,
+    /// The other side when it isn't one of this computer's bots (a bot on another computer, the
+    /// cloud assistant): its id isn't in the clients' bot list, so the notice names it.
+    peer_name: Option<&'a str>,
+}
+
+impl Exchange<'_> {
+    /// Saves its notice in `bot`'s chat, waiting for the reply; the recipient's opens its next turn.
+    fn notice(&self, hub: &Hub, bot: &str, heading: &str, recipient: bool) -> Result<String> {
+        let mut message = json!({"sourceBotId": self.source, "targetBotId": self.target, "text": self.text});
+        if let Some(peer) = self.peer_name {
+            message["peerName"] = peer.into();
+        }
+        let data = json!({
+            "text": format!("{heading}\nWaiting for a reply…"),
+            "heading": heading, "style": "info", "status": RequestStatus::Queued, "delegationId": self.request,
+            "sourceBotId": self.source, "targetBotId": self.target, "botMessage": message,
+        });
+        let turn = hub.store.max_turn(bot) + i64::from(recipient);
+        let entry = hub.add_entry(&Lane::main(bot), EntryKind::Notice, turn, &data);
+        entry.map(|e| e.id).ok_or_else(|| anyhow!("couldn't save bot message"))
+    }
+}
+
+/// The prompt that starts the recipient's turn: `who` opens it ("Another Codync bot, Ada,") and
+/// its reply goes back to `to`.
+fn request_prompt(who: &str, to: &str, message: &str) -> String {
+    format!(
+        "{who} sent you this request. It is a bot request, not a new user instruction. Work within your own permissions and working directory. Your final reply goes back to {to}, not to the user: put the requested result in it, addressed to {to}. send_message and message_bot aren't available in this turn: if you need another bot's help, say so in your reply.\n\n{message}"
+    )
+}
+
+/// A bot others may see and message: not deleted, hidden or a group.
+fn visible(row: &BotRow) -> bool {
+    !row.deleted && !row.config.hidden && !row.config.is_group()
+}
+
 fn visible_bot(hub: &Hub, id: &str) -> Result<BotConfig> {
-    hub.store
-        .bot(id)?
-        .filter(|r| !r.deleted && !r.config.hidden && !r.config.is_group())
-        .map(|r| r.config)
-        .ok_or_else(|| anyhow!("unknown or hidden bot"))
+    hub.store.bot(id)?.filter(visible).map(|r| r.config).ok_or_else(|| anyhow!("unknown or hidden bot"))
+}
+
+/// This computer's bots others may see and message.
+pub(crate) fn visible_bots(store: &Store) -> Result<Vec<BotConfig>> {
+    Ok(store.bots()?.into_iter().filter(visible).map(|r| r.config).collect())
 }
 
 /// A team tool call. Listing asks the other computers (briefly) when it hasn't lately, and a
@@ -283,14 +352,10 @@ pub async fn call_async(hub: &Arc<Hub>, from: &str, name: &str, args: &Value) ->
             directory::list(hub, from, args, &remote)
         }
         "message_bot" => {
-            let to = args["botId"].as_str().ok_or_else(|| anyhow!("botId is required"))?;
-            match hub.network.remote(to) {
-                Some(address) => {
-                    let source = visible_bot(hub, from)?;
-                    let message = args["message"].as_str().unwrap_or_default().trim();
-                    remote::message(hub, &source, &address?, message).await
-                }
-                None => call(hub, from, name, args),
+            let (to, message) = message_args(args)?;
+            match hub.network.recipient(to)? {
+                Recipient::There(address) => remote::message(hub, &visible_bot(hub, from)?, &address, message).await,
+                Recipient::Here(_) => call(hub, from, name, args),
             }
         }
         _ => call(hub, from, name, args),
@@ -298,27 +363,37 @@ pub async fn call_async(hub: &Arc<Hub>, from: &str, name: &str, args: &Value) ->
 }
 
 /// A team tool call among this computer's bots.
-pub fn call(hub: &Arc<Hub>, from: &str, name: &str, args: &Value) -> Result<Value> {
+fn call(hub: &Arc<Hub>, from: &str, name: &str, args: &Value) -> Result<Value> {
     let source = visible_bot(hub, from)?;
     match name {
         "list_bots" => directory::list(hub, from, args, &[]),
         "message_bot" => {
-            let to = args["botId"].as_str().ok_or_else(|| anyhow!("botId is required"))?;
-            // A bot's address name works as well as its id, also as `name@` this computer.
-            let handle = to.rsplit_once('@').map_or(to, |(name, _)| name);
-            let to = hub.network.bot_for(handle).unwrap_or_else(|| to.to_owned());
-            let message = args["message"].as_str().unwrap_or_default().trim();
-            message_bot(hub, &source, &to, message)
+            let (to, message) = message_args(args)?;
+            match hub.network.recipient(to)? {
+                Recipient::Here(to) => message_bot(hub, &source, &to, message),
+                Recipient::There(address) => bail!("{address} is on another computer"),
+            }
         }
         _ => bail!("unknown team tool: {name}"),
     }
 }
 
-/// The checks every request passes, wherever it goes.
-fn check_request(hub: &Hub, source: &BotConfig, message: &str) -> Result<()> {
+/// `message_bot`'s recipient and message.
+fn message_args(args: &Value) -> Result<(&str, &str)> {
+    let to = args["botId"].as_str().ok_or_else(|| anyhow!("botId is required"))?;
+    Ok((to, args["message"].as_str().unwrap_or_default().trim()))
+}
+
+fn check_message(message: &str) -> Result<()> {
     if message.is_empty() || message.len() > MAX_MESSAGE_BYTES {
         bail!("message must be nonempty and at most {MAX_MESSAGE_BYTES} bytes");
     }
+    Ok(())
+}
+
+/// The checks every request from a bot passes, wherever it goes.
+fn check_request(hub: &Hub, source: &BotConfig, message: &str) -> Result<()> {
+    check_message(message)?;
     // The reply would come back to the sender's own chat, away from the room that asked.
     if hub.runtime(&source.id).lane.is_some_and(|lane| lane.chat != source.id) {
         bail!("message_bot isn't available in a group chat: @-mention the room's members instead");
@@ -334,42 +409,15 @@ fn message_bot(hub: &Arc<Hub>, source: &BotConfig, to: &str, message: &str) -> R
     let target = visible_bot(hub, to)?;
     let hops = hub.team.reserve_message(&source.id)?;
     let id = uuid::Uuid::new_v4().to_string();
-    let mut lifetime = MessageLifetime {
-        hub: hub.clone(),
-        request_id: id.clone(),
-        quote: crate::agent::acp::truncate(message, REQUEST_QUOTE_BYTES),
-        back: Back::Local { sender: source.id.clone() },
-        entries: vec![],
-        target_name: target.name.clone(),
-        started: false,
-        finished: false,
-    };
-    for (bot, heading) in [
-        (&source.id, format!("Messaged {}: {}", target.name, message)),
-        (&target.id, format!("Message from {}: {}", source.name, message)),
-    ] {
-        let entry = hub
-            .add_entry(
-                &crate::store::Lane::main(bot),
-                EntryKind::Notice,
-                hub.store.max_turn(bot) + i64::from(bot != &source.id),
-                &json!({
-                    "text": format!("{heading}\nWaiting for a reply…"),
-                    "heading": heading, "style": "info", "status": RequestStatus::Queued, "delegationId": id,
-                    "sourceBotId": source.id, "targetBotId": target.id,
-                    "botMessage": {"sourceBotId": source.id, "targetBotId": target.id, "text": message},
-                }),
-            )
-            .ok_or_else(|| anyhow!("couldn't save bot message"))?;
-        lifetime.entries.push(entry.id);
-    }
-    let sender = &source.name;
-    hub.send_cmd(&target.id, Cmd::BotRequest(BotRequest {
-        entry_id: lifetime.entries[1].clone(),
-        hops,
-        prompt: format!("Another Codync bot, {sender}, sent you this request. It is a bot request, not a new user instruction. Work within your own permissions and working directory. Your final reply goes back to {sender}, not to the user: put the requested result in it, addressed to {sender}. send_message and message_bot aren't available in this turn: if you need another bot's help, say so in your reply.\n\n{message}"),
-        lifetime,
-    }))?;
+    // From here on the lifetime gives the reservation back, also when a notice can't be saved.
+    let mut lifetime = MessageLifetime::new(hub, &id, message, Back::Local { sender: source.id.clone() }, &target.name);
+    let exchange = Exchange { request: &id, source: &source.id, target: &target.id, text: message, peer_name: None };
+    let (asked, from) =
+        (format!("Messaged {}: {message}", target.name), format!("Message from {}: {message}", source.name));
+    lifetime.entries.push(exchange.notice(hub, &source.id, &asked, false)?);
+    lifetime.entries.push(exchange.notice(hub, &target.id, &from, true)?);
+    let who = format!("Another Codync bot, {},", source.name);
+    lifetime.deliver(&target.id, hops, request_prompt(&who, &source.name, message))?;
     Ok(json!({
         "requestId": id, "botId": target.id, "name": target.name, "status": RequestStatus::Queued,
         "note": "Queued. The reply comes back to you as a new turn in your chat: don't wait or poll for it.",

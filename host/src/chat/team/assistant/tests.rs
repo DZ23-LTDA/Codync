@@ -1,5 +1,6 @@
 use super::super::tests::Fixture;
 use super::*;
+use crate::agent::bot::Cmd;
 use crate::remote::cloud::Owner;
 
 fn call(hub: &Arc<Hub>, user: &str, tool: &str, args: &Value) -> Value {
@@ -33,5 +34,28 @@ async fn the_cloud_assistant_needs_the_switch_and_the_account_and_reads_replies_
     let notice = history.into_iter().find(|e| e.data["delegationId"] == *request).unwrap();
     assert_eq!(notice.data["botMessage"]["peerName"], NAME);
     refused(&call(hub, "user_1", "message_bot", &json!({"botId": "nobody", "message": "hi"})), "unknown or hidden bot");
+    f.shutdown().await;
+}
+
+#[tokio::test]
+async fn read_replies_tells_a_failed_request_from_a_stopped_one() {
+    let f = Fixture::new();
+    let hub = &f.hub;
+    set_enabled(hub, true).unwrap();
+    cloud::update_status(hub, |s| s.owner = Some(Owner { user_id: "user_1".into(), email: None }));
+    let ask = |message: &str| {
+        let sent = call(hub, "user_1", "message_bot", &json!({"botId": "b", "message": message}));
+        sent["result"]["requestId"].as_str().unwrap().to_owned()
+    };
+    let read = |request: &str| hub.assistant.read(Some(request))["replies"][0].clone();
+
+    let failed = ask("FAIL agent error");
+    f.until(|| read(&failed)["status"] == "failed").await;
+    assert!(read(&failed)["detail"].as_str().is_some_and(|d| !d.is_empty()), "{}", read(&failed));
+    let stopped = ask("BLOCK long work");
+    f.until(|| read(&stopped)["status"] == "sent").await;
+    hub.send_cmd("b", Cmd::Stop).unwrap();
+    f.until(|| read(&stopped)["status"] == "cancelled").await;
+    assert_eq!(read(&stopped)["detail"], STOPPED);
     f.shutdown().await;
 }

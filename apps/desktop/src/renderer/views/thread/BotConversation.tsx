@@ -18,7 +18,7 @@ export function BotMessageRow({ exchanges, open }: { exchanges: BotExchange[]; o
   const store = useStore()
   const { peerId, peerName, count, failed } = groupSummary(exchanges)
   const peer = store.bots.get(peerId)
-  const name = peer ? store.authorName(peerId) : (peerName ?? store.authorName(peerId))
+  const name = store.authorName(peerId, peerName)
   const lead = count > 1 ? `${count} messages with` : verbOf(exchanges[0]!)
   return (
     <button
@@ -36,10 +36,16 @@ export function BotMessageRow({ exchanges, open }: { exchanges: BotExchange[]; o
   )
 }
 
+/** The conversation's peer, with the name it goes by when it is on another computer. */
+interface Peer {
+  id: string
+  name?: string
+}
+
 /** The pair a conversation is between, for its header: the chat's own bot, then its peer. */
-function BotPair({ botId, peerId, peerName }: { botId: string; peerId: string; peerName?: string }) {
+function BotPair({ botId, peer }: { botId: string; peer: Peer }) {
   const store = useStore()
-  const name = (id: string) => (!store.bots.get(id) && id === peerId && peerName) || store.authorName(id)
+  const name = (id: string) => store.authorName(id, id === peer.id ? peer.name : undefined)
   const label = (id: string) => (
     <HStack as="span" gap={6} shrink>
       {store.bots.get(id) ? <BotAvatar bot={store.bots.get(id)!} size={20} animated={false} /> : null}
@@ -47,10 +53,10 @@ function BotPair({ botId, peerId, peerName }: { botId: string; peerId: string; p
     </HStack>
   )
   return (
-    <HStack as="span" gap={8} aria-label={`${name(botId)} and ${name(peerId)}`}>
+    <HStack as="span" gap={8} aria-label={`${name(botId)} and ${name(peer.id)}`}>
       {label(botId)}
       <Icon name="arrow.left.arrow.right" size={11} color="var(--tertiary)" />
-      {label(peerId)}
+      {label(peer.id)}
     </HStack>
   )
 }
@@ -64,7 +70,7 @@ export function BotConversationView({ botId, peerId }: { botId: string; peerId: 
   const scroller = useRef<HTMLDivElement>(null)
   const exchanges = botConversation(fetched ?? [], store.allEntries(botId), peerId)
   const rows = buildBotConversation(exchanges)
-  const peerName = peerNameIn(exchanges)
+  const peer = { id: peerId, name: peerNameIn(exchanges) }
 
   useEffect(() => {
     const el = scroller.current
@@ -73,21 +79,21 @@ export function BotConversationView({ botId, peerId }: { botId: string; peerId: 
 
   return (
     <div className="bot-conversation">
-      <ModalHeader title={<BotPair botId={botId} peerId={peerId} peerName={peerName} />} />
+      <ModalHeader title={<BotPair botId={botId} peer={peer} />} />
       <div className="bot-conversation-scroll" ref={scroller}>
         <div className="bot-conversation-rows">
           {error ? <Text as="div" size="footnote" tone="danger" className="bot-conversation-note">{error}</Text> : null}
           {!error && fetched && rows.length === 0 ? <Text as="div" size="footnote" tone="tertiary" className="bot-conversation-note">{tr(`No messages yet.`)}</Text> : null}
-          {rows.map((row) => <ConversationRow key={row.id} row={row} peer={{ id: peerId, name: peerName }} />)}
+          {rows.map((row) => <ConversationRow key={row.id} row={row} peer={peer} />)}
         </div>
       </div>
     </div>
   )
 }
 
-function ConversationRow({ row, peer }: { row: BotConversationRow; peer: { id: string; name?: string } }) {
+function ConversationRow({ row, peer }: { row: BotConversationRow; peer: Peer }) {
   const store = useStore()
-  const name = (id: string) => (!store.bots.get(id) && id === peer.id && peer.name) || store.authorName(id)
+  const name = (id: string) => store.authorName(id, id === peer.id ? peer.name : undefined)
   switch (row.kind) {
     case 'separator':
       return <TimeSeparator date={row.at} />

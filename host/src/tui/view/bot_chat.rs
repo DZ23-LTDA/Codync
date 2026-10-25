@@ -4,7 +4,7 @@ use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
 use ratatui::text::{Line, Span};
 
-use super::super::app::{App, ConversationRow, Outcome, conversation, rows};
+use super::super::app::{App, ConversationRow, Exchange, Outcome, conversation, rows};
 use super::super::manage::BotChatSheet;
 use super::super::md::{self, width as w};
 use super::buffer::{centered, frame_box, hline, put, put_line, u};
@@ -13,12 +13,14 @@ use super::style::{person, theme};
 use super::time::when;
 use super::transcript::name_style;
 
-/// A bot of this computer by its own name; another computer's by the name its exchanges carry.
-fn name_and_color(app: &App, id: &str, remote: Option<&str>) -> (String, String) {
-    app.bots.get(id).map_or_else(
-        || (remote.unwrap_or("A deleted bot").to_owned(), "gray".to_owned()),
-        |b| (b.name.clone(), b.color.clone()),
-    )
+/// The conversation's peer: its id, and its name when it is on another computer (the exchanges
+/// carry it).
+type Peer<'a> = (&'a str, Option<&'a str>);
+
+/// A bot of this computer by its own name; the peer on another computer by the name it goes by.
+fn name_and_color(app: &App, id: &str, (peer, remote): Peer) -> (String, String) {
+    let fallback = remote.filter(|_| id == peer).unwrap_or("A deleted bot");
+    app.bots.get(id).map_or_else(|| (fallback.to_owned(), "gray".to_owned()), |b| (b.name.clone(), b.color.clone()))
 }
 
 pub(super) fn bot_chat(buf: &mut Buffer, area: Rect, app: &App, c: &BotChatSheet) {
@@ -28,10 +30,12 @@ pub(super) fn bot_chat(buf: &mut Buffer, area: Rect, app: &App, c: &BotChatSheet
     if inner.height < 5 {
         return;
     }
-    let remote = remote_name(app, c);
+    // While the history loads, the live entries alone.
+    let exchanges = conversation(&c.bot, c.fetched.as_deref().unwrap_or_default(), app.entries.get(&c.bot), &c.peer);
+    let peer = (c.peer.as_str(), exchanges.iter().find_map(|x| x.peer_name.as_deref()));
     let mut pill = vec![Span::raw(" ")];
     for (i, id) in [&c.bot, &c.peer].into_iter().enumerate() {
-        let (name, color) = name_and_color(app, id, remote.as_deref().filter(|_| *id == c.peer));
+        let (name, color) = name_and_color(app, id, peer);
         if i == 1 {
             pill.push(Span::styled(" ⇄ ", t.dim));
         }
@@ -42,7 +46,7 @@ pub(super) fn bot_chat(buf: &mut Buffer, area: Rect, app: &App, c: &BotChatSheet
     put(buf, inner.x, inner.bottom() - 1, inner.width, " ↑↓ scroll · esc close", t.dim.patch(t.panel));
 
     let body = Rect::new(inner.x, inner.y + 2, inner.width, inner.height - 3);
-    let lines = body_lines(app, c, usize::from(body.width));
+    let lines = body_lines(app, c, &exchanges, peer, usize::from(body.width));
     let h = usize::from(body.height);
     let max = lines.len().saturating_sub(h);
     c.max_scroll.set(max);
@@ -53,26 +57,16 @@ pub(super) fn bot_chat(buf: &mut Buffer, area: Rect, app: &App, c: &BotChatSheet
     }
 }
 
-/// The peer's name when it is on another computer, from the exchanges with it.
-fn remote_name(app: &App, c: &BotChatSheet) -> Option<String> {
-    let fetched = c.fetched.as_deref().unwrap_or_default();
-    conversation(&c.bot, fetched, app.entries.get(&c.bot), &c.peer).into_iter().find_map(|x| x.peer_name)
-}
-
-fn body_lines(app: &App, c: &BotChatSheet, width: usize) -> Vec<Line<'static>> {
+fn body_lines(app: &App, c: &BotChatSheet, exchanges: &[Exchange], peer: Peer, width: usize) -> Vec<Line<'static>> {
     let t = theme();
-    let Some(fetched) = &c.fetched else {
+    if c.fetched.is_none() {
         return vec![Line::from(Span::styled(" Loading…", t.dim))];
-    };
-    let live = app.entries.get(&c.bot);
-    let exchanges = conversation(&c.bot, fetched, live, &c.peer);
-    let remote = exchanges.iter().find_map(|x| x.peer_name.clone());
-    let remote_for = |id: &str| remote.as_deref().filter(|_| id == c.peer);
+    }
     if exchanges.is_empty() {
         return vec![Line::from(Span::styled(" No messages yet.", t.dim))];
     }
     let mut out: Vec<Line<'static>> = vec![];
-    for row in rows(&exchanges) {
+    for row in rows(exchanges) {
         match row {
             ConversationRow::Separator(at) => {
                 if !out.is_empty() {
@@ -85,7 +79,7 @@ fn body_lines(app: &App, c: &BotChatSheet, width: usize) -> Vec<Line<'static>> {
             ConversationRow::Message { author, text, shows_author } => {
                 if shows_author {
                     out.push(Line::default());
-                    let (name, color) = name_and_color(app, &author, remote_for(&author));
+                    let (name, color) = name_and_color(app, &author, peer);
                     out.push(Line::from(vec![
                         Span::raw(" "),
                         person(app, &author),
@@ -101,7 +95,7 @@ fn body_lines(app: &App, c: &BotChatSheet, width: usize) -> Vec<Line<'static>> {
                     let detail = if detail.is_empty() { "Didn't complete.".to_owned() } else { detail };
                     out.extend(md::wrap(&[Span::styled(detail, t.red)], width, &[Span::raw(" ")], &[Span::raw(" ")]));
                 } else {
-                    let (name, _) = name_and_color(app, &awaiting, remote_for(&awaiting));
+                    let (name, _) = name_and_color(app, &awaiting, peer);
                     out.push(Line::from(Span::styled(format!(" Waiting for {name}…"), t.dim)));
                 }
             }

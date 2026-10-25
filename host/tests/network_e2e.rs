@@ -84,8 +84,13 @@ fn is_final(e: &Value) -> bool {
     e["kind"] == "agent" && e["data"]["final"] == true
 }
 
-#[tokio::test]
-async fn a_bot_messages_a_bot_on_another_computer_and_relays_its_reply() {
+/// An exchange notice that ended with `status`.
+fn exchange(status: &'static str) -> impl Fn(&Value) -> bool {
+    move |e| e["kind"] == "notice" && e["data"]["botMessage"].is_object() && e["data"]["status"] == status
+}
+
+/// Two hosts in one network: desk (the owner) with a Reviewer bot, laptop with a Lead bot.
+async fn two_computers() -> (Host, Host, String, String) {
     let (desk, laptop) = (Host::start().await, Host::start().await);
     assert_eq!(desk.call("networkStatus", json!({})).await["joined"], false);
     let created = desk.call("networkCreate", json!({"name": "desk", "connector": "private"})).await;
@@ -94,9 +99,14 @@ async fn a_bot_messages_a_bot_on_another_computer_and_relays_its_reply() {
     let invite = desk.call("networkInvite", json!({})).await["invite"].as_str().unwrap().to_owned();
     let joined = laptop.call("networkJoin", json!({"invite": invite, "name": "laptop", "connector": "private"})).await;
     assert_eq!((joined["computer"].as_str(), joined["role"].as_str()), (Some("laptop"), Some("member")));
-
     let reviewer = desk.bot("Reviewer").await;
     let lead = laptop.bot("Lead").await;
+    (desk, laptop, reviewer, lead)
+}
+
+#[tokio::test]
+async fn a_bot_messages_a_bot_on_another_computer_and_relays_its_reply() {
+    let (desk, laptop, reviewer, lead) = two_computers().await;
     let peers = laptop.call("networkPeers", json!({})).await;
     let desk_row = peers["computers"].as_array().unwrap().iter().find(|c| c["name"] == "desk").unwrap().clone();
     assert_eq!((desk_row["online"].as_bool(), desk_row["role"].as_str()), (Some(true), Some("owner")));
@@ -114,19 +124,38 @@ async fn a_bot_messages_a_bot_on_another_computer_and_relays_its_reply() {
     assert_eq!(relayed["data"]["text"], "Relayed: reply: PERMISSION review the changes");
 
     // Each side's exchange notice ends completed, naming the bot on the other computer.
-    let notice = |e: &Value| e["kind"] == "notice" && e["data"]["botMessage"].is_object();
-    let sent = laptop.wait_for(&lead, |e| notice(e) && e["data"]["status"] == "completed").await;
+    let sent = laptop.wait_for(&lead, exchange("completed")).await;
     assert_eq!(sent["data"]["botMessage"]["targetBotId"], "reviewer@desk");
     assert_eq!(sent["data"]["botMessage"]["peerName"], "Reviewer on desk");
     assert_eq!(sent["data"]["botMessage"]["reply"], "reply: PERMISSION review the changes");
-    let taken = desk.wait_for(&reviewer, |e| notice(e) && e["data"]["status"] == "completed").await;
+    let taken = desk.wait_for(&reviewer, exchange("completed")).await;
     assert_eq!(taken["data"]["botMessage"]["sourceBotId"], "lead@laptop");
     assert_eq!(taken["data"]["botMessage"]["peerName"], "Lead on laptop");
 
     // The pair's history is there for the conversation sheet on either side.
     let history = laptop.call("botConversation", json!({"botId": lead, "peerId": "reviewer@desk"})).await;
     assert_eq!(history["entries"].as_array().unwrap().len(), 1);
-    // Phones can't change who is in the network.
-    let members_only = laptop.call("networkStatus", json!({})).await;
-    assert_eq!(members_only["computers"].as_array().unwrap().len(), 2);
+    let status = laptop.call("networkStatus", json!({})).await;
+    assert_eq!(status["computers"].as_array().unwrap().len(), 2);
+}
+
+#[tokio::test]
+async fn a_stopped_or_failed_request_ends_the_senders_notice() {
+    let (desk, laptop, reviewer, lead) = two_computers().await;
+    // The desk's user stops the reviewer while it waits for approval: the lead's notice ends
+    // cancelled, and nothing wakes the lead.
+    laptop.call("send", json!({"botId": lead, "text": "DELEGATE reviewer@desk PERMISSION then stop"})).await;
+    desk.wait_for(&reviewer, |e| e["kind"] == "permission" && e["data"]["status"] == "pending").await;
+    desk.call("stop", json!({"botId": reviewer})).await;
+    let stopped = laptop.wait_for(&lead, exchange("cancelled")).await;
+    assert!(stopped["data"]["botMessage"]["detail"].as_str().unwrap().starts_with("Reviewer on desk was stopped"));
+
+    // A turn that fails comes back as a failure, in a reply turn.
+    laptop.call("send", json!({"botId": lead, "text": "DELEGATE reviewer@desk FAIL on purpose"})).await;
+    laptop.wait_for(&lead, exchange("failed")).await;
+    let relayed = laptop.wait_for(&lead, |e| is_final(e) && e["data"]["text"] != "Message queued").await;
+    assert_eq!(relayed["data"]["text"], "Relayed: failed");
+    let history = laptop.call("history", json!({"botId": lead})).await;
+    let finals = history["entries"].as_array().unwrap().iter().filter(|e| is_final(e)).count();
+    assert_eq!(finals, 3, "two requests and one reply turn: {history}");
 }
