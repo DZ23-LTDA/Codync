@@ -21,7 +21,8 @@ codync-host network peers | promote <computer> | remove <computer> [--cascade] |
 `create` prints the **recovery code** once: the network's root key, kept on no computer. The connector picks the
 fallback when two computers can't connect directly: iroh's public relays (`public`, the default), the user's own
 `iroh-relay` (a URL), or none (`private`: same network, Tailscale or a VPN). A computer's name defaults to its host
-name; a taken name gets a number (`laptop-2`).
+name; a taken name gets a number (`laptop-2`), also when two admins admit the same name before their copies meet
+(the later admission gets the number, on every copy).
 
 ## Who may do what
 
@@ -65,8 +66,10 @@ that was off learns of a removal.
   from a bot the computer no longer offers (renamed or deleted while it worked).
 - Exchange notices carry `botMessage.peerName` ("Reviewer on desk") for the bot on the other computer, whose id
   isn't in this computer's bot list; every client shows that name in the row, the pair sheet and its author labels.
-- A letter to a computer that is away waits in the sender's outbox for up to a day. The chain's hop limit counts
-  across computers (replies carry it back), and the receiving computer enforces its own budgets:
+- A letter to a computer that is away waits in the sender's outbox for up to a day, and so does one for a computer
+  that has started but not offered its bots yet (it answers *later*; offering them calls everyone back). A reply
+  reaches its request even when the asking bot was renamed or hidden meanwhile. The chain's hop limit counts
+  across computers (replies carry it back, one more handoff each), and the receiving computer enforces its own budgets:
   8 handoffs per chain, a burst of 5 messages per pair of agents then one every 2 minutes, the same words twice in
   10 minutes refused. A letter that isn't a request (a notice, or a reply nobody waits for after a restart) shows as
   a "Note from …" notice in the bot's chat.
@@ -82,6 +85,9 @@ that was off learns of a removal.
 - Bots can't reach Claude Code or Codex sessions on another computer through the host (the standalone daemon can).
 - The cloud assistant connector ([cloud assistants](cloud-assistants.md)) reaches only the bots of the computer it
   talks to, not that computer's network.
+- Each computer's share of the roster is capped (256 entries) and keeps its oldest: an owner or admin that has
+  made 256 admissions, promotions and removals can't make more. Hellos sending changes since the last one, instead
+  of the whole roster, would lift the cap.
 
 ## Code and verification
 
