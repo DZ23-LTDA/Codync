@@ -14,6 +14,7 @@ import { basename, dirname, join, resolve } from 'node:path'
 import { setTimeout as delay } from 'node:timers/promises'
 import { fileURLToPath } from 'node:url'
 import { parseArgs } from 'node:util'
+import { mintTicket } from './dev-account.mjs'
 import { SANDBOX_PREFIX, sandboxName, sandboxPorts } from '../src/shared/dev-sandbox.ts'
 
 const desktop = resolve(dirname(fileURLToPath(import.meta.url)), '..')
@@ -151,6 +152,14 @@ async function sandbox() {
     ...process.env, CODYNC_HOME: home, CODYNC_PORT: String(port),
     ...(cdp ? { CODYNC_REMOTE_DEBUG: String(cdp) } : {}),
     ...(flags.onboarding ? {} : { CODYNC_DEV_SKIP_ONBOARDING: '1' }),
+  }
+  // The saved session lives in desktop/account.bin; a token is only needed while it is missing.
+  if (!existsSync(join(home, 'desktop/account.bin'))) {
+    const account = await mintTicket(name).catch((e) => console.error(`Test account skipped: ${e.message}`))
+    if (account) {
+      appEnv.CODYNC_DEV_SIGN_IN_TICKET = account.token
+      console.log(`  test account               ${account.email}\n`)
+    }
   }
   app = startApp(appEnv)
   app.child.on('exit', (code) => stop(code ?? 0))
