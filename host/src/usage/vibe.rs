@@ -282,8 +282,9 @@ mod tests {
         }
         let earlier = std::time::UNIX_EPOCH + std::time::Duration::from_millis(u64::try_from(start - 60_000).unwrap());
         let later = std::time::UNIX_EPOCH + std::time::Duration::from_millis(u64::try_from(start + 60_000).unwrap());
-        std::fs::File::open(stale.join("messages.jsonl")).unwrap().set_modified(earlier).unwrap();
-        std::fs::File::open(fresh.join("messages.jsonl")).unwrap().set_modified(later).unwrap();
+        // Windows refuses to change the time of a read-only handle.
+        std::fs::File::options().write(true).open(stale.join("messages.jsonl")).unwrap().set_modified(earlier).unwrap();
+        std::fs::File::options().write(true).open(fresh.join("messages.jsonl")).unwrap().set_modified(later).unwrap();
         let windows = windows_in(&root, start, now);
         let _ = std::fs::remove_dir_all(&root);
         assert_eq!(windows[0].text.as_deref(), Some("100 tokens"));
