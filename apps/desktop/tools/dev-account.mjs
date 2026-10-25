@@ -1,7 +1,7 @@
 // A Clerk test account for `npm run dev` sandboxes: finds or creates `sandbox-<name>+clerk_test@example.com`
 // in the Clerk *development* instance and mints a one-time sign-in token the app trades for a session
 // (account.ts, `CODYNC_DEV_SIGN_IN_TICKET`). The secret key comes from CODYNC_CLERK_SECRET_KEY or the git-ignored
-// `.env` in the main checkout's root (every worktree reads that one file); only `sk_test_` keys are used,
+// `.env.development` in the main checkout's root (every worktree reads that one file); only `sk_test_` keys are used,
 // so production is never touched.
 import { spawnSync } from 'node:child_process'
 import { existsSync, readFileSync } from 'node:fs'
@@ -12,10 +12,10 @@ import { devClerkSecretKey } from '../src/shared/dev-sandbox.ts'
 const API = 'https://api.clerk.com/v1'
 
 export function secretKey() {
-  // A linked worktree's git common dir is the main checkout's `.git`, so its parent holds the shared `.env`.
+  // A linked worktree's git common dir is the main checkout's `.git`, so its parent holds the shared `.env.development`.
   const here = dirname(fileURLToPath(import.meta.url))
   const git = spawnSync('git', ['rev-parse', '--git-common-dir'], { cwd: here, encoding: 'utf8' })
-  const file = git.status === 0 ? resolve(here, git.stdout.trim(), '..', '.env') : null
+  const file = git.status === 0 ? resolve(here, git.stdout.trim(), '..', '.env.development') : null
   return devClerkSecretKey(process.env.CODYNC_CLERK_SECRET_KEY, file && existsSync(file) ? readFileSync(file, 'utf8') : undefined)
 }
 
