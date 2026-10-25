@@ -3,7 +3,7 @@ name: Codync
 options:
   bundleIdPrefix: com.pokai
   deploymentTarget:
-    iOS: "18.0"
+    iOS: "26.0"
     macOS: "14.0"
   createIntermediateGroups: true
   fileTypes:
