@@ -63,3 +63,20 @@ private struct Offline: Error {}
     await catalog.fill(size: 10) { _, _ in throw Offline() }
     #expect(catalog.page == 2 && catalog.error != nil)
 }
+
+@Test @MainActor func anEmptyFirstPageThatContinuesReadsOnToRows() async {
+    let catalog = ConnectorCatalog<CatalogItem>()
+    await catalog.load(search: "search") { _, cursor in
+        switch cursor {
+        case nil: ([], "a")
+        case "a": ([], "b")
+        default: ([CatalogItem(id: 1), CatalogItem(id: 2)], "c")
+        }
+    }
+    #expect(catalog.items.items.count == 2 && catalog.cursor == "c")
+
+    // Past the asks it allows, an empty answer reads as no results, cursor and all.
+    let endless = ConnectorCatalog<CatalogItem>()
+    await endless.load(search: "none") { _, cursor in ([], (cursor ?? "") + "x") }
+    #expect(endless.items.isEmpty && endless.cursor == "xxxx")
+}

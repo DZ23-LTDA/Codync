@@ -37,4 +37,23 @@ class ConnectorCatalogTest {
         assertEquals("offline", catalog.error)
         assertFalse(catalog.loadingMore)
     }
+
+    @Test fun anEmptyFirstPageThatContinuesReadsOnToRows() = runBlocking {
+        val catalog = ConnectorCatalog<Int>({ it.toString() }) { _, cursor ->
+            when (cursor) {
+                null -> emptyList<Int>() to "a"
+                "a" -> emptyList<Int>() to "b"
+                else -> listOf(1, 2) to "c"
+            }
+        }
+        catalog.load("search")
+        assertEquals(2, catalog.items.items.size)
+        assertEquals("c", catalog.cursor)
+
+        // Past the asks it allows, an empty answer reads as no results, cursor and all.
+        val endless = ConnectorCatalog<Int>({ it.toString() }) { _, cursor -> emptyList<Int>() to "${cursor.orEmpty()}x" }
+        endless.load("none")
+        assertEquals(0, endless.items.items.size)
+        assertEquals("xxxx", endless.cursor)
+    }
 }

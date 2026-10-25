@@ -23,6 +23,8 @@ enum CatalogPaging {
     /// Two agent tiles across, three rows: a page has no leftover card.
     static let phonePageSize = 6
     static let pageSizes = [6, 10, 20, 50]
+    /// Further registry pages a search reads when its first answer is empty but continues.
+    static let emptyPageAsks = 3
 
     /// Loaded rows split into pages. While the registry still has a cursor, one more page is offered so the bar is never 1 / 1 for a list that continues.
     static func pageCount(_ count: Int, size: Int = pageSize, hasMore: Bool = false) -> Int {
@@ -79,8 +81,17 @@ final class ConnectorCatalog<Item: Identifiable> {
         loadingMore = false
         defer { if self.request == request { loading = false } }
         do {
-            let first = try await fetch(search, nil)
+            var first = try await fetch(search, nil)
             guard !Task.isCancelled, self.request == request else { return }
+            // The host reads past registry pages with nothing to install only while the app waits for its
+            // answer. An empty first page that still has a cursor gets a few more asks before it reads
+            // as no results: a phone has no other way to reach the rows after it.
+            var asks = 0
+            while first.items.isEmpty, let next = first.next, asks < CatalogPaging.emptyPageAsks {
+                asks += 1
+                first = try await fetch(search, next)
+                guard !Task.isCancelled, self.request == request else { return }
+            }
             items.replace(with: first.items)
             cursor = first.next
             page = 0

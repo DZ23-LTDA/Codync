@@ -35,8 +35,18 @@ internal class ConnectorCatalog<T>(
         val mine = ++request
         query = search; loading = true; loadingMore = false
         try {
-            val (rows, next) = fetch(search, null)
+            var (rows, next) = fetch(search, null)
             if (request != mine) return
+            // The host reads past registry pages with nothing to install only while the app waits for its
+            // answer. An empty first page that still has a cursor gets a few more asks before it reads as
+            // no results: a phone has no other way to reach the rows after it.
+            var asks = 0
+            while (rows.isEmpty() && !next.isNullOrBlank() && asks < EMPTY_PAGE_ASKS) {
+                asks++
+                val more = fetch(search, next)
+                if (request != mine) return
+                rows = more.first; next = more.second
+            }
             items = CatalogPage<T>().append(rows, id); cursor = next?.takeIf(String::isNotBlank); page = 0; error = null
         } catch (cancelled: CancellationException) { throw cancelled }
         catch (failure: Exception) {
@@ -75,3 +85,6 @@ internal class ConnectorCatalog<T>(
         } finally { if (request == mine) loadingMore = false }
     }
 }
+
+/** Further registry pages a search reads when its first answer is empty but continues (iOS `emptyPageAsks`). */
+internal const val EMPTY_PAGE_ASKS = 3
