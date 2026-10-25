@@ -14,7 +14,7 @@ When this computer is in a network with the user's other computers, `list_bots` 
 `name@computer`) and `message_bot` reaches them: the request travels as a letter, runs in that bot's chat on its
 computer, and the reply comes back as the same reply turn. `list_bots` takes `query`, `computer`, `online`, `limit`
 and `cursor`. Notices for such an exchange carry `botMessage.peerName`. Setup, roles and limits:
-[computer network](computer-network.md).
+[codync-network](codync-network.md).
 
 ## Notice data
 

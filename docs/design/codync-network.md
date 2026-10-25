@@ -1,7 +1,7 @@
-# Computer network and cloud assistants: design
+# codync-network and cloud assistants: design
 
 Why the user's computers, their bots and hosted assistants connect the way they do, the options weighed, and
-what comes next. How it behaves today: [computer network](../features/computer-network.md) and
+what comes next. How it behaves today: [codync-network](../features/codync-network.md) and
 [cloud assistants](../features/cloud-assistants.md); the relay protocol: [remote relay §7.9](../reference/remote-relay.md).
 
 Status (2026-10-26): built on `feat/codync-network`. The cloud side (`mcp.codync.dev`, Clerk, the zone rule) is
@@ -86,7 +86,7 @@ optional.
 - One-time invites (1 hour). The roster is a log of signed changes every member keeps; copies merge the same way
   in any order. Owner (the creator), admins, members; the recovery code is the root key, printed once and kept on
   no computer, and it can move the owner. Removal is permanent; `--cascade` also removes what a stolen computer
-  admitted. Details: [computer network](../features/computer-network.md#who-may-do-what).
+  admitted. Details: [codync-network](../features/codync-network.md#who-may-do-what).
 - Sign-in stays optional. Networks today need no account (anonymous); account networks, where the account vouches
   for its computers, are planned beside them. Either way the computers, not the cloud, admit members.
 

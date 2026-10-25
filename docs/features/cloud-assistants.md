@@ -5,7 +5,7 @@ a connector at `https://mcp.codync.dev/mcp`, signs in with the Codync account, a
 give one a task and read its reply. The bots run on the user's computers as always; the assistant reaches them
 through the Codync cloud over the computer's relay socket, like public routine webhooks
 ([relay reference §7.9](../reference/remote-relay.md#79-cloud-assistantmcp-connector)). The reasons behind each
-choice: [design](../design/computer-network.md#cloud-assistants).
+choice: [design](../design/codync-network.md#cloud-assistants).
 
 ## How it works
 

@@ -1,10 +1,10 @@
-# Your computers' network (codync-network)
+# codync-network
 
 The user's computers join one private network, and a bot on one messages a bot on another the way bots on one
 computer already do ([bot collaboration](bot-collaboration.md)). The network is the `codync-network` crate
 (`host/crates/network`, its own [README](../../host/crates/network/README.md)): peer to peer over QUIC
 ([iroh](https://iroh.computer)), with no Codync server involved. It is off until the user creates or joins a network.
-Why it is built this way, the options weighed and what comes next: [design](../design/computer-network.md).
+Why it is built this way, the options weighed and what comes next: [design](../design/codync-network.md).
 
 ## Set it up
 
