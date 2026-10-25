@@ -35,7 +35,10 @@ final class OnDeviceEngine: VoiceEngine {
     /// The language picked in the call settings, else the phone's.
     private let recognizer = UserDefaults.standard.string(forKey: OnDeviceEngine.languageKey)
         .flatMap { $0.isEmpty ? nil : SFSpeechRecognizer(locale: Locale(identifier: $0)) } ?? SFSpeechRecognizer()
-    private let engine = AVAudioEngine()
+    /// Created when the microphone first opens: touching the audio system starts it.
+    @ObservationIgnored private lazy var engine = AVAudioEngine()
+    /// The microphone tap is on.
+    private var tapped = false
     private var request: SFSpeechAudioBufferRecognitionRequest?
     private var task: SFSpeechRecognitionTask?
     /// Bumped per utterance so late callbacks from a cancelled recognition are dropped.
@@ -177,6 +180,7 @@ final class OnDeviceEngine: VoiceEngine {
             input.installTap(onBus: 0, bufferSize: 1024, format: format, block: Self.tap(request) { [weak self] level in
                 Task { @MainActor in self?.level = level }
             })
+            tapped = true
             engine.prepare()
             try engine.start()
         } catch {
@@ -194,8 +198,11 @@ final class OnDeviceEngine: VoiceEngine {
         task = nil
         request?.endAudio()
         request = nil
-        if engine.isRunning { engine.stop() }
-        engine.inputNode.removeTap(onBus: 0)
+        if tapped {
+            if engine.isRunning { engine.stop() }
+            engine.inputNode.removeTap(onBus: 0)
+            tapped = false
+        }
         level = 0
     }
 

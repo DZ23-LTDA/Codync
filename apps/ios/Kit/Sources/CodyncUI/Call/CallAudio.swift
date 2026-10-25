@@ -36,15 +36,22 @@ enum CallAudioSession {
     /// The category options of every engine's audio, WebRTC's too.
     static let options: AVAudioSession.CategoryOptions = [.defaultToSpeaker, .allowBluetoothHFP]
 
+    /// The session was activated and not released since: releasing an untouched one would start the audio system
+    /// for nothing (in tests that start CoreAudio, which can deadlock on a simulator).
+    private static var active = false
+
     /// Before an engine's audio starts or resumes.
     static func activate() throws {
         let session = AVAudioSession.sharedInstance()
         try session.setCategory(.playAndRecord, mode: .voiceChat, options: options)
         try session.setActive(true)
+        active = true
     }
 
     /// After an engine stops.
     static func release() {
+        guard active else { return }
+        active = false
         try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
     }
 }

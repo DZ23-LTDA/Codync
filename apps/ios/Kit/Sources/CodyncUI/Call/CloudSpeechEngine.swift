@@ -33,7 +33,8 @@ final class CloudSpeechEngine: VoiceEngine {
 
     private let speech: Speech
     private let chunk: Int
-    private let engine = AVAudioEngine()
+    /// Created when the microphone first opens: touching the audio system starts it.
+    @ObservationIgnored private lazy var engine = AVAudioEngine()
     private var audioRunning = false
     private var ended = false
     private var events: AudioSessionEvents?
