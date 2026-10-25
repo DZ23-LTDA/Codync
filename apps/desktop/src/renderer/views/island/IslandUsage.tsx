@@ -54,9 +54,12 @@ export function UsageMeter({ model }: { model: IslandModel }) {
   )
 }
 
-/** Every provider's limits side by side, each window a bar with when it resets. */
+/**
+ * The two providers closest to a limit side by side, each window a bar with when it resets. The
+ * header meter's provider is always one of them; ones with notes only come last.
+ */
 export function UsageView({ model }: { model: IslandModel }) {
-  const usage = model.summary.usage
+  const usage = [...model.summary.usage].sort((a, b) => (tightest(b)?.percent ?? -1) - (tightest(a)?.percent ?? -1))
   const tr = useTr()
   const line = useResetLine()
   if (!usage.length) {
