@@ -132,7 +132,7 @@ final class OnDeviceEngine: VoiceEngine {
         events = nil
         stopListening()
         synthesizer.stopSpeaking(at: .immediate)
-            try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+            CallAudioSession.release()
     }
 
     /// Reads a reply aloud (the bot's final message), pausing the microphone meanwhile.

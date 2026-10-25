@@ -27,6 +27,8 @@ internal class VoiceBinding(val id: String, val botId: String, val generation: I
     var recording: () -> Int? = { null }
     /** What the voice service sees: the current engine, never the failure it fell back from. */
     val state = MutableStateFlow(VoiceState())
+    /** What the bot is doing, from the computer's progress cues, for the call's notification; cleared by its reply. */
+    val progress = MutableStateFlow<String?>(null)
     /** `voice_call_started` (and `callStarted`) went out: once per call, with the engine that got it going. */
     var reported = false
     /** The call on the computer. */
@@ -190,6 +192,11 @@ internal fun AppStore.hearCalls(events: List<MirrorEvent>) {
         if (cue.call != call.id || cue.seq <= call.heard || engine == null) continue
         call.heard = cue.seq
         engine.hear(cue)
+        when (cue.kind) {
+            CallCue.Kind.Progress -> call.progress.value = cue.text
+            CallCue.Kind.Reply -> call.progress.value = null
+            CallCue.Kind.Notice -> {}
+        }
     }
 }
 

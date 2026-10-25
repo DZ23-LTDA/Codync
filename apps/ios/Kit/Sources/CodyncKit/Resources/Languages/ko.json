@@ -1210,5 +1210,9 @@
   "Open the call": "통화 열기",
   "Opens the call": "통화를 엽니다",
   "Loading the call": "통화를 불러오는 중",
-  "Couldn't load the call.": "통화를 불러올 수 없습니다."
+  "Couldn't load the call.": "통화를 불러올 수 없습니다.",
+  "Connecting the call": "통화 연결 중",
+  "On a call · Listening": "통화 중 · 듣는 중",
+  "On a call · Speaking": "통화 중 · 말하는 중",
+  "Call paused": "통화 일시정지됨"
 }

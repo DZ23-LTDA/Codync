@@ -227,7 +227,11 @@ final class LiveActivities {
         // A mailbox message may wait hours for its computer: that isn't a delayed update.
         let staleDate: Date? = progress == .queued ? nil : .now + 15 * 60
         if Self.find(ref) != nil {
-            Task.detached { await Self.find(ref)?.update(.init(state: state, staleDate: staleDate)) }
+            let onCall = CallActivity.isLive(botId: ref.botId)
+            Task.detached {
+                guard let activity = Self.find(ref) else { return }
+                await activity.update(.init(state: state.keepingCall(of: activity, onCall: onCall), staleDate: staleDate))
+            }
             return
         }
         guard UserDefaults.standard.object(forKey: "liveActivitiesEnabled") as? Bool ?? true,
@@ -245,10 +249,31 @@ final class LiveActivities {
     /// Reattach token observers after a relaunch or connection replacement.
     func resume(with store: BotStore) {
         guard UserDefaults.standard.object(forKey: "liveActivitiesEnabled") as? Bool ?? true else { return }
+        endLeftoverCalls()
         guard let client = store.client else { return }
         for activity in Activity<BotActivityAttributes>.activities
             where activity.attributes.computerId == store.computer.id {
             observe(activity, client: client)
+        }
+    }
+
+    /// A call the app was closed in the middle of leaves its fields on the activity: they go, and an activity that
+    /// only showed the call ends.
+    private func endLeftoverCalls() {
+        let over = Activity<BotActivityAttributes>.activities
+            .filter { $0.content.state.call != nil && !CallActivity.isLive(botId: $0.attributes.botId) }.map(\.id)
+        guard !over.isEmpty else { return }
+        Task.detached {
+            for activity in Activity<BotActivityAttributes>.activities where over.contains(activity.id) {
+                var state = activity.content.state
+                state.call = nil
+                state.callStartedAt = nil
+                if ["idle", "completed"].contains(state.status) {
+                    await activity.end(nil, dismissalPolicy: .immediate)
+                } else {
+                    await activity.update(.init(state: state, staleDate: activity.content.staleDate))
+                }
+            }
         }
     }
 
@@ -294,8 +319,9 @@ final class LiveActivities {
             // while this phone is connected; APNs payloads continue to contain no free text.
             activity: bot.activity,
             startedAt: bot.startedAt.map(Date.init(milliseconds:))
-        )
-        let working = bot.isWorking
+        ).keepingCall(of: current, onCall: CallActivity.isLive(botId: ref.botId))
+        // A call with the bot keeps its activity up after the task.
+        let working = bot.isWorking || state.call != nil
         Task.detached { await Self.apply(ref, state: state, end: !working) }
     }
 
@@ -306,5 +332,17 @@ final class LiveActivities {
         } else {
             await activity.update(.init(state: state, staleDate: .now + 15 * 60))
         }
+    }
+}
+
+private extension BotActivityAttributes.ContentState {
+    /// The call this phone is on with the bot stays on the activity (the app sets it, the computer never does); one
+    /// left by a call that's over (the app was closed mid-call) goes.
+    func keepingCall(of activity: Activity<BotActivityAttributes>, onCall: Bool) -> Self {
+        guard onCall else { return self }
+        var state = self
+        state.call = activity.content.state.call
+        state.callStartedAt = activity.content.state.callStartedAt
+        return state
     }
 }

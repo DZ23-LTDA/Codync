@@ -1210,5 +1210,9 @@
   "Open the call": "打开这通电话",
   "Opens the call": "打开这通电话",
   "Loading the call": "正在加载这通电话",
-  "Couldn't load the call.": "无法加载这通电话。"
+  "Couldn't load the call.": "无法加载这通电话。",
+  "Connecting the call": "正在连接通话",
+  "On a call · Listening": "通话中 · 聆听",
+  "On a call · Speaking": "通话中 · 说话",
+  "Call paused": "通话已暂停"
 }

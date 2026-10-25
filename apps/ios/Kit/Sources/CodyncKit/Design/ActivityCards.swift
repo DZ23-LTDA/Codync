@@ -43,7 +43,7 @@ public extension BotActivityPresentation {
 
     /// The elapsed time counts up on its own (no push) while the task is live.
     func elapsedStart(_ startedAt: Date?) -> Date? {
-        phase == .working || phase == .needsInput ? startedAt : nil
+        phase == .working || phase == .needsInput || call != nil ? startedAt : nil
     }
 }
 

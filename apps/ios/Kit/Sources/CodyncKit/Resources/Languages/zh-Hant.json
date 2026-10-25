@@ -1210,5 +1210,9 @@
   "Open the call": "打開這通電話",
   "Opens the call": "打開這通電話",
   "Loading the call": "正在載入這通電話",
-  "Couldn't load the call.": "無法載入這通電話。"
+  "Couldn't load the call.": "無法載入這通電話。",
+  "Connecting the call": "正在連接通話",
+  "On a call · Listening": "通話中 · 聆聽",
+  "On a call · Speaking": "通話中 · 說話",
+  "Call paused": "通話已暫停"
 }

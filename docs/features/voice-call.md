@@ -366,6 +366,24 @@ carries audio and talks to these methods:
   `CallRecoveryTests`, desktop `call-recovery.test.ts`, Android `VoiceEnginesTest` (Gemini over MockWebServer, OpenAI
   over a fake peer).
 
+### The call on the system
+
+- iPhone: a call is a CallKit outgoing call to the bot (`SystemCall.swift`, one `CXProvider`, audio only, not in
+  Recents): it shows on the Lock Screen and in the Dynamic Island, ends or mutes from there and from AirPods, and a
+  phone call holds it (`CXSetHeldCallAction` pauses the engine the way an interruption does, and taking it off hold
+  resumes). CallKit activates the audio session: the engine starts once it has (at most 1.5 s later where it never
+  does, as on the Simulator), and the engines leave deactivating it to CallKit (`CallAudioSession`). The call reports
+  connected once the engine reaches ready. Where CallKit refuses the call, it goes on without it.
+- CallKit isn't allowed in apps offered in mainland China's App Store: with the storefront `CHN` (or, without a
+  storefront, the region `CN`) the call keeps the app's own audio session, as before (`SystemCallPolicy`).
+- iPhone Live Activity: while a call is on, the bot's activity shows it (`ContentState.call`: connecting, listening,
+  speaking, paused; `callStartedAt` for its length) and the bot's latest progress line from the computer
+  (`CallActivity`). It uses the bot's activity if one is up and starts one for the call otherwise (ended with the
+  call). The computer never sets these fields; the app's own updates keep them.
+- Android: the call's foreground notification shows its state and the bot's latest progress line (cleared by its
+  reply), updated in place at most once a second, with Mute and End call.
+- The desktop and the terminal have no system call UI to join.
+
 ### Failure and cost
 
 - No key on the computer, invalid key, quota or network failure at start, a dropped connection that three tries

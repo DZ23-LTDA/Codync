@@ -148,7 +148,7 @@ final class CloudSpeechEngine: VoiceEngine {
             engine.stop()
             audioRunning = false
         }
-            try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+            CallAudioSession.release()
     }
 
     func interrupt() {

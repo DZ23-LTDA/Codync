@@ -10,11 +10,17 @@ public struct BotActivityAttributes: ActivityAttributes {
         /// Local app updates may show the current step; remote pushes leave it empty (§6.7).
         public var activity: String
         public var startedAt: Date?
+        /// A voice call with the bot this phone is on: connecting | listening | speaking | paused. Set by the app only.
+        public var call: String?
+        /// When that call started, for its length.
+        public var callStartedAt: Date?
 
-        public init(status: String, activity: String, startedAt: Date?) {
+        public init(status: String, activity: String, startedAt: Date?, call: String? = nil, callStartedAt: Date? = nil) {
             self.status = status
             self.activity = activity
             self.startedAt = startedAt
+            self.call = call
+            self.callStartedAt = callStartedAt
         }
     }
 

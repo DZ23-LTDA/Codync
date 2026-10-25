@@ -39,3 +39,15 @@ import Testing
     // A deleted pick falls back to automatic.
     #expect(BotsTeamCard.slots(bots: bots, picks: ["gone"]).first??.id == "preview-review")
 }
+
+@Test func aCallShowsOnTheActivityInsteadOfDone() {
+    let idle = BotActivityPresentation(status: "idle", activity: "Old step", call: "listening")
+    #expect(idle.phase == .waiting)
+    #expect(idle.caption == "On a call · Listening")
+    #expect(idle.symbol == "waveform")
+    #expect(BotActivityPresentation(status: "idle", activity: "", call: "connecting").caption == "Connecting the call")
+    // While the bot works, its progress is the line; a waiting approval stays visible.
+    #expect(BotActivityPresentation(status: "working", activity: "Running the tests", call: "speaking").caption == "Running the tests")
+    #expect(BotActivityPresentation(status: "needsInput", activity: "Choose", call: "listening").phase == .needsInput)
+    #expect(BotActivityPresentation(status: "idle", activity: "").title == "Done")
+}

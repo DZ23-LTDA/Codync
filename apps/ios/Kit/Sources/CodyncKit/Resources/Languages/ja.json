@@ -1210,5 +1210,9 @@
   "Open the call": "通話を開く",
   "Opens the call": "通話を開きます",
   "Loading the call": "通話を読み込んでいます",
-  "Couldn't load the call.": "通話を読み込めませんでした。"
+  "Couldn't load the call.": "通話を読み込めませんでした。",
+  "Connecting the call": "通話に接続中",
+  "On a call · Listening": "通話中 · 聞いています",
+  "On a call · Speaking": "通話中 · 話しています",
+  "Call paused": "通話は一時停止中"
 }

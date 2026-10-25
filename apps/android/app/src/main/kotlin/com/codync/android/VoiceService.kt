@@ -12,7 +12,7 @@ import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import com.codync.android.core.*
 import kotlinx.coroutines.*
-import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.*
 
 /** The call the UI shows; `notice` is the line under the bar, e.g. why it fell back to on-device voice. */
 data class VoiceCallViewState(val id: String, val botId: String, val state: VoiceState = VoiceState(), val notice: String? = null)
@@ -90,9 +90,13 @@ class VoiceService : Service() {
                 receivers = true
                 val call = request.store.attachVoice(request.id, request.botId) ?: throw IllegalStateException("The active account changed")
                 session = call
-                scope.launch { call.state.collectLatest { state ->
+                // At most one notification update a second: progress lines can come quickly.
+                scope.launch { combine(call.state, call.progress, ::Pair).conflate().collect { (state, progress) ->
                     if (state.phase in listOf(VoicePhase.Failed, VoicePhase.Ended)) end(state.error)
-                    else getSystemService(NotificationManager::class.java).notify(NOTIFICATION, notification(state))
+                    else {
+                        getSystemService(NotificationManager::class.java).notify(NOTIFICATION, notification(state, progress))
+                        delay(1_000)
+                    }
                 } }
             } catch (_: Exception) { end("Couldn't start voice chat. Check microphone access and Android's audio settings.") }
         } else if (id == callId) {
@@ -118,7 +122,7 @@ class VoiceService : Service() {
             manager.isSpeakerphoneOn = !bluetooth && available.none { it.type in listOf(AudioDeviceInfo.TYPE_WIRED_HEADSET, AudioDeviceInfo.TYPE_USB_HEADSET) }
         }
     }
-    private fun notification(state: VoiceState): Notification {
+    private fun notification(state: VoiceState, progress: String? = null): Notification {
         val snapshot = store?.state?.value
         val call = snapshot?.voice
         val bot = snapshot?.bots?.firstOrNull { it.id == call?.botId }
@@ -130,11 +134,9 @@ class VoiceService : Service() {
             .setAction(kind).putExtra(ID, callId), PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
         return NotificationCompat.Builder(this, CHANNEL).setSmallIcon(R.drawable.ic_notification)
             .setContentTitle("Voice chat · ${bot?.name ?: "Codync"}")
-            .setContentText(if (state.muted) "Microphone muted" else when (state.phase) {
-                VoicePhase.Starting -> "Connecting…"; VoicePhase.Reconnecting -> "Reconnecting…"; VoicePhase.Speaking -> "Speaking"
-                VoicePhase.Interrupted -> "Audio interrupted · return to resume"
-                else -> "Listening · " + (state.provider?.title ?: "on this phone")
-            }).setContentIntent(content).setOngoing(true).setCategory(NotificationCompat.CATEGORY_CALL)
+            .setContentText(callNotificationText(state, progress))
+            .setStyle(NotificationCompat.BigTextStyle().bigText(callNotificationText(state, progress, "\n")))
+            .setContentIntent(content).setOngoing(true).setCategory(NotificationCompat.CATEGORY_CALL)
             .setVisibility(NotificationCompat.VISIBILITY_PRIVATE).setOnlyAlertOnce(true)
             .addAction(0, if (state.muted) "Unmute" else "Mute", action(MUTE)).addAction(0, "End call", action(END)).build()
     }
@@ -200,4 +202,14 @@ class VoiceService : Service() {
             context.stopService(Intent(context, VoiceService::class.java))
         }
     }
+}
+
+/** The call's notification text: its state, then what the bot is doing (the computer's latest progress line). */
+internal fun callNotificationText(state: VoiceState, progress: String?, separator: String = " · "): String {
+    val status = if (state.muted) "Microphone muted" else when (state.phase) {
+        VoicePhase.Starting -> "Connecting…"; VoicePhase.Reconnecting -> "Reconnecting…"; VoicePhase.Speaking -> "Speaking"
+        VoicePhase.Interrupted -> "Audio interrupted · return to resume"
+        else -> "Listening · " + (state.provider?.title ?: "on this phone")
+    }
+    return if (progress.isNullOrBlank()) status else status + separator + progress
 }

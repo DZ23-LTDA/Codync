@@ -29,8 +29,27 @@ enum AudioInterruption {
     case ended(shouldResume: Bool)
 }
 
-/// The audio session's events a call follows: interruptions, and `engine` reconfiguring (a route change such as
-/// AirPods, voice processing settling), which stops it.
+/// Who lets go of a call's audio session: the call's engine, or the system when it runs the call (CallKit activates the
+/// session itself and deactivates it once the call ends; an engine deactivating it mid-call would cut the audio).
+@MainActor
+enum CallAudioSession {
+    /// A CallKit call carries the audio (`SystemCall`).
+    static var systemRuns = false
+
+    /// After an engine stops: deactivates the session unless the system runs the call.
+    static func release() {
+        guard !systemRuns else { return }
+        try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+    }
+}
+
+extension Notification.Name {
+    /// CallKit put the call on hold (`held` true: a phone call took over) or took it off hold.
+    static let callHeld = Notification.Name("CodyncCallHeld")
+}
+
+/// The audio session's events a call follows: interruptions (also CallKit holding the call), and `engine`
+/// reconfiguring (a route change such as AirPods, voice processing settling), which stops it.
 @MainActor
 final class AudioSessionEvents {
     private var observers: [any NSObjectProtocol] = []
@@ -48,6 +67,10 @@ final class AudioSessionEvents {
                 default: break
                 }
             }
+        })
+        observers.append(center.addObserver(forName: .callHeld, object: nil, queue: .main) { note in
+            let held = note.userInfo?["held"] as? Bool == true
+            MainActor.assumeIsolated { interrupted(held ? .began : .ended(shouldResume: true)) }
         })
         if let engine {
             observers.append(center.addObserver(forName: .AVAudioEngineConfigurationChange, object: engine, queue: .main) { _ in
@@ -151,6 +174,6 @@ final class VoiceProcessingAudio: CallAudio {
             engine.stop()
             started = false
         }
-        try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+        CallAudioSession.release()
     }
 }

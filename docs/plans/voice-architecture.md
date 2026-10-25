@@ -1,6 +1,6 @@
 # Voice calls owned by the host
 
-Status: stage 1 shipped (2.25.0), stage 2 (2.26.0); stages 3–4 planned. Supersedes [voice call transcripts](voice-call-transcripts.md),
+Status: all four stages shipped (stage 1 in 2.25.0, stages 2–4 in 2.26.0). Supersedes [voice call transcripts](voice-call-transcripts.md),
 which became stage 1 of this plan. Current behavior: [voice call](../features/voice-call.md#the-call-on-the-host).
 
 A realtime voice model (Gemini Live, OpenAI Realtime) stays in front of the bot: coding agents are text-only and
@@ -77,6 +77,10 @@ replayed end to end in the iPhone and desktop tests (its events are).
 - Call quality in analytics, never content: time to ready, reconnects, a phase stuck too long.
 
 ### 4. Platform
+
+Shipped in 2.26.0 ([the call on the system](../features/voice-call.md#the-call-on-the-system)). CallKit stays off where
+the App Store storefront is mainland China's. OpenAI's WebRTC audio isn't handed to CallKit's session activation
+(`useManualAudio`); it still activates the session itself.
 
 - iPhone: CallKit for the call (lock screen, Dynamic Island, AirPods controls, interruptions handled by the system),
   and the bot's progress in the call's Live Activity.

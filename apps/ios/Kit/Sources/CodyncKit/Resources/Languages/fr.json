@@ -1210,5 +1210,9 @@
   "Open the call": "Ouvrir l'appel",
   "Opens the call": "Ouvre l'appel",
   "Loading the call": "Chargement de l'appel",
-  "Couldn't load the call.": "Impossible de charger l'appel."
+  "Couldn't load the call.": "Impossible de charger l'appel.",
+  "Connecting the call": "Connexion de l’appel",
+  "On a call · Listening": "En appel · À l’écoute",
+  "On a call · Speaking": "En appel · Parle",
+  "Call paused": "Appel en pause"
 }
