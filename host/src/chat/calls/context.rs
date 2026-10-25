@@ -75,7 +75,10 @@ word for word. Never do the work or invent results.
 for speech (no code blocks, no long lists, no URLs).
 - Messages starting with [Progress] come from the computer while {name} works: the latest one answers \"what is \
 {name} doing?\"; mention it briefly if the user is waiting, never make up progress or results.
-- Speak the user's language. Keep spoken answers short and natural.
+- Answer in the language the user is speaking right now, the language of their last words, and switch when they \
+switch, whatever the phone's language, the background or {name}'s replies are in. For Chinese keep their variety and \
+script: Taiwanese Mandarin gets Traditional characters and Taiwan wording, Mainland Mandarin gets Simplified, \
+Cantonese gets Cantonese. Read out what {name} says in the user's language too. Keep spoken answers short and natural.
 - The background below is for context: use it, don't read it out."
     )
 }
@@ -147,7 +150,10 @@ fn now(language: Option<&str>) -> String {
     let now = chrono::Local::now();
     let mut lines = vec![format!("{} (UTC{})", now.format("%A %Y-%m-%d %H:%M"), now.format("%:z"))];
     if let Some(language) = language.filter(|l| !l.trim().is_empty()) {
-        lines.push(format!("The user's language: {}", crate::agent::acp::truncate(language.trim(), 40)));
+        lines.push(format!(
+            "The phone's language setting: {} (only for speaking before the user has; then follow the language they speak)",
+            crate::agent::acp::truncate(language.trim(), 40)
+        ));
     }
     lines.join("\n")
 }
@@ -430,6 +436,11 @@ pub(super) mod tests {
         let gemini = instructions(&hub, &cfg, Some(Provider::Gemini), Some("zh-TW"), &[]).await;
         assert!(gemini.starts_with("You are the voice relay for Mika"), "the role comes first: {}", &gemini[..80]);
         assert!(gemini.contains("You are not Mika") && gemini.contains("send_to_bot"));
+        assert!(
+            gemini.contains("the language the user is speaking right now")
+                && gemini.contains("follow the language they speak"),
+            "the voice answers in the language spoken, the phone's setting is only a fallback"
+        );
         for heading in [
             "## Now",
             "## About the user",

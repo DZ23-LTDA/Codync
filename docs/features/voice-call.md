@@ -252,10 +252,12 @@ carries audio and talks to these methods:
   its members), the switchboard operator, not the bot; it passes the user's requests on with `send_to_bot`, tells
   the user what the bot says and asks for what's missing; it speaks of the bot in the third person and never claims
   it did or saw something; anything about code, files, the computer or the project goes to the bot even when it
-  thinks it knows. Then the background, as named sections that say where they came from, each capped (about 16k
+  thinks it knows. It answers in the language the user is speaking right now and switches when they switch (for
+  Chinese, their variety and script), whatever the phone's language, the background or the bot's replies are in;
+  the phone's language only covers speaking before the user has. Then the background, as named sections that say where they came from, each capped (about 16k
   characters in all on Gemini, plus up to 3k of the call so far for a session that replaces another; six tenths of
   that on OpenAI), empty ones left out: now (the computer's date, time,
-  weekday and offset; the phone's language), about the user (the shared `MEMORY.md` and its notes' names and
+  weekday and offset; the phone's language setting, as a fallback), about the user (the shared `MEMORY.md` and its notes' names and
   descriptions, when the bot uses it), this bot (name, description, harness and model, folder and project,
   permission mode, connectors, skills, computer use, routines; a group's members), what the bot remembers (its
   `MEMORY.md` and notes index), the project now (git branch, changed files, the last three commits; outside a
