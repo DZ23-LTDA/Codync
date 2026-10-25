@@ -1,7 +1,7 @@
 //! What the voice of a call hears before it speaks: its rules, then the background as named sections, each capped,
 //! empty ones left out, each saying where it came from. It goes to the voice provider, on the user's own key.
 
-use super::speech::spoken;
+use super::speech::{call_so_far, spoken};
 use super::tools::{runtime, waiting};
 use crate::hub::{BotStatus, Hub};
 use crate::store::{BotConfig, Entry, EntryKind, Lane};
@@ -10,8 +10,9 @@ use codync_mem::files::{self as mf, MAIN};
 use std::path::Path;
 use std::sync::Arc;
 
-/// Each section's cap (characters) and the whole background's: about 16k on Gemini. `OpenAI` Realtime keeps a
-/// smaller context, so it gets [`OPENAI_TENTHS`] tenths of each.
+/// Each section's cap (characters) and the whole background's: about 16k on Gemini, and up to 3k more of the call so
+/// far for a session that replaces another. `OpenAI` Realtime keeps a smaller context, so it gets [`OPENAI_TENTHS`]
+/// tenths of each.
 const CAPS: Caps = Caps {
     now: 300,
     user: 3_000,
@@ -22,6 +23,7 @@ const CAPS: Caps = Caps {
     conversation: 3_500,
     others: 1_000,
     shared: 700,
+    so_far: 3_000,
 };
 /// Of each cap, in tenths.
 const OPENAI_TENTHS: usize = 6;
@@ -41,6 +43,7 @@ struct Caps {
     conversation: usize,
     others: usize,
     shared: usize,
+    so_far: usize,
 }
 
 /// The voice's role first: a relay between the user and the bot (or group), never the bot itself.
@@ -77,12 +80,14 @@ for speech (no code blocks, no long lists, no URLs).
     )
 }
 
-/// The voice's instructions for a call with `cfg`'s bot.
+/// The voice's instructions for a call with `cfg`'s bot; `so_far`: what was said on the call before this provider
+/// session (one that replaces a dropped session picks up from it).
 pub async fn instructions(
     hub: &Arc<Hub>,
     cfg: &BotConfig,
     provider: Option<Provider>,
     language: Option<&str>,
+    so_far: &[super::CallLine],
 ) -> String {
     let tenths = if provider == Some(Provider::OpenAi) { OPENAI_TENTHS } else { 10 };
     let cap = |n: usize| n * tenths / 10;
@@ -101,6 +106,7 @@ pub async fn instructions(
         ("The conversation", "the bot's chat and earlier calls", sections.conversation, caps.conversation),
         ("Other bots on this computer", "Codync", sections.others, caps.others),
         ("Shared in this chat", "files and artifacts in the bot's chat", sections.shared, caps.shared),
+        ("This call so far", "this call's transcript, newest last", call_so_far(so_far, cap(caps.so_far)), caps.so_far),
     ];
     for (title, from, body, n) in named {
         let body = body.trim();
@@ -421,7 +427,7 @@ pub(super) mod tests {
                 .unwrap();
         }
 
-        let gemini = instructions(&hub, &cfg, Some(Provider::Gemini), Some("zh-TW")).await;
+        let gemini = instructions(&hub, &cfg, Some(Provider::Gemini), Some("zh-TW"), &[]).await;
         assert!(gemini.starts_with("You are the voice relay for Mika"), "the role comes first: {}", &gemini[..80]);
         assert!(gemini.contains("You are not Mika") && gemini.contains("send_to_bot"));
         for heading in [
@@ -450,7 +456,7 @@ pub(super) mod tests {
         assert!(conversation.chars().count() <= CAPS.conversation + 80, "the conversation keeps to its cap");
         let background = gemini.chars().count() - rules(&hub, &cfg).chars().count();
         assert!(background <= 16_000 + 1_000, "the background keeps to about 16k: {background}");
-        let openai = instructions(&hub, &cfg, Some(Provider::OpenAi), None).await;
+        let openai = instructions(&hub, &cfg, Some(Provider::OpenAi), None, &[]).await;
         assert!(openai.chars().count() < gemini.chars().count(), "OpenAI's smaller context gets less");
     }
 

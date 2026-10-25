@@ -1,5 +1,7 @@
 //! Text as a voice says it.
 
+use super::{CallLine, Speaker};
+
 /// Text as speech can carry it: code blocks and links named, not read, markdown marks dropped, capped.
 pub(super) fn spoken(text: &str, max: usize) -> String {
     let mut out = String::new();
@@ -33,6 +35,26 @@ pub(super) fn spoken(text: &str, max: usize) -> String {
     crate::agent::acp::truncate(out.split_whitespace().collect::<Vec<_>>().join(" ").as_str(), max)
 }
 
+/// The call's lines, newest last, as many of the newest as fit `cap` characters.
+pub(super) fn call_so_far(lines: &[CallLine], cap: usize) -> String {
+    let mut kept: Vec<String> = Vec::new();
+    let mut used = 0;
+    for line in lines.iter().rev() {
+        let who = match line.from {
+            Speaker::User => "User",
+            Speaker::Voice => "You",
+        };
+        let text = format!("{who}: {}", spoken(&line.text, 400));
+        used += text.chars().count() + 1;
+        if used > cap {
+            break;
+        }
+        kept.push(text);
+    }
+    kept.reverse();
+    kept.join("\n")
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -48,5 +70,15 @@ mod tests {
             spoken("Run `cargo test --release`. **Done**, keep snake_case", 200),
             "Run cargo test --release. Done, keep snake_case"
         );
+    }
+
+    #[test]
+    fn a_replaced_session_hears_the_newest_of_the_call_so_far() {
+        let line = |from, text: &str| CallLine { from, text: text.into(), at: None, id: None };
+        let lines =
+            [line(Speaker::User, "first thing"), line(Speaker::Voice, "noted"), line(Speaker::User, "second thing")];
+        assert_eq!(call_so_far(&lines, 1_000), "User: first thing\nYou: noted\nUser: second thing");
+        assert_eq!(call_so_far(&lines, 20), "User: second thing", "the newest lines win when they don't all fit");
+        assert_eq!(call_so_far(&[], 1_000), "");
     }
 }

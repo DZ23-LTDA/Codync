@@ -1,10 +1,7 @@
 import type { CallLine } from '@shared/calls'
 import { sleep } from '../../store/bot-sync'
 import type { BotStore } from '../../store/bot-store'
-import { spokenText, type VoiceProvider } from './voice'
-
-/** How the voice's instructions name what the bot is doing. */
-export const PROGRESS_TAG = '[Progress]'
+import { PROGRESS_TAG, spokenText, type VoiceProvider } from './voice'
 
 /** How long a tool call waits for the user's words that are still being written down. */
 const HEARING_PATIENCE_MS = 2_000

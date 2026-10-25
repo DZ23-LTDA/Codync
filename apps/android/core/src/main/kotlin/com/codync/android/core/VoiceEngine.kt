@@ -36,6 +36,10 @@ interface VoiceEngine {
     suspend fun awaitEnd()
 }
 
+/** How often a dropped provider connection is tried again before the call falls back to on-device voice: after these
+ * waits (ms). Tests shorten them. */
+object Reconnect { @Volatile var delays = listOf(1_000L, 2_000L, 4_000L) }
+
 /** The microphone as 16 kHz mono PCM16 frames with their loudness (0…1), delivered on an audio thread. */
 interface MicSource {
     /** Throws when the microphone can't open; `failed` reports it stopping later. */
@@ -76,7 +80,7 @@ abstract class ProviderEngine(parent: CoroutineScope, val provider: VoiceProvide
                 if (ended) continue
                 try { task() }
                 catch (cancelled: CancellationException) { throw cancelled }
-                catch (error: Exception) { fail(error.message ?: "Couldn't reach ${provider.title}.") }
+                catch (error: Exception) { fail(error.message ?: "Couldn't reach ${provider.title}.", VoiceFailureKind.Provider) }
             }
         }
     }
@@ -88,14 +92,14 @@ abstract class ProviderEngine(parent: CoroutineScope, val provider: VoiceProvide
     /** Stops the audio and the connection; may run twice. */
     protected abstract suspend fun release()
 
-    protected fun fail(message: String) { if (!ended) finish(VoicePhase.Failed, message) }
+    protected fun fail(message: String, kind: VoiceFailureKind = VoiceFailureKind.Connection) { if (!ended) finish(VoicePhase.Failed, message, kind) }
     override fun end() { if (!ended) finish(VoicePhase.Ended, null) }
     override suspend fun awaitEnd() { teardown?.join() ?: job.join() }
     override fun settings(value: VoiceSettings) = mutable.update { it.copy(settings = value) }
 
-    private fun finish(final: VoicePhase, error: String?) {
+    private fun finish(final: VoicePhase, error: String?, kind: VoiceFailureKind? = null) {
         ended = true
-        if (error != null) mutable.update { it.copy(phase = VoicePhase.Failed, error = error, level = 0f) }
+        if (error != null) mutable.update { it.copy(phase = VoicePhase.Failed, error = error, failureKind = kind, level = 0f) }
         // Outside `job`, so cancelling the engine's own work can't cut the release short.
         teardown = scope.launch(NonCancellable) {
             try { release() }

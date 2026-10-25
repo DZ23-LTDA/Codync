@@ -31,6 +31,8 @@ internal class VoiceBinding(val id: String, val botId: String, val generation: I
     var reported = false
     /** The call on the computer. */
     var link: HostCallLink? = null
+    /** Each engine's `voice_call_quality`. */
+    val quality = CallQuality<VoiceEngineKind> { kind, report -> Analytics.capture(AnalyticsEvent.VoiceCallQuality(kind, report)) }
 }
 
 private val voiceHttp by lazy { OkHttpClient() }
@@ -106,11 +108,14 @@ private fun AppStore.begin(call: VoiceBinding, provider: VoiceProvider?) {
         }
     }
     call.engine = engine
+    call.quality.begin(kind)
+    (engine as? GeminiLiveEngine)?.onStall = { contextScope.launch { if (call.engine === engine) call.quality.stalled() } }
     if (muted) engine.mute(true)
     call.cloudSince = if (provider != null) SystemClock.elapsedRealtime() else null
     contextScope.launch {
         val last = engine.state.first { status ->
             val current = voiceBinding === call && call.engine === engine
+            if (current) call.quality.phase(status.phase, status.failureKind)
             val fallingBack = provider != null && status.phase == VoicePhase.Failed
             if (current && !fallingBack) {
                 publish(call, status)
@@ -198,6 +203,7 @@ internal fun AppStore.finishVoice(id: String, error: String? = null) {
     val call = voiceBinding?.takeIf { it.id == id }; voiceBinding = null; voiceGeneration = null
     val engine = call?.engine
     engine?.end()
+    call?.quality?.report()
     if (call != null) countCloudMinutes(call)
     mutableState.update { it.copy(voice = null, error = error ?: it.error) }
     PushDelivery.foreground = foreground
@@ -219,6 +225,7 @@ internal suspend fun AppStore.retireVoice() {
     val callId = state.value.voice?.id
     mutableState.update { it.copy(voice = null) }
     if (callId != null) VoiceService.stop(getApplication(), callId)
+    call?.quality?.report()
     call?.engine?.end(); call?.engine?.awaitEnd()
 }
 

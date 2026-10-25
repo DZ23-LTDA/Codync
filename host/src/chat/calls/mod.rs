@@ -240,19 +240,23 @@ pub async fn start(hub: &Arc<Hub>, b: &Value, owner: &str) -> Result<Value> {
     let call = checked(b["callId"].as_str().unwrap_or_default())?;
     let mode = if b["mode"].is_null() { CallMode::Realtime } else { CallMode::deserialize(&b["mode"])? };
     let cfg = hub.store.bot(bot)?.filter(|r| !r.deleted).ok_or_else(|| anyhow!("unknown bot"))?.config;
-    {
+    let so_far = {
         let _one = STATE.locked();
         match begun(&hub.store, bot, call)? {
             Some(s) if s.bot != bot => bail!("that call belongs to another bot"),
             // A session the provider replaced, maybe on another device or in another mode now.
-            Some(s) => save(&hub.store, call, &CallState { owner: owner.to_owned(), mode, ..s })?,
+            Some(s) => {
+                let s = CallState { owner: owner.to_owned(), mode, ..s };
+                save(&hub.store, call, &s)?;
+                s.lines
+            }
             None => bail!("that call has ended"),
         }
-    }
+    };
     announce::watch(hub, call, bot);
     let provider = b["provider"].as_str().map(crate::voice::Provider::parse).transpose()?;
     let mut out = json!({
-        "instructions": context::instructions(hub, &cfg, provider, b["language"].as_str()).await,
+        "instructions": context::instructions(hub, &cfg, provider, b["language"].as_str(), &so_far).await,
         "tools": tools::declarations(),
     });
     if let (Some(p), CallMode::Realtime) = (provider, mode) {
@@ -484,6 +488,10 @@ mod tests {
         assert!(started["tools"].as_array().unwrap().iter().any(|t| t["name"] == "search_memory"));
         assert!(started.get("credential").is_none(), "an on-device call has no provider");
         add_lines(&hub, "c1", &json!([{"from": "user", "text": "首頁", "at": 1}])).unwrap();
+        // A provider session that replaces a dropped one picks up from what was said.
+        let again = start(&hub, &json!({"botId": id, "callId": "c1", "mode": "device"}), "phone").await.unwrap();
+        let instructions = again["instructions"].as_str().unwrap();
+        assert!(instructions.contains("This call so far") && instructions.contains("User: 首頁"), "{instructions}");
 
         // The rest of what the user said comes with the tool call that hands it on.
         let unsent = json!([{"from": "user", "text": "改成藍色", "at": 2}, {"from": "voice", "text": "好"}]);

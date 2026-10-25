@@ -253,15 +253,18 @@ carries audio and talks to these methods:
   the user what the bot says and asks for what's missing; it speaks of the bot in the third person and never claims
   it did or saw something; anything about code, files, the computer or the project goes to the bot even when it
   thinks it knows. Then the background, as named sections that say where they came from, each capped (about 16k
-  characters in all on Gemini, six tenths of that on OpenAI), empty ones left out: now (the computer's date, time,
+  characters in all on Gemini, plus up to 3k of the call so far for a session that replaces another; six tenths of
+  that on OpenAI), empty ones left out: now (the computer's date, time,
   weekday and offset; the phone's language), about the user (the shared `MEMORY.md` and its notes' names and
   descriptions, when the bot uses it), this bot (name, description, harness and model, folder and project,
   permission mode, connectors, skills, computer use, routines; a group's members), what the bot remembers (its
   `MEMORY.md` and notes index), the project now (git branch, changed files, the last three commits; outside a
   repository, or without the command line tools on macOS, nothing), current work (status, activity, a pending
   approval and its options, queued messages, the last failure), the conversation (the last 20 chat messages in
-  spoken form and the titles and gist of the last three calls), the other bots on this computer, and files and
-  artifacts shared in the chat. **All of it goes to the voice provider, on the user's own key.**
+  spoken form and the titles and gist of the last three calls), the other bots on this computer, files and
+  artifacts shared in the chat, and, when `startCall` comes again for the same call (a reconnect, or an engine
+  switched mid-call), this call so far (its newest lines). **All of it goes to the voice provider, on the user's own
+  key.**
 - **`callTool`** `{callId, name, arguments, lines}` → `{result}` runs the voice's tool calls on the host
   (`calls::tools`): `send_to_bot(text)`, `bot_status()` (a group's: its busy member's), `recent_messages(count)`,
   `answer_approval(option)` (only after the user said which; matched by option name or id), `stop_bot()`,
@@ -337,10 +340,37 @@ carries audio and talks to these methods:
   player never finishes its buffers so the phase stays "speaking" and the bot's replies are never said.
   A reply counts as played once its buffers are rendered (`.dataRendered`).
 
+### Phases and recovery
+
+- Every engine on every client reports the same phases: connecting (`starting`) until the provider confirmed the
+  session and the microphone delivers audio, then listening or speaking; reconnecting after a dropped connection or a
+  changed microphone; interrupted while another app has the audio (iPhone: a phone call, Siri, an alarm; Android:
+  audio focus, a removed headset); failed. The connecting line shows while connecting and reconnecting; a reconnect or
+  an interruption keeps the call and its cues (`holdsCall`).
+- A drop mid-call is tried again three times (after 1, 2 and 4 s) before the call falls back. Gemini resumes with its
+  session handle and a fresh `startCall` credential; OpenAI gets a new session. Either way the repeated `startCall`
+  adds "This call so far" to the voice's instructions (the call's newest lines, newest last, capped), so a session
+  without a handle picks up the conversation. A `goAway` hands over at once, without showing a reconnect. A close
+  Gemini gives with code 1007 or 1008 (an invalid key, model or request) fails at once: trying again won't help.
+- Interruptions: the iPhone's realtime, speech and on-device engines pause on `AVAudioSession.interruptionNotification`
+  and pick up again when it ends with `shouldResume`; otherwise the bar says "Audio paused by another app. Tap to
+  resume." (as Android does). Route changes (AirPods) restart the iPhone's audio engine (`AVAudioEngineConfigurationChange`);
+  the desktop restarts the microphone (and moves OpenAI's track) on `devicechange`. The desktop's on-device engine
+  uses the speech helper's own microphone and isn't restarted.
+- After the voice's turn, playback that reports no progress for 4 s returns the call to listening, so a stuck player
+  (#214) can't hold the bot's replies back (`onStall`, counted as stuck `speaking`).
+- Each engine of a call sends one `voice_call_quality` when it's replaced or the call ends: milliseconds until ready,
+  reconnects, the first phase stuck too long (connecting or reconnecting over 20 s, or the stalled player), and why
+  it failed (`microphone`, `connection`, `provider`).
+- Tests replay recorded provider streams through the engines with a scripted socket, microphone and speaker: kit
+  `CallRecoveryTests`, desktop `call-recovery.test.ts`, Android `VoiceEnginesTest` (Gemini over MockWebServer, OpenAI
+  over a fake peer).
+
 ### Failure and cost
 
-- No key on the computer, invalid key, quota or network failure at start, or a dropped connection mid-call: the
-  call switches to On device without hanging up, with a one-line notice under the bar.
+- No key on the computer, invalid key, quota or network failure at start, a dropped connection that three tries
+  don't bring back, or a refused session: the call switches to On device without hanging up, with a one-line notice
+  under the bar.
 - Usage is billed by the provider to the user. The key form shows minutes used this month
   (`VoiceUsage`, counted on each device while a cloud engine is live and for each recording
   dictated with the provider) as an estimate, not a bill.
@@ -375,4 +405,6 @@ each engine through fake audio: utterance cutting and clip playback, OpenAI's ev
 exchange (MockWebServer), and a Gemini Live session over a real WebSocket (setup, audio both ways,
 a tool call, a close with the provider's reason). Provider audio isn't
 simulated: on a physical iPhone, check both engines with a real key (talk over a reply, ask "what
-are you doing?", approve by voice, and turn off Wi-Fi mid-call to see the fallback).
+are you doing?", approve by voice, and turn Wi-Fi off for a moment mid-call: the bar shows Reconnecting, comes back
+to Listening and still says the replies; with no network at all, after three tries, the call falls back to on-device
+voice).

@@ -42,7 +42,17 @@ object SpokenText {
     }
 }
 
-enum class VoicePhase { Starting, Listening, Speaking, Interrupted, Failed, Ended }
+/**
+ * A call's audio, the same on every engine (and on the iPhone and the desktop): connecting until the provider confirmed
+ * the session and the microphone delivers, then listening or speaking; reconnecting after a drop; interrupted while
+ * another app has the audio; failed when it can't go on; ended.
+ */
+enum class VoicePhase { Starting, Listening, Speaking, Reconnecting, Interrupted, Failed, Ended;
+    /** The connecting line shows: not ready yet, or ready again soon. */
+    val connecting: Boolean get() = this == Starting || this == Reconnecting
+}
+/** Why a call's engine gave up, for analytics (`voice_call_quality`). */
+enum class VoiceFailureKind(val wire: String) { Microphone("microphone"), Connection("connection"), Provider("provider") }
 data class VoiceSettings(val pauseMillis: Long = 1_500, val rate: Float = 1f) {
     init { require(pauseMillis in listOf(1_000L, 1_500L, 2_500L)); require(rate in .5f..2f) }
 }
@@ -50,7 +60,9 @@ data class VoiceState(val phase: VoicePhase = VoicePhase.Starting, val muted: Bo
     val heard: String = "", val said: String = "", val level: Float = 0f, val engine: String = "",
     val settings: VoiceSettings = VoiceSettings(), val error: String? = null,
     /** Where the audio goes when it leaves the phone; null on device. */
-    val provider: VoiceProvider? = null)
+    val provider: VoiceProvider? = null,
+    /** Why it failed, with `error`. */
+    val failureKind: VoiceFailureKind? = null)
 sealed interface VoiceInput {
     data class Text(val generation: Long, val value: String, val final: Boolean) : VoiceInput
     data class Level(val generation: Long, val value: Float) : VoiceInput

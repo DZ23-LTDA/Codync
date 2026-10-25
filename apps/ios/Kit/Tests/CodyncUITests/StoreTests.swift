@@ -70,6 +70,10 @@ actor FakeRemote: RemoteTransport {
             replyTos.append(b["replyTo"])
             let entry = #"{"id":"e\#(sent.count)","seq":\#(sent.count),"botId":"\#(b["botId"] ?? "")","rev":\#(sent.count),"kind":"user","turn":1,"data":{"text":"\#(b["text"] ?? "")","clientNonce":"\#(b["clientNonce"] ?? "")"},"createdAt":1,"updatedAt":1}"#
             return Data(#"{"entry":\#(entry)}"#.utf8)
+        case "startCall":
+            // A fresh credential per provider session, so a test can tell a replaced session from the first.
+            let n = calls.filter { $0 == "startCall" }.count
+            return Data(#"{"instructions":"Be the relay.","tools":[],"credential":"token-\#(n)"}"#.utf8)
         default:
             return Data("{}".utf8)
         }
@@ -122,7 +126,7 @@ actor FakeRemote: RemoteTransport {
     }
 }
 
-private func randomComputer(_ name: String) -> Computer {
+func randomComputer(_ name: String) -> Computer {
     let sk = Curve25519.Signing.PrivateKey().publicKey.rawRepresentation
     return Computer(id: RelayCrypto.computerId(signKey: sk), name: name, signKey: sk.base64URLForTests,
                     boxKey: Curve25519.KeyAgreement.PrivateKey().publicKey.rawRepresentation.base64URLForTests,
@@ -135,7 +139,7 @@ private extension Data {
     }
 }
 
-private func context() -> (SharedStore.Context, String) {
+func context() -> (SharedStore.Context, String) {
     let suite = "CodyncUITests.\(UUID().uuidString)"
     return (SharedStore.Context(accountID: "user_\(UUID().uuidString)", suite: suite), suite)
 }

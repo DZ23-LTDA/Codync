@@ -131,7 +131,7 @@ class VoiceService : Service() {
         return NotificationCompat.Builder(this, CHANNEL).setSmallIcon(R.drawable.ic_notification)
             .setContentTitle("Voice chat · ${bot?.name ?: "Codync"}")
             .setContentText(if (state.muted) "Microphone muted" else when (state.phase) {
-                VoicePhase.Starting -> "Connecting…"; VoicePhase.Speaking -> "Speaking"
+                VoicePhase.Starting -> "Connecting…"; VoicePhase.Reconnecting -> "Reconnecting…"; VoicePhase.Speaking -> "Speaking"
                 VoicePhase.Interrupted -> "Audio interrupted · return to resume"
                 else -> "Listening · " + (state.provider?.title ?: "on this phone")
             }).setContentIntent(content).setOngoing(true).setCategory(NotificationCompat.CATEGORY_CALL)

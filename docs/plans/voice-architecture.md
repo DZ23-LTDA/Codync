@@ -64,6 +64,10 @@ Each stage ships on its own (after-change, merged into `dev`), all clients toget
 
 ### 3. One engine state machine
 
+Shipped in 2.26.0 ([phases and recovery](../features/voice-call.md#phases-and-recovery)). Not covered: the desktop's
+on-device engine on a device change (the speech helper owns its microphone), and OpenAI's WebRTC transport isn't
+replayed end to end in the iPhone and desktop tests (its events are).
+
 - Every client's engines share the phases: connecting → ready (the provider confirmed the session and the microphone
   is delivering audio) → listening / speaking, with the connecting line until ready.
 - Drops resume (Gemini session resumption, a fresh OpenAI session with the transcript so far); route changes and
