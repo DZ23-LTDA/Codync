@@ -577,7 +577,6 @@
   "No keys needed here. If {name} wants you to sign in, its sign-in page opens next.": "這裡不需要金鑰。如果 {name} 要求登入，接下來會開啟它的登入頁。",
   " (optional)": "（可選）",
   "Finish signing in to {name} in the browser…": "請在瀏覽器裡完成 {name} 的登入…",
-  "Adding {name}…": "正在新增 {name}…",
   "Runs on {name} in the bot's project folder. Quotes work like in a shell.": "在 {name} 上、Bot 的專案資料夾裡執行。引號用法和 shell 一樣。",
   "A remote MCP server, streamable HTTP or SSE.": "遠端 MCP 伺服器，支援 streamable HTTP 或 SSE。",
   "Paste the MCP config from a README or another app (Claude, Cursor, VS Code). Every server in it is added. Saved on {name} only.": "貼上 README 或其他應用（Claude、Cursor、VS Code）裡的 MCP 配置。裡面的每個伺服器都會新增。只儲存在 {name} 上。",

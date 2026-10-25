@@ -229,44 +229,46 @@ impl App {
                 })));
                 return None;
             }
+            // The connector's sheet, as on the apps: nothing installs until ↵ on it, even with nothing to fill in.
             Act::Install(item) => {
                 let options = item["options"].as_array().cloned().unwrap_or_default();
-                if options.len() == 1 && options[0]["inputs"].as_array().is_none_or(Vec::is_empty) {
-                    self.flash(&tr("Adding {name}…").replace("{name}", &s(&item, "title")));
-                    self.sheet(
-                        "installConnector",
-                        json!({"registryName": item["name"], "option": options[0]["id"], "inputs": {}}),
-                        Reply::FieldsSaved,
-                    );
-                } else {
-                    let host = self.host.clone();
-                    let choices = options
-                        .iter()
-                        .map(|o| {
-                            if o["kind"] == "remote" {
-                                tr("Hosted by {name}").replace("{name}", &s(&item, "title"))
-                            } else {
-                                tr("On {name} ({kind})").replace("{name}", &host).replace("{kind}", &s(o, "kind"))
-                            }
-                        })
-                        .collect();
-                    let mut f = Fields {
-                        title: tr("Add connector").into_owned(),
-                        note: tr("Keys are saved on {name} only.").replace("{name}", &host),
-                        choices,
-                        choice: 0,
-                        inputs: vec![],
-                        cursor: 0,
-                        error: None,
-                        saving: false,
-                        submit: Submit::Connector(item),
-                    };
-                    connector_inputs(&mut f);
-                    super::super::connections::option_fields(&mut f);
-                    self.overlays.push(Overlay::Market(m));
-                    self.overlays.push(Overlay::Fields(Box::new(f)));
-                    return None;
-                }
+                let host = self.host.clone();
+                let title = s(&item, "title");
+                let choices = options
+                    .iter()
+                    .map(|o| {
+                        if o["kind"] == "remote" {
+                            tr("Hosted by {name}").replace("{name}", &title)
+                        } else {
+                            tr("On {name} ({kind})").replace("{name}", &host).replace("{kind}", &s(o, "kind"))
+                        }
+                    })
+                    .collect();
+                let bare = options.len() == 1 && options[0]["inputs"].as_array().is_none_or(Vec::is_empty);
+                let note = match (bare, options.first().is_some_and(|o| o["kind"] == "remote")) {
+                    (true, true) => {
+                        tr("No keys needed here. If {name} wants you to sign in, its sign-in page opens next.")
+                            .replace("{name}", &title)
+                    }
+                    (true, false) => tr("No setup needed.").into_owned(),
+                    (false, _) => tr("Keys are saved on {name} only.").replace("{name}", &host),
+                };
+                let mut f = Fields {
+                    title: tr("Add connector").into_owned(),
+                    note,
+                    choices,
+                    choice: 0,
+                    inputs: vec![],
+                    cursor: 0,
+                    error: None,
+                    saving: false,
+                    submit: Submit::Connector(item),
+                };
+                connector_inputs(&mut f);
+                super::super::connections::option_fields(&mut f);
+                self.overlays.push(Overlay::Market(m));
+                self.overlays.push(Overlay::Fields(Box::new(f)));
+                return None;
             }
             Act::Skill(v, catalog) => {
                 self.overlays.push(Overlay::Market(m));
@@ -389,5 +391,23 @@ mod tests {
 
         answer(&mut app, "linear", None, Ok(registry(0..2, None)));
         assert_eq!(market(&app).registry.len(), 2);
+    }
+
+    #[tokio::test]
+    async fn opening_a_connector_or_a_new_agent_adds_nothing() {
+        let mut app = open();
+        let bare = json!({"name": "c0", "title": "C0", "options": [{"id": "npm", "kind": "npm", "inputs": []}]});
+        answer(&mut app, "", None, Ok(json!({"items": [bare], "nextCursor": null})));
+        // Custom connector, then the registry row.
+        move_to(&mut app, 1);
+        let Some(Overlay::Market(m)) = app.overlays.pop() else { panic!("the marketplace is open") };
+        assert!(app.market_key(m, KeyEvent::from(KeyCode::Enter)).is_none());
+        assert!(matches!(app.overlays.last(), Some(Overlay::Fields(_))), "its sheet opens; ↵ there adds it");
+
+        app.backends =
+            vec![json!({"id": "kimi", "name": "Kimi", "installed": false, "curated": false, "signedIn": null})];
+        app.open_agent("kimi", false);
+        let Some(Overlay::Agent(a)) = app.overlays.last() else { panic!("the agent sheet is open") };
+        assert!(!a.busy && !app.agent_set_up(a), "a registry agent that never ran waits for Set up");
     }
 }

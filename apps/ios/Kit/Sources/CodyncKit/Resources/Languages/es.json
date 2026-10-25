@@ -577,7 +577,6 @@
   "No keys needed here. If {name} wants you to sign in, its sign-in page opens next.": "Aquí no hacen falta claves. Si {name} requiere que inicies sesión, su página se abrirá a continuación.",
   " (optional)": " (opcional)",
   "Finish signing in to {name} in the browser…": "Termina de iniciar sesión en {name} desde el navegador…",
-  "Adding {name}…": "Añadiendo {name}…",
   "Runs on {name} in the bot's project folder. Quotes work like in a shell.": "Se ejecuta en {name}, en la carpeta del proyecto del bot. Las comillas funcionan como en un shell.",
   "A remote MCP server, streamable HTTP or SSE.": "Un servidor MCP remoto mediante Streamable HTTP o SSE.",
   "Paste the MCP config from a README or another app (Claude, Cursor, VS Code). Every server in it is added. Saved on {name} only.": "Pega la configuración MCP de un README u otra app (Claude, Cursor, VS Code). Se añaden todos sus servidores. Se guarda solo en {name}.",

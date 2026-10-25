@@ -577,7 +577,6 @@
   "No keys needed here. If {name} wants you to sign in, its sign-in page opens next.": "ここではキーは必要ありません。 {name} がサインインを要求する場合、次にサインイン ページが開きます。",
   " (optional)": "(オプション)",
   "Finish signing in to {name} in the browser…": "ブラウザで {name} へのサインインを完了します…",
-  "Adding {name}…": "{name} を追加中…",
   "Runs on {name} in the bot's project folder. Quotes work like in a shell.": "ボットのプロジェクト フォルダー内の {name} で実行されます。引用符はシェル内と同様に機能します。",
   "A remote MCP server, streamable HTTP or SSE.": "リモート MCP サーバー、ストリーミング可能な HTTP または SSE。",
   "Paste the MCP config from a README or another app (Claude, Cursor, VS Code). Every server in it is added. Saved on {name} only.": "README または別のアプリ (Claude、Cursor、VS Code) から MCP 構成を貼り付けます。その中のすべてのサーバーが追加されます。 {name} のみに保存されます。",
