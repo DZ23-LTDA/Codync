@@ -155,7 +155,7 @@ mod tests {
         assert_eq!(kept(&rows, &json!({"computer": "desk"}), Some("desk")), ["Coder", "Code Reviewer"]);
         assert_eq!(kept(&rows, &json!({"computer": HERE}), None), ["Coder", "Code Reviewer"]);
         assert_eq!(kept(&rows, &json!({"online": true}), None), ["Coder", "Code Reviewer"]);
-        assert!(kept(&rows, &json!({"computer": "elsewhere"}), None).is_empty());
+        assert_eq!(kept(&rows, &json!({"computer": "elsewhere"}), None), Vec::<&str>::new());
 
         let first = page(&rows, &json!({"limit": 2}), true);
         assert_eq!((first["total"].as_u64(), first["next"].as_str()), (Some(3), Some("2")));
