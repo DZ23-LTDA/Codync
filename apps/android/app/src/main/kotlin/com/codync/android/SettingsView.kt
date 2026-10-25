@@ -38,6 +38,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.paneTitle
@@ -242,7 +243,9 @@ private class ComputerActions(val extensions: () -> Unit, val screen: () -> Unit
             Modifier.fillMaxWidth().padding(top = 14.dp), label = "Connection") {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 Box(Modifier.width(26.dp), contentAlignment = Alignment.Center) { Symbol(computer.route.icon, size = 20.dp, tint = Palette.text) }
-                Text(tr("Connection"), Modifier.weight(1f), style = Type.body, color = Palette.text)
+                Text(tr("Connection"), style = Type.body, color = Palette.text)
+                Text(tr(routeTitle(computer.route, computer.cloud)), Modifier.weight(1f), style = Type.subheadline,
+                    color = Palette.secondary, textAlign = TextAlign.End)
                 Symbol("chevron.down", size = 13.dp, tint = Palette.tertiary)
             }
         }

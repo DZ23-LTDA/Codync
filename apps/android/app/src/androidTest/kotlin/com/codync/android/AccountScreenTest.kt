@@ -129,9 +129,10 @@ class AccountScreenTest {
         compose.onNodeWithText("Remove").performClick()
         compose.onNodeWithText("Remove ${computer.name}?").assertIsDisplayed()
         compose.onNodeWithText("Cancel").performClick()
+        compose.onNodeWithText("Auto: Wi-Fi or Tailscale, then Cloudflare").assertIsDisplayed()
         compose.onNodeWithContentDescription("Connection").performClick()
         compose.onNodeWithText("Wi-Fi or Tailscale only, never Cloudflare").assertIsDisplayed()
-        compose.onNodeWithText("Auto: Wi-Fi or Tailscale, then Cloudflare").assertIsSelected()
+        compose.onNode(hasText("Auto: Wi-Fi or Tailscale, then Cloudflare") and isSelected()).assertIsDisplayed()
         compose.setContent { Hosted { SettingsView(state, viewModel(), null, {}, {}, {}, embedded = true) } }
         compose.onNodeWithText("Settings").assertIsDisplayed()
         compose.onNodeWithText("Pair a computer").assertDoesNotExist()

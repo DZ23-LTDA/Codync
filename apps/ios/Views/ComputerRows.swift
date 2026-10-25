@@ -121,10 +121,14 @@ struct ComputerRow: View {
                     }
                 }
             } label: {
-                HStack(spacing: 12) {
+                HStack(alignment: .center, spacing: 12) {
                     Image(systemName: preference.icon).font(.system(size: 17)).frame(width: 26)
                     Text(L10n.tr("Connection"))
-                    Spacer(minLength: 8)
+                    Text(L10n.tr(RelayCopy.routeTitle(preference, cloud: store.computer.cloud)))
+                        .font(.subheadline)
+                        .foregroundStyle(Palette.secondary)
+                        .multilineTextAlignment(.trailing)
+                        .frame(maxWidth: .infinity, alignment: .trailing)
                     Image(systemName: "chevron.up.chevron.down").font(.caption.weight(.semibold)).foregroundStyle(Palette.tertiary)
                 }
                 .foregroundStyle(Palette.text)
