@@ -64,6 +64,7 @@ pub async fn run(hub: Arc<Hub>) {
         cloud::update_status(&hub, |s| {
             cloud::show(s, address.as_ref());
             s.approval = cloud::approval(&hub.store);
+            s.assistants = crate::chat::team::assistant::enabled(&hub.store);
             s.registered = false;
             s.connected = false;
             if address.is_none() {
@@ -406,6 +407,11 @@ impl Session {
             "hook.item" => {
                 let ack = hook_item(&self.hub, &v);
                 self.send(&ack).await?;
+            }
+            // A private relay has no accounts, so no cloud assistant (§7.9).
+            "assistant.call" if self.address.kind == cloud::RelayKind::Codync => {
+                let result = crate::chat::team::assistant::answer(&self.hub, &v);
+                self.send(&result).await?;
             }
             "cloud.changed" => self.pull(),
             "acl.ok" => {

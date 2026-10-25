@@ -1,7 +1,8 @@
 //! Bot messages. The recipient uses its own ACP session and its reply comes back to the sender
 //! as a turn of its own, so no bot ever waits on another; native subagents remain the harness's
 //! responsibility. A recipient on another of the user's computers is reached over
-//! codync-network (`remote`).
+//! codync-network (`remote`), and the user's cloud assistant reaches this computer's bots through
+//! the Codync connector (`assistant`).
 
 use crate::agent::bot::Cmd;
 use crate::hub::Hub;
@@ -11,6 +12,7 @@ use serde::Serialize;
 use serde_json::{Value, json};
 use std::sync::Arc;
 
+pub mod assistant;
 mod directory;
 pub mod remote;
 mod requests;
@@ -118,6 +120,7 @@ impl BotRequest {
                 let _ = message.hub.send_cmd(sender, Cmd::BotReply(reply));
             }
             Back::Remote(to) => remote::answer(&message.hub, to, &outcome, self.hops),
+            Back::Assistant { request } => message.hub.assistant.answered(request, outcome),
         }
     }
 }
@@ -156,7 +159,7 @@ pub fn reply_prompt(replies: &[BotReply]) -> String {
     )
 }
 
-#[derive(Clone, Copy, Serialize)]
+#[derive(Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub(crate) enum RequestStatus {
     Queued,
@@ -166,18 +169,22 @@ pub(crate) enum RequestStatus {
     Cancelled,
 }
 
-/// Where a request's outcome goes: a bot on this computer, or an agent on another one.
+/// Where a request's outcome goes: a bot on this computer, an agent on another one, or the
+/// user's cloud assistant.
 enum Back {
     Local { sender: String },
     Remote(remote::Return),
+    Assistant { request: String },
 }
 
 impl Back {
     /// The user stopped the recipient: a local sender's notice already shows it, and a remote one
-    /// hears so, without a reply turn.
+    /// or the cloud assistant hears so, without a reply turn.
     fn cancelled(&self, hub: &Arc<Hub>, hops: u8) {
-        if let Self::Remote(to) = self {
-            remote::cancelled(hub, to, hops);
+        match self {
+            Self::Local { .. } => {}
+            Self::Remote(to) => remote::cancelled(hub, to, hops),
+            Self::Assistant { request } => hub.assistant.cancelled(request),
         }
     }
 }
@@ -200,6 +207,9 @@ struct MessageLifetime {
 impl MessageLifetime {
     fn start(&mut self) {
         self.started = true;
+        if let Back::Assistant { request } = &self.back {
+            self.hub.assistant.started(request);
+        }
         for id in &self.entries {
             if let Some(mut e) = self.hub.store.entry(id) {
                 let heading = e.data["heading"].as_str().unwrap_or("Bot request");

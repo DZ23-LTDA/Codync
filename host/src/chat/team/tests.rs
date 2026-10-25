@@ -5,13 +5,13 @@ use crate::store::Store;
 use std::path::PathBuf;
 use std::time::Duration;
 
-struct Fixture {
-    hub: Arc<Hub>,
+pub(super) struct Fixture {
+    pub(super) hub: Arc<Hub>,
     dir: PathBuf,
 }
 
 impl Fixture {
-    fn new() -> Self {
+    pub(super) fn new() -> Self {
         let dir = std::env::temp_dir().join(format!("codync-team-{}", uuid::Uuid::new_v4()));
         std::fs::create_dir_all(&dir).unwrap();
         let store = Store::open(&dir.join("test.db")).unwrap();
@@ -74,7 +74,7 @@ impl Fixture {
         sent.unwrap()
     }
 
-    async fn until(&self, condition: impl Fn() -> bool) {
+    pub(super) async fn until(&self, condition: impl Fn() -> bool) {
         // Generous: Windows runners need several seconds to run 16 queued turns.
         tokio::time::timeout(Duration::from_secs(30), async {
             while !condition() {
@@ -118,7 +118,7 @@ impl Fixture {
             .collect()
     }
 
-    async fn shutdown(self) {
+    pub(super) async fn shutdown(self) {
         self.hub.shutdown().await;
         // Windows may still hold files of an agent that just exited.
         let _ = std::fs::remove_dir_all(self.dir);

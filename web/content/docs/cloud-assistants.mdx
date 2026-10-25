@@ -1,0 +1,36 @@
+You can give a task to your Codync bots from an assistant you already use on the web or on your phone, such as ChatGPT or Claude. Add Codync to it as a connector, sign in with your Codync account, and the assistant can see your bots, ask one to do something, and read its answer. The bots still do the work on your computer, with their own agent, folder, tools and approval setting.
+
+## Turn it on for a computer
+
+Cloud assistants are off on every computer until you turn them on there. On the computer whose bots the assistant may use, run:
+
+```sh
+codync-host cloud --assistants on
+```
+
+The computer has to be in your Codync account (signed in) and use the Codync relay. `codync-host cloud` shows the setting as `assistants: on`; `--assistants off` turns it off again.
+
+## Add the connector
+
+In your assistant's settings, add a custom connector (it may be called a connector, an app or an MCP server) with this address:
+
+```
+https://mcp.codync.dev/mcp
+```
+
+The assistant opens Codync's sign-in page. Sign in with the account your computer is in, then allow the assistant access. You can remove the connector in the assistant whenever you like.
+
+## What the assistant can do
+
+- **List your computers** and whether each one is online.
+- **List your bots**, with their names, descriptions and status. It can search them by name or description.
+- **Message a bot**: it sends one bot a task, the way one bot asks another for help ([Teamwork](/docs/teamwork)). The bot works on it in its own chat.
+- **Read replies**: bots can take a few minutes, so the assistant comes back for the answer, for example when you ask it how the task went.
+
+If several of your computers are online, the assistant says which one a message is for. It reaches only the bots of computers where you turned cloud assistants on, and not hidden bots or groups.
+
+In the bot's chat, the request shows as a row saying **Message from Cloud assistant**, like a message from another bot. Its reply goes back to the assistant, not to you in that chat. Your computer keeps the replies until the assistant reads them, and forgets them when Codync restarts.
+
+## Privacy
+
+Unlike the encrypted connection between your devices and your computer, a cloud assistant's requests and the bots' replies pass through the Codync relay in readable form, over HTTPS. The assistant's service (OpenAI, Anthropic or another) also sees them, as it does everything in that conversation. That's why it's off until you turn it on at the computer: the relay can't turn it on for you, and it only passes on requests from your own account. More in [Privacy](/docs/privacy).

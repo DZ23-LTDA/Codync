@@ -67,7 +67,8 @@ that was off learns of a removal.
 - One network per computer; the `.network` address suffix comes with several.
 - Shared networks (other people's computers) need the per-network list of offered bots and inbound rules first.
 - Bots can't reach Claude Code or Codex sessions on another computer through the host (the standalone daemon can).
-- No MCP connector door for hosted assistants yet.
+- The cloud assistant connector ([cloud assistants](cloud-assistants.md)) reaches only the bots of the computer it
+  talks to, not that computer's network.
 
 ## Code and verification
 

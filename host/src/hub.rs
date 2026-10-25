@@ -77,6 +77,8 @@ pub struct Hub {
     pub groups: crate::chat::group::Rooms,
     /// The user's other computers (codync-network), once this one is in a network.
     pub network: crate::network::Network,
+    /// The user's cloud assistant: its requests to this computer's bots and their replies.
+    pub assistant: crate::chat::team::assistant::Replies,
     pub store: Store,
     pub host_id: String,
     pub identity: Identity,
@@ -121,6 +123,7 @@ impl Hub {
             team: crate::chat::team::Requests::default(),
             groups: crate::chat::group::Rooms::default(),
             network: crate::network::Network::default(),
+            assistant: crate::chat::team::assistant::Replies::default(),
             store,
             host_id,
             identity,

@@ -113,6 +113,7 @@ Codync/
 | Desktop local host / SSH lifecycle | `apps/desktop/src/main/host-controller.ts`, `ssh.ts` |
 | Desktop store, chat and controls | `apps/desktop/src/renderer/store/bot-store.ts` (actions; state in `bot-mirror.ts`, events stream in `bot-sync.ts`), `views/thread/`, `components/` |
 | Cloud routes / authentication / relay | `cloud/src/index.ts`, `api.ts`, `routes/`, `auth.ts`, `relay.ts` |
+| Cloud assistants (the MCP connector at mcp.codync.dev) | `cloud/src/routes/assistant.ts` (MCP, OAuth metadata, routing to computers), `host-calls.ts` (the relay DO's calls to its host); `host/src/chat/team/assistant.rs` (the switch, the tools, the replies) |
 | Push encryption / APNs delivery / decryption | `host/src/remote/push.rs`, `relay/src/`, `apps/ios/NotificationService/` |
 | Widget and activity rendering | `apps/ios/Kit/Sources/CodyncKit/Design/`, `apps/ios/Widgets/` |
 | Android screens (one file per iOS view: `BotListView.kt`, `ChatScreen.kt`, `BotDetailsView.kt` (+ `BotSettingsForm.kt`, `BotTemplateView.kt`), `PairingView.kt`, `SettingsView.kt`, …) | `apps/android/app/src/main/kotlin/com/codync/android/` |
