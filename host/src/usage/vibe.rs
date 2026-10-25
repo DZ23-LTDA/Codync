@@ -135,8 +135,9 @@ fn json_f64(value: &Value) -> Option<f64> {
 }
 
 fn notes(tokens: f64, cost: f64, stamp_only: bool) -> Vec<Window> {
+    // Parentheses, not " · ": the apps read the part after " · " as Claude's model name.
     let (token_label, cost_label) =
-        if stamp_only { ("Tokens · started today", "Cost · started today") } else { ("Tokens today", "Cost today") };
+        if stamp_only { ("Tokens (started today)", "Cost (started today)") } else { ("Tokens today", "Cost today") };
     let mut windows = Vec::new();
     if tokens > 0.0 {
         windows.push(Window::note("tokens", token_label, token_text(tokens)));
@@ -209,7 +210,7 @@ mod tests {
         assert_eq!(rows[0].label, "Tokens today");
         assert_eq!(rows[0].text.as_deref(), Some("1.5M tokens"));
         assert_eq!(rows[1].text.as_deref(), Some("$1.50"));
-        assert_eq!(notes(1.0, 0.0, true)[0].label, "Tokens · started today");
+        assert_eq!(notes(1.0, 0.0, true)[0].label, "Tokens (started today)");
     }
 
     #[test]
@@ -257,7 +258,7 @@ mod tests {
             .unwrap();
         let windows = windows_in(&root, start, now);
         let _ = std::fs::remove_dir_all(&root);
-        assert_eq!(windows[0].label, "Tokens · started today");
+        assert_eq!(windows[0].label, "Tokens (started today)");
         assert_eq!(windows[0].text.as_deref(), Some("40 tokens"));
         assert_eq!(windows[1].text.as_deref(), Some("$2.00"));
     }
