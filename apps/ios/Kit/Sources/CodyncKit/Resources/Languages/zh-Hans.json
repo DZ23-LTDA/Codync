@@ -1214,5 +1214,7 @@
   "Connecting the call": "正在连接通话",
   "On a call · Listening": "通话中 · 聆听",
   "On a call · Speaking": "通话中 · 说话",
-  "Call paused": "通话已暂停"
+  "Call paused": "通话已暂停",
+  "You're up to date": "已是最新版本",
+  "Codync {version} is currently the newest version available.": "Codync {version} 是目前最新的版本。"
 }

@@ -1214,5 +1214,7 @@
   "Connecting the call": "Conectando la llamada",
   "On a call · Listening": "En llamada · Escuchando",
   "On a call · Speaking": "En llamada · Hablando",
-  "Call paused": "Llamada en pausa"
+  "Call paused": "Llamada en pausa",
+  "You're up to date": "Todo está al día",
+  "Codync {version} is currently the newest version available.": "Codync {version} es la versión más reciente disponible."
 }

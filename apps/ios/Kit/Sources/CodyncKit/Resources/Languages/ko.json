@@ -1214,5 +1214,7 @@
   "Connecting the call": "통화 연결 중",
   "On a call · Listening": "통화 중 · 듣는 중",
   "On a call · Speaking": "통화 중 · 말하는 중",
-  "Call paused": "통화 일시정지됨"
+  "Call paused": "통화 일시정지됨",
+  "You're up to date": "최신 버전입니다",
+  "Codync {version} is currently the newest version available.": "Codync {version}은(는) 현재 사용 가능한 최신 버전입니다."
 }
