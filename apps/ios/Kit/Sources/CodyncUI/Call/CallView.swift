@@ -57,7 +57,8 @@ struct CallView: View {
             link = CallLink(model: model, botId: botId, call: call)
             if let bot {
                 let ref = BotReference(accountId: model.storage.accountID, computerId: model.computer.id, botId: botId)
-                activity = CallActivity(bot: bot, computerId: model.computer.id, link: model.storage.botURL(ref))
+                activity = CallActivity(bot: bot, computerId: model.computer.id, link: model.storage.botURL(ref),
+                                        toggleMute: { session?.muted.toggle() }, hangUp: { close() })
             }
             begin(cloud: VoiceSettings.provider)
         }
@@ -91,6 +92,7 @@ struct CallView: View {
                 begin(cloud: nil)
             }
         }
+        .onChange(of: session?.muted) { _, muted in activity?.muted(muted == true) }
         .onChange(of: settings) { _, open in if !open { switchEngine() } }
         .codyncSheet(isPresented: $settings) { VoiceChatSettingsView() }
     }

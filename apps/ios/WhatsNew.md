@@ -12,14 +12,14 @@ a version without one gets a generic "Bug fixes and improvements" line. Delete o
 - Bot 工作時，Gemini 與 OpenAI 的語音會主動告訴你它在做什麼、有沒有等你核准或遇到問題，做完就念出結果。
 - 通話中短暫斷線再連上時，錯過的回覆會補念給你聽。
 - Gemini 或 OpenAI 通話斷線時會自動重新連上並接著聊，不必重打；來電、Siri 或其他 App 佔用聲音時通話會暫停，結束後自動繼續，也可以點一下通話列下方繼續。
-- 通話中，Bot 的即時動態會在鎖定畫面和動態島顯示通話狀態和它正在做的事。
+- 通話中，Bot 的即時動態會在鎖定畫面和動態島顯示通話時長和它正在做的事，還能直接靜音或結束通話，不用打開 App。
 - Gemini 與 OpenAI 的語音用你正在說的語言回答，你換語言它就跟著換。
 
 ### en-US
 - While the bot works, the Gemini and OpenAI voice keeps you posted on what it's doing, tells you when an approval waits or something fails, and reads the result when it's done.
 - A reply that arrives while a call briefly loses its connection is read once it's back.
 - A Gemini or OpenAI call that loses its connection reconnects and carries on without hanging up; a phone call, Siri or another app's audio pauses the call, which picks up again when it ends, or with a tap under the call bar.
-- During a call, the bot's Live Activity on the Lock Screen and in the Dynamic Island shows the call and what the bot is doing.
+- During a call, the bot's Live Activity on the Lock Screen and in the Dynamic Island shows how long the call has run and what the bot is doing, with buttons to mute or end it without opening Codync.
 - The Gemini and OpenAI voice answers in the language you speak and follows when you switch.
 
 ## 2.25.0

@@ -23,13 +23,26 @@ public final class CallActivity {
     private var call: CallState?
     /// The computer's latest progress line, until the bot's reply.
     private var progress: String?
+    private var muted = false
+    /// The call's own mute and hang-up, which the activity's buttons press (`MuteCallIntent`, `EndCallIntent`).
+    private let toggleMute: @MainActor () -> Void
+    private let hangUp: @MainActor () -> Void
     /// The activity followed for the computer's updates, and the tasks following it.
     private var followed: (id: String, tasks: [Task<Void, Never>])?
 
-    init(bot: Bot, computerId: ComputerID, link: URL?) {
+    init(bot: Bot, computerId: ComputerID, link: URL?, toggleMute: @escaping @MainActor () -> Void = {},
+         hangUp: @escaping @MainActor () -> Void = {}) {
         attributes = BotActivityAttributes(bot: bot, computerId: computerId, link: link)
+        self.toggleMute = toggleMute
+        self.hangUp = hangUp
         Self.calls[bot.id] = self
     }
+
+    /// The activity's mute button: the call's microphone goes off or back on, as with the call bar's.
+    public static func toggleMute(botId: String) { calls[botId]?.toggleMute() }
+
+    /// The activity's end button: the call ends as with the call bar's.
+    public static func hangUp(botId: String) { calls[botId]?.hangUp() }
 
     /// Whether this phone is on a call with the bot.
     public static func isLive(botId: String) -> Bool { calls[botId] != nil }
@@ -42,7 +55,7 @@ public final class CallActivity {
     /// `state` with the fields of the call this phone is on with the bot, or with none.
     public static func withCall(_ state: State, botId: String) -> State {
         let live = calls[botId]
-        return merge(state, call: live?.call, since: live?.startedAt)
+        return merge(state, call: live?.call, since: live?.startedAt, muted: live?.muted == true)
     }
 
     /// `ContentState.call` for a phase: nil once the call can't go on.
@@ -60,6 +73,13 @@ public final class CallActivity {
         let state = Self.state(phase)
         guard state != call else { return }
         call = state
+        show()
+    }
+
+    /// The call's microphone went off or on (its call bar or the activity's button).
+    func muted(_ on: Bool) {
+        guard on != muted else { return }
+        muted = on
         show()
     }
 
@@ -99,10 +119,11 @@ public final class CallActivity {
         }
     }
 
-    nonisolated static func merge(_ state: State, call: CallState?, since: Date?) -> State {
+    nonisolated static func merge(_ state: State, call: CallState?, since: Date?, muted: Bool = false) -> State {
         var state = state
         state.call = call
         state.callStartedAt = call == nil ? nil : since
+        state.callMuted = call == nil || !muted ? nil : true
         return state
     }
 
@@ -112,10 +133,10 @@ public final class CallActivity {
         guard Self.calls[botId] === self else { return }
         guard let shown = BotActivityAttributes.shown(botId: botId, computerId: computerId) else { return start() }
         follow(shown)
-        let (call, startedAt) = (call, startedAt)
+        let (call, startedAt, muted) = (call, startedAt, muted)
         Task.detached {
             guard let activity = BotActivityAttributes.shown(botId: botId, computerId: computerId) else { return }
-            var state = Self.merge(activity.content.state, call: call, since: startedAt)
+            var state = Self.merge(activity.content.state, call: call, since: startedAt, muted: muted)
             if let text { state.activity = text }
             guard state != activity.content.state else { return }
             await activity.update(.init(state: state, staleDate: activity.content.staleDate))
@@ -124,7 +145,8 @@ public final class CallActivity {
 
     private func start() {
         guard call != nil, BotActivityAttributes.mayStart else { return }
-        let state = Self.merge(.init(status: "idle", activity: progress ?? "", startedAt: nil), call: call, since: startedAt)
+        let state = Self.merge(.init(status: "idle", activity: progress ?? "", startedAt: nil), call: call, since: startedAt,
+                               muted: muted)
         do {
             let activity = try Activity.request(attributes: attributes, content: .init(state: state, staleDate: nil), pushType: nil)
             ownID = activity.id

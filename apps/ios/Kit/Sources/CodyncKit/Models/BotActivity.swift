@@ -37,13 +37,17 @@ public struct BotActivityAttributes: ActivityAttributes {
         public var call: CallState?
         /// When that call started, for its length.
         public var callStartedAt: Date?
+        /// That call's microphone is muted (its Live Activity's mute button).
+        public var callMuted: Bool?
 
-        public init(status: String, activity: String, startedAt: Date?, call: CallState? = nil, callStartedAt: Date? = nil) {
+        public init(status: String, activity: String, startedAt: Date?, call: CallState? = nil, callStartedAt: Date? = nil,
+                    callMuted: Bool? = nil) {
             self.status = status
             self.activity = activity
             self.startedAt = startedAt
             self.call = call
             self.callStartedAt = callStartedAt
+            self.callMuted = callMuted
         }
     }
 

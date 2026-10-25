@@ -597,16 +597,23 @@ struct BotLiveActivity: Widget {
     var body: some WidgetConfiguration {
         ActivityConfiguration(for: BotActivityAttributes.self) { context in
             let state = presentation(context)
-            BotActivityCard(name: context.attributes.name, state: state,
-                            startedAt: since(context), link: context.attributes.link) {
-                avatar(context, state: state, size: 32)
-            } mark: {
-                indicator(context, state: state, size: 28)
+            Group {
+                if context.state.call != nil {
+                    CallActivityViews(context: context, state: state).card
+                } else {
+                    BotActivityCard(name: context.attributes.name, state: state,
+                                    startedAt: since(context), link: context.attributes.link) {
+                        avatar(context, state: state, size: 32)
+                    } mark: {
+                        indicator(context, state: state, size: 28)
+                    }
+                }
             }
             .modifier(SurfaceTint())
                 .widgetURL(context.attributes.link ?? AppEnvironment.current.link("computers"))
         } dynamicIsland: { context in
             let state = presentation(context)
+            if context.state.call != nil { return CallActivityViews(context: context, state: state).island }
             return DynamicIsland {
                 DynamicIslandExpandedRegion(.leading) {
                     avatar(context, state: state, size: 26).frame(maxHeight: .infinity)

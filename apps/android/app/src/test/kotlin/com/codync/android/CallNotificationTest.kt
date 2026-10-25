@@ -16,4 +16,9 @@ class CallNotificationTest {
         assertEquals("Microphone muted", callNotificationText(listening.copy(muted = true), " "))
         assertEquals("Reconnecting…", callNotificationText(VoiceState(phase = VoicePhase.Reconnecting), null))
     }
+
+    @Test fun theChronometerCountsFromTheCallsStart() {
+        assertEquals(1_000_000L - 43_000L, callStartedWallClock(startedAt = 7_000, nowElapsed = 50_000, nowWall = 1_000_000))
+        assertEquals(1_000_000L, callStartedWallClock(startedAt = null, nowElapsed = 50_000, nowWall = 1_000_000))
+    }
 }

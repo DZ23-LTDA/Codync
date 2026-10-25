@@ -34,3 +34,25 @@ import Testing
     #expect(!CallActivity.isLive(botId: bot.id))
     #expect(CallActivity.withCall(leftover, botId: bot.id) == pushed)
 }
+
+@MainActor @Test func theActivitysButtonsReachTheCallAndShowItsMute() throws {
+    var bot = try #require(Bot.widgetPreview.first)
+    bot.id = "call-activity-buttons"
+    var mutes = 0, hangUps = 0
+    let call = CallActivity(bot: bot, computerId: "computer", link: nil, toggleMute: { mutes += 1 }, hangUp: { hangUps += 1 })
+    call.phase(.listening)
+    CallActivity.toggleMute(botId: bot.id)
+    CallActivity.hangUp(botId: bot.id)
+    CallActivity.toggleMute(botId: "another-bot")
+    #expect(mutes == 1 && hangUps == 1)
+
+    let pushed = BotActivityAttributes.ContentState(status: "idle", activity: "", startedAt: nil)
+    #expect(CallActivity.withCall(pushed, botId: bot.id).callMuted == nil)
+    call.muted(true)
+    #expect(CallActivity.withCall(pushed, botId: bot.id).callMuted == true)
+    call.end()
+    // A call that's over leaves no mute behind, and its buttons do nothing.
+    #expect(CallActivity.withCall(pushed, botId: bot.id).callMuted == nil)
+    CallActivity.hangUp(botId: bot.id)
+    #expect(hangUps == 1)
+}

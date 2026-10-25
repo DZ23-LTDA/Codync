@@ -133,6 +133,9 @@ class VoiceService : Service() {
             .setContentTitle("Voice chat · ${bot?.name ?: "Codync"}")
             .setContentText(callNotificationText(state, progress))
             .setStyle(NotificationCompat.BigTextStyle().bigText(callNotificationText(state, progress, "\n")))
+            // The call's length counts up beside the bot's name.
+            .setUsesChronometer(true).setShowWhen(true)
+            .setWhen(callStartedWallClock(session?.startedAt, SystemClock.elapsedRealtime(), System.currentTimeMillis()))
             .setContentIntent(content).setOngoing(true).setCategory(NotificationCompat.CATEGORY_CALL)
             .setVisibility(NotificationCompat.VISIBILITY_PRIVATE).setOnlyAlertOnce(true)
             .addAction(0, if (state.muted) "Unmute" else "Mute", action(MUTE)).addAction(0, "End call", action(END)).build()
@@ -200,6 +203,10 @@ class VoiceService : Service() {
         }
     }
 }
+
+/** When the call started on the wall clock, for the notification's chronometer; `startedAt` is on `elapsedRealtime`. */
+internal fun callStartedWallClock(startedAt: Long?, nowElapsed: Long, nowWall: Long): Long =
+    nowWall - (nowElapsed - (startedAt ?: nowElapsed)).coerceAtLeast(0)
 
 /** The call's notification text: its state, then what the bot is doing (the computer's latest progress line). */
 internal fun callNotificationText(state: VoiceState, progress: String?, separator: String = " · "): String {

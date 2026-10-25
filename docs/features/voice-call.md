@@ -382,8 +382,15 @@ carries audio and talks to these methods:
   computer replaces the state, and gives the call its own activity again when the computer's last push ends the
   task's. When the call ends, an activity whose bot is idle or failed ends (at once if the call started it, else a
   minute later) and one with a task under way stays without the call.
+  While the call lasts the activity takes the call's own layout (`CallLiveActivity.swift`): the bot's avatar, the
+  call's length over its name, and two round buttons, mute (`mic` / `mic.slash`, from `callMuted`) and end, in the
+  expanded island and on the Lock Screen card, which also shows the progress line; the compact island shows the
+  avatar and the length, the minimal one the avatar. The buttons are `LiveActivityIntent`s (`MuteCallIntent`,
+  `EndCallIntent`, built into the app and the widget extension) that run in the app without opening it and press
+  the call bar's own mute and end (`CallActivity.toggleMute` / `hangUp`), so an ended call logs its line as usual;
+  muting from the call bar updates the activity.
 - Android: the call's foreground notification shows its state and the bot's latest progress line (cleared by its
-  reply), updated in place, with Mute and End call.
+  reply), updated in place, with the bot's name, the call's length (a chronometer from its start) and Mute and End call.
 - The desktop and the terminal have no Live Activity or call notification.
 
 ### Failure and cost
