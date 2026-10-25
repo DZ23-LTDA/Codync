@@ -32,7 +32,12 @@ fn windows_in(root: &Path, start: i64, now: i64) -> Vec<Window> {
         let name = entry.file_name();
         let Some(name) = name.to_str() else { continue };
         let Some(at) = session_ms(name) else { continue };
-        if let Some((session_tokens, session_cost)) = dated_usage(&entry.path().join("messages.jsonl"), start, end) {
+        let log = entry.path().join("messages.jsonl");
+        // Untouched since midnight, and opened before today: it cannot add to today's total.
+        if at < start && !written_since(&log, start) {
+            continue;
+        }
+        if let Some((session_tokens, session_cost)) = dated_usage(&log, start, end) {
             if session_tokens > 0.0 || session_cost > 0.0 {
                 from_dated = true;
                 tokens += session_tokens;
@@ -51,6 +56,14 @@ fn windows_in(root: &Path, start: i64, now: i64) -> Vec<Window> {
         }
     }
     notes(tokens, cost, from_stamp && !from_dated)
+}
+
+/// Whether `path` was last written at or after `start` (ms). Missing counts as not written.
+fn written_since(path: &Path, start: i64) -> bool {
+    let Ok(meta) = std::fs::metadata(path) else { return false };
+    let Ok(modified) = meta.modified() else { return true };
+    let Ok(elapsed) = modified.duration_since(std::time::UNIX_EPOCH) else { return true };
+    i64::try_from(elapsed.as_millis()).unwrap_or(i64::MAX) >= start
 }
 
 /// Today's totals when the file has dated usage lines. `None` when it does not,
@@ -246,5 +259,34 @@ mod tests {
         let windows = windows_in(&root, start, now);
         let _ = std::fs::remove_dir_all(&root);
         assert_eq!(windows, []);
+    }
+
+    #[test]
+    fn an_old_log_untouched_since_midnight_is_not_reread() {
+        let now = chrono::NaiveDate::from_ymd_opt(2026, 10, 25)
+            .unwrap()
+            .and_hms_opt(12, 0, 0)
+            .unwrap()
+            .and_utc()
+            .timestamp_millis();
+        let start = local_midnight(now).unwrap();
+        let today = chrono::DateTime::from_timestamp_millis(start + 3_600_000).unwrap().to_rfc3339();
+        let root = std::env::temp_dir().join(format!("codync-vibe-stale-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        let stale = root.join("session_20200101_000000");
+        let fresh = root.join("session_20200102_000000");
+        let line = format!("{{\"created_at\":{today:?},\"prompt_tokens\":100,\"completion_tokens\":0,\"cost\":1}}\n");
+        for dir in [&stale, &fresh] {
+            std::fs::create_dir_all(dir).unwrap();
+            std::fs::write(dir.join("messages.jsonl"), &line).unwrap();
+        }
+        let earlier = std::time::UNIX_EPOCH + std::time::Duration::from_millis(u64::try_from(start - 60_000).unwrap());
+        let later = std::time::UNIX_EPOCH + std::time::Duration::from_millis(u64::try_from(start + 60_000).unwrap());
+        std::fs::File::open(stale.join("messages.jsonl")).unwrap().set_modified(earlier).unwrap();
+        std::fs::File::open(fresh.join("messages.jsonl")).unwrap().set_modified(later).unwrap();
+        let windows = windows_in(&root, start, now);
+        let _ = std::fs::remove_dir_all(&root);
+        assert_eq!(windows[0].text.as_deref(), Some("100 tokens"));
+        assert_eq!(windows[1].text.as_deref(), Some("$1.00"));
     }
 }
