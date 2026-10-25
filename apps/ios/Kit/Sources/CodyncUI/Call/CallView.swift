@@ -28,12 +28,8 @@ struct CallView: View {
     @State private var reported = false
     /// Each engine's `voice_call_quality`.
     @State private var quality = CallQuality()
-    /// The call as the system shows it (CallKit); nil where CallKit isn't offered (mainland China) or it refused.
-    @State private var system: CallKitCall?
     /// The bot's Live Activity showing the call.
     @State private var activity: CallActivity?
-    /// The call view went away (before its engine may have started).
-    @State private var closed = false
 
     private var bot: Bot? { model.bots[botId] }
     private var call: String { callID.uuidString }
@@ -63,21 +59,9 @@ struct CallView: View {
                 let ref = BotReference(accountId: model.storage.accountID, computerId: model.computer.id, botId: botId)
                 activity = CallActivity(bot: bot, computerId: model.computer.id, link: model.storage.botURL(ref))
             }
-            Task {
-                // The system runs the call where it may: the engine starts once its audio session is up.
-                if await SystemCallPolicy.allowed(), !closed {
-                    let system = CallKitCalls.shared.start(id: callID, name: bot?.name ?? "Codync")
-                    system.onEnd = close
-                    system.onMute = { muted in session?.muted = muted }
-                    self.system = system
-                    await system.audioReady()
-                }
-                guard !closed else { return }
-                begin(cloud: VoiceSettings.provider)
-            }
+            begin(cloud: VoiceSettings.provider)
         }
         .onDisappear {
-            closed = true
             session?.end()
             countCloudMinutes()
             isSpeaking = false
@@ -85,8 +69,6 @@ struct CallView: View {
             model.endVoiceCall(callID)
             link?.end(seconds: Int(Date.now.timeIntervalSince(startedAt)))
             quality.report()
-            // After the engine let go of the audio: CallKit deactivates the session as its call ends.
-            system?.end()
             activity?.end()
         }
         .onChange(of: session?.phase) { _, phase in
@@ -101,7 +83,6 @@ struct CallView: View {
                 reported = true
                 Analytics.shared.capture(.voiceCallStarted(session.analyticsName))
                 model.callStarted(botId, call: call)
-                system?.connected()
             }
             // A cloud engine that can't start or drops mid-call hands over to on-device voice.
             if case .failed(let message, _) = phase, let provider = session?.provider {
@@ -215,7 +196,6 @@ struct CallView: View {
             let muted = session?.muted == true
             round(muted ? "Unmute" : "Mute", muted ? "mic.slash" : "mic", on: muted) {
                 session?.muted.toggle()
-                system?.setMuted(session?.muted == true)
             }
             Button(action: close) {
                 Image(systemName: "xmark")

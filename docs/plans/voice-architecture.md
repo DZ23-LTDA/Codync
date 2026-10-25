@@ -1,6 +1,6 @@
 # Voice calls owned by the host
 
-Status: all four stages shipped (stage 1 in 2.25.0, stages 2–4 in 2.26.0). Supersedes [voice call transcripts](voice-call-transcripts.md),
+Status: all four stages shipped (stage 1 in 2.25.0, stages 2–4 in 2.26.0; stage 4 without CallKit). Supersedes [voice call transcripts](voice-call-transcripts.md),
 which became stage 1 of this plan. Current behavior: [voice call](../features/voice-call.md#the-call-on-the-host).
 
 A realtime voice model (Gemini Live, OpenAI Realtime) stays in front of the bot: coding agents are text-only and
@@ -78,11 +78,11 @@ replayed end to end in the iPhone and desktop tests (its events are).
 
 ### 4. Platform
 
-Shipped in 2.26.0 ([the call on the system](../features/voice-call.md#the-call-on-the-system)). CallKit stays off where
-the App Store storefront is mainland China's.
+Shipped in 2.26.0 ([the call outside the app](../features/voice-call.md#the-call-outside-the-app)), without CallKit:
+it was built, then taken out before release by the owner's decision (2026-10-25); the design and how to bring it back
+are in [CallKit (archived)](callkit.md).
 
-- iPhone: CallKit for the call (lock screen, Dynamic Island, AirPods controls, interruptions handled by the system),
-  and the bot's progress in the call's Live Activity.
+- iPhone: the bot's progress and the call's state in the bot's Live Activity; the app keeps its own audio session.
 - Android: the call's foreground notification shows the same progress.
 
 ## Compatibility

@@ -1,7 +1,6 @@
 import AVFoundation
 import Foundation
 import os
-@preconcurrency import WebRTC
 
 private let log = Logger(subsystem: "com.pokai.Codync", category: "Call")
 
@@ -30,63 +29,27 @@ enum AudioInterruption {
     case ended(shouldResume: Bool)
 }
 
-/// The call's audio session, set up the same way for every engine. Under CallKit the system activates it (and
-/// deactivates it as its call ends or is held), and WebRTC's audio runs only while it's active; otherwise the engines
-/// activate and release it.
+/// The call's audio session, set up the same way for every engine; each activates it as its audio starts and
+/// releases it as it stops (OpenAI's WebRTC manages its own, with the same options).
 @MainActor
 enum CallAudioSession {
     /// The category options of every engine's audio, WebRTC's too.
     static let options: AVAudioSession.CategoryOptions = [.defaultToSpeaker, .allowBluetoothHFP]
 
-    /// A CallKit call carries the audio (`CallKitCalls`). WebRTC then waits for the system's activation
-    /// (`useManualAudio`) instead of activating the session itself, and deactivating it as a connection closes.
-    static var systemRuns = false {
-        didSet {
-            let webRTC = RTCAudioSession.sharedInstance()
-            webRTC.isAudioEnabled = false
-            webRTC.useManualAudio = systemRuns
-        }
-    }
-
-    /// Sets the call's category; CallKit activates the session it finds configured.
-    static func configure() throws {
-        try AVAudioSession.sharedInstance().setCategory(.playAndRecord, mode: .voiceChat, options: options)
-    }
-
-    /// Before an engine's audio starts or resumes: the session set up, and active unless the system activates it.
+    /// Before an engine's audio starts or resumes.
     static func activate() throws {
-        try configure()
-        guard !systemRuns else { return }
-        try AVAudioSession.sharedInstance().setActive(true)
+        let session = AVAudioSession.sharedInstance()
+        try session.setCategory(.playAndRecord, mode: .voiceChat, options: options)
+        try session.setActive(true)
     }
 
-    /// After an engine stops: deactivates the session unless the system runs the call.
+    /// After an engine stops.
     static func release() {
-        guard !systemRuns else { return }
         try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
     }
-
-    /// CallKit activated the session (the call started, or came off hold): WebRTC's audio may run.
-    static func systemActivated(_ session: AVAudioSession) {
-        let webRTC = RTCAudioSession.sharedInstance()
-        webRTC.audioSessionDidActivate(session)
-        webRTC.isAudioEnabled = true
-    }
-
-    /// CallKit deactivated the session (held, or ended).
-    static func systemDeactivated(_ session: AVAudioSession) {
-        let webRTC = RTCAudioSession.sharedInstance()
-        webRTC.audioSessionDidDeactivate(session)
-        webRTC.isAudioEnabled = false
-    }
 }
 
-extension Notification.Name {
-    /// CallKit put the call on hold (`held` true: a phone call took over) or gave it its audio back after one.
-    static let callHeld = Notification.Name("CodyncCallHeld")
-}
-
-/// The audio session's events a call follows: interruptions (also CallKit holding the call), and `engine`
+/// The audio session's events a call follows: interruptions, and `engine`
 /// reconfiguring (a route change such as AirPods, voice processing settling), which stops it.
 @MainActor
 final class AudioSessionEvents {
@@ -105,10 +68,6 @@ final class AudioSessionEvents {
                 default: break
                 }
             }
-        })
-        observers.append(center.addObserver(forName: .callHeld, object: nil, queue: .main) { note in
-            let held = note.userInfo?["held"] as? Bool == true
-            MainActor.assumeIsolated { interrupted(held ? .began : .ended(shouldResume: true)) }
         })
         if let engine {
             observers.append(center.addObserver(forName: .AVAudioEngineConfigurationChange, object: engine, queue: .main) { _ in
