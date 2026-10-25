@@ -42,7 +42,7 @@ public enum AnalyticsEvent: Equatable, Sendable {
     public enum VoiceStuck: String, Sendable { case none, connecting, reconnecting, speaking }
     public enum VoiceFailure: String, Sendable { case none, microphone, connection, provider }
     public enum Screen: String, Sendable {
-        case bots, state, chat, trace, botDetails = "bot_details", memory, routines, marketplace
+        case bots, state, more, chat, trace, botDetails = "bot_details", memory, routines, marketplace
         case settings, computers, usage, account, pairing, voiceSettings = "voice_settings", remoteScreen = "remote_screen"
         case library, artifact
     }

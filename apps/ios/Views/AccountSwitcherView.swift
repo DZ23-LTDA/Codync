@@ -19,11 +19,10 @@ struct AccountSwitcherButton: View {
     }
 }
 
-/// Who you're signed in as, the other accounts on this iPhone, and the way to the computers.
+/// Who you're signed in as, and the other accounts on this iPhone.
 struct AccountSwitcherView: View {
     @Environment(AppStore.self) private var app
     @Environment(AccountSession.self) private var account
-    @State private var showSettings = false
     @State private var confirmSignOut = false
     @State private var pairing = false
     @State private var addingAccount = false
@@ -53,12 +52,8 @@ struct AccountSwitcherView: View {
                 if addingAccount { SignInButtons().transition(.opacity.combined(with: .move(edge: .top))) }
             }
 
-            CardSection {
-                Button { showSettings = true } label: {
-                    RowLabel("Computers & settings", systemImage: "gearshape", chevron: true)
-                }
-                .buttonStyle(.plain)
-                if account.isSignedIn {
+            if account.isSignedIn {
+                CardSection {
                     Button { confirmSignOut = true } label: {
                         RowLabel("Sign out", systemImage: "rectangle.portrait.and.arrow.right", tint: Palette.danger)
                     }
@@ -90,7 +85,6 @@ struct AccountSwitcherView: View {
         .tracked(.screenViewed(.account))
         .onChange(of: account.userID) { _, _ in withAnimation(Motion.layout) { addingAccount = false } }
         .hidesSystemNavigationBar()
-        .navigationDestination(isPresented: $showSettings) { SettingsView(pushed: true) }
         .codyncSheet(isPresented: $pairing) { PairingView(inModal: true) }
         .codyncDialog("Sign out of \(account.email ?? "this account")?", isPresented: $confirmSignOut,
                       message: "This iPhone forgets the account's computers. Your bots stay on them.") {
@@ -191,7 +185,7 @@ struct GoogleSignInButton: View {
 }
 
 /// An icon and a short name, with a chevron when it leads somewhere.
-private struct RowLabel: View {
+struct RowLabel: View {
     let title: String
     let systemImage: String
     var tint: Color = Palette.text

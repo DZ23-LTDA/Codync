@@ -175,8 +175,9 @@ References:
 ## iOS account switching
 
 The iOS app now uses the same ClerkKit dependency and shared AccountSession.
-Its top-left button opens Accounts; Computers & settings is a separate destination
-inside that sheet. The iOS native application must be registered in the same Clerk
+Its top-left button opens Accounts. Settings, the tab to the right of State,
+shows voice, appearance and the other device settings. Manage computers
+opens Computer management, which lists only the computers. The iOS native application must be registered in the same Clerk
 instance with bundle ID `com.pokai.Codync.ios` and its own callback
 `com.pokai.Codync.ios://callback`. The iOS public configuration is in
 `apps/shared/Config/<env>.plist`. The repository configuration does not prove

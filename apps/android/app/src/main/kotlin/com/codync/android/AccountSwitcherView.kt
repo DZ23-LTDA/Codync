@@ -43,8 +43,8 @@ import com.codync.android.design.*
 import com.kyant.shapes.Capsule
 import com.kyant.shapes.RoundedRectangle
 
-/** Who you're signed in as, the other accounts on this phone, and the way to the computers (iOS `AccountSwitcherView`). */
-@Composable internal fun AccountSwitcherView(state: AppState, store: AppStore, showSettings: () -> Unit, pair: () -> Unit) {
+/** Who you're signed in as, and the other accounts on this phone (iOS `AccountSwitcherView`). */
+@Composable internal fun AccountSwitcherView(state: AppState, store: AppStore, pair: () -> Unit) {
     val account = state.account
     val current = account.accounts.firstOrNull { it.userId == account.userId }
     val busy = "session" in state.busy
@@ -79,9 +79,8 @@ import com.kyant.shapes.RoundedRectangle
                 AnimatedVisibility(addingAccount, enter = fadeIn(Motion.fade()) + expandVertically(Motion.layoutSize),
                     exit = fadeOut(Motion.fade()) + shrinkVertically(Motion.layoutSize)) { SignInButtons(state, store) }
             }
-            CardSection {
-                row { RowLabel("Computers & settings", "gearshape", chevron = true, modifier = Modifier.plainButton(action = showSettings)) }
-                if (current != null) row {
+            if (current != null) CardSection {
+                row {
                     RowLabel("Sign out", "rectangle.portrait.and.arrow.right", Palette.danger,
                         modifier = Modifier.plainButton(enabled = !busy) { confirmSignOut = true })
                 }
@@ -119,7 +118,7 @@ import com.kyant.shapes.RoundedRectangle
     modifier: Modifier = Modifier) {
     Row(modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         Box(Modifier.width(26.dp), contentAlignment = Alignment.Center) { Symbol(systemImage, size = 20.dp, tint = tint) }
-        Text(title, Modifier.weight(1f), style = Type.body, color = tint)
+        Text(tr(title), Modifier.weight(1f), style = Type.body, color = tint)
         if (chevron) Symbol("chevron.right", size = 13.dp, tint = Palette.tertiary)
     }
 }

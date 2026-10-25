@@ -205,7 +205,7 @@ built into the host and the app (today `gpt-realtime-2.1`, `gpt-transcribe`, `gp
 list arrives.
 
 Voice settings (`VoiceChatSettingsView`) open from the call bar's gear and from settings: on the
-iPhone, **Computers & settings → Voice chat**; on Android, **Settings → Voice and API keys**; on the desktop, **Settings → Voice chat** (this
+iPhone and Android, **Settings → Voice chat** (Android’s row reads **Voice and API keys**); on the desktop, **Settings → Voice chat** (this
 computer) or the waveform button on a computer's card in **Computers & devices**. Keys are entered
 on the computer only: the host takes `setVoiceKey` from loopback, and the iPhone shows whether a key
 is there and can test it. Picking a cloud engine shows its key form instead of the on-device settings: a secure field, a link

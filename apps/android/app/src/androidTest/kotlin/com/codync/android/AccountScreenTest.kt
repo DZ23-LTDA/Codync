@@ -36,32 +36,31 @@ class AccountScreenTest {
     @Before fun isolatedEmulatorOnly() { assumeTrue(Build.PRODUCT.startsWith("sdk")) }
 
     @Test fun signedInOverviewKeepsTheProfileAboveItsNavigation() {
-        var scanned = false; var settings = false; var closed = false
+        var scanned = false; var closed = false
         compose.setContent { Hosted { CompositionLocalProvider(LocalDismissModal provides { closed = true }) {
-            AccountSwitcherView(fixture(), viewModel(), { settings = true }) { scanned = true }
+            AccountSwitcherView(fixture(), viewModel()) { scanned = true }
         } } }
         compose.onNodeWithText("Account").assertIsDisplayed()
         val scan = compose.onNodeWithText("Scan a computer's code").assertIsDisplayed().fetchSemanticsNode().boundsInRoot
         val identity = compose.onNodeWithText(first.email).assertIsDisplayed().fetchSemanticsNode().boundsInRoot
-        val computers = compose.onNodeWithText("Computers & settings").assertIsDisplayed().fetchSemanticsNode().boundsInRoot
+        val signOut = compose.onNodeWithText("Sign out").assertIsDisplayed().fetchSemanticsNode().boundsInRoot
         assertTrue(scan.bottom < identity.top)
-        assertTrue(identity.bottom < computers.top)
+        assertTrue(identity.bottom < signOut.top)
+        compose.onNodeWithText("Computers & settings").assertDoesNotExist()
         compose.onNodeWithContentDescription(first.email).assertIsSelected().assertIsNotEnabled()
         compose.onNodeWithContentDescription(second.email).assertIsNotSelected().assertIsEnabled()
         compose.onNodeWithContentDescription("Add account").assertIsDisplayed()
-        compose.onNodeWithText("Sign out").assertIsDisplayed()
         compose.onNodeWithText("Continue with Google").assertDoesNotExist()
         compose.onNodeWithText("Start over").assertDoesNotExist()
         snapshot("signed-in")
         compose.onNodeWithText("Scan a computer's code").performClick()
-        compose.onNodeWithText("Computers & settings").performClick()
         compose.onNodeWithContentDescription("Close").performClick()
-        assertTrue(scanned && settings && closed)
+        assertTrue(scanned && closed)
     }
 
     @Test fun theAddButtonRevealsProvidersOnlyOnDemandAndASessionChangeLocksTheSheet() {
         val state = mutableStateOf(fixture())
-        compose.setContent { Hosted { AccountSwitcherView(state.value, viewModel(), {}, {}) } }
+        compose.setContent { Hosted { AccountSwitcherView(state.value, viewModel()) {} } }
         compose.onNodeWithContentDescription("Add account").performClick()
         compose.onNodeWithText("Continue with Apple").performScrollTo().assertIsDisplayed()
         compose.onNodeWithText("Continue with Google").performScrollTo().assertIsDisplayed()
@@ -79,7 +78,7 @@ class AccountScreenTest {
 
     @Test fun signedOutProvidersAndUnconfiguredPairingRemainAvailable() {
         val state = mutableStateOf(fixture(AccountState(ready = true, configured = true)))
-        compose.setContent { Hosted { AccountSwitcherView(state.value, viewModel(), {}, {}) } }
+        compose.setContent { Hosted { AccountSwitcherView(state.value, viewModel()) {} } }
         val apple = compose.onNodeWithText("Continue with Apple").assertIsDisplayed().assertIsEnabled().fetchSemanticsNode().boundsInRoot
         val google = compose.onNodeWithText("Continue with Google").assertIsDisplayed().fetchSemanticsNode().boundsInRoot
         assertTrue(apple.bottom <= google.top)
@@ -95,12 +94,12 @@ class AccountScreenTest {
         compose.onNodeWithText("QR pairing only in this build").assertIsDisplayed()
         compose.onNodeWithText("Continue with Apple").assertDoesNotExist()
         compose.onNodeWithText("Scan a computer's code").assertIsDisplayed()
-        compose.onNodeWithText("Computers & settings").assertIsDisplayed()
+        compose.onNodeWithText("Computers & settings").assertDoesNotExist()
         snapshot("pairing-only")
     }
 
     @Test fun signOutAsksFirstAndCancelKeepsTheAccount() {
-        compose.setContent { Hosted { AccountSwitcherView(fixture(), viewModel(), {}, {}) } }
+        compose.setContent { Hosted { AccountSwitcherView(fixture(), viewModel()) {} } }
         compose.onNodeWithText("Sign out").performClick()
         compose.onNodeWithText("Sign out of ${first.email}?").assertIsDisplayed()
         compose.onNodeWithText("This phone forgets the account's computers. Your bots stay on them.").assertIsDisplayed()
@@ -113,32 +112,39 @@ class AccountScreenTest {
         val state = fixture().copy(computers = listOf(computer), connection = LinkState.Ready(HostRoute.Direct),
             bots = listOf(Bot("hidden", "Hidden scout", hidden = true)))
         var paired = 0; var popped = 0; var extensions = 0
-        compose.setContent { Hosted { SettingsView(state, viewModel(), { popped++ }, { paired++ }, {}) { extensions++ } } }
-        compose.onNodeWithText("Computers & settings").assertIsDisplayed()
+        compose.setContent { Hosted { SettingsView(state, viewModel(), { popped++ }, { paired++ }, {}, { extensions++ }) } }
+        compose.onNodeWithText("Computer management").assertIsDisplayed()
         compose.onNode(hasText(computer.name) and hasClickAction()).assertIsDisplayed()
         compose.onNodeWithText("1 bot · Wi-Fi/Tailscale").assertIsDisplayed()
         snapshot("computer-card")
-        compose.onNodeWithContentDescription("Extensions").performClick()
+        compose.onNodeWithText("Extensions").performClick()
         assertEquals(1, extensions)
         compose.onNodeWithText("Pair a computer").performClick()
         assertEquals(1, paired)
-        compose.onNodeWithText("Hidden scout").performScrollTo().assertIsDisplayed()
-        compose.onNodeWithContentDescription("Unhide").assertIsDisplayed()
-        if (BuildConfig.PUSH_CONFIGURED) compose.onNode(hasText("Push notifications") and isToggleable()).performScrollTo().assertIsDisplayed()
-        else compose.onNodeWithText("Push isn't set up in this build. Bots and chats still update while Codync is open.").performScrollTo().assertIsDisplayed()
-        compose.onNodeWithText("App version").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Hidden scout").assertDoesNotExist()
+        compose.onNodeWithText("Start over").assertDoesNotExist()
+        compose.onNodeWithText("App version").assertDoesNotExist()
         snapshot("computers")
-        compose.onNodeWithText("Start over").performScrollTo().performClick()
-        compose.onNodeWithText("Start over?").assertIsDisplayed()
-        compose.onNodeWithText("Cancel").performClick()
-        compose.onNodeWithText("Start over?").assertDoesNotExist()
-        compose.onNode(hasText(computer.name) and hasClickAction()).performScrollTo().performTouchInput { longClick() }
+        compose.onNode(hasText(computer.name) and hasClickAction()).performTouchInput { longClick() }
         compose.onNodeWithText("Remove").performClick()
         compose.onNodeWithText("Remove ${computer.name}?").assertIsDisplayed()
         compose.onNodeWithText("Cancel").performClick()
         compose.onNodeWithContentDescription("Connection").performClick()
         compose.onNodeWithText("Wi-Fi or Tailscale only, never Cloudflare").assertIsDisplayed()
         compose.onNodeWithText("Auto: Wi-Fi or Tailscale, then Cloudflare").assertIsSelected()
+        compose.setContent { Hosted { SettingsView(state, viewModel(), null, {}, {}, {}, embedded = true) } }
+        compose.onNodeWithText("Settings").assertIsDisplayed()
+        compose.onNodeWithText("Pair a computer").assertDoesNotExist()
+        compose.onNodeWithText(computer.name).assertDoesNotExist()
+        compose.onNodeWithText("Hidden scout").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithContentDescription("Unhide").assertIsDisplayed()
+        if (BuildConfig.PUSH_CONFIGURED) compose.onNode(hasText("Push notifications") and isToggleable()).performScrollTo().assertIsDisplayed()
+        else compose.onNodeWithText("Push isn't set up in this build. Bots and chats still update while Codync is open.").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("App version").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Start over").performScrollTo().performClick()
+        compose.onNodeWithText("Start over?").assertIsDisplayed()
+        compose.onNodeWithText("Cancel").performClick()
+        compose.onNodeWithText("Start over?").assertDoesNotExist()
     }
 
     @Test fun accountComputersAskForAccessAndAPendingRequestShowsItsCode() {

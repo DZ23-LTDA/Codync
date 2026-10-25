@@ -1,6 +1,5 @@
 package com.codync.android
 
-import android.view.KeyEvent
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.lifecycle.ViewModelProvider
@@ -67,12 +66,11 @@ class LiveManagementTest {
             compose.rosterActions("Edited group")
             compose.onNodeWithText("Hide from list").performScrollTo().performClick()
             compose.waitUntil(30_000) { store.state.value.bots.single { it.id == group.id }.hidden }
-            // Hidden bots come back from Computers & settings.
-            compose.computerAction("Manage computers")
+            // Hidden bots come back from More.
+            compose.onNodeWithText("Settings").performClick()
             compose.onRowButton("Unhide", "Edited group").performClick()
             compose.waitUntil(30_000) { !store.state.value.bots.single { it.id == group.id }.hidden }
-            InstrumentationRegistry.getInstrumentation().sendKeyDownUpSync(KeyEvent.KEYCODE_BACK)
-            compose.waitUntil(10_000) { compose.onAllNodesWithText("Computers & settings").fetchSemanticsNodes().isEmpty() }
+            compose.onNodeWithText("Bots").performClick()
             compose.rosterActions("Edited group")
             compose.onNodeWithText("Edit group").performClick()
             compose.onNodeWithText("Delete group chat").performScrollTo().performClick()

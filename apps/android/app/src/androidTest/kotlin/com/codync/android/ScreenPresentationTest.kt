@@ -32,27 +32,27 @@ class ScreenPresentationTest {
 
     @Before fun isolatedEmulatorOnly() { assumeTrue(Build.PRODUCT.startsWith("sdk")) }
 
-    @Test fun backPopsAccountSettingsAndNestedPairingOneLayerAtATime() {
+    @Test fun moreOpensComputersAndBackReturnsOneLayerAtATime() {
         compose.setContent { Hosted { CodyncApp(fixture(), viewModel()) } }
         compose.onNodeWithContentDescription("Switch account").performClick()
         compose.onNodeWithText("Account").assertIsDisplayed()
+        compose.onNodeWithText("Computers & settings").assertDoesNotExist()
         snapshot("account-sheet")
-        compose.onNodeWithText("Computers & settings").performClick()
-        compose.onNodeWithText("Pair a computer").performScrollTo().assertIsDisplayed()
         back()
+        compose.onNodeWithText("Account").assertDoesNotExist()
+        compose.onNodeWithText("Settings").performClick()
         compose.onNodeWithText("Pair a computer").assertDoesNotExist()
-        compose.onNodeWithText("Account").assertIsDisplayed()
-        compose.onNodeWithText("Computers & settings").performClick()
+        compose.onNodeWithText("App language").assertIsDisplayed()
+        compose.onNodeWithText("Bots").performClick()
+        compose.computerAction("Manage computers")
+        compose.onNodeWithText("Computer management").assertIsDisplayed()
+        compose.onNodeWithText("App language").assertDoesNotExist()
         compose.onNodeWithText("Pair a computer").performScrollTo().performClick()
         compose.onNodeWithText("Install Codync", substring = true).assertIsDisplayed()
         back()
         compose.onNodeWithText("Install Codync", substring = true).assertDoesNotExist()
-        compose.onNodeWithText("Computers & settings").assertIsDisplayed()
-        back()
-        compose.onNodeWithText("Account").assertIsDisplayed()
-        back()
-        compose.onNodeWithText("Account").assertDoesNotExist()
-        compose.onNodeWithText(bot.name).assertIsDisplayed()
+        compose.onNodeWithText("Pair a computer").assertIsDisplayed()
+        compose.onNodeWithText(bot.name).assertDoesNotExist()
     }
 
     @Test fun closingTheEditorDropsItsDraftAndANewGenerationRetiresIt() {

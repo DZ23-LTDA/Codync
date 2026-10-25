@@ -48,7 +48,7 @@ Usage row shows no number; it opens Settings' Usage page with the same per-provi
 
 ## Account menu and Settings (desktop)
 
-The chat window's account menu copies Grok Bot's: Usage, Get Codync for mobile, Support, Settings, then the signed-in account and Sign out. Everything else is a page of **Settings**, laid out like ChatGPT's desktop settings (references in `reference/chatgpt-settings-*.png`): a sidebar of pages under small group labels (Personal: General, Voice chat, Usage; This Mac, or This computer on Linux: Computers, Updates) and a large page title over the page's sections. Manage computers and approval badges lead to the Computers page. The iPhone keeps its Computers & settings sheet. Source: `apps/desktop/src/renderer/views/settings/SettingsView.tsx`, account menu in `apps/desktop/src/renderer/views/PanelMenus.tsx`.
+The chat window's account menu copies Grok Bot's: Usage, Get Codync for mobile, Support, Settings, then the signed-in account and Sign out. Everything else is a page of **Settings**, laid out like ChatGPT's desktop settings (references in `reference/chatgpt-settings-*.png`): a sidebar of pages under small group labels (Personal: General, Voice chat, Usage; This Mac, or This computer on Linux: Computers, Updates) and a large page title over the page's sections. Manage computers and approval badges lead to the Computers page. The iPhone's Settings tab, to the right of State in the same bar, shows voice, appearance and the other device settings. Manage computers, and links, open a sheet titled Computer management that lists only the computers. Source: `apps/desktop/src/renderer/views/settings/SettingsView.tsx`, account menu in `apps/desktop/src/renderer/views/PanelMenus.tsx`.
 
 ## iPhone and desktop code
 
@@ -68,7 +68,7 @@ Other custom iPhone screens use `Chrome.swift` and `Controls.swift`. The desktop
 | Modal or full-window overlay | `.codyncSheet` (system sheet), `.codyncOverlay` |
 | Header outside the native bot navigation flow | `ModalHeader`, `ScreenHeader` |
 | Icon action | `IconButton` |
-| iPhone app tabs | System `TabView` (Liquid Glass tab bar, hidden inside a chat) |
+| iPhone app tabs | System `TabView` (Liquid Glass tab bar, hidden inside a chat). Settings is the tab to the right of State. |
 | Menu / confirmation | `DropdownMenu` / `.contextActions` (system menus), `.codyncDialog` |
 | Toggle | `ToggleStyle.codync` |
 | Form-like content | `CardForm`, `CardSection` (a small bold heading over a filled, rounded group; rows split by inset hairlines; a row is `ValueRow` with an optional one-line `detail`, and its picker is an outlined `ChoicePicker`) |

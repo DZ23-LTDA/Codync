@@ -64,8 +64,8 @@ struct RootView: View {
         }
     }
 
-    /// The system tab bar; both tabs stay alive (scroll position, open thread) and the bar hides while a
-    /// thread is open.
+    /// The system tab bar. Bots, State and Settings stay in one bar (scroll position and the open thread
+    /// stay alive). The bar hides while a thread is open.
     private var tabs: some View {
         TabView(selection: Bindable(app).tab) {
             Tab(L10n.tr("Bots"), systemImage: "bubble.left.and.bubble.right.fill", value: AppTab.bots) {
@@ -81,11 +81,23 @@ struct RootView: View {
                 StateTab()
                     .safeAreaInset(edge: .bottom, spacing: 0) { AccessBanners() }
             }
+            Tab(L10n.tr("Settings"), systemImage: "gearshape", value: AppTab.more) {
+                SettingsView(embedded: true)
+                    .safeAreaInset(edge: .bottom, spacing: 0) { AccessBanners() }
+            }
         }
         .tint(Palette.text)
-        .tracked(.screenViewed(app.tab == .bots ? .bots : .state))
+        .tracked(.screenViewed(screen))
         // Opening a bot (notification, widget, link) always lands on the Bots tab.
         .onChange(of: accounts.selection) { _, ref in if ref != nil { app.tab = .bots } }
+    }
+
+    private var screen: AnalyticsEvent.Screen {
+        switch app.tab {
+        case .bots: .bots
+        case .state: .state
+        case .more: .more
+        }
     }
 
     /// Once per setup (Start over begins a new one): the first computer reached, or Skip.

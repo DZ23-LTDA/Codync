@@ -49,8 +49,7 @@ struct CodyncApp: App {
                     get: { (onboardingCompleted || app.account.isSignedIn) && app.account.showSwitcher },
                     set: { app.account.showSwitcher = $0 }
                 )) {
-                    // Holds the pushes inside the sheet (Computers & settings, Widgets); no bar shows.
-                    NavigationStack { AccountSwitcherView() }
+                    AccountSwitcherView()
                         .environment(app)
                         .environment(app.accounts)
                         .environment(app.account)
@@ -106,7 +105,7 @@ struct CodyncApp: App {
     }
 }
 
-enum AppTab: Hashable { case bots, state }
+enum AppTab: Hashable { case bots, state, more }
 
 /// One `AccountStore` per account context: switching accounts retires the old one so
 /// in-flight work can't land on another user's screen or storage.

@@ -5,8 +5,10 @@ import SwiftUI
 /// Every computer this iPhone can use or ask for — paired here and in the account, merged by
 /// computer ID — plus settings for the selected account.
 struct SettingsView: View {
-    /// Pushed inside Accounts rather than opened as its own sheet.
+    /// Pushed on top of another screen rather than opened as its own sheet.
     var pushed = false
+    /// The More tab: voice, appearance and the other device settings. The sheet is computers only.
+    var embedded = false
     @Environment(AppStore.self) private var app
     @Environment(AccountStore.self) private var accounts
     @Environment(\.dismissModal) private var dismissModal
@@ -23,8 +25,49 @@ struct SettingsView: View {
     @State private var aboutAnalytics = false
 
     var body: some View {
-        CardForm {
-            CardSection("Computers", footer: app.account.isSignedIn
+        cards
+            .refreshable { await accounts.refreshCloud() }
+            .task { await accounts.refreshCloud() }
+            .task { notificationsAllowed = await PushRegistrar.shared.isAllowed() }
+            .codyncSheet(isPresented: $addingComputer) {
+                PairingView(inModal: true)
+            }
+            .codyncSheet(item: $voice) { target in VoiceChatSettingsView().environment(target.store) }
+            .codyncSheet(isPresented: $aboutAnalytics) { AnalyticsSheet() }
+            .codyncSheet(item: $access) { target in
+                AccessRequestView(computer: target.computer, pending: accounts.pendingAccess[target.id])
+            }
+            .codyncDialog(L10n.tr("Remove {name}?").replacingOccurrences(of: "{name}", with: confirmForget?.name ?? "computer"),
+                          isPresented: Binding(get: { confirmForget != nil }, set: { if !$0 { confirmForget = nil } }),
+                          message: "Its bots and conversations stay on that computer. You can pair again any time.") {
+                [DialogAction("Remove", destructive: true) {
+                    if let c = confirmForget { Task { await app.removeComputer(c.id) } }
+                }]
+            }
+            .codyncDialog("Revoke this iPhone's access to \(confirmRevoke?.name ?? "the computer")?",
+                          isPresented: Binding(get: { confirmRevoke != nil }, set: { if !$0 { confirmRevoke = nil } }),
+                          message: "You can ask for access again; the computer will show a new code to confirm.") {
+                [DialogAction("Revoke", destructive: true) {
+                    if let c = confirmRevoke { Task { await app.revokeAccess(c.computerId) } }
+                }]
+            }
+            // What failed here (removing, revoking, refreshing) shows over this sheet, not under it at the root,
+            // where the same error clears with this one. In place: a failure right after a confirmation comes
+            // while that dialog's cover is still fading out, and a second cover can't present over it.
+            .codyncDialog("Something went wrong", isPresented: Binding(
+                get: { accounts.lastError != nil }, set: { if !$0 { accounts.lastError = nil } }
+            ), message: accounts.lastError, cancel: "OK", inPlace: true) { [] }
+    }
+
+    private var cards: some View {
+        let form = CardForm {
+            if embedded {
+                Text(L10n.tr("Settings"))
+                    .font(.largeTitle.bold())
+                    .foregroundStyle(Palette.text)
+                    .accessibilityAddTraits(.isHeader)
+            } else {
+            CardSection(footer: app.account.isSignedIn
                         ? "Computers in your account need your OK on the computer before this iPhone can use them."
                         : "Each bot runs on its own computer. Sign in to see the computers in your account.") {
                 ForEach(accounts.computers) { computer in
@@ -56,7 +99,9 @@ struct SettingsView: View {
                 }
                 .buttonStyle(.plain)
             }
+            }
 
+            if embedded {
             let online = accounts.computers.compactMap { accounts.store(for: $0.id) }.filter { $0.connection == .online }
             if !online.isEmpty {
                 CardSection("Voice chat", footer: "Apple speech on this iPhone, or OpenAI and Gemini on your own API key, kept on the computer.") {
@@ -137,46 +182,32 @@ struct SettingsView: View {
                 }
                 .buttonStyle(.plain)
             }
+            }
         }
         .codyncDialog("Start over?", isPresented: $confirmStartOver,
                       message: "Signs out of every account and forgets every computer on this iPhone, then shows the welcome again. Your computers keep their bots and chats; pair again to use them.") {
             [DialogAction("Start over", destructive: true) { Task { await app.startOver() } }]
         }
-        .refreshable { await accounts.refreshCloud() }
-        .page("Computers & settings", pushed: pushed, icon: "gearshape")
-        // One screen, named for the way in (as on Android): Accounts → settings, the Computers sheet → computers.
-        .tracked(.screenViewed(pushed ? .settings : .computers))
-        .task { await accounts.refreshCloud() }
-        .codyncSheet(isPresented: $addingComputer) {
-            PairingView(inModal: true)
-        }
-        .codyncSheet(item: $voice) { target in VoiceChatSettingsView().environment(target.store) }
-        .codyncSheet(isPresented: $aboutAnalytics) { AnalyticsSheet() }
-        .codyncSheet(item: $access) { target in
-            AccessRequestView(computer: target.computer, pending: accounts.pendingAccess[target.id])
-        }
-        .codyncDialog(L10n.tr("Remove {name}?").replacingOccurrences(of: "{name}", with: confirmForget?.name ?? "computer"),
-                      isPresented: Binding(get: { confirmForget != nil }, set: { if !$0 { confirmForget = nil } }),
-                      message: "Its bots and conversations stay on that computer. You can pair again any time.") {
-            [DialogAction("Remove", destructive: true) {
-                if let c = confirmForget { Task { await app.removeComputer(c.id) } }
-            }]
-        }
-        .codyncDialog("Revoke this iPhone's access to \(confirmRevoke?.name ?? "the computer")?",
-                      isPresented: Binding(get: { confirmRevoke != nil }, set: { if !$0 { confirmRevoke = nil } }),
-                      message: "You can ask for access again; the computer will show a new code to confirm.") {
-            [DialogAction("Revoke", destructive: true) {
-                if let c = confirmRevoke { Task { await app.revokeAccess(c.computerId) } }
-            }]
-        }
-        .task { notificationsAllowed = await PushRegistrar.shared.isAllowed() }
-        // What failed here (removing, revoking, refreshing) shows over this sheet, not under it at the root,
-        // where the same error clears with this one. In place: a failure right after a confirmation comes
-        // while that dialog's cover is still fading out, and a second cover can't present over it.
-        .codyncDialog("Something went wrong", isPresented: Binding(
-            get: { accounts.lastError != nil }, set: { if !$0 { accounts.lastError = nil } }
-        ), message: accounts.lastError, cancel: "OK", inPlace: true) { [] }
+        return PresentedSettings(embedded: embedded, pushed: pushed) { form }
     }
+
+    /// More shows device settings. The sheet and a push add the Computers & settings header.
+private struct PresentedSettings<Content: View>: View {
+    let embedded: Bool
+    let pushed: Bool
+    @ViewBuilder let content: Content
+
+    var body: some View {
+        if embedded {
+            content
+        } else {
+            content
+                .page("Computer management", pushed: pushed, icon: "gearshape")
+                // A push → settings, the Computers sheet → computers. The More tab tracks itself.
+                .tracked(.screenViewed(pushed ? .settings : .computers))
+        }
+    }
+}
 
 
     private struct VoiceTarget: Identifiable {
@@ -215,9 +246,10 @@ struct SettingsView: View {
         }
     }
 
-    /// This screen is a sheet of its own or inside Accounts; the marketplace and screen open over the app,
-    /// once that sheet has slid away.
+    /// The Computers sheet slides away before the marketplace or screen opens over the app. On the More
+    /// tab those open immediately.
     private func closeSheets(then open: @escaping @MainActor () -> Void) {
+        guard !embedded else { open(); return }
         dismissModal()
         Task {
             try? await Task.sleep(for: .milliseconds(450))
@@ -241,245 +273,5 @@ struct SettingsView: View {
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-    }
-}
-
-/// A computer this iPhone can use: its connection, how it's reached, and whether it's in the account.
-private struct ComputerRow: View {
-    let store: BotStore
-    let inAccount: CloudComputer?
-    let openScreen: () -> Void
-    /// Agents, connectors and skills installed on this computer.
-    let openMarketplace: () -> Void
-    let ask: (() -> Void)?
-    /// Set when this iPhone's access to the computer can be revoked.
-    let revoke: (() -> Void)?
-    let remove: () -> Void
-    @Environment(AccountStore.self) private var accounts
-    @State private var coloring = false
-    @State private var voiceSettings = false
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 10) {
-                ComputerBadge(store.computer, size: 32)
-                Text(store.hostName).font(.body.weight(.semibold)).foregroundStyle(Palette.text)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                if inAccount != nil {
-                    Image(systemName: "person.crop.circle.badge.checkmark")
-                        .foregroundStyle(Palette.tertiary)
-                        .accessibilityLabel(L10n.tr("In your account"))
-                }
-            }
-            if store.connection == .online {
-                ViewThatFits(in: .horizontal) {
-                    HStack(spacing: 8) {
-                        connectionDetail.fixedSize()
-                        Spacer(minLength: 0)
-                        controls
-                    }
-                    VStack(alignment: .leading, spacing: 4) {
-                        connectionDetail
-                        controls.frame(maxWidth: .infinity, alignment: .trailing)
-                    }
-                }
-            } else {
-                connectionDetail
-                HStack(spacing: 8) {
-                    if store.isOffline, let ask {
-                        Button(accounts.pendingAccess[store.computer.id] == nil ? "Ask for access" : "Show code", action: ask)
-                            .buttonStyle(.secondary)
-                    }
-                    Spacer(minLength: 0)
-                    controls
-                }
-            }
-        }
-        .padding(.vertical, 2)
-        .contentShape(Rectangle())
-        .contextActions {
-            var items = [
-                MenuItem("Color", icon: "paintpalette") { coloring = true },
-            ]
-            if store.connection == .online {
-                items.append(MenuItem("Extensions", icon: "square.grid.2x2", action: openMarketplace))
-                items.append(MenuItem("Voice chat", icon: "waveform") { voiceSettings = true })
-            }
-            if store.screen != nil, store.connection == .online {
-                items.append(MenuItem("Screen", icon: "display", action: openScreen))
-            }
-            if let revoke {
-                items.append(MenuItem("Revoke this iPhone's access", icon: "lock.slash", destructive: true, divider: true, action: revoke))
-            }
-            if inAccount == nil {
-                items.append(MenuItem("Remove", icon: "trash", destructive: true, divider: revoke == nil, action: remove))
-            }
-            return items
-        }
-        .codyncSheet(isPresented: $voiceSettings) { VoiceChatSettingsView().environment(store) }
-        .codyncOverlay(isPresented: $coloring) { close in
-            ZStack {
-                Color.black.opacity(0.35).ignoresSafeArea().onTapGesture(perform: close)
-                SwatchPanel(selected: store.computer.color) { id in
-                    close()
-                    accounts.setColor(store.computer.id, id)
-                }
-                .background(Palette.bubbleAgent, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
-                .shadow(color: .black.opacity(0.25), radius: 24, y: 10)
-            }
-            .accessibilityAddTraits(.isModal)
-        }
-    }
-
-    private var connectionDetail: some View {
-        Text(L10n.tr(detail)).font(.footnote)
-            .foregroundStyle(store.isOffline ? Palette.warning : Palette.secondary)
-            .fixedSize(horizontal: false, vertical: true)
-    }
-
-    private var controls: some View {
-        HStack(spacing: 4) {
-            if store.connection == .online {
-                IconButton("Extensions", systemImage: "square.grid.2x2", action: openMarketplace)
-                if store.screen != nil { IconButton("Screen", systemImage: "display", action: openScreen) }
-            }
-            DropdownMenu {
-                ConnectionRoute.allCases.map { route in
-                    MenuItem(RelayCopy.routeTitle(route, cloud: store.computer.cloud), icon: route.icon, selected: route == preference) {
-                        accounts.setRoute(store.computer.id, route)
-                    }
-                }
-            } label: {
-                Image(systemName: preference.icon)
-                    .font(.system(size: 18, weight: .medium))
-                    .foregroundStyle(Palette.secondary)
-                    .frame(width: 36, height: 36)
-                    .contentShape(Rectangle())
-            }
-            .accessibilityLabel("Connection")
-            if stale, inAccount == nil { IconButton("Remove", systemImage: "trash", action: remove) }
-        }
-    }
-
-    private var preference: ConnectionRoute { store.computer.route ?? .automatic }
-
-    private var stale: Bool { accounts.isStale(store.computer.id) }
-
-    private var detail: String {
-        guard store.connection == .online else { return accounts.statusText(store) }
-        let count = store.roster.count
-        let route = RelayCopy.detailSuffix(route: store.hostRoute, cloud: store.computer.cloud)
-        return "\(count) bot\(count == 1 ? "" : "s")\(route)"
-    }
-}
-
-/// A computer in the account that this iPhone can't use yet.
-private struct AccountComputerRow: View {
-    let computer: CloudComputer
-    let ticket: AccessTicket?
-    let ask: () -> Void
-    let revoke: () -> Void
-
-    var body: some View {
-        HStack(spacing: 12) {
-            ComputerBadge(Computer(id: computer.computerId, name: computer.name, signKey: computer.signKey, device: computer.device), size: 40)
-                .opacity(0.5)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(computer.name).font(.body.weight(.semibold)).foregroundStyle(Palette.text)
-                Text(L10n.tr(detail)).font(.subheadline).foregroundStyle(Palette.secondary).lineLimit(2)
-            }
-            Spacer()
-            if ticket != nil {
-                Button(L10n.tr("Code"), action: ask).buttonStyle(.secondary)
-            } else if computer.isGranted {
-                Button(L10n.tr("Revoke"), role: .destructive, action: revoke).buttonStyle(.secondary)
-            } else {
-                Button(L10n.tr("Ask for access"), action: ask).buttonStyle(.secondary)
-            }
-        }
-        .padding(.vertical, 2)
-    }
-
-    private var detail: String {
-        let online = computer.isOnline ? "Online" : "Offline"
-        if let ticket { return "Waiting for your OK on the computer · \(ticket.code)" }
-        return switch computer.access {
-        case "granted": "Approved for an earlier install of Codync. Revoke it, then ask again."
-        case "pending": "\(online) · A request is waiting"
-        default: "\(online) · In your account"
-        }
-    }
-}
-
-/// An older account identity stays visible; only account management can remove it.
-private struct OlderCopyRow: View {
-    let computer: CloudComputer
-
-    var body: some View {
-        HStack(spacing: 12) {
-            ComputerBadge(Computer(id: computer.computerId, name: computer.name, signKey: computer.signKey, device: computer.device), size: 40)
-                .opacity(0.35)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(computer.name).font(.body.weight(.semibold)).foregroundStyle(Palette.secondary)
-                Text(L10n.tr(detail)).font(.subheadline).foregroundStyle(Palette.tertiary).lineLimit(2)
-            }
-            Spacer()
-        }
-        .padding(.vertical, 2)
-    }
-
-    private var detail: String {
-        let seen = computer.lastSeenAt.map { " · last seen \(RelativeTime.day(Date(milliseconds: $0)))" } ?? ""
-        return "Older copy of this computer\(seen)"
-    }
-}
-
-/// A navigation row label with a trailing chevron.
-private struct LinkRow<Content: View>: View {
-    @ViewBuilder let content: Content
-
-    var body: some View {
-        HStack {
-            content.foregroundStyle(Palette.text)
-            Spacer(minLength: 8)
-            Image(systemName: "chevron.right").font(.caption.weight(.semibold)).foregroundStyle(Palette.tertiary)
-        }
-        .contentShape(Rectangle())
-    }
-}
-
-/// The computer color choices: a grid of colored dots, the current one checked.
-private struct SwatchPanel: View {
-    let selected: String?
-    let pick: (String) -> Void
-
-    var body: some View {
-        LazyVGrid(columns: Array(repeating: GridItem(.fixed(36), spacing: 10), count: 6), spacing: 10) {
-            ForEach(AvatarPalette.colors) { swatch in
-                Button { pick(swatch.id) } label: {
-                    Circle().fill(swatch.color)
-                        .frame(width: 32, height: 32)
-                        .overlay {
-                            if selected == swatch.id {
-                                Image(systemName: "checkmark").font(.caption.weight(.bold)).foregroundStyle(.white)
-                            }
-                        }
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel(swatch.label)
-                .accessibilityAddTraits(selected == swatch.id ? .isSelected : [])
-            }
-        }
-        .padding(14)
-    }
-}
-
-private extension ConnectionRoute {
-    var icon: String {
-        switch self {
-        case .automatic: "arrow.triangle.branch"
-        case .cloudflareFirst: "cloud"
-        case .directOnly: "wifi"
-        }
     }
 }

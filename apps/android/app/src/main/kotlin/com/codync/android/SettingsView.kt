@@ -15,12 +15,13 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -38,6 +39,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.paneTitle
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
@@ -56,10 +58,10 @@ import kotlinx.serialization.json.put
 
 /**
  * Every computer this phone can use or ask for, plus settings for the selected account
- * (iOS `SettingsView`). `pop` is set when it's pushed inside Accounts.
+ * (iOS `SettingsView`). `pop` is set when it's pushed on top of another screen.
  */
 @Composable internal fun SettingsView(state: AppState, store: AppStore, pop: (() -> Unit)?, pair: () -> Unit, ask: (CloudComputer) -> Unit,
-    extensions: () -> Unit) {
+    extensions: () -> Unit, embedded: Boolean = false, bottomInset: Dp = 0.dp) {
     val uri = LocalUriHandler.current
     val signedIn = state.account.userId != null
     val paired = state.computers.firstOrNull()
@@ -70,10 +72,14 @@ import kotlinx.serialization.json.put
     var voice by remember { mutableStateOf(false) }
     var aboutAnalytics by remember { mutableStateOf(false) }
     LaunchedEffect(state.contextId) { store.refreshCloud() }
-    Column(Modifier.fillMaxSize().background(Palette.background)) {
-        PageHeader("Computers & settings", pop, icon = "gearshape")
-        PullToRefresh(store::refreshComputers, Modifier.weight(1f)) { CardForm {
-            CardSection("Computers", if (signedIn) "Computers in your account need your OK on the computer before this phone can use them."
+    Column(Modifier.fillMaxSize().background(Palette.background).then(if (embedded) Modifier.statusBarsPadding() else Modifier)) {
+        if (!embedded) PageHeader("Computer management", pop, icon = "gearshape")
+        PullToRefresh(store::refreshComputers, Modifier.weight(1f)) {
+            CardForm(padding = PaddingValues(start = 20.dp, top = if (embedded) 12.dp else 20.dp, end = 20.dp, bottom = if (embedded) bottomInset else 20.dp)) {
+            if (embedded) {
+                Text(tr("Settings"), Modifier.semantics { heading() }, style = Type.largeTitle.bold, color = Palette.text)
+            }
+            if (!embedded) CardSection(footer = if (signedIn) "Computers in your account need your OK on the computer before this phone can use them."
                 else "Each bot runs on its own computer. Sign in to see the computers in your account.") {
                 if (paired != null) row {
                     val inAccount = state.cloudComputers.firstOrNull { it.computerId == paired.id }
@@ -95,6 +101,7 @@ import kotlinx.serialization.json.put
                     }
                 }
             }
+            if (embedded) {
             AppearanceSettings()
             if (state.actualConnection is LinkState.Ready) CardSection("Voice chat", "Android speech on this phone, or OpenAI and Gemini on your own API key, kept on the computer.") {
                 row {
@@ -150,6 +157,7 @@ import kotlinx.serialization.json.put
                     }
                 }
             }
+            }
         } }
     }
     CodyncSheet(voice, { voice = false }) { VoiceChatSettings(state, store) }
@@ -203,54 +211,52 @@ private class ComputerActions(val extensions: () -> Unit, val screen: () -> Unit
         val count = state.bots.count { !it.deleted && it.kind != "group" }
         "$count bot${if (count == 1) "" else "s"} · ${routeLabel(link.route, computer.cloud)}"
     } else computerStatusText(state)
-    Column(Modifier.fillMaxWidth().contextActions(items = {
-        listOfNotNull(
-            MenuItem("Color", icon = "paintpalette", action = actions.color),
-            if (online) MenuItem("Extensions", icon = "square.grid.2x2", action = actions.extensions) else null,
-            if (online) MenuItem("Voice chat", icon = "waveform", action = actions.voice) else null,
-            if (viewable) MenuItem("Screen", icon = "display", action = actions.screen) else null,
-            actions.revoke?.let { MenuItem("Revoke this phone's access", icon = "lock.slash", destructive = true, divider = true, action = it) },
-            if (!inAccount) MenuItem("Remove", icon = "trash", destructive = true, divider = actions.revoke == null, action = actions.remove) else null,
-        )
-    }), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            ComputerBadge(state.hello?.text("device"), 32.dp, computer.color)
-            Text(state.hello?.text("name") ?: computer.name, Modifier.weight(1f), style = Type.body.semibold, color = Palette.text)
-            if (inAccount) Symbol("person.crop.circle.badge.checkmark", size = 20.dp, tint = Palette.tertiary, contentDescription = "In your account")
+    Column(Modifier.fillMaxWidth()) {
+        Column(Modifier.fillMaxWidth().contextActions(items = {
+            listOfNotNull(
+                MenuItem("Color", icon = "paintpalette", action = actions.color),
+                if (online) MenuItem("Extensions", icon = "square.grid.2x2", action = actions.extensions) else null,
+                if (online) MenuItem("Voice chat", icon = "waveform", action = actions.voice) else null,
+                if (viewable) MenuItem("Screen", icon = "display", action = actions.screen) else null,
+                actions.revoke?.let { MenuItem("Revoke this phone's access", icon = "lock.slash", destructive = true, divider = true, action = it) },
+                if (!inAccount) MenuItem("Remove", icon = "trash", destructive = true, divider = actions.revoke == null, action = actions.remove) else null,
+            )
+        }), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                ComputerBadge(state.hello?.text("device"), 32.dp, computer.color)
+                Text(state.hello?.text("name") ?: computer.name, Modifier.weight(1f), style = Type.body.semibold, color = Palette.text)
+                if (inAccount) Symbol("person.crop.circle.badge.checkmark", size = 20.dp, tint = Palette.tertiary, contentDescription = "In your account")
+            }
+            val ink = if (link is LinkState.ComputerOffline || link is LinkState.Failed) Palette.warning else Palette.secondary
+            Text(detail, style = Type.footnote, color = if (online) Palette.secondary else ink)
+            if (!online && (link is LinkState.Failed || link is LinkState.ComputerOffline) && actions.ask != null) {
+                SecondaryButton(if (state.access?.computerId == computer.id) "Show code" else "Ask for access", action = actions.ask)
+            }
         }
         if (online) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(detail, Modifier.weight(1f), style = Type.footnote, color = Palette.secondary)
-                ComputerControls(state, store, inAccount, actions)
+            ComputerActionRow("Extensions", "square.grid.2x2", actions.extensions)
+            if (state.screen != null) ComputerActionRow("Screen", "display", actions.screen)
+        }
+        Hairline(Modifier.padding(top = 14.dp))
+        DropdownMenu({ ConnectionRoute.entries.map { route -> MenuItem(routeTitle(route, computer.cloud), icon = route.icon, selected = route == computer.route) { store.setRoute(route) } } },
+            Modifier.fillMaxWidth().padding(top = 14.dp), label = "Connection") {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Box(Modifier.width(26.dp), contentAlignment = Alignment.Center) { Symbol(computer.route.icon, size = 20.dp, tint = Palette.text) }
+                Text(tr("Connection"), Modifier.weight(1f), style = Type.body, color = Palette.text)
+                Symbol("chevron.down", size = 13.dp, tint = Palette.tertiary)
             }
-        } else {
-            val ink = if (link is LinkState.ComputerOffline || link is LinkState.Failed) Palette.warning else Palette.secondary
-            Text(detail, style = Type.footnote, color = ink)
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                if ((link is LinkState.Failed || link is LinkState.ComputerOffline) && actions.ask != null) {
-                    SecondaryButton(if (state.access?.computerId == computer.id) "Show code" else "Ask for access", action = actions.ask)
-                }
-                Spacer(Modifier.weight(1f))
-                ComputerControls(state, store, inAccount, actions)
-            }
+        }
+        if (state.isStale && !inAccount) {
+            Hairline(Modifier.padding(top = 14.dp))
+            RowLabel("Remove", "trash", Palette.danger, modifier = Modifier.padding(top = 14.dp).plainButton(action = actions.remove))
         }
     }
 }
 
-/** Keep the computer's actions together beside its connection summary. */
-@Composable private fun ComputerControls(state: AppState, store: AppStore, inAccount: Boolean, actions: ComputerActions) {
-    val computer = state.computers.first()
-    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-        if (state.connection is LinkState.Ready) {
-            IconButton("Extensions", "square.grid.2x2", action = actions.extensions)
-            if (state.screen != null) IconButton("Screen", "display", action = actions.screen)
-        }
-        DropdownMenu({ ConnectionRoute.entries.map { route -> MenuItem(routeTitle(route, computer.cloud), icon = route.icon, selected = route == computer.route) { store.setRoute(route) } } },
-            Modifier.size(36.dp), label = "Connection") {
-            Symbol(computer.route.icon, size = 21.dp, tint = Palette.secondary)
-        }
-        if (state.isStale && !inAccount) IconButton("Remove", "trash", action = actions.remove)
-    }
+/** One computer action on its own row, under a hairline. */
+@Composable private fun ComputerActionRow(title: String, systemImage: String, action: () -> Unit) {
+    Hairline(Modifier.padding(top = 14.dp))
+    RowLabel(title, systemImage, chevron = true, modifier = Modifier.padding(top = 14.dp).plainButton(action = action))
 }
 
 /** A computer in the account that this phone can't use yet; `askingAnother` while this phone asks a different one. */
