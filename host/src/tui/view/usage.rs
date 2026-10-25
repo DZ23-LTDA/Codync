@@ -25,41 +25,46 @@ pub(super) fn usage(buf: &mut Buffer, area: Rect, app: &App) {
         put(buf, inner.x, y, inner.width, p["name"].as_str().unwrap_or_default(), t.bold.patch(t.panel));
         y += 1;
         for win in p["windows"].as_array().into_iter().flatten() {
-            let pct = win["percent"].as_f64().unwrap_or(0.0).clamp(0.0, 100.0);
-            let on = filled(pct, 16);
-            put(
-                buf,
-                inner.x + 2,
-                y,
-                18,
-                &truncate(win["label"].as_str().unwrap_or_default(), 18),
-                t.secondary.patch(t.panel),
-            );
-            let mut x = put(
-                buf,
-                inner.x + 21,
-                y,
-                16,
-                &"▰".repeat(on.min(16)),
-                if pct >= 80.0 { t.amber } else { t.text }.patch(t.panel),
-            );
-            x = put(buf, x, y, 16, &"▱".repeat(16 - on.min(16)), t.line.patch(t.panel));
-            put(buf, x + 1, y, 5, &format!("{pct:>3.0}%"), t.text.patch(t.panel));
-            let reset = win["resetsAt"]
-                .as_i64()
-                .map(|ms| format!("resets {}", when_future(ms)))
-                .or_else(|| {
-                    // "Sep 26 at 11:59am (Asia/Taipei)": the zone is this computer's own.
-                    win["resetsText"].as_str().map(|s| truncate(s.split(" (").next().unwrap_or(s), 24))
-                })
-                .unwrap_or_default();
-            let reset = crate::tui::l10n::reset_line(&reset);
-            rput(buf, inner.right(), y, &reset, t.dim.patch(t.panel));
+            let label = truncate(win["label"].as_str().unwrap_or_default(), 18);
+            put(buf, inner.x + 2, y, 18, &label, t.secondary.patch(t.panel));
+            if let Some(text) = win["text"].as_str().filter(|text| !text.is_empty()) {
+                put(buf, inner.x + 21, y, inner.width.saturating_sub(23), &truncate(text, 40), t.text.patch(t.panel));
+            } else {
+                let pct = win["percent"].as_f64().unwrap_or(0.0).clamp(0.0, 100.0);
+                let on = filled(pct, 16);
+                let mut x = put(
+                    buf,
+                    inner.x + 21,
+                    y,
+                    16,
+                    &"▰".repeat(on.min(16)),
+                    if pct >= 80.0 { t.amber } else { t.text }.patch(t.panel),
+                );
+                x = put(buf, x, y, 16, &"▱".repeat(16 - on.min(16)), t.line.patch(t.panel));
+                put(buf, x + 1, y, 5, &format!("{pct:>3.0}%"), t.text.patch(t.panel));
+                let reset = win["resetsAt"]
+                    .as_i64()
+                    .map(|ms| format!("resets {}", when_future(ms)))
+                    .or_else(|| {
+                        // "Sep 26 at 11:59am (Asia/Taipei)": the zone is this computer's own.
+                        win["resetsText"].as_str().map(|s| truncate(s.split(" (").next().unwrap_or(s), 24))
+                    })
+                    .unwrap_or_default();
+                let reset = crate::tui::l10n::reset_line(&reset);
+                rput(buf, inner.right(), y, &reset, t.dim.patch(t.panel));
+            }
             y += 1;
         }
         y += 1;
     }
-    put(buf, inner.x, inner.bottom() - 1, inner.width, "From your local installs. esc close", t.dim.patch(t.panel));
+    put(
+        buf,
+        inner.x,
+        inner.bottom() - 1,
+        inner.width,
+        "Read from the agents on this computer. esc close",
+        t.dim.patch(t.panel),
+    );
 }
 
 pub(in crate::tui) fn when_future(ms: i64) -> String {
