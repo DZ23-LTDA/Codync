@@ -9,6 +9,7 @@ a version without one gets a generic "Bug fixes and improvements" line. Delete o
 ## 2.26.2
 
 ### zh-Hant
+- 修正 iOS 18 在送出文字、清空或替換聊天草稿時可能閃退的問題。
 - Bot 傳來的圖片會直接顯示在聊天裡，點一下可以放大看，不用先下載。
 - 電腦上的 Codync 版本太舊時，更新提示多了「Update now」按鈕，直接從手機叫那台電腦更新。
 - 擴充套件一次顯示一個分類：智慧體、聯結器或技能，每個列表都分頁。點列表兩側的圓形按鈕或左右滑動就能翻頁，下方可選每頁 6、10、20 或 50 筆，並顯示目前在第幾頁。
@@ -19,6 +20,7 @@ a version without one gets a generic "Bug fixes and improvements" line. Delete o
 - 用量也會顯示這台電腦上其他 agent 的額度，包括 oh-my-pi、Amp、Kiro、Kimi、Antigravity、OpenCode、Mistral Vibe 和 Junie。Cursor 會用本機已登入的帳號向 cursor.com 查詢用量。
 
 ### en-US
+- Fixed a possible crash on iOS 18 when sending text or clearing or replacing a chat draft.
 - Images a bot sends now show right in the chat; tap one to see it full size, no download needed.
 - When a computer's Codync is too old for this app, Update now on the notice updates that computer from your phone.
 - Extensions shows one section at a time: Agents, Connectors or Skills, each in pages. Tap the round buttons beside the list or swipe left or right to turn the page; under it, pick 6, 10, 20 or 50 per page and see which page you're on.
