@@ -4,8 +4,8 @@
 // this run builds, starts and stops. Flags (`npm run dev -- --list`): --shared takes the default
 // Codync Dev from a worktree, --sandbox runs a sandbox from the main checkout, --name <name> runs
 // the sandbox of that name, --cloud lets the sandbox host use the dev cloud, --cdp opens the
-// DevTools protocol on the sandbox port + 10000, --list shows every sandbox, --prune deletes the
-// ones whose worktree is gone.
+// DevTools protocol on the sandbox port + 10000, --onboarding shows the welcome flow (a sandbox
+// starts past it), --list shows every sandbox, --prune deletes the ones whose worktree is gone.
 import { spawn, spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, openSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { createServer } from 'node:net'
@@ -22,7 +22,7 @@ const windows = process.platform === 'win32'
 const { values: flags } = parseArgs({
   options: {
     shared: { type: 'boolean' }, sandbox: { type: 'boolean' }, name: { type: 'string' },
-    cloud: { type: 'boolean' }, cdp: { type: 'boolean' }, list: { type: 'boolean' }, prune: { type: 'boolean' },
+    cloud: { type: 'boolean' }, onboarding: { type: 'boolean' }, cdp: { type: 'boolean' }, list: { type: 'boolean' }, prune: { type: 'boolean' },
   },
 })
 
@@ -147,7 +147,11 @@ async function sandbox() {
   console.log(`  terminal UI                ${command} tui --port ${port}`)
   if (cdp) console.log(`  DevTools protocol          127.0.0.1:${cdp}`)
   console.log('')
-  const appEnv = { ...process.env, CODYNC_HOME: home, CODYNC_PORT: String(port), ...(cdp ? { CODYNC_REMOTE_DEBUG: String(cdp) } : {}) }
+  const appEnv = {
+    ...process.env, CODYNC_HOME: home, CODYNC_PORT: String(port),
+    ...(cdp ? { CODYNC_REMOTE_DEBUG: String(cdp) } : {}),
+    ...(flags.onboarding ? {} : { CODYNC_DEV_SKIP_ONBOARDING: '1' }),
+  }
   app = startApp(appEnv)
   app.child.on('exit', (code) => stop(code ?? 0))
   app.child.on('error', (e) => {

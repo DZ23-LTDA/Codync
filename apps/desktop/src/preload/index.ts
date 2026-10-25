@@ -18,6 +18,14 @@ function listen<T>(channel: string, cb: (value: T) => void) {
   return () => void ipcRenderer.removeListener(channel, handler)
 }
 
+// A dev sandbox can start past onboarding (tools/dev.mjs); only a window that never chose is seeded.
+if (ipcRenderer.sendSync('app:devSkipOnboarding') as boolean) {
+  try {
+    if (localStorage.getItem('macAccountOnboardingCompleted') === null) localStorage.setItem('macAccountOnboardingCompleted', 'true')
+    if (localStorage.getItem('computerAccessSetup') === null) localStorage.setItem('computerAccessSetup', '"later"')
+  } catch {}
+}
+
 const bridge: CodyncBridge = {
   platform: process.platform as CodyncBridge['platform'],
   appName: ipcRenderer.sendSync('app:name') as string,

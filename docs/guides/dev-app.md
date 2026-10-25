@@ -30,6 +30,8 @@ Xcode configurations separate environment from optimization: `Debug` and `Releas
 
 Flags go after `npm run dev --`: `--shared` takes the default Codync Dev from a worktree (quit the main checkout's first); `--sandbox` runs a sandbox from the main checkout, for a second session on `dev`; `--name <name>` runs the sandbox of that name, for another copy of the same checkout; `--cloud` lets the sandbox host use the dev cloud (each sandbox then shows as another computer); `--cdp` opens the DevTools protocol on the sandbox port + 10000; `--list` shows every sandbox; `--prune` deletes the ones whose worktree is gone, so run it after removing worktrees.
 
+A sandbox starts past onboarding (welcome and computer-access setup, only where the window hasn't chosen yet); `--onboarding` brings the flow back. It still starts signed out: it never borrows Codync Dev's login.
+
 Still shared: macOS sees every unpackaged run as the same Electron app, so permissions and notifications are shared and a `codync-dev://` sign-in callback may reach another copy (test sign-in on the default Codync Dev); Codync Screen and computer use need the packaged `Codync Dev.app`; a global shortcut (the approval island's) goes to whichever app registered it first.
 
 ## Resource ownership
