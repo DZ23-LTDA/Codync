@@ -92,7 +92,14 @@ async function listAndPrune() {
     const running = await answers(s.port)
     const gone = !existsSync(s.worktree)
     if (flags.prune && gone && !running) {
-      const account = await deleteTestAccount(s.name).catch((e) => console.error(`Test account of ${s.name} kept: ${e.message}`))
+      let account = false
+      try {
+        account = await deleteTestAccount(s.name)
+      } catch (e) {
+        // The sandbox folder is how a later --prune finds the account again.
+        console.error(`Kept the sandbox ${s.name}: its Clerk test account wasn't deleted (${e.message}). Run --prune again.`)
+        continue
+      }
       rmSync(s.home, { recursive: true, force: true })
       console.log(`Deleted the sandbox ${s.name} (${s.home})${account ? ' and its Clerk test account' : ''}`)
     } else if (flags.list) {
@@ -153,7 +160,7 @@ async function sandbox() {
   const appEnv = {
     ...process.env, CODYNC_HOME: home, CODYNC_PORT: String(port),
     ...(cdp ? { CODYNC_REMOTE_DEBUG: String(cdp) } : {}),
-    ...(flags.onboarding ? {} : { CODYNC_DEV_SKIP_ONBOARDING: '1' }),
+    CODYNC_DEV_ONBOARDING: flags.onboarding ? 'reset' : 'skip',
   }
   // The saved session lives in desktop/account.bin; a token is only needed while it is missing.
   if (!existsSync(join(home, 'desktop/account.bin'))) {
