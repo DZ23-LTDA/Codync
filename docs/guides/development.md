@@ -134,7 +134,7 @@ CI on a pull request: the host runs `cargo nextest run` with retries (a test tha
 retry shows as FLAKY), iOS Kit retries a failing test up to twice, Android builds the minified release
 APK only after a change lands on `dev` or `main`, and the desktop installers are built only when a PR
 touches what they're made from (`src/main`, `src/preload`, `src/shared`, build config, tools,
-resources, dependencies) or targets `main`; every desktop PR still typechecks, tests and builds.
+resources, dependencies, `apps/shared/Config`, `apps/screen-macos`, `packaging/`) or targets `main`; every desktop PR still typechecks, tests and builds.
 
 Left to CI: the iOS Kit tests (an iPhone simulator) and the platform builds (Linux screen
 helper: GStreamer development packages; macOS: the `Screen` Xcode target against WebRTC).
