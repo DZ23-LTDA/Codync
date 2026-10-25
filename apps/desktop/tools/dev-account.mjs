@@ -1,16 +1,18 @@
 // A Clerk test account for `npm run dev` sandboxes: finds or creates `sandbox-<name>+clerk_test@example.com`
 // in the Clerk *development* instance and mints a one-time sign-in token the app trades for a session
-// (account.ts, `CODYNC_DEV_SIGN_IN_TICKET`). The secret key comes from CLERK_SECRET_KEY or the git-ignored
-// apps/desktop/.env.local; only `sk_test_` keys are used, so production is never touched.
+// (account.ts, `CODYNC_DEV_SIGN_IN_TICKET`). The secret key comes from CLERK_SECRET_KEY, the git-ignored
+// apps/desktop/.env.local, or ~/.codync-release/clerk-dev.env (shared by every worktree); only `sk_test_`
+// keys are used, so production is never touched.
 import { existsSync, readFileSync } from 'node:fs'
+import { homedir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const API = 'https://api.clerk.com/v1'
 
 export function secretKey() {
-  const file = join(dirname(fileURLToPath(import.meta.url)), '..', '.env.local')
-  const fromFile = existsSync(file) ? /^CLERK_SECRET_KEY=(.+)$/m.exec(readFileSync(file, 'utf8'))?.[1] : undefined
+  const files = [join(dirname(fileURLToPath(import.meta.url)), '..', '.env.local'), join(homedir(), '.codync-release/clerk-dev.env')]
+  const fromFile = files.map((f) => (existsSync(f) ? /^CLERK_SECRET_KEY=(.+)$/m.exec(readFileSync(f, 'utf8'))?.[1] : undefined)).find(Boolean)
   const key = (process.env.CLERK_SECRET_KEY ?? fromFile ?? '').trim().replace(/^["']|["']$/g, '')
   if (key && !key.startsWith('sk_test_')) throw new Error('CLERK_SECRET_KEY must be the development instance key (sk_test_...).')
   return key || null
@@ -28,13 +30,24 @@ async function clerk(key, method, path, body) {
   return json
 }
 
+const emailOf = (sandbox) => `sandbox-${sandbox}+clerk_test@example.com`
+const findUser = (key, email) => clerk(key, 'GET', `/users?email_address=${encodeURIComponent(email)}`).then((found) => found[0])
+
 /** A fresh sign-in token for the sandbox's test account, or null without a secret key. */
 export async function mintTicket(sandbox) {
   const key = secretKey()
   if (!key) return null
-  const email = `sandbox-${sandbox}+clerk_test@example.com`
-  const found = await clerk(key, 'GET', `/users?email_address=${encodeURIComponent(email)}`)
-  const user = found[0] ?? (await clerk(key, 'POST', '/users', { email_address: [email], skip_password_requirement: true }))
+  const email = emailOf(sandbox)
+  const user = (await findUser(key, email)) ?? (await clerk(key, 'POST', '/users', { email_address: [email], skip_password_requirement: true }))
   const { token } = await clerk(key, 'POST', '/sign_in_tokens', { user_id: user.id, expires_in_seconds: 600 })
   return { token, email }
+}
+
+/** Deletes the sandbox's test account; true when there was one. Without a secret key there is nothing to delete. */
+export async function deleteTestAccount(sandbox) {
+  const key = secretKey()
+  const user = key && (await findUser(key, emailOf(sandbox)))
+  if (!user) return false
+  await clerk(key, 'DELETE', `/users/${user.id}`)
+  return true
 }

@@ -5,7 +5,8 @@
 // Codync Dev from a worktree, --sandbox runs a sandbox from the main checkout, --name <name> runs
 // the sandbox of that name, --cloud lets the sandbox host use the dev cloud, --cdp opens the
 // DevTools protocol on the sandbox port + 10000, --onboarding shows the welcome flow (a sandbox
-// starts past it), --list shows every sandbox, --prune deletes the ones whose worktree is gone.
+// starts past it), --list shows every sandbox, --prune deletes the ones whose worktree is gone
+// (and their Clerk test accounts).
 import { spawn, spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, openSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { createServer } from 'node:net'
@@ -14,7 +15,7 @@ import { basename, dirname, join, resolve } from 'node:path'
 import { setTimeout as delay } from 'node:timers/promises'
 import { fileURLToPath } from 'node:url'
 import { parseArgs } from 'node:util'
-import { mintTicket } from './dev-account.mjs'
+import { deleteTestAccount, mintTicket } from './dev-account.mjs'
 import { SANDBOX_PREFIX, sandboxName, sandboxPorts } from '../src/shared/dev-sandbox.ts'
 
 const desktop = resolve(dirname(fileURLToPath(import.meta.url)), '..')
@@ -91,8 +92,9 @@ async function listAndPrune() {
     const running = await answers(s.port)
     const gone = !existsSync(s.worktree)
     if (flags.prune && gone && !running) {
+      const account = await deleteTestAccount(s.name).catch((e) => console.error(`Test account of ${s.name} kept: ${e.message}`))
       rmSync(s.home, { recursive: true, force: true })
-      console.log(`Deleted the sandbox ${s.name} (${s.home})`)
+      console.log(`Deleted the sandbox ${s.name} (${s.home})${account ? ' and its Clerk test account' : ''}`)
     } else if (flags.list) {
       console.log(`${s.name.padEnd(28)} ${String(s.port).padEnd(6)} ${(running ? 'running' : 'stopped').padEnd(8)} ${s.worktree}${gone ? ' (gone)' : ''}`)
     }
