@@ -344,8 +344,9 @@ impl Actor {
         }
         let held = self.held_for_sign_in().to_vec();
         crate::agent::backends::set_signed_in(&backend, Some(false));
-        // The account object can still be there. It must not count as signed in until a prompt works,
-        // or the user signs in again. WorkBuddy's current process was opened before that, so drop it.
+        // WorkBuddy can still report an account after this, which is not a working login.
+        // Other agents' own checks are left alone, so a terminal or saved keys can sign them in.
+        // WorkBuddy's current process was opened before that, so drop it.
         crate::agent::backends::note_prompt_refused(&backend);
         if !crate::agent::backends::session_proves_sign_in(&backend) {
             self.restart_after_turn = true;
