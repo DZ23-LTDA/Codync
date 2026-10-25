@@ -7,23 +7,31 @@ released version's section; a version without one gets the PRs' "What's New: And
 else a generic "Bug fixes and improvements" line. Delete old sections.
 -->
 
+## 2.27.0
+
+### zh-Hant
+- 擴充套件的列表改回往下捲動，聯結器捲到底會自動載入更多。點項目只看詳情，按「Add」才加入。
+- 用量也會顯示這台電腦上其他 agent 的額度。Cursor 會用本機登入向 cursor.com 查詢。
+
+### en-US
+- Extensions lists scroll again; connectors load more at the end. Tapping one only opens it; Add adds it.
+- Adds other agents' limits. Cursor asks cursor.com.
+
 ## 2.26.2
 
 ### zh-Hant
 - Bot 傳來的圖片會直接顯示在聊天裡，點一下可以放大看，不用先下載。
 - 電腦上的 Codync 版本太舊時，更新提示多了「Update now」按鈕，直接從手機叫那台電腦更新。
-- 擴充套件一次顯示一個分類：智慧體、聯結器或技能；聯結器往下捲到底會自動載入更多。點項目只看詳情，按「Add」才加入。
+- 擴充套件一次顯示一個分類：智慧體、聯結器或技能，每個列表都分頁。點列表兩側的圓形按鈕或左右滑動翻頁，每頁可選 6、10、20 或 50 筆。
 - 電腦使用自建中繼時，設定和連線狀態會顯示該中繼的地址，不再一律寫成 Cloudflare。
 - 可以建立使用 WorkBuddy 的 Bot，在聊天裡登入即可。
-- 用量也會顯示這台電腦上其他 agent 的額度。Cursor 會用本機登入向 cursor.com 查詢。
 
 ### en-US
 - Images a bot sends now show right in the chat; tap one to see it full size, no download needed.
 - When a computer's Codync is too old for this app, Update now on the notice updates that computer from your phone.
-- Extensions shows Agents, Connectors or Skills one at a time; connectors load more as you scroll. Tapping one only opens it; Add adds it.
+- Extensions shows Agents, Connectors or Skills in pages: tap the round buttons or swipe, 6 to 50 per page.
 - A private relay shows its address in Settings and status.
 - Bots can run WorkBuddy; sign in from the chat.
-- Adds other agents' limits. Cursor asks cursor.com.
 
 ## 2.26.0
 
