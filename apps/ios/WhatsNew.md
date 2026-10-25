@@ -10,9 +10,11 @@ a version without one gets a generic "Bug fixes and improvements" line. Delete o
 
 ### zh-Hant
 - Bot 傳來的圖片會直接顯示在聊天裡，點一下可以放大看，不用先下載。
+- 電腦上的 Codync 版本太舊時，更新提示多了「Update now」按鈕，直接從手機叫那台電腦更新。
 
 ### en-US
 - Images a bot sends now show right in the chat; tap one to see it full size, no download needed.
+- When a computer's Codync is too old for this app, Update now on the notice updates that computer from your phone.
 
 ## 2.26.1
 
