@@ -66,8 +66,18 @@ pass on both instances. A local check of a deployment:
   `http://127.0.0.1:8976/callback`) signed in on Clerk's page, got an `at+jwt` for `https://dev-mcp.codync.dev/mcp`,
   and listed the computer and its bots, messaged a Claude bot and read its reply ("pong").
 
-## Not yet
+## Current limits
 
-- An app switch for cloud assistants (desktop, iPhone, Android, TUI); the CLI is the only way to turn it on.
-- Bots on the user's other computers through the connector's computer (codync-network).
-- Notifying the assistant when a reply is ready (MCP has no way to wake a hosted assistant).
+| Limit | Why, and what lifts it |
+|---|---|
+| Hosts before 2.28.0 don't answer (`assistant.call` is ignored, the call times out after 10 s) | the host side ships in 2.28.0 |
+| Only `codync-host cloud --assistants on`; no app switch | an app switch in every client (desktop, iPhone, Android, TUI) is planned |
+| Only computers in the account that use the Codync relay; a private relay has no accounts | by design: the account is how the cloud knows whose computer it is |
+| Only the connected computer's bots, not bots elsewhere in its codync-network | the assistant isn't a network agent yet ([design](../design/codync-network.md#next-in-order)) |
+| No hidden bots or groups | the same visibility rule as `list_bots` for bots |
+| No callback when a reply is ready | MCP can't wake a hosted assistant; it calls `read_replies` |
+| Replies in host memory: newest 50, at most 16 running, gone on restart | kept small and unencrypted data off disk; persist if users need it |
+| 120 requests per account per minute (`ASSISTANT_LIMITER`) | Worker rate limit |
+| Revoking: off on the computer is immediate; removing the connector or its grant in Clerk leaves an issued JWT valid until it expires (Clerk's `expires_in`, a day) | JWT access tokens are checked locally; opaque tokens (Clerk setting) would revoke at once at the cost of a Clerk call per request |
+| No self-hosted connector: it lives in Codync's cloud Worker | the only self-hosted path is running the whole `cloud/` Worker with your own Clerk and pointing the host at it with `CODYNC_CLOUD_URL` (no relay token); a lighter self-hosted connector needs its own OAuth server |
+| Not end-to-end encrypted | a hosted assistant can't hold a device key; documented in Privacy |

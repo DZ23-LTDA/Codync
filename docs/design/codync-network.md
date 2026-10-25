@@ -5,7 +5,8 @@ what comes next. How it behaves today: [codync-network](../features/codync-netwo
 [cloud assistants](../features/cloud-assistants.md); the relay protocol: [remote relay §7.9](../reference/remote-relay.md).
 
 Status (2026-10-26): built on `feat/codync-network`. The cloud side (`mcp.codync.dev`, Clerk, the zone rule) is
-deployed to dev and production; the host side ships with the next host release.
+deployed to dev and production; the host side ships in 2.28.0. The crate is on crates.io (0.1.0) and mirrored to
+leepokai/codync-network.
 
 ## Goals
 
