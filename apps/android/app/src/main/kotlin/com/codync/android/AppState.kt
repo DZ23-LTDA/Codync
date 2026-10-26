@@ -18,7 +18,6 @@ data class AppState(
     val approvedAccess: Map<String, String> = emptyMap(),
     /** The account computer an access request is running for: one at a time. */
     val askingAccess: String? = null,
-    val notifications: Boolean = true,
     val tasks: Boolean = true,
     val setupComplete: Boolean = false,
     val loading: Boolean = true,

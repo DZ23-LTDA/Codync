@@ -87,7 +87,7 @@ class AppStore(application: Application) : AndroidViewModel(application) {
             val complete = withContext(Dispatchers.IO) { local.setupComplete() }
             mutableState.update { AppState(contextId = local.referenceId, generation = it.generation + 1,
                 account = it.account, computers = computers, setupComplete = complete || computers.isNotEmpty() || userId != null) }
-            mutableState.update { it.copy(notifications = PushPreferences.enabled(getApplication()), tasks = PushPreferences.tasks(getApplication())) }
+            mutableState.update { it.copy(tasks = PushPreferences.tasks(getApplication())) }
             openMirror()
             if (userId != null) configureCloud(userId)
             mutableState.update { it.copy(loading = false) }

@@ -124,7 +124,8 @@ private suspend fun AppStore.askForAccess(target: CloudComputer, renew: Boolean)
 }
 
 /** Switch only after approval, retiring the old channel and its writers before replacing its mirror. */
-internal fun AppStore.useApprovedComputer(computer: Computer, requestId: String) {
+internal fun AppStore.useApprovedComputer(approved: Computer, requestId: String) {
+    val computer = approved.keepingDevicePicks(state.value.computers.firstOrNull { it.id == approved.id && it.signKey == approved.signKey })
     // Approval is already confirmed by the cloud, even when switching must wait.
     mutableState.update { it.copy(approvedAccess = it.approvedAccess + (computer.id to requestId)) }
     val contextId = state.value.contextId

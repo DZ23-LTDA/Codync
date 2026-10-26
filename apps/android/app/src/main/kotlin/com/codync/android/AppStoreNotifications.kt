@@ -16,9 +16,12 @@ fun AppStore.syncPush() = action("push") {
     catch (error: CancellationException) { throw error }
     catch (_: Exception) { PushDelivery.schedule(getApplication()) }
 }
+/** Saved with the computer on this phone (iOS `AccountStore.setNotifications`). */
 fun AppStore.notifications(enabled: Boolean) = action("notificationSettings") {
-    PushPreferences.enabled(getApplication(), enabled)
-    mutableState.update { it.copy(notifications = enabled) }
+    val computer = state.value.computers.firstOrNull() ?: return@action
+    val changed = computer.copy(notifications = enabled)
+    withContext(Dispatchers.IO) { local.saveComputers(listOf(changed)) }
+    mutableState.update { it.copy(computers = listOf(changed)) }
     Analytics.capture(AnalyticsEvent.SettingChanged(PhoneSetting.Push, enabled))
     if (!enabled) NotificationDisplay.cancel(getApplication(), 1)
     syncPush(); PushDelivery.schedule(getApplication())

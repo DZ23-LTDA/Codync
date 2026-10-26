@@ -114,7 +114,7 @@ private class ComputerActions(val extensions: () -> Unit, val screen: () -> Unit
 /**
  * The paired computer as the rows of its card: its connection and whether it's in the account, then
  * Extensions, Voice chat (its keys live on the computer), Screen, whether it sends push alerts here
- * (the only computer this phone pairs, so the switch is the phone's), how it's reached, the Codync it runs
+ * (saved with the computer, so another account's computer keeps its own), how it's reached, the Codync it runs
  * (and its update) and, for a stale pairing, Remove (iOS `ComputerRows`).
  */
 private fun CardRows.computerRows(state: AppState, store: AppStore, inAccount: Boolean, actions: ComputerActions) {
@@ -126,7 +126,7 @@ private fun CardRows.computerRows(state: AppState, store: AppStore, inAccount: B
         if (state.network?.shown == true) row { RowLabel("Network", NETWORK_ICON, chevron = true, modifier = Modifier.plainButton(action = actions.network)) }
     }
     if (BuildConfig.PUSH_CONFIGURED) row {
-        CodyncSwitch(state.notifications, store::notifications, Modifier.fillMaxWidth()) {
+        CodyncSwitch(state.computers.first().notifications, store::notifications, Modifier.fillMaxWidth()) {
             RowLabel("Push notifications", "bell", modifier = Modifier.weight(1f))
         }
     }
