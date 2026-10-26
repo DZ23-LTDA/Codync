@@ -462,7 +462,7 @@ function ChatSplitView() {
         ) : null}
       </Sheet>
       <Sheet open={settings !== null} onClose={() => setSettings(null)} width={Math.min(800, windowSize.width - 80)} height={Math.min(620, sheetHeight)}>
-        {settings ? <SettingsView page={settings} /> : null}
+        {settings ? <SettingsView page={settings} setPage={setSettings} /> : null}
       </Sheet>
       <Dialog
         open={newSessionBot !== null}

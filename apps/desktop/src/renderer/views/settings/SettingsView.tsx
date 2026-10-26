@@ -44,9 +44,8 @@ const pages: { id: SettingsPage; title: string; label?: string; group: string; i
 /** Each page as `screen_viewed` names it; Computer access and Voice chat report themselves. */
 const pageScreens: Record<SettingsPage, Screen | null> = { general: 'settings', updates: 'settings', computers: 'computers', network: 'settings', usage: 'usage', access: null, voice: null }
 
-export function SettingsView({ page: initial }: { page: SettingsPage }) {
-  // Kept here: the sheet's content doesn't follow the window's state once shown.
-  const [page, setPage] = useState(initial)
+/** `page` is the window's: a command (the menu bar's network rows) can turn the open sheet to another page. */
+export function SettingsView({ page, setPage }: { page: SettingsPage; setPage: (page: SettingsPage) => void }) {
   const app = useApp()
   const dismiss = useDismiss()
   const tr = useTr()
