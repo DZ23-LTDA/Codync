@@ -1238,5 +1238,6 @@
   "Codync {version} is currently the newest version available.": "Codync {version}은(는) 현재 사용 가능한 최신 버전입니다.",
   "Install it first.": "먼저 설치하세요.",
   "Not set up on {name} yet.": "{name}에 아직 설정되지 않았습니다.",
-  "Downloads {name} on {host} if it needs to, then checks its sign-in.": "필요하면 {host}에 {name}을(를) 내려받은 뒤 로그인 상태를 확인합니다."
+  "Downloads {name} on {host} if it needs to, then checks its sign-in.": "필요하면 {host}에 {name}을(를) 내려받은 뒤 로그인 상태를 확인합니다.",
+  "Rate on the App Store": "App Store에서 평가하기"
 }

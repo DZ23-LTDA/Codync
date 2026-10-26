@@ -80,6 +80,8 @@ that was off learns of a removal.
 
 ## Not yet
 
+Planned in order, with what each step touches: [what's left](../plans/codync-network-next.md).
+
 - The apps have no network screen: setup is the CLI above.
 - One network per computer; the `.network` address suffix comes with several.
 - Shared networks (other people's computers) need the per-network list of offered bots and inbound rules first.

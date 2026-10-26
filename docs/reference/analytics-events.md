@@ -148,3 +148,21 @@ without it PostHog drops these events): `$pageview`, `download_clicked` (`platfo
 `link_opened` (`link`). One document-level click listener in `web/app/analytics.tsx` reads each
 link's `href`, so a new link is counted without code; the film counts as `demo` when focus moves
 into its frame.
+
+## iPhone App Store review invitations
+
+These events use the existing iPhone sender, identity, environment, version and analytics
+opt-out. No conversation content, message nonce, bot ID or review text is included.
+
+| Event | When | Properties |
+| --- | --- | --- |
+| `review_opportunity` | An eligible, viewed result is followed by returning to Bots | `completed_interactions` (count), `policy: v1`, `trigger: return_to_bots` |
+| `review_cancelled` | An opportunity is abandoned before StoreKit | `reason: background / interaction / unavailable`, `policy: v1` |
+| `review_requested` | The persisted cooldown is consumed and StoreKit is about to be called | `completed_interactions` (count), `policy: v1`, `trigger: return_to_bots` |
+| `review_link_opened` | The person taps Rate on the App Store in Settings | `source: settings` |
+
+`review_requested` does not mean the system displayed a prompt or the person submitted a
+rating. StoreKit does not provide those outcomes. The [invitation policy](../features/ios-review-invitation.md)
+describes timing, exclusions, and cooldowns.
+
+The iPhone also reports `link_opened` with `link: issues` for its independent **Report an issue** action.
