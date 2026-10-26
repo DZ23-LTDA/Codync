@@ -33,6 +33,7 @@ import { ComputerAccessView } from './computer-access/ComputerAccessView'
 import { HostStateView } from './HostStateView'
 import { StartupRecovery } from './StartupRecovery'
 export { EmptyState } from './HostStateView'
+import { RefreshIndicator } from './RefreshIndicator'
 import { StarPrompt } from './StarPrompt'
 import { OpenVoiceSettings } from './call/CallView'
 import { AccountPanelLayer, DesktopActionMenu, ProfileAvatar } from './PanelMenus'
@@ -90,7 +91,7 @@ export function ChatWindow() {
             return
           }
           case 'refresh':
-            return app.refresh()
+            return void app.refresh()
           case 'setRemoteScreen':
             void app.setRemoteScreen(c.on)
             return
@@ -115,6 +116,7 @@ export function ChatWindow() {
   return (
     <div className="chat-window">
       <Summaries />
+      <RefreshIndicator />
       {onboarded ? (
         accessSetup === null ? (
           <ComputerAccessView onContinue={(ready) => finishAccess(ready, true)} />
