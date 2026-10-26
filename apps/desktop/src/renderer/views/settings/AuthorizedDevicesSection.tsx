@@ -9,6 +9,7 @@ import { useModel } from '../../lib/observable'
 import type { BotStore } from '../../store/bot-store'
 import { deviceIcon, errorText, isMac, liveClient, relativeDay } from './parts'
 import { useTr } from '../../lib/use-language'
+import { useApp } from '../../store/context'
 
 
 /** The devices that can use a computer this app manages, each one revocable. */
@@ -82,14 +83,15 @@ export function AuthorizedDevicesSection({ store, viaSSH }: { store: BotStore; /
 /** This computer among a computer's users, when it reaches it over SSH. */
 function ThisComputerRow({ connected }: { connected: boolean }) {
   const tr = useTr()
+  const name = useApp().local?.hostName ?? tr(isMac ? 'This Mac' : 'This computer')
   return (
     <HStack gap={8} className="settings-row settings-appear">
       <IconSlot width={18} tone="secondary">
         <Icon name="desktopcomputer" size={13} />
       </IconSlot>
       <VStack grow className="settings-stack">
-        <span>{tr(isMac ? 'This Mac' : 'This computer')}</span>
-        <Text size="caption" tone="tertiary">{connected ? `${tr('Over SSH')} · ${tr('Connected')}` : tr('Over SSH')}</Text>
+        <span>{name}</span>
+        <Text size="caption" tone="tertiary">{[tr(isMac ? 'This Mac' : 'This computer'), tr('Over SSH'), ...(connected ? [tr('Connected')] : [])].join(' · ')}</Text>
       </VStack>
     </HStack>
   )
