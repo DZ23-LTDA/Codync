@@ -165,18 +165,13 @@ function ManagedComputerCard({ store, ssh: overSSH, nested = false }: { store: B
       <CardSection>
         {[
           <div key="header" className="settings-row">
-            {nested ? <Spacer /> : (
-              // Nested, its name and status are the row it unfolds from.
-              <>
-                <ComputerBadge computer={store.computer} size={26} />
-                <VStack grow className="settings-stack">
-                  <Text size="headline">{name}</Text>
-                  <Text size="caption" tone="secondary">
-                    {`${tr(overSSH ? 'Over SSH' : isMacLabel)} · ${tr(statusText(store))}`}
-                  </Text>
-                </VStack>
-              </>
-            )}
+            <ComputerBadge computer={store.computer} size={26} />
+            <VStack grow className="settings-stack">
+              <Text size="headline">{name}</Text>
+              <Text size="caption" tone="secondary">
+                {`${tr(overSSH ? 'Over SSH' : isMacLabel)} · ${tr(statusText(store))}`}
+              </Text>
+            </VStack>
             {overSSH ? (
               // This computer's voice settings are their own Settings page.
               <IconButton title="Voice chat" icon="waveform" selected={showVoice} disabled={!online} onClick={() => setShowVoice((s) => !s)} />
