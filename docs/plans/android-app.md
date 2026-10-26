@@ -122,6 +122,11 @@ the Dynamic Island) with its feature graphic, per language.
 - [ ] Move the default push relay URL into `apps/shared/Config/{dev,main}.plist` (iOS reads
   them as `AccountConfig.plist`), so the Android build stops parsing the iOS kit's
   `SharedStore.swift` and iPhone-only edits there stop counting as Android changes.
+- [ ] *Rate on Google Play* and *Report an issue* in the Settings tab, as on the iPhone since
+  2.29.0 (`apps/ios/Views/SettingsView.swift`: Apple's write-review page and the GitHub issues
+  page, with the same analytics events). Android's Settings lacks both; rating needs the public
+  Play listing, so add them with the production release. The iPhone's rating invitation
+  ([iOS review invitation](../features/ios-review-invitation.md)) would map to Play's In-App Review API.
 - [ ] *Release to production* permission for `codync-play`, then `PLAY_TRACK=production`.
 
 ## Shared deployment
