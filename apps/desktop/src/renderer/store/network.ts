@@ -1,4 +1,4 @@
-import type { NetworkRule, NetworkView } from '@shared/network'
+import type { Network, NetworkRule, NetworkView } from '@shared/network'
 import type { BotStore } from './bot-store'
 
 /**
@@ -30,6 +30,9 @@ async function changing<T>(store: BotStore, work: () => Promise<T>): Promise<T> 
   return result
 }
 
+/** `other`'s own copy of `net`: none when it isn't in it, or its host is too old to say. */
+export const copyOf = (net: Network, other: BotStore) => other.network?.networks.find((n) => n.key !== undefined && n.key === net.key)
+
 /** An empty field is the host's default. */
 const orNull = (text: string) => text.trim() || null
 
@@ -49,6 +52,12 @@ export const network = {
     changing(store, () => call(store, 'networkJoin', { invite: invite.trim(), network: orNull(networkName), name: orNull(name), connector }, SLOW)),
   leave: (store: BotStore, network: string) => changing(store, () => call(store, 'networkLeave', { network })),
   invite: (store: BotStore, network: string) => call<{ invite: string; expiresAt: number }>(store, 'networkInvite', { network }),
+  /** Puts `other`, a computer this app manages over SSH, in `net`: an invite made here, used there with the same connector. */
+  add: async (store: BotStore, net: Network, other: BotStore) => {
+    const { invite } = await network.invite(store, net.id)
+    await network.join(other, invite, '', '', net.connector)
+    await refreshNetwork(store)
+  },
   promote: (store: BotStore, network: string, computer: string) => changing(store, () => call(store, 'networkPromote', { network, computer })),
   remove: (store: BotStore, network: string, computer: string, cascade: boolean) =>
     changing(store, () => call(store, 'networkRemove', { network, computer, cascade })),

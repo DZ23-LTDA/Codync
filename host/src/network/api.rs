@@ -17,8 +17,9 @@ pub fn emit(hub: &Hub) {
 }
 
 /// `networkStatus`, the `network` event and the stream's hello: every network this computer is in
-/// (`networks`, the default first), each with its computers as last heard, what this computer may
-/// do there (`canInvite`, `canRecover`) and to each (`canRemove`, `canPromote`), and its rules;
+/// (`networks`, the default first), each with its `key` (the network's own id, the same on every
+/// computer in it), its computers as last heard, what this computer may do there (`canInvite`,
+/// `canRecover`) and to each (`canRemove`, `canPromote`), and its rules;
 /// plus the cloud assistants switch, and whether they can reach this computer at all
 /// (`assistantsAvailable`). Never an invite: phones read it too.
 pub fn status(hub: &Hub) -> Value {
@@ -47,7 +48,7 @@ fn network(slot: &Slot) -> Value {
         })
         .collect();
     json!({
-        "id": slot.id, "name": slot.name, "computer": node.name(), "role": mine,
+        "id": slot.id, "key": node.network_id(), "name": slot.name, "computer": node.name(), "role": mine,
         "canInvite": mine.is_some_and(Role::invites), "canRecover": mine.is_some_and(|r| r != Role::Owner),
         "connector": slot.connector,
         "computers": computers, "rules": node.rules(),
