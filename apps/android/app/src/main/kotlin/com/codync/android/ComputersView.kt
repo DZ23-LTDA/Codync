@@ -124,10 +124,7 @@ private fun CardRows.computerRows(state: AppState, store: AppStore, inAccount: B
     }
     if (BuildConfig.PUSH_CONFIGURED) row {
         CodyncSwitch(state.notifications, store::notifications, Modifier.fillMaxWidth()) {
-            Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                Box(Modifier.width(26.dp), contentAlignment = Alignment.Center) { Symbol("bell", size = 20.dp, tint = Palette.text) }
-                Text(tr("Push notifications"), style = Type.body, color = Palette.text)
-            }
+            RowLabel("Push notifications", "bell", modifier = Modifier.weight(1f))
         }
     }
     row { ConnectionRow(state.computers.first(), store) }

@@ -168,7 +168,8 @@ The gear's first section is **Voice engine**. Each client remembers what the run
 differs, the call ends that engine and starts the new one without hanging up: same call, one "Voice chat" line
 at the end, cloud minutes counted up to the switch, mute kept, a fallback notice cleared. A call that fell back
 to On device tries the picked cloud engine again the same way. Desktop and Android check whenever a voice
-settings view closes (the gear, Settings, a computer's row); on the iPhone only the gear is open during a call.
+settings view closes (desktop: the gear, Settings; Android: the gear, the computer's card in Computer
+management); on the iPhone only the gear is open during a call.
 Where on-device speech is missing (desktop on Linux or Windows), the provider standing in for On device keeps
 running while On device stays picked.
 

@@ -152,6 +152,7 @@ private struct ComputerRows: View {
     /// Set when this iPhone's access to the computer can be revoked.
     let revoke: (() -> Void)?
     let remove: () -> Void
+    @Environment(AppStore.self) private var app
     @Environment(AccountStore.self) private var accounts
     @State private var coloring = false
     @State private var voiceSettings = false
@@ -168,11 +169,8 @@ private struct ComputerRows: View {
                     .buttonStyle(.plain)
             }
         }
-        Toggle(isOn: Binding(get: { store.computer.notifications ?? true }, set: setNotifications)) {
-            HStack(spacing: 12) {
-                Image(systemName: "bell").font(.system(size: 17)).frame(width: 26)
-                Text(L10n.tr("Push notifications"))
-            }
+        Toggle(isOn: Binding(get: { store.computer.notifications ?? true }, set: { app.setNotifications(store.computer.id, $0) })) {
+            RowLabel("Push notifications", systemImage: "bell")
         }
         .toggleStyle(.codync)
         connection
@@ -234,13 +232,6 @@ private struct ComputerRows: View {
             }
             .accessibilityAddTraits(.isModal)
         }
-    }
-
-    /// This computer's push switch: saved here, then the computer is told to alert this iPhone or to stop.
-    private func setNotifications(_ on: Bool) {
-        accounts.setNotifications(store.computer.id, on)
-        PushRegistrar.shared.syncDevice(with: store)
-        Analytics.shared.capture(.settingChanged(.push, on: on))
     }
 
     /// How this iPhone reaches the computer: the short name on the row, the whole route in the menu.

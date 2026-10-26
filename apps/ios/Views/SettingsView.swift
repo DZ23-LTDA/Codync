@@ -8,6 +8,7 @@ import SwiftUI
 struct SettingsView: View {
     @Environment(AppStore.self) private var app
     @Environment(\.openURL) private var openURL
+    @Environment(\.scenePhase) private var scenePhase
     @State private var notificationsAllowed: Bool?
     @AppStorage(Analytics.enabledKey) private var analyticsEnabled = true
     @State private var confirmStartOver = false
@@ -83,6 +84,10 @@ struct SettingsView: View {
             [DialogAction("Start over", destructive: true) { Task { await app.startOver() } }]
         }
         .task { notificationsAllowed = await PushRegistrar.shared.isAllowed() }
+        // The tab stays alive: coming back from iOS Settings reads the permission again.
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active { Task { notificationsAllowed = await PushRegistrar.shared.isAllowed() } }
+        }
         .codyncSheet(isPresented: $aboutAnalytics) { AnalyticsSheet() }
     }
 

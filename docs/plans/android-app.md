@@ -75,7 +75,7 @@ was walked through on an emulator against a real host.
 - **Shared files**: leaving the chat during a download skips the share sheet when it finishes
   (the card shows *Downloaded*); shared copies are deleted after a day (`AppStoreFiles.kt`,
   `AttachmentFiles.kt`).
-- **Pull to refresh** on the roster and in Settings uses the chat's indicator; iOS uses the system one.
+- **Pull to refresh** on the roster and in Computer management uses the chat's indicator; iOS uses the system one.
 - **`computers` / `plugins` links** open over the current tab; iOS switches to Bots first.
 - **Shortcuts actions** (Open Live Mode, Send Text to Bot) are an Apple App Intents integration with no
   Android counterpart ([iOS Shortcuts](../features/ios-shortcuts.md)).

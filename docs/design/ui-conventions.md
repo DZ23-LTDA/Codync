@@ -186,7 +186,7 @@ moved to each computer (`ExtensionsMovedTip.tsx`); dismissing it, or opening Ext
 a heading, hides it for good on that device. Logos represent examples, not connected status.
 
 This is a desktop sidebar treatment across macOS, Linux and Windows. iOS keeps its
-native navigation and per-computer Extensions entries (each computer's row in Settings, and
+native navigation and per-computer Extensions entries (each computer's card in Computer management, and
 each computer heading in the Bots list with several computers); the TUI
 keeps its keyboard Extensions action and connector tabs. Neither has this persistent
 desktop footer or supports the same layered backdrop material; no capabilities or

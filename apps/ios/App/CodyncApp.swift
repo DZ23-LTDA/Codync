@@ -143,6 +143,7 @@ final class AppStore {
         }
         CrashReports.shared.start()
         contextID = storage.id
+        Self.splitPushSwitch(contexts: [nil, storage.accountID] + session.accounts.map(\.id))
         (accounts, cloud) = Self.makeAccounts(storage, session: session)
     }
 
@@ -323,6 +324,25 @@ final class AppStore {
         if accounts.cloudComputers.first(where: { $0.computerId == id })?.isGranted == true { await revokeAccess(id) }
         // A revoke that went through forgot it already.
         if accounts.computers.contains(where: { $0.id == id }) { accounts.forget(id) }
+    }
+
+    /// A computer's push switch: saved here, then the computer is told to alert this iPhone or to stop.
+    func setNotifications(_ id: ComputerID, _ on: Bool) {
+        accounts.setNotifications(id, on)
+        if let store = accounts.store(for: id) { PushRegistrar.shared.syncDevice(with: store) }
+        Analytics.shared.capture(.settingChanged(.push, on: on))
+    }
+
+    /// 2.28.0 had one push switch for every computer; switched off, it becomes each saved computer's own switch.
+    /// Accounts Clerk hasn't restored by launch keep theirs on.
+    private static func splitPushSwitch(contexts ids: [String?]) {
+        let key = "notificationsEnabled"
+        defer { UserDefaults.standard.removeObject(forKey: key) }
+        guard UserDefaults.standard.object(forKey: key) as? Bool == false else { return }
+        for id in Set(ids) {
+            let context = SharedStore.Context(accountID: id)
+            context.computers = context.computers.map { var computer = $0; computer.notifications = false; return computer }
+        }
     }
 }
 

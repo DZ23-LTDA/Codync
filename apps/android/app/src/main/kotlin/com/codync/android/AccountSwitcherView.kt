@@ -16,7 +16,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -110,16 +109,6 @@ import com.kyant.shapes.RoundedRectangle
             .semantics { contentDescription = "Add account" }, contentAlignment = Alignment.Center) {
             Symbol("plus", size = 20.dp, tint = Palette.secondary)
         }
-    }
-}
-
-/** An icon and a short name, with a chevron when it leads somewhere. */
-@Composable internal fun RowLabel(title: String, systemImage: String, tint: Color = Palette.text, chevron: Boolean = false,
-    modifier: Modifier = Modifier) {
-    Row(modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        Box(Modifier.width(26.dp), contentAlignment = Alignment.Center) { Symbol(systemImage, size = 20.dp, tint = tint) }
-        Text(tr(title), Modifier.weight(1f), style = Type.body, color = tint)
-        if (chevron) Symbol("chevron.right", size = 13.dp, tint = Palette.tertiary)
     }
 }
 

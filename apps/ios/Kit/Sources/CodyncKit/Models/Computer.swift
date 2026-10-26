@@ -36,6 +36,13 @@ public struct Computer: Codable, Hashable, Sendable, Identifiable {
         self.color = color
     }
 
+    /// Keeps what this device picked (color, route, push) over a newer copy from pairing, the account or `hello`.
+    public mutating func keepDevicePicks(from previous: Computer) {
+        color = previous.color
+        route = previous.route
+        notifications = previous.notifications
+    }
+
     /// `true` when `id` really is the computer ID of `signKey`.
     public var isConsistent: Bool {
         Data(base64URL: signKey).map { $0.count == 32 && RelayCrypto.computerId(signKey: $0) == id } ?? false

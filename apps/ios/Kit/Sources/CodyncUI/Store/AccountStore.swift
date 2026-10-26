@@ -102,12 +102,7 @@ public final class AccountStore {
         let identity = try DeviceIdentity.load(context: storage)
         var computer = try await HostConnector.pair(pairing, identity: identity, deviceName: deviceName, platform: platform)
         guard !retired else { throw CancellationError() }
-        // Picked on this device: re-pairing keeps them.
-        if let previous = saved.first(where: { $0.id == computer.id }) {
-            computer.color = previous.color
-            computer.route = previous.route
-            computer.notifications = previous.notifications
-        }
+        if let previous = saved.first(where: { $0.id == computer.id }) { computer.keepDevicePicks(from: previous) }
         save(computer)
         open(computer)
         return computer
@@ -125,33 +120,25 @@ public final class AccountStore {
 
     /// Saved with the computer on this device; its channel reconnects over the new order right away.
     public func setRoute(_ id: ComputerID, _ route: ConnectionRoute) {
-        let value: ConnectionRoute? = route == .automatic ? nil : route
-        if let i = saved.firstIndex(where: { $0.id == id }) {
-            saved[i].route = value
-            persist()
-        }
-        stores[id]?.updateComputer { $0.route = value }
+        updateSaved(id) { $0.route = route == .automatic ? nil : route }
         stores[id]?.restartStream()
-        refreshList()
     }
 
     public func setColor(_ id: ComputerID, _ color: String) {
-        if let i = saved.firstIndex(where: { $0.id == id }) {
-            saved[i].color = color
-            persist()
-        }
-        stores[id]?.updateComputer { $0.color = color }
-        refreshList()
+        updateSaved(id) { $0.color = color }
     }
 
-    /// Saved with the computer on this device; the caller then registers or unregisters this device's push.
+    /// Saved with the computer on this device.
     public func setNotifications(_ id: ComputerID, _ on: Bool) {
-        let value: Bool? = on ? nil : false
+        updateSaved(id) { $0.notifications = on ? nil : false }
+    }
+
+    private func updateSaved(_ id: ComputerID, _ change: (inout Computer) -> Void) {
         if let i = saved.firstIndex(where: { $0.id == id }) {
-            saved[i].notifications = value
+            change(&saved[i])
             persist()
         }
-        stores[id]?.updateComputer { $0.notifications = value }
+        stores[id]?.updateComputer(change)
         refreshList()
     }
 
@@ -314,9 +301,7 @@ public final class AccountStore {
                 if let previous = saved.first(where: { $0.id == computer.id && $0.signKey == computer.signKey }) {
                     computer.urls = previous.urls
                     computer.boxKey = previous.boxKey
-                    computer.color = previous.color
-                    computer.route = previous.route
-                    computer.notifications = previous.notifications
+                    computer.keepDevicePicks(from: previous)
                 }
                 save(computer)
                 open(computer)
