@@ -213,10 +213,10 @@ pub fn tools() -> Value {
     json!([
         {
             "name": "list_bots",
-            "description": "List the user's Codync bots you can message, with their IDs, specialties and status: this computer's first, then those on the user's other computers (IDs like reviewer@laptop). Narrow it with query or kind; it returns at most limit at a time, with next for the rest.",
+            "description": "List the user's Codync bots you can message, with their IDs, kinds, specialties and status: this computer's first, then those on the user's other computers (IDs like reviewer@laptop), where Claude Code sessions and Codex threads can be offered too. Narrow it with query or kind; it returns at most limit at a time, with next for the rest.",
             "inputSchema": {"type": "object", "properties": {
                 "query": {"type": "string", "description": "Words that must all appear in the bot's name or description."},
-                "kind": {"type": "string", "enum": ["codync", "claude-code", "codex", "terminal"], "description": "Only this kind of agent: codync (Codync bots), claude-code (Claude Code sessions), codex (Codex threads) or terminal (a person at a terminal on another computer)."},
+                "kind": directory::kind_property(),
                 "limit": {"type": "integer", "minimum": 1, "maximum": 50, "description": "At most this many (default 20)."},
                 "cursor": {"type": "string", "description": "next from the previous call, for the rest."},
             }},

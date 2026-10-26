@@ -52,7 +52,7 @@ pub fn tools() -> Value {
                 "properties": {
                     "query": {"type": "string", "description": "Words that must all appear in the bot's name or description."},
                     "computer": {"type": "string", "description": "Only the bots on the computer with this name (`this`: the one you run on)."},
-                    "kind": {"type": "string", "enum": ["codync", "claude-code", "codex", "terminal"], "description": "Only this kind of agent: codync (Codync bots), claude-code (Claude Code sessions), codex (Codex threads) or terminal (a person at a terminal on another computer)."},
+                    "kind": directory::kind_property(),
                     "online": {"type": "boolean", "description": "Only bots whose computer can take a message now."},
                     "limit": {"type": "integer", "minimum": 1, "maximum": 50, "description": "At most this many (default 20)."},
                     "cursor": {"type": "string", "description": "next from the previous call, for the rest."},

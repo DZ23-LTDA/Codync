@@ -6,6 +6,7 @@ use crate::hub::Hub;
 use crate::store::BotConfig;
 use anyhow::Result;
 use codync_network::{AgentKind, Peer};
+use serde::Deserialize;
 use serde_json::{Value, json};
 
 const DEFAULT_LIMIT: usize = 20;
@@ -90,7 +91,7 @@ impl Filter {
             words: args["query"].as_str().unwrap_or_default().split_whitespace().map(str::to_lowercase).collect(),
             computer: args["computer"].as_str().map(str::to_lowercase),
             online: args["online"].as_bool() == Some(true),
-            kind: args["kind"].as_str().map(|k| serde_json::from_value(json!(k)).unwrap_or_default()),
+            kind: AgentKind::deserialize(&args["kind"]).ok(),
         }
     }
 
@@ -110,6 +111,15 @@ impl Filter {
             && (!self.online || row.online)
             && self.kind.is_none_or(|kind| kind == row.kind)
     }
+}
+
+/// The `kind` argument of the tools' `list_bots`, which [`Filter::of`] reads.
+pub(super) fn kind_property() -> Value {
+    json!({
+        "type": "string",
+        "enum": ["codync", "claude-code", "codex", "terminal", "other"],
+        "description": "Only this kind of agent: codync (Codync bots), claude-code (Claude Code sessions), codex (Codex threads), terminal (a person at a terminal on another computer) or other (on a computer whose Codync doesn't say its kind yet).",
+    })
 }
 
 /// `limit` rows from `cursor`, with `next` for the rest; an unnarrowed listing that doesn't fit
