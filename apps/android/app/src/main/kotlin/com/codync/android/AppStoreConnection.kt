@@ -5,16 +5,25 @@ import java.io.IOException
 import com.codync.android.core.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.json.*
 
 // Pairing, the encrypted link to the computer and the mirror's event stream.
 
 fun AppStore.setRoute(route: ConnectionRoute) = action("route") {
-    val computer = state.value.computers.firstOrNull() ?: return@action
-    val changed = computer.copy(route = route)
+    changeComputer { it.copy(route = route) } ?: return@action
+    reconnect().join()
+}
+
+/**
+ * Changes the paired computer's latest copy, saved and then shown, one change at a time: a switch
+ * flipped while a link's `hello` runs isn't undone by the copy that link saves.
+ */
+internal suspend fun AppStore.changeComputer(change: (Computer) -> Computer): Computer? = computerChanges.withLock {
+    val changed = change(state.value.computers.firstOrNull() ?: return@withLock null)
     withContext(Dispatchers.IO) { local.saveComputers(listOf(changed)) }
     mutableState.update { it.copy(computers = listOf(changed)) }
-    reconnect().join()
+    changed
 }
 
 /**
@@ -110,17 +119,16 @@ fun AppStore.connect() {
                                 reconcileMailbox(active)
                             }
                             if (link is LinkState.Ready) {
-                                // The latest saved copy: its color may have changed since this link opened.
-                                val updated = HostClient.hello(active, state.value.computers.firstOrNull { it.id == target.id } ?: target)
+                                val fromHost = HostClient.hello(active, state.value.computers.firstOrNull { it.id == target.id } ?: target)
                                 val hello = active.call("hello").jsonObject
+                                // This phone's picks (color, route, push) may have changed during those calls.
+                                changeComputer { current -> if (current.id == fromHost.id) fromHost.keepingDevicePicks(current) else current }
                                 val dropped = withContext(Dispatchers.IO) {
-                                    local.saveComputers(listOf(updated))
                                     requireNotNull(database).setStamp(requireNotNull(hello["hostId"]?.jsonPrimitive?.content),
                                         BuildConfig.VERSION_NAME + "/" + hello["version"]?.jsonPrimitive?.content)
                                 }
                                 // Dropped chats page their earlier messages again.
-                                mutableState.update { it.copy(computers = listOf(updated),
-                                    historyComplete = if (dropped) emptySet() else it.historyComplete) }
+                                mutableState.update { it.copy(historyComplete = if (dropped) emptySet() else it.historyComplete) }
                                 noteHello(hello)
                                 // The event catch-up is ordered by revision; bot revisions can
                                 // follow hundreds of historical entries. Load the current roster

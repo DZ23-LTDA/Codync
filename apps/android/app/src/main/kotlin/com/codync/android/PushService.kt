@@ -35,6 +35,15 @@ object PushPreferences {
     fun retired(context: Context) = prefs(context).getBoolean("retired", false)
     fun retire(context: Context) = synchronized(this) { prefs(context).edit().putBoolean("retired", true).commit() }
     fun tasks(context: Context, enabled: Boolean) { prefs(context).edit().putBoolean("tasks", enabled).commit() }
+    /** 2.28.0 had one push switch for every computer; switched off, it becomes each saved computer's own, once (iOS `splitPushSwitch`). */
+    fun splitSwitch(context: Context) {
+        synchronized(this) {
+            val prefs = prefs(context)
+            if (!prefs.contains("enabled")) return
+            if (!prefs.getBoolean("enabled", true)) LocalStore.pushOffEverywhere(context)
+            prefs.edit().remove("enabled").commit()
+        }
+    }
     fun reset(context: Context) {
         val token = fid(context)
         prefs(context).edit().clear().putString("fid", token).commit()
@@ -110,6 +119,7 @@ object PushDelivery {
     suspend fun background(context: Context) = gate.withLock {
         if (!BuildConfig.PUSH_CONFIGURED) return@withLock
         if (PushPreferences.retired(context)) return@withLock
+        withContext(Dispatchers.IO) { PushPreferences.splitSwitch(context) }
         val local = LocalStore(context, PushPreferences.activeUser(context) ?: "local")
         val computers = withContext(Dispatchers.IO) { local.computers() }
         val computer = computers.firstOrNull() ?: return@withLock
@@ -163,6 +173,7 @@ class PushService : FirebaseMessagingService() {
             synchronized(PushPreferences) {
             try {
                 if (PushPreferences.retired(context)) return
+                PushPreferences.splitSwitch(context)
                 val user = PushPreferences.activeUser(context)
                 val scope = LocalStore.referenceId(user ?: "local")
                 if (data["ctx"] != scope || data["kind"] !in setOf("alert", "task")) return

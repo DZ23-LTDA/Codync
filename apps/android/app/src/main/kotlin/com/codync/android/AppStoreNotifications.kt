@@ -18,10 +18,7 @@ fun AppStore.syncPush() = action("push") {
 }
 /** Saved with the computer on this phone (iOS `AccountStore.setNotifications`). */
 fun AppStore.notifications(enabled: Boolean) = action("notificationSettings") {
-    val computer = state.value.computers.firstOrNull() ?: return@action
-    val changed = computer.copy(notifications = enabled)
-    withContext(Dispatchers.IO) { local.saveComputers(listOf(changed)) }
-    mutableState.update { it.copy(computers = listOf(changed)) }
+    changeComputer { it.copy(notifications = enabled) } ?: return@action
     Analytics.capture(AnalyticsEvent.SettingChanged(PhoneSetting.Push, enabled))
     if (!enabled) NotificationDisplay.cancel(getApplication(), 1)
     syncPush(); PushDelivery.schedule(getApplication())

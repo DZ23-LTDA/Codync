@@ -166,12 +166,7 @@ fun AppStore.revokeAccess(computerId: String) = action("revoke") {
 }
 
 /** The computer's badge color, picked on this phone (an `AvatarPalette` id). */
-fun AppStore.setColor(color: String) = action("color") {
-    val computer = state.value.computers.firstOrNull() ?: return@action
-    val changed = computer.copy(color = color)
-    withContext(Dispatchers.IO) { local.saveComputers(listOf(changed)) }
-    mutableState.update { it.copy(computers = listOf(changed)) }
-}
+fun AppStore.setColor(color: String) = action("color") { changeComputer { it.copy(color = color) } }
 
 /**
  * Remove: forgets the computer here. Approved through the account, its grant goes too (as on iOS), or it

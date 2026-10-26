@@ -24,6 +24,8 @@ class AppStore(application: Application) : AndroidViewModel(application) {
     private var contextJob = SupervisorJob(viewModelScope.coroutineContext[Job])
     internal var contextScope = CoroutineScope(contextJob + Dispatchers.Main.immediate)
     internal val transitions = Mutex()
+    /** One change to the paired computer's saved copy at a time (`changeComputer`). */
+    internal val computerChanges = Mutex()
     internal val screenTakeovers = Mutex()
     internal var cloud: CloudClient? = null
     private var sessionJob: Job? = null
@@ -57,6 +59,7 @@ class AppStore(application: Application) : AndroidViewModel(application) {
 
     init {
         viewModelScope.launch {
+            withContext(Dispatchers.IO) { PushPreferences.splitSwitch(getApplication()) }
             transitions.withLock { loadContext(null) }
             NativeAccounts.observe(viewModelScope) { account ->
                 mutableState.update { it.copy(account = account) }
