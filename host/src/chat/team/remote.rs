@@ -11,6 +11,7 @@ use crate::LockExt;
 use crate::agent::acp::truncate;
 use crate::agent::bot::Cmd;
 use crate::hub::Hub;
+use crate::network::Target;
 use crate::store::{BotConfig, EntryKind, Lane};
 use anyhow::{Result, anyhow};
 use codync_network::{Address, Letter, Message, Node, Sent};
@@ -51,6 +52,8 @@ impl Waiting {
 
 /// Where the outcome of a request from another computer goes.
 pub(crate) struct Return {
+    /// The network the request came through (`network::Slot::id`).
+    network: String,
     to: Address,
     request: String,
     /// The answering bot's address name when the request came.
@@ -58,28 +61,28 @@ pub(crate) struct Return {
 }
 
 /// The letters that reach this computer's bots.
-pub async fn listen(hub: Arc<Hub>, mut inbox: mpsc::Receiver<Message>) {
+pub async fn listen(hub: Arc<Hub>, network: String, mut inbox: mpsc::Receiver<Message>) {
     while let Some(m) = inbox.recv().await {
-        if let Err(error) = take(&hub, &m) {
+        if let Err(error) = take(&hub, &network, &m) {
             tracing::warn!(error = format!("{error:#}"), "couldn't take a letter from another computer");
         }
     }
 }
 
-fn take(hub: &Arc<Hub>, m: &Message) -> Result<()> {
+fn take(hub: &Arc<Hub>, network: &str, m: &Message) -> Result<()> {
     if let Some((id, waiter)) = m.reply_to.as_deref().and_then(|id| Some((id, hub.waiting.take(id)?))) {
         replied(hub, id, waiter, m);
         return Ok(());
     }
-    let back = Return { to: m.from.clone(), request: m.id.clone(), from: m.to.clone() };
+    let back = Return { network: network.to_owned(), to: m.from.clone(), request: m.id.clone(), from: m.to.clone() };
     let target = hub.network.bot_for(&m.to).ok_or_else(|| anyhow!("no bot called {} here", m.to));
     match target.and_then(|bot| visible_bot(hub, &bot)) {
         // A note, or a reply this computer no longer waits for (it restarted): the chat shows it.
         Ok(target) if !m.wake || m.reply_to.is_some() => {
-            note(hub, &target, m);
+            note(hub, network, &target, m);
             Ok(())
         }
-        Ok(target) => requested(hub, &target, m, back),
+        Ok(target) => requested(hub, network, &target, m, back),
         // The bot went away after this computer took the request: its sender would wait for good.
         Err(error) if m.wake && m.reply_to.is_none() => {
             send_back(hub, &back, format!("Couldn't take it: {error:#}"), RequestStatus::Failed, m.hops);
@@ -89,13 +92,14 @@ fn take(hub: &Arc<Hub>, m: &Message) -> Result<()> {
     }
 }
 
-/// How a bot on another computer is shown: its name and computer, from the directory.
-fn peer_name(hub: &Hub, address: &Address) -> String {
+/// How a bot on another computer is shown: its name and computer, from that network's directory.
+fn peer_name(hub: &Hub, network: &str, address: &Address) -> String {
     if address.agent == super::assistant::HANDLE {
         return format!("{} on {}", super::assistant::NAME, address.computer);
     }
-    let name = hub.network.node().and_then(|node| {
-        node.directory()
+    let name = hub.network.slot(Some(network)).ok().and_then(|slot| {
+        slot.node
+            .directory()
             .into_iter()
             .find(|p| p.name == address.computer)
             .and_then(|p| p.agents.into_iter().find(|a| a.id == address.agent))
@@ -105,20 +109,21 @@ fn peer_name(hub: &Hub, address: &Address) -> String {
 }
 
 /// One of this computer's bots asks a bot on another computer.
-pub(super) async fn message(hub: &Arc<Hub>, source: &BotConfig, to: &Address, message: &str) -> Result<Value> {
+pub(super) async fn message(hub: &Arc<Hub>, source: &BotConfig, to: &Target, message: &str) -> Result<Value> {
     check_request(hub, source, message)?;
-    let node = hub.network.node().ok_or_else(|| anyhow!("this computer isn't in a network"))?;
+    let node = hub.network.slot(Some(&to.network))?.node;
     let from = hub.network.handle_of(&source.id).ok_or_else(|| anyhow!("this bot isn't on the network"))?;
     let hops = hub.team.reserve_message(&source.id)?;
     // ponytail: the slot covers sending only; the other computer bounds the work it takes on.
-    let result = send(hub, &node, source, Letter::new(from, to.clone(), message).hops(hops)).await;
+    let letter = Letter::new(from, to.address.clone(), message).hops(hops);
+    let result = send(hub, &node, source, to, letter).await;
     hub.team.release_message(&source.id);
     result
 }
 
-async fn send(hub: &Arc<Hub>, node: &Node, source: &BotConfig, letter: Letter) -> Result<Value> {
-    let (id, address, computer) = (letter.id.clone(), letter.to.to_string(), letter.to.computer.clone());
-    let peer = peer_name(hub, &letter.to);
+async fn send(hub: &Arc<Hub>, node: &Node, source: &BotConfig, to: &Target, letter: Letter) -> Result<Value> {
+    let (id, address, computer) = (letter.id.clone(), hub.network.address_text(to), letter.to.computer.clone());
+    let peer = peer_name(hub, &to.network, &letter.to);
     let heading = format!("Messaged {peer}: {}", letter.body);
     let exchange =
         Exchange { request: &id, source: &source.id, target: &address, text: &letter.body, peer_name: Some(&peer) };
@@ -152,11 +157,11 @@ async fn send(hub: &Arc<Hub>, node: &Node, source: &BotConfig, letter: Letter) -
 /// The user's cloud assistant asks a bot on another computer. Returns the request's id (the
 /// letter's) at once: the letter goes in the background, and its outcome waits in the
 /// assistant's replies.
-pub(super) fn ask_for_assistant(hub: &Arc<Hub>, from: &str, to: &Address, message: &str) -> Result<(String, String)> {
-    let node = hub.network.node().ok_or_else(|| anyhow!("this computer isn't in a network"))?;
+pub(super) fn ask_for_assistant(hub: &Arc<Hub>, from: &str, to: &Target, message: &str) -> Result<(String, String)> {
+    let node = hub.network.slot(Some(&to.network))?.node;
     hub.network.send_as(from)?;
-    let letter = Letter::new(from, to.clone(), message);
-    let (id, peer) = (letter.id.clone(), peer_name(hub, to));
+    let letter = Letter::new(from, to.address.clone(), message);
+    let (id, peer) = (letter.id.clone(), peer_name(hub, &to.network, &to.address));
     awaits_for_assistant(hub, &id, &peer, message);
     let (hub, request) = (hub.clone(), id.clone());
     tokio::spawn(async move {
@@ -190,8 +195,8 @@ fn waiting(hub: &Hub, id: &str, text: &str, status: RequestStatus) {
 }
 
 /// A bot on another computer (or any agent there) asks one of this computer's bots.
-fn requested(hub: &Arc<Hub>, target: &BotConfig, m: &Message, back: Return) -> Result<()> {
-    let peer = peer_name(hub, &m.from);
+fn requested(hub: &Arc<Hub>, network: &str, target: &BotConfig, m: &Message, back: Return) -> Result<()> {
+    let peer = peer_name(hub, network, &m.from);
     let from = m.from.to_string();
     let mut lifetime = MessageLifetime::new(hub, &m.id, &m.body, Back::Remote(back), &target.name);
     let exchange =
@@ -202,8 +207,8 @@ fn requested(hub: &Arc<Hub>, target: &BotConfig, m: &Message, back: Return) -> R
 }
 
 /// A letter that starts no turn: the bot's chat shows it.
-fn note(hub: &Hub, target: &BotConfig, m: &Message) {
-    let peer = peer_name(hub, &m.from);
+fn note(hub: &Hub, network: &str, target: &BotConfig, m: &Message) {
+    let peer = peer_name(hub, network, &m.from);
     let heading = format!("Note from {peer}");
     hub.add_entry(
         &Lane::main(&target.id),
@@ -226,7 +231,8 @@ pub(super) fn cancelled(hub: &Hub, to: &Return, hops: u8) {
 }
 
 fn send_back(hub: &Hub, to: &Return, mut body: String, status: RequestStatus, hops: u8) {
-    let Some(node) = hub.network.node() else { return };
+    let Ok(slot) = hub.network.slot(Some(&to.network)) else { return };
+    let node = slot.node;
     if body.trim().is_empty() {
         body = "(no reply)".into();
     }

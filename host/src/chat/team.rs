@@ -354,7 +354,7 @@ pub async fn call_async(hub: &Arc<Hub>, from: &str, name: &str, args: &Value) ->
         "message_bot" => {
             let (to, message) = message_args(args)?;
             match hub.network.recipient(to)? {
-                Recipient::There(address) => remote::message(hub, &visible_bot(hub, from)?, &address, message).await,
+                Recipient::There(target) => remote::message(hub, &visible_bot(hub, from)?, &target, message).await,
                 Recipient::Here(_) => call(hub, from, name, args),
             }
         }
@@ -371,7 +371,7 @@ fn call(hub: &Arc<Hub>, from: &str, name: &str, args: &Value) -> Result<Value> {
             let (to, message) = message_args(args)?;
             match hub.network.recipient(to)? {
                 Recipient::Here(to) => message_bot(hub, &source, &to, message),
-                Recipient::There(address) => bail!("{address} is on another computer"),
+                Recipient::There(target) => bail!("{} is on another computer", target.address),
             }
         }
         _ => bail!("unknown team tool: {name}"),

@@ -8,7 +8,7 @@ use crate::store::BotConfig;
 use serde_json::{Map, Value};
 
 /// Methods that stand for one event with one fixed property.
-const FIXED: [(&str, Event, &str, &str); 13] = [
+const FIXED: [(&str, Event, &str, &str); 14] = [
     ("editHandoff", Event::HandoffAnswered, "action", "edit"),
     ("keepConversation", Event::HandoffAnswered, "action", "keep"),
     ("credentialSaveLogin", Event::CredentialSaved, "kind", "login"),
@@ -23,6 +23,7 @@ const FIXED: [(&str, Event, &str, &str); 13] = [
     ("networkRemove", Event::NetworkChanged, "action", "remove"),
     ("networkRecover", Event::NetworkChanged, "action", "recover"),
     ("setNetworkRules", Event::NetworkChanged, "action", "rules"),
+    ("networkLeave", Event::NetworkChanged, "action", "leave"),
 ];
 
 /// Switches the host owns (`setting_changed`): the method and the setting it names.

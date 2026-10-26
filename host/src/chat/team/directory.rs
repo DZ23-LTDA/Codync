@@ -31,7 +31,7 @@ pub(super) fn list(
     keep: fn(&BotConfig) -> bool,
 ) -> Result<Value> {
     let filter = Filter::of(args);
-    let here = hub.network.node().and_then(|n| n.name());
+    let here = hub.network.my_name();
     let rows: Vec<Row> =
         rows(hub, from, remote, keep)?.into_iter().filter(|r| filter.keeps(r, here.as_deref())).collect();
     Ok(page(&rows, args, !filter.narrows()))
@@ -95,7 +95,11 @@ impl Filter {
     /// `here` is this computer's name in its network.
     fn keeps(&self, row: &Row, here: Option<&str>) -> bool {
         let at = row.computer.as_deref().or(here).map(str::to_lowercase);
-        let on = |c: &String| at.as_ref() == Some(c) || (row.computer.is_none() && c == HERE);
+        // `desk` also finds `desk.home`, a computer in one of this computer's several networks.
+        let at_computer = |c: &String| {
+            at.as_ref().is_some_and(|a| a == c || a.strip_prefix(c.as_str()).is_some_and(|rest| rest.starts_with('.')))
+        };
+        let on = |c: &String| at_computer(c) || (row.computer.is_none() && c == HERE);
         self.words.iter().all(|w| row.words.contains(w))
             && self.computer.as_ref().is_none_or(on)
             && (!self.online || row.online)

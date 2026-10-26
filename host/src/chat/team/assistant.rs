@@ -182,7 +182,7 @@ fn message(hub: &Arc<Hub>, asker: &Asker, args: &Value) -> Result<Value> {
 
 /// A bot on another of the user's computers (`reviewer@laptop`): a letter from this computer,
 /// whose answer comes back here. That computer's own rules decide whether it takes it.
-fn message_elsewhere(hub: &Arc<Hub>, asker: &Asker, to: &codync_network::Address, message: &str) -> Result<Value> {
+fn message_elsewhere(hub: &Arc<Hub>, asker: &Asker, to: &crate::network::Target, message: &str) -> Result<Value> {
     let (request, peer) = remote::ask_for_assistant(hub, &asker.handle, to, message)?;
     hub.assistant.add(Reply {
         asker: asker.id.clone(),
@@ -194,7 +194,7 @@ fn message_elsewhere(hub: &Arc<Hub>, asker: &Asker, to: &codync_network::Address
         at: now_ms(),
     });
     Ok(json!({
-        "requestId": request, "botId": to.to_string(), "name": peer, "status": RequestStatus::Queued,
+        "requestId": request, "botId": hub.network.address_text(to), "name": peer, "status": RequestStatus::Queued,
         "note": "Queued on that computer. Bots can take minutes: get the reply later with read_replies.",
     }))
 }

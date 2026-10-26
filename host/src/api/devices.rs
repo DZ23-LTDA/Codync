@@ -70,6 +70,7 @@ const LOCAL_ONLY: &[&str] = &[
     "networkStatus",
     "networkCreate",
     "networkJoin",
+    "networkLeave",
     "networkInvite",
     "networkPeers",
     "networkRemove",

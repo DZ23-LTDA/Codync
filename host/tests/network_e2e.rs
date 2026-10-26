@@ -98,7 +98,8 @@ async fn two_computers() -> (Host, Host, String, String) {
     assert!(created["recoveryCode"].as_str().unwrap().len() > 60);
     let invite = desk.call("networkInvite", json!({})).await["invite"].as_str().unwrap().to_owned();
     let joined = laptop.call("networkJoin", json!({"invite": invite, "name": "laptop", "connector": "private"})).await;
-    assert_eq!((joined["computer"].as_str(), joined["role"].as_str()), (Some("laptop"), Some("member")));
+    let home = &joined["networks"][0];
+    assert_eq!((home["computer"].as_str(), home["role"].as_str()), (Some("laptop"), Some("member")));
     let reviewer = desk.bot("Reviewer").await;
     let lead = laptop.bot("Lead").await;
     (desk, laptop, reviewer, lead)
@@ -108,7 +109,7 @@ async fn two_computers() -> (Host, Host, String, String) {
 async fn a_bot_messages_a_bot_on_another_computer_and_relays_its_reply() {
     let (desk, laptop, reviewer, lead) = two_computers().await;
     let peers = laptop.call("networkPeers", json!({})).await;
-    let desk_row = peers["computers"].as_array().unwrap().iter().find(|c| c["name"] == "desk").unwrap().clone();
+    let desk_row = computer(&peers, "desk").clone();
     assert_eq!((desk_row["online"].as_bool(), desk_row["role"].as_str()), (Some(true), Some("owner")));
     // Every visible bot goes by its address name (the host's own lead bot too).
     assert!(desk_row["agents"].as_array().unwrap().iter().any(|a| a["id"] == "reviewer"), "{desk_row}");
@@ -136,7 +137,7 @@ async fn a_bot_messages_a_bot_on_another_computer_and_relays_its_reply() {
     let history = laptop.call("botConversation", json!({"botId": lead, "peerId": "reviewer@desk"})).await;
     assert_eq!(history["entries"].as_array().unwrap().len(), 1);
     let status = laptop.call("networkStatus", json!({})).await;
-    assert_eq!(status["computers"].as_array().unwrap().len(), 2);
+    assert_eq!(status["networks"][0]["computers"].as_array().unwrap().len(), 2);
 }
 
 #[tokio::test]
@@ -189,8 +190,9 @@ async fn network_event(base: String, token: String, predicate: impl Fn(&Value) -
     .expect("no network event")
 }
 
+/// A computer in the view's first network.
 fn computer<'a>(view: &'a Value, name: &str) -> &'a Value {
-    view["computers"].as_array().unwrap().iter().find(|c| c["name"] == name).unwrap()
+    view["networks"][0]["computers"].as_array().unwrap().iter().find(|c| c["name"] == name).unwrap()
 }
 
 #[tokio::test]
@@ -199,7 +201,8 @@ async fn the_network_view_says_who_may_do_what_and_changes_reach_the_apps() {
     desk.call("networkPeers", json!({})).await;
     let view = desk.call("networkView", json!({})).await;
     assert_eq!((view["joined"].as_bool(), view["assistants"].as_bool()), (Some(true), Some(false)));
-    assert_eq!((&view["canInvite"], &view["canRecover"]), (&json!(true), &json!(false)), "the owner invites");
+    let home = &view["networks"][0];
+    assert_eq!((&home["canInvite"], &home["canRecover"]), (&json!(true), &json!(false)), "the owner invites");
     let row = computer(&view, "laptop");
     assert_eq!((row["canRemove"].as_bool(), row["canPromote"].as_bool()), (Some(true), Some(true)));
     assert!(row["agents"].as_array().unwrap().iter().any(|a| a["name"] == "Lead"), "{row}");
@@ -210,13 +213,15 @@ async fn the_network_view_says_who_may_do_what_and_changes_reach_the_apps() {
     // A member may do nothing to the owner.
     let theirs = laptop.call("networkView", json!({})).await;
     assert_eq!(
-        (computer(&theirs, "desk")["canRemove"].as_bool(), theirs["role"].as_str()),
+        (computer(&theirs, "desk")["canRemove"].as_bool(), theirs["networks"][0]["role"].as_str()),
         (Some(false), Some("member"))
     );
-    assert_eq!((&theirs["canInvite"], &theirs["canRecover"]), (&json!(false), &json!(true)));
+    let home = &theirs["networks"][0];
+    assert_eq!((&home["canInvite"], &home["canRecover"]), (&json!(false), &json!(true)));
 
     // The owner promotes the laptop: both computers' apps hear of it without asking.
-    let there = tokio::spawn(network_event(laptop.base.clone(), laptop.token.clone(), |v| v["role"] == "admin"));
+    let there =
+        tokio::spawn(network_event(laptop.base.clone(), laptop.token.clone(), |v| v["networks"][0]["role"] == "admin"));
     let here = tokio::spawn(network_event(desk.base.clone(), desk.token.clone(), |v| {
         computer(v, "laptop")["role"] == "admin"
     }));
@@ -233,14 +238,15 @@ async fn a_bot_kept_off_the_network_and_a_deny_rule_keep_letters_out() {
     let secret = desk.bot("Secret").await;
     desk.call("updateBot", json!({"id": secret, "offeredToNetwork": false})).await;
     let peers = laptop.call("networkPeers", json!({})).await;
-    let offered: Vec<&Value> = computer(&peers, "desk")["agents"].as_array().unwrap().iter().map(|a| &a["id"]).collect();
+    let offered: Vec<&Value> =
+        computer(&peers, "desk")["agents"].as_array().unwrap().iter().map(|a| &a["id"]).collect();
     assert!(offered.contains(&&json!("reviewer")), "{offered:?}");
     assert!(!offered.contains(&&json!("secret")), "kept off the network: {offered:?}");
 
     // The desk takes nothing from the laptop's bots; the lead's message_bot says why.
     let rules = json!([{"fromComputer": "laptop", "fromAgent": "*", "toAgent": "*", "access": "deny"}]);
     let view = desk.call("setNetworkRules", json!({"rules": rules})).await;
-    assert_eq!(view["rules"][0]["access"], "deny");
+    assert_eq!(view["networks"][0]["rules"][0]["access"], "deny");
     laptop.call("send", json!({"botId": lead, "text": "TRY reviewer@desk review this"})).await;
     let refused = laptop.wait_for(&lead, is_final).await;
     let text = refused["data"]["text"].as_str().unwrap();
@@ -252,4 +258,57 @@ async fn a_bot_kept_off_the_network_and_a_deny_rule_keep_letters_out() {
     assert!(failed["data"]["botMessage"]["detail"].as_str().unwrap().contains("doesn't take messages"), "{failed}");
     let history = desk.call("history", json!({"botId": reviewer})).await;
     assert!(!history.to_string().contains("review this"), "nothing reached the reviewer");
+}
+
+#[tokio::test]
+async fn a_computer_in_two_networks_keeps_them_apart() {
+    let (desk, laptop, _reviewer, lead) = two_computers().await;
+    let server = Host::start().await;
+    // The desk makes a second network for the server; the invite carries its name.
+    let work = desk.call("networkCreate", json!({"network": "work", "name": "desk", "connector": "private"})).await;
+    let invite = desk.call("networkInvite", json!({"network": "work"})).await["invite"].as_str().unwrap().to_owned();
+    let joined = server.call("networkJoin", json!({"invite": invite, "name": "server", "connector": "private"})).await;
+    assert_eq!(joined["networks"][0]["name"], "work");
+    let tester = server.bot("Tester").await;
+    let status = desk.call("networkPeers", json!({})).await;
+    let names: Vec<&str> = status["networks"].as_array().unwrap().iter().map(|n| n["name"].as_str().unwrap()).collect();
+    assert_eq!(names, ["home", "work"]);
+    // The laptop is in one network: it never sees the server.
+    let laptops = laptop.call("networkPeers", json!({})).await;
+    assert_eq!(laptops["networks"].as_array().unwrap().len(), 1);
+    assert!(!laptops.to_string().contains("server"));
+    // Joining a network twice is refused; inviting needs the network named now.
+    let again = desk.call("networkInvite", json!({"network": "work"})).await["invite"].as_str().unwrap().to_owned();
+    let refused = reqwest::Client::new()
+        .post(format!("{}/api/networkJoin", server.base))
+        .bearer_auth(&server.token)
+        .json(&json!({"invite": again}))
+        .send()
+        .await
+        .unwrap();
+    assert!(!refused.status().is_success());
+    let unnamed = reqwest::Client::new()
+        .post(format!("{}/api/networkInvite", desk.base))
+        .bearer_auth(&desk.token)
+        .json(&json!({}))
+        .send()
+        .await
+        .unwrap();
+    assert!(unnamed.text().await.unwrap().contains("several networks"));
+    assert!(work["recoveryCode"].as_str().unwrap().len() > 60);
+
+    // The desk's bots list both networks' computers with the network named.
+    let desk_lead = desk.bot("Lead").await;
+    let _ = (lead, tester);
+    desk.call("send", json!({"botId": desk_lead, "text": "TRY tester@server.work hello"})).await;
+    let sent = desk.wait_for(&desk_lead, is_final).await;
+    assert!(sent["data"]["text"].as_str().unwrap().starts_with("Sent: "), "{sent}");
+    let exchange = desk.wait_for(&desk_lead, |e| e["kind"] == "notice" && e["data"]["botMessage"].is_object()).await;
+    assert_eq!(exchange["data"]["botMessage"]["targetBotId"], "tester@server.work");
+
+    // Leaving work forgets it here; home stays.
+    let left = desk.call("networkLeave", json!({"network": "work"})).await;
+    let names: Vec<&str> = left["networks"].as_array().unwrap().iter().map(|n| n["name"].as_str().unwrap()).collect();
+    assert_eq!(names, ["home"]);
+    assert!(!desk.home.join(work["network"].as_str().unwrap()).exists());
 }

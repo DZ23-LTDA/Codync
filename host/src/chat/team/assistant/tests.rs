@@ -120,7 +120,7 @@ async fn an_answer_from_another_computer_waits_in_the_replies() {
         remote::awaits_for_assistant(hub, request, "Coder on laptop", "status?");
     }
     let (tx, rx) = tokio::sync::mpsc::channel(4);
-    tokio::spawn(remote::listen(hub.clone(), rx));
+    tokio::spawn(remote::listen(hub.clone(), "network".into(), rx));
     let answer = |request: &str, body: &str, status: &str| codync_network::Message {
         id: format!("re-{request}"),
         from: "coder@laptop".parse().unwrap(),

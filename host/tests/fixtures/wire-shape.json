@@ -184,6 +184,7 @@
     "event:hello.network.assistants": "bool",
     "event:hello.network.assistantsAvailable": "bool",
     "event:hello.network.joined": "bool",
+    "event:hello.network.networks": "array",
     "event:hello.rev": "number",
     "event:hello.type": "string",
     "hello": "object",
