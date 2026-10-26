@@ -1142,6 +1142,7 @@
   "Stop task": "タスクの停止",
   "Enable remote screen": "リモート画面を有効にする",
   "Set up computer access…": "コンピューターアクセスを設定してください…",
+  "Network settings…": "ネットワーク設定…",
   "Restarting…": "再起動中…",
   "Restart to update": "更新するには再起動してください",
   "Downloading… {percent}%": "ダウンロード中… {percent}%",
