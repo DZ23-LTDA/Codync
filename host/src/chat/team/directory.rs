@@ -28,7 +28,7 @@ pub(super) fn list(
     from: &str,
     args: &Value,
     remote: &[Peer],
-    keep: fn(&BotConfig) -> bool,
+    keep: impl Fn(&BotConfig) -> bool,
 ) -> Result<Value> {
     let filter = Filter::of(args);
     let here = hub.network.my_name();
@@ -39,7 +39,7 @@ pub(super) fn list(
 
 /// Everyone `from` can message, nearest first: this computer's bots, then the ones on computers
 /// that can take a message now.
-fn rows(hub: &Hub, from: &str, remote: &[Peer], keep: fn(&BotConfig) -> bool) -> Result<Vec<Row>> {
+fn rows(hub: &Hub, from: &str, remote: &[Peer], keep: impl Fn(&BotConfig) -> bool) -> Result<Vec<Row>> {
     let mut rows: Vec<Row> = visible_bots(&hub.store)?
         .into_iter()
         .filter(|c| c.id != from && keep(c))
@@ -96,9 +96,8 @@ impl Filter {
     fn keeps(&self, row: &Row, here: Option<&str>) -> bool {
         let at = row.computer.as_deref().or(here).map(str::to_lowercase);
         // `desk` also finds `desk.home`, a computer in one of this computer's several networks.
-        let at_computer = |c: &String| {
-            at.as_ref().is_some_and(|a| a == c || a.strip_prefix(c.as_str()).is_some_and(|rest| rest.starts_with('.')))
-        };
+        let at_computer =
+            |c: &String| at.as_deref().is_some_and(|a| a == c || crate::network::split_computer(a).0 == c);
         let on = |c: &String| at_computer(c) || (row.computer.is_none() && c == HERE);
         self.words.iter().all(|w| row.words.contains(w))
             && self.computer.as_ref().is_none_or(on)
@@ -169,6 +168,10 @@ mod tests {
         assert_eq!(kept(&rows, &json!({"computer": HERE}), None), ["Coder", "Code Reviewer"]);
         assert_eq!(kept(&rows, &json!({"online": true}), None), ["Coder", "Code Reviewer"]);
         assert_eq!(kept(&rows, &json!({"computer": "elsewhere"}), None), Vec::<&str>::new());
+        // In several networks, a computer is named with its network: its bare name still finds it.
+        let several = [row("Lead", "", Some("laptop.home"), true), row("Ops", "", Some("laptop-2.work"), true)];
+        assert_eq!(kept(&several, &json!({"computer": "laptop"}), None), ["Lead"]);
+        assert_eq!(kept(&several, &json!({"computer": "laptop-2.work"}), None), ["Ops"]);
 
         let first = page(&rows, &json!({"limit": 2}), true);
         assert_eq!((first["total"].as_u64(), first["next"].as_str()), (Some(3), Some("2")));

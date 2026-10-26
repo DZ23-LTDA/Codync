@@ -135,7 +135,7 @@ that was off learns of a removal.
   `agent-<name>@<computer>`. Add it with `claude mcp add codync -- codync-host mcp network --name "Claude Code"`.
 - Agents that aren't Codync bots use the same letters: the standalone `codync-network` daemon offers Claude Code
   sessions (their inbox socket) and Codex threads (`codex queue`), see the crate README. It keeps its own key in
-  `~/.codync-network` (the host's is `~/.codync/network`), so beside a host it is a computer of its own.
+  `~/.codync-network` (the host's are `~/.codync/network` and `network-…`, one per network), so beside a host it is a computer of its own.
 
 ## Who reaches this computer's bots
 
@@ -144,17 +144,22 @@ and nothing new crosses the wire beyond a refusal's reason.
 
 - **Offered to the network**, per bot (`offeredToNetwork` on the bot, on by default): a bot that's off isn't
   published (`network::publish` filters it), so other computers don't list it, and a letter to it is refused like
-  one to an unknown agent. It's a bot setting, so any paired device may change it.
+  one to an unknown agent. It still messages bots elsewhere and hears back (the node sends as it without offering
+  it, `Node::set_senders`). It's a bot setting, so any paired device may change it.
 - **Reachable by cloud assistants**, per bot (`reachableByAssistants`, on by default): `list_bots` from the cloud
-  assistant leaves it out and `message_bot` refuses it (`chat/team/assistant.rs`).
-- **Rules**, per computer: an ordered list of `{fromComputer, fromAgent, toAgent, access}` (`allow`/`deny`, `*`
+  assistant leaves it out and `message_bot` refuses it (`chat/team/assistant.rs`). A letter from the cloud
+  assistant through another computer (`cloud-assistant@desk`) meets the same checks here, and this computer's own
+  Cloud assistants switch: off, it refuses them all (`remote::take`).
+- **Rules**, per network: an ordered list of `{fromComputer, fromAgent, toAgent, access}` (`allow`/`deny`, `*`
   for any). The first rule that matches decides; with none, everyone may write (`codync_network::rules`). The crate
   checks them in `node/inbound.rs` before it takes a letter, so the standalone daemon has them too (`rules.json`
   beside `agents.json`, `codync-network rules allow|deny <agent@computer> <agent> [--first]`, `rules remove <n>`).
   A refused letter's sender gets the reason as its tool error, for example "desk refused it: reviewer doesn't take
-  messages from lead@laptop", and its exchange notice ends failed. Answers to this computer's own letters always
-  pass (the crate keeps the ids it sent), so a rule added while a request runs doesn't strand it. The host keeps
-  its rules in kv `network_rules`, applies them when the node starts, and changes them with `setNetworkRules`
+  messages from lead@laptop", and its exchange notice ends failed. An answer to one of this computer's own
+  requests passes (the crate keeps each request's id, the computer it went to and the agent that sent it), so a
+  rule added while a request runs doesn't strand it: only from that computer, only to that agent, and only until
+  the answer that says how it ended (`meta`). The host keeps each network's rules with it in kv `networks`
+  (`network/saved.rs`), applies them when its node starts, and changes them with `setNetworkRules {network, rules}`
   (loopback only, like membership); `networkView` shows them, so phones list them read-only.
 - The master switches stay at the computer: being in a network, and cloud assistants on or off.
 
@@ -172,13 +177,15 @@ Planned in order, with what each step touches: [what's left](../plans/codync-net
 
 ## Code and verification
 
-- `host/crates/network`: the crate (`node/`, `roster.rs`, `guard.rs`, `reach.rs`, `wire.rs`); `cargo test -p codync-network`
+- `host/crates/network`: the crate (`node/`, `roster.rs`, `rules.rs`, `guard.rs`, `reach.rs`, `wire.rs`); `cargo test -p codync-network`
   runs computers on one machine over direct connections, without a relay or internet.
 - `host/src/network/`: the host's nodes (one per network, `mod.rs`), the saved networks (`saved.rs`), published bots
   and address names (`handles.rs`), the `network*` API methods, `networkView` and the `network` event (`api.rs`).
-- Clients: desktop `apps/desktop/src/renderer/views/settings/NetworkSection.tsx` (+ `NetworkSheets.tsx`,
-  `store/network.ts`), terminal `host/src/tui/manage/network.rs` + `view/network.rs`, iPhone
-  `apps/ios/Kit/Sources/CodyncUI/NetworkSheet.swift`, Android `apps/android/app/.../NetworkSheet.kt`.
+- Clients: desktop `apps/desktop/src/renderer/views/settings/NetworkSection.tsx` (+ `NetworkCard.tsx`,
+  `NetworkSheets.tsx`, `RuleSheet.tsx`, `store/network.ts`) and the bot editor's `views/bots/NetworkSwitches.tsx`;
+  terminal `host/src/tui/manage/network.rs` (+ `network_setup.rs`, `network_rules.rs`) and `view/network.rs`
+  (+ `view/network_rules.rs`); iPhone `apps/ios/Kit/Sources/CodyncUI/NetworkSheet.swift`; Android
+  `apps/android/app/.../NetworkSheet.kt`.
 - `host/src/chat/team/remote.rs`, `directory.rs`: requests and replies across computers, `list_bots`;
   `assistant.rs`: the cloud assistant and agents that aren't bots (`codync-host mcp network`, `agentCall`).
 - `host/src/network_cli.rs`: `codync-host network`.

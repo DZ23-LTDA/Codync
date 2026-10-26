@@ -1,7 +1,7 @@
 //! The networks of the user's computers (codync-network) this computer is in: who is in each,
-//! inviting, joining another, leaving, roles, removal, recovery, each network's rules
-//! (`network_rules.rs`), and the cloud assistants switch. The TUI runs on the computer, so it
-//! gets everything the desktop app does.
+//! inviting, creating or joining another (`network_setup.rs`), leaving, roles, removal,
+//! recovery, each network's rules (`network_rules.rs`), and the cloud assistants switch. The TUI
+//! runs on the computer, so it gets everything the desktop app does.
 
 use crossterm::event::{KeyCode, KeyEvent};
 use serde_json::{Value, json};
@@ -10,14 +10,7 @@ use std::borrow::Cow;
 use super::super::app::{After, App, Editor, Overlay, copy};
 use super::super::l10n::tr;
 use super::network_rules::RuleForm;
-
-/// How computers reach each other without a direct path: what's shown, what the host takes
-/// (empty: the relay address typed under it) and what it means. The desktop app's words.
-pub const CONNECTORS: [(&str, &str, &str); 3] = [
-    ("Public relays", "public", "Direct when it can, through a shared relay otherwise."),
-    ("Private: direct only", "private", "Same network, Tailscale or a VPN."),
-    ("Your own relay", "", "An iroh-relay you run."),
-];
+use super::network_setup::Setup;
 
 #[derive(Default)]
 pub struct NetworkSheet {
@@ -39,7 +32,7 @@ pub enum Step {
     Create(Setup),
     Join(Setup),
     /// The recovery code, shown once: only "I saved it" closes it.
-    Recovery(String),
+    Recovery(Recovery),
     /// A one-time invite (`None` while it comes) and when it stops working.
     Invite(Option<(String, i64)>),
     Recover(Editor),
@@ -53,65 +46,12 @@ pub enum Step {
     NewRule(RuleForm),
 }
 
-/// Creating a network, or joining one with an invite.
-#[derive(Default)]
-pub struct Setup {
-    pub invite: Editor,
-    /// The network's name: the new one's, or (joining) instead of the invite's.
-    pub network: Editor,
-    pub name: Editor,
-    pub connector: usize,
-    pub relay: Editor,
-    pub field: SetupField,
-}
-
-#[derive(Clone, Copy, Default, PartialEq, Eq, Debug)]
-pub enum SetupField {
-    Invite,
-    #[default]
-    Network,
-    Name,
-    Connector,
-    Relay,
-}
-
-impl Setup {
-    fn join() -> Self {
-        Self { field: SetupField::Invite, ..Self::default() }
-    }
-
-    /// The fields in order: joining starts with the invite, a relay URL only for your own relay.
-    pub fn fields(&self, join: bool) -> Vec<SetupField> {
-        let mut fields = vec![SetupField::Network, SetupField::Name, SetupField::Connector];
-        if join {
-            fields.insert(0, SetupField::Invite);
-        }
-        if CONNECTORS[self.connector].1.is_empty() {
-            fields.push(SetupField::Relay);
-        }
-        fields
-    }
-
-    fn step(&mut self, join: bool, by: isize) {
-        let fields = self.fields(join);
-        let i = fields.iter().position(|f| *f == self.field).unwrap_or(0);
-        self.field = fields[super::super::app::cycle(i, by, fields.len())];
-    }
-
-    fn connector(&self) -> String {
-        match CONNECTORS[self.connector].1 {
-            "" => self.relay.text.trim().to_owned(),
-            name => name.to_owned(),
-        }
-    }
-
-    fn body(&self) -> Value {
-        let given = |e: &Editor| Some(e.text.trim()).filter(|t| !t.is_empty()).map(str::to_owned);
-        json!({
-            "invite": self.invite.text.trim(), "network": given(&self.network), "name": given(&self.name),
-            "connector": self.connector(),
-        })
-    }
+/// A new network's recovery code, and whose it is (named from the host's answer: the sheet may
+/// not show the new network yet).
+pub struct Recovery {
+    pub code: String,
+    pub network: String,
+    pub computer: String,
 }
 
 /// What a network call's answer is for.
@@ -162,6 +102,16 @@ impl NetworkSheet {
     /// What the host says of this computer as a whole (`assistantsAvailable`, `assistants`).
     pub fn says(&self, flag: &str) -> bool {
         self.view.as_ref().is_some_and(|v| v[flag] == true)
+    }
+
+    /// The shown network's name.
+    pub fn name(&self) -> &str {
+        self.current().and_then(|n| n["name"].as_str()).unwrap_or_default()
+    }
+
+    /// This computer's row in the shown network.
+    pub fn me(&self) -> Option<&Value> {
+        self.computers().iter().find(|c| c["me"] == true)
     }
 
     pub fn computers(&self) -> &[Value] {
@@ -236,7 +186,12 @@ impl App {
                 if let Some(at) = n.networks().iter().position(|x| x["id"] == v["network"]) {
                     n.net = at;
                 }
-                n.step = Step::Recovery(v["recoveryCode"].as_str().unwrap_or_default().to_owned());
+                let text = |key: &str| v[key].as_str().unwrap_or_default().to_owned();
+                n.step = Step::Recovery(Recovery {
+                    code: text("recoveryCode"),
+                    network: text("name"),
+                    computer: text("computer"),
+                });
             }
             NetReply::Invite => {
                 let code = v["invite"].as_str().unwrap_or_default().to_owned();
@@ -264,7 +219,7 @@ impl App {
             Step::List => return self.network_list_key(n, k),
             Step::Create(s) => self.setup_key(&mut n, s, false, k),
             Step::Join(s) => self.setup_key(&mut n, s, true, k),
-            Step::Recovery(code) => self.recovery_key(code, k),
+            Step::Recovery(r) => self.recovery_key(r, k),
             Step::Invite(invite) => self.invite_key(&n, invite, k),
             Step::Recover(code) => self.recover_key(&mut n, code, k),
             Step::Remove { computer, cascade } => self.remove_key(&mut n, computer, cascade, k),
@@ -275,16 +230,16 @@ impl App {
         Some(Overlay::Network(n))
     }
 
-    fn recovery_key(&mut self, code: String, k: KeyEvent) -> Step {
+    fn recovery_key(&mut self, r: Recovery, k: KeyEvent) -> Step {
         match k.code {
             KeyCode::Char('y') => {
-                copy(&code);
+                copy(&r.code);
                 self.flash("Recovery code copied");
-                Step::Recovery(code)
+                Step::Recovery(r)
             }
             // Closed only once the user says they kept it.
             KeyCode::Char('s') => Step::List,
-            _ => Step::Recovery(code),
+            _ => Step::Recovery(r),
         }
     }
 
@@ -395,49 +350,6 @@ impl App {
         }
         Some(Overlay::Network(n))
     }
-
-    /// Keys in the create or join form.
-    fn setup_key(&mut self, n: &mut NetworkSheet, mut s: Setup, join: bool, k: KeyEvent) -> Step {
-        match k.code {
-            KeyCode::Esc => return Step::List,
-            // Already sent: a second one would only be refused.
-            KeyCode::Enter if n.busy => {}
-            KeyCode::Tab | KeyCode::Down => s.step(join, 1),
-            KeyCode::BackTab | KeyCode::Up => s.step(join, -1),
-            KeyCode::Left | KeyCode::Right | KeyCode::Char(' ') if s.field == SetupField::Connector => {
-                let by = if k.code == KeyCode::Left { -1 } else { 1 };
-                s.connector = super::super::app::cycle(s.connector, by, CONNECTORS.len());
-            }
-            KeyCode::Enter => {
-                if join && s.invite.text.trim().is_empty() {
-                    n.error = Some(tr("Paste the invite from the other computer.").into_owned());
-                } else if s.connector().is_empty() {
-                    n.error = Some(tr("Enter your relay's address.").into_owned());
-                } else {
-                    n.busy = true;
-                    n.error = None;
-                    if join {
-                        self.net("networkJoin", s.body(), NetReply::View);
-                    } else {
-                        self.net("networkCreate", s.body(), NetReply::Created);
-                    }
-                }
-            }
-            _ => {
-                let editor = match s.field {
-                    SetupField::Invite => Some(&mut s.invite),
-                    SetupField::Network => Some(&mut s.network),
-                    SetupField::Name => Some(&mut s.name),
-                    SetupField::Relay => Some(&mut s.relay),
-                    SetupField::Connector => None,
-                };
-                if let Some(e) = editor {
-                    e.key(k);
-                }
-            }
-        }
-        if join { Step::Join(s) } else { Step::Create(s) }
-    }
 }
 
 #[cfg(test)]
@@ -489,7 +401,7 @@ pub(super) mod tests {
         n.cursor = 1;
         let Some(Overlay::Network(mut n)) = app.network_key(n, key(KeyCode::Char('x'))) else { panic!("kept open") };
         assert!(matches!(n.step, Step::List), "the host said it can't");
-        n.step = Step::Recovery("1234".into());
+        n.step = Step::Recovery(Recovery { code: "1234".into(), network: "home".into(), computer: "desk".into() });
         let Some(Overlay::Network(n)) = app.network_key(n, key(KeyCode::Esc)) else { panic!("kept open") };
         assert!(matches!(n.step, Step::Recovery(_)), "esc doesn't skip saving it");
         let Some(Overlay::Network(n)) = app.network_key(n, key(KeyCode::Char('s'))) else { panic!("kept open") };
@@ -499,9 +411,10 @@ pub(super) mod tests {
     #[tokio::test]
     async fn a_recovery_code_that_comes_after_the_sheet_closed_opens_it_again() {
         let mut app = test_app();
-        app.network_reply(NetReply::Created, Ok(json!({"recoveryCode": "1234"})));
+        // Before the `network` event brings the new network: the step names it from the answer.
+        app.network_reply(NetReply::Created, Ok(json!({"recoveryCode": "1234", "name": "work", "computer": "desk"})));
         let Some(Overlay::Network(n)) = app.overlays.last() else { panic!("the sheet is back") };
-        assert!(matches!(&n.step, Step::Recovery(code) if code == "1234"));
+        assert!(matches!(&n.step, Step::Recovery(r) if (r.code.as_str(), r.network.as_str()) == ("1234", "work")));
     }
 
     #[tokio::test]
@@ -518,20 +431,5 @@ pub(super) mod tests {
         // Creating or joining another is always there.
         let Some(Overlay::Network(n)) = app.network_key(n, key(KeyCode::Char('c'))) else { panic!("kept open") };
         assert!(matches!(n.step, Step::Create(_)));
-    }
-
-    #[test]
-    fn a_relay_url_field_only_for_your_own_relay() {
-        let mut s = Setup::join();
-        assert_eq!(s.fields(true), [SetupField::Invite, SetupField::Network, SetupField::Name, SetupField::Connector]);
-        s.connector = 2;
-        assert_eq!(s.fields(false), [SetupField::Network, SetupField::Name, SetupField::Connector, SetupField::Relay]);
-        s.relay = Editor::with(" https://relay.example ");
-        assert_eq!(s.body()["connector"], "https://relay.example");
-        assert_eq!(
-            (&s.body()["name"], &s.body()["network"]),
-            (&Value::Null, &Value::Null),
-            "the defaults when left empty"
-        );
     }
 }

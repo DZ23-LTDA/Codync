@@ -45,15 +45,16 @@ import com.kyant.shapes.Capsule
         })
         CardForm {
             // One section per network; who may message the bots here only where it has rules.
-            view.networks.forEachIndexed { i, network ->
-                val last = i == view.networks.lastIndex
-                CardSection(network.name, if (last) "Changes are made on a computer: in Codync's settings there, or with codync-host network." else null) {
+            for (network in view.networks) {
+                CardSection(network.name) {
                     for (computer in network.computers) row { NetworkComputerRow(computer) }
                 }
                 if (network.rules.isNotEmpty()) CardSection("Who may message bots here", RULES_FOOTER) {
                     for (rule in network.rules) row { RuleRow(network, rule) }
                 }
             }
+            // The note that changes happen at a computer closes the networks, after the last one's rules.
+            if (view.networks.isNotEmpty()) CardSection(footer = "Changes are made on a computer: in Codync's settings there, or with codync-host network.") {}
             if (view.assistantsAvailable) CardSection(footer = "ChatGPT or Claude in your Codync account can message this computer's bots when it's on. Codync's cloud can read these calls.") {
                 row { ValueRow("Cloud assistants", if (view.assistants) "On" else "Off") }
             }
@@ -65,9 +66,7 @@ private const val RULES_FOOTER = "The first rule that matches decides. Without r
 
 /** One rule, read-only: rules are changed on the computer. */
 @Composable private fun RuleRow(network: NetworkInfo, rule: NetworkRule) {
-    val language = LocalAppLanguage.current.resolved(LocalSystemTag.current)
-    val (chinese, phrases) = LocalSystemChinese.current to LocalPhrases.current
-    Text(network.describe(rule) { translate(it, language, chinese, phrases) }, style = Type.body, color = Palette.text)
+    Text(network.describe(rule, translator()), style = Type.body, color = Palette.text)
 }
 
 /** One computer: its name and role, whether it answers, and the bots it offers. */

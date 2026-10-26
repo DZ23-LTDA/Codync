@@ -22,14 +22,7 @@ pub fn emit(hub: &Hub) {
 /// plus the cloud assistants switch, and whether they can reach this computer at all
 /// (`assistantsAvailable`). Never an invite: phones read it too.
 pub fn status(hub: &Hub) -> Value {
-    let saved = saved::load(hub);
-    let networks: Vec<Value> = hub
-        .network
-        .slots()
-        .iter()
-        .filter(|s| s.node.name().is_some())
-        .map(|s| network(s, saved.iter().find(|x| x.id == s.id)))
-        .collect();
+    let networks: Vec<Value> = hub.network.slots().iter().filter(|s| s.node.name().is_some()).map(network).collect();
     json!({
         "joined": !networks.is_empty(), "networks": networks,
         "assistants": crate::chat::team::assistant::enabled(&hub.store),
@@ -37,7 +30,7 @@ pub fn status(hub: &Hub) -> Value {
     })
 }
 
-fn network(slot: &Slot, saved: Option<&Saved>) -> Value {
+fn network(slot: &Slot) -> Value {
     let node = &slot.node;
     let mine = node.role();
     let computers: Vec<Value> = node
@@ -55,7 +48,7 @@ fn network(slot: &Slot, saved: Option<&Saved>) -> Value {
     json!({
         "id": slot.id, "name": slot.name, "computer": node.name(), "role": mine,
         "canInvite": mine.is_some_and(Role::invites), "canRecover": mine.is_some_and(|r| r != Role::Owner),
-        "connector": saved.map_or("public", |s| s.connector.as_str()),
+        "connector": slot.connector,
         "computers": computers, "rules": node.rules(),
     })
 }
@@ -81,13 +74,11 @@ async fn add<T>(
     connector: Option<&str>,
     first: impl AsyncFnOnce(&Node) -> Result<T>,
 ) -> Result<(Slot, T)> {
+    let connector: Connector = connector.map_or(Ok(Connector::Public), str::parse)?;
     let _one = hub.network.changing.lock().await;
-    let mut all = saved::load(hub);
-    let connector = connector.unwrap_or("public");
-    connector.parse::<Connector>()?;
+    let mut all = saved::load(&hub.store);
     let id = saved::new_id(&all);
-    let saved =
-        Saved { id: id.clone(), name: saved::free_name(&all, name)?, connector: connector.into(), rules: Vec::new() };
+    let saved = Saved { id: id.clone(), name: saved::free_name(&all, name)?, connector, rules: Vec::new() };
     let (node, inbox) = start_node(&saved).await?;
     let made = match first(&node).await {
         Ok(it) => it,
@@ -98,14 +89,15 @@ async fn add<T>(
         }
     };
     all.push(saved.clone());
-    saved::save(hub, &all)?;
+    saved::save(&hub.store, &all)?;
     let slot = take_in(hub, &saved, node, inbox);
     emit(hub);
     Ok((slot, made))
 }
 
 /// `networkCreate`: a new network (`network`, its name) with this computer as its owner, under
-/// `name`. Returns the recovery code: the apps show it once, and it is kept nowhere.
+/// `name`. Returns its id and name, and the recovery code: the apps show it once, and it is kept
+/// nowhere.
 pub async fn create(
     hub: &Arc<Hub>,
     network: Option<&str>,
@@ -113,8 +105,9 @@ pub async fn create(
     connector: Option<&str>,
 ) -> Result<Value> {
     let name = name.map_or_else(default_name, str::to_owned);
-    let (slot, code) = add(hub, network.unwrap_or("home"), connector, async |node: &Node| node.create(&name)).await?;
-    Ok(json!({"network": slot.id, "computer": slot.node.name(), "recoveryCode": code}))
+    let network = network.unwrap_or(saved::DEFAULT_NAME);
+    let (slot, code) = add(hub, network, connector, async |node: &Node| node.create(&name)).await?;
+    Ok(json!({"network": slot.id, "name": slot.name, "computer": slot.node.name(), "recoveryCode": code}))
 }
 
 /// `networkJoin`: joins a network with an invite from its owner or an admin, under the name the
@@ -130,7 +123,7 @@ pub async fn join(
     if let Some(slot) = hub.network.slots().iter().find(|s| s.node.network_id().as_ref() == Some(&ticket.network)) {
         bail!("this computer is already in that network ({})", slot.name);
     }
-    let network = network.or(ticket.name.as_deref()).unwrap_or("home");
+    let network = network.or(ticket.name.as_deref()).unwrap_or(saved::DEFAULT_NAME);
     let name = name.map_or_else(default_name, str::to_owned);
     add(hub, network, connector, async |node: &Node| node.join(invite, &name).await).await?;
     Ok(status(hub))
@@ -143,9 +136,9 @@ pub async fn leave(hub: &Arc<Hub>, network: Option<&str>) -> Result<Value> {
     let slot = hub.network.slot(network)?;
     hub.network.slots.locked().retain(|s| s.id != slot.id);
     slot.node.shutdown().await;
-    let mut all = saved::load(hub);
+    let mut all = saved::load(&hub.store);
     all.retain(|s| s.id != slot.id);
-    saved::save(hub, &all)?;
+    saved::save(&hub.store, &all)?;
     tokio::task::spawn_blocking(move || std::fs::remove_dir_all(saved::dir(&slot.id)))
         .await?
         .context("couldn't delete the network's folder")?;
@@ -202,11 +195,11 @@ pub fn set_rules(hub: &Hub, network: Option<&str>, rules: &Value) -> Result<Valu
         serde_json::from_value(rules.clone()).context("rules are {fromComputer, fromAgent, toAgent, access}")?;
     let slot = joined(hub, network)?;
     slot.node.set_rules(rules.clone())?;
-    let mut all = saved::load(hub);
+    let mut all = saved::load(&hub.store);
     if let Some(saved) = all.iter_mut().find(|s| s.id == slot.id) {
         saved.rules = rules;
     }
-    saved::save(hub, &all)?;
+    saved::save(&hub.store, &all)?;
     emit(hub);
     Ok(status(hub))
 }

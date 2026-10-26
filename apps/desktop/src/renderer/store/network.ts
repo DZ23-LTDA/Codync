@@ -38,13 +38,12 @@ export const network = {
   peers: (store: BotStore) => changing(store, () => call(store, 'networkPeers', {}, SLOW)),
   /** Keeps the recovery code on the store until the user says they saved it, wherever they went meanwhile. */
   create: async (store: BotStore, networkName: string, name: string, connector: string) => {
-    const made = await call<{ recoveryCode: string; computer: string; network: string }>(
+    // `name` is the one the host gave it, maybe numbered (`home-2`).
+    const made = await call<{ recoveryCode: string; computer: string; name: string }>(
       store, 'networkCreate', { network: orNull(networkName), name: orNull(name), connector }, SLOW,
     )
     await refreshNetwork(store)
-    // The host may have numbered the name (`home-2`).
-    const named = store.network?.networks.find((n) => n.id === made.network)?.name ?? made.network
-    store.setRecoveryCode({ code: made.recoveryCode, network: named, computer: made.computer })
+    store.setRecoveryCode({ code: made.recoveryCode, network: made.name, computer: made.computer })
   },
   join: (store: BotStore, invite: string, networkName: string, name: string, connector: string) =>
     changing(store, () => call(store, 'networkJoin', { invite: invite.trim(), network: orNull(networkName), name: orNull(name), connector }, SLOW)),

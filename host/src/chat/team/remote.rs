@@ -26,18 +26,19 @@ use tokio::sync::mpsc;
 pub struct Waiting(Mutex<HashMap<String, Waiter>>);
 
 struct Waiter {
-    asker: Asker,
+    to: ReplyTo,
     quote: String,
     /// How the recipient is shown ("Reviewer on desk").
     peer: String,
 }
 
-/// Who waits for an answer from another computer.
-enum Asker {
+/// Where an answer from another computer goes.
+enum ReplyTo {
     /// One of this computer's bots, with its exchange notice.
     Bot { id: String, entry: String },
-    /// The user's cloud assistant: the answer waits in its replies (by the letter's id).
-    Assistant,
+    /// The asker's replies, by the letter's id: the cloud assistant's, or an agent's on this
+    /// computer that isn't a bot (`assistant::Asker`).
+    Replies,
 }
 
 impl Waiting {
@@ -76,14 +77,22 @@ fn take(hub: &Arc<Hub>, network: &str, m: &Message) -> Result<()> {
     }
     let back = Return { network: network.to_owned(), to: m.from.clone(), request: m.id.clone(), from: m.to.clone() };
     let target = hub.network.bot_for(&m.to).ok_or_else(|| anyhow!("no bot called {} here", m.to));
-    match target.and_then(|bot| visible_bot(hub, &bot)) {
+    let target = target.and_then(|bot| visible_bot(hub, &bot)).and_then(|bot| {
+        // The cloud assistant asking through another computer: this one's cloud switches decide too.
+        if m.from.agent == super::assistant::HANDLE && m.reply_to.is_none() {
+            super::assistant::admit_letter(hub, &bot)?;
+        }
+        Ok(bot)
+    });
+    match target {
         // A note, or a reply this computer no longer waits for (it restarted): the chat shows it.
         Ok(target) if !m.wake || m.reply_to.is_some() => {
             note(hub, network, &target, m);
             Ok(())
         }
         Ok(target) => requested(hub, network, &target, m, back),
-        // The bot went away after this computer took the request: its sender would wait for good.
+        // The bot went away after this computer took the request, or it doesn't take the sender's
+        // requests: the sender would wait for good.
         Err(error) if m.wake && m.reply_to.is_none() => {
             send_back(hub, &back, format!("Couldn't take it: {error:#}"), RequestStatus::Failed, m.hops);
             Err(error)
@@ -129,8 +138,7 @@ async fn send(hub: &Arc<Hub>, node: &Node, source: &BotConfig, to: &Target, lett
         Exchange { request: &id, source: &source.id, target: &address, text: &letter.body, peer_name: Some(&peer) };
     let entry = exchange.notice(hub, &source.id, &heading, false)?;
     let quote = truncate(&letter.body, REQUEST_QUOTE_BYTES);
-    let asker = Asker::Bot { id: source.id.clone(), entry: entry.clone() };
-    let waiter = Waiter { asker, quote, peer: peer.clone() };
+    let waiter = Waiter { to: ReplyTo::Bot { id: source.id.clone(), entry: entry.clone() }, quote, peer: peer.clone() };
     hub.waiting.insert(id.clone(), waiter);
     let said = match node.send(letter).await {
         Ok(Sent::Delivered) => {
@@ -154,15 +162,24 @@ async fn send(hub: &Arc<Hub>, node: &Node, source: &BotConfig, to: &Target, lett
     }))
 }
 
-/// The user's cloud assistant asks a bot on another computer. Returns the request's id (the
-/// letter's) at once: the letter goes in the background, and its outcome waits in the
-/// assistant's replies.
-pub(super) fn ask_for_assistant(hub: &Arc<Hub>, from: &str, to: &Target, message: &str) -> Result<(String, String)> {
+/// The cloud assistant, or an agent on this computer that isn't a bot, asks a bot on another
+/// computer: `asker` is whose replies the outcome waits in, `from` the address name it signs with.
+/// Returns the request's id (the letter's) and how the bot is shown, at once: the letter goes in
+/// the background.
+pub(super) fn ask_for_replies(
+    hub: &Arc<Hub>,
+    asker: &str,
+    from: &str,
+    to: &Target,
+    message: &str,
+) -> Result<(String, String)> {
     let node = hub.network.slot(Some(&to.network))?.node;
     hub.network.send_as(from)?;
     let letter = Letter::new(from, to.address.clone(), message);
     let (id, peer) = (letter.id.clone(), peer_name(hub, &to.network, &to.address));
-    awaits_for_assistant(hub, &id, &peer, message);
+    // Kept before the letter goes, so an outcome as quick as a refusal finds them.
+    hub.assistant.add(super::assistant::Reply::queued(asker, &id, &peer, message));
+    awaits_in_replies(hub, &id, &peer, message);
     let (hub, request) = (hub.clone(), id.clone());
     tokio::spawn(async move {
         match node.send(letter).await {
@@ -177,10 +194,10 @@ pub(super) fn ask_for_assistant(hub: &Arc<Hub>, from: &str, to: &Target, message
     Ok((id, peer))
 }
 
-/// The answer to letter `id` goes to the cloud assistant's replies.
-pub(super) fn awaits_for_assistant(hub: &Hub, id: &str, peer: &str, message: &str) {
+/// The answer to letter `id` goes to its asker's replies.
+pub(super) fn awaits_in_replies(hub: &Hub, id: &str, peer: &str, message: &str) {
     let quote = truncate(message, REQUEST_QUOTE_BYTES);
-    hub.waiting.insert(id.to_owned(), Waiter { asker: Asker::Assistant, quote, peer: peer.to_owned() });
+    hub.waiting.insert(id.to_owned(), Waiter { to: ReplyTo::Replies, quote, peer: peer.to_owned() });
 }
 
 /// Says where a request waits, unless its reply already came (a quick one can beat this).
@@ -252,7 +269,7 @@ fn send_back(hub: &Hub, to: &Return, mut body: String, status: RequestStatus, ho
 fn replied(hub: &Hub, id: &str, waiter: Waiter, m: &Message) {
     let peer = &waiter.peer;
     let status = m.meta.as_ref().and_then(|meta| serde_json::from_value(meta["codync"].clone()).ok());
-    let Asker::Bot { id: sender, entry } = waiter.asker else {
+    let ReplyTo::Bot { id: sender, entry } = waiter.to else {
         match status {
             Some(RequestStatus::Cancelled) => hub.assistant.cancelled(id),
             Some(RequestStatus::Failed) => hub.assistant.answered(id, Err(m.body.clone())),

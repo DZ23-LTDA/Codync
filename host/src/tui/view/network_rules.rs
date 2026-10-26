@@ -14,7 +14,8 @@ const FOOTER: &str = "The first rule that matches decides. Without rules, every 
 pub(super) fn rules(buf: &mut Buffer, body: Rect, n: &NetworkSheet, at: usize) -> &'static str {
     let t = theme();
     let mut y = body.y;
-    line(buf, body, &mut y, &tr("Who may message bots here"), t.bold);
+    // Rules belong to one network: say which.
+    line(buf, body, &mut y, &format!("{} · {}", tr("Who may message bots here"), n.name()), t.bold);
     y += 1;
     if n.rules().is_empty() {
         line(

@@ -8,7 +8,7 @@ use serde_json::Value;
 
 use super::super::app::Editor;
 use super::super::l10n::tr;
-use super::super::manage::{CONNECTORS, NetworkSheet, Setup, SetupField, Step};
+use super::super::manage::{CONNECTORS, NetworkSheet, Recovery, Setup, SetupField, Step};
 use super::super::md;
 use super::buffer::{centered, frame_box, hline, put, put_line, restyle, rput};
 use super::network_rules::{rule_form, rules};
@@ -30,7 +30,7 @@ pub(super) fn network(buf: &mut Buffer, area: Rect, n: &NetworkSheet) {
         Step::List => list(buf, body, n),
         Step::Create(s) => setup(buf, body, s, false),
         Step::Join(s) => setup(buf, body, s, true),
-        Step::Recovery(code) => recovery(buf, body, n, code),
+        Step::Recovery(r) => recovery(buf, body, r),
         Step::Invite(invite) => invite_step(buf, body, n, invite.as_ref()),
         Step::Recover(code) => recover(buf, body, code),
         Step::Remove { computer, cascade } => remove(buf, body, computer, *cascade),
@@ -46,18 +46,17 @@ pub(super) fn network(buf: &mut Buffer, area: Rect, n: &NetworkSheet) {
     put(buf, inner.x, inner.bottom() - 1, inner.width, &format!(" {}", tr(keys)), t.dim.patch(t.panel));
 }
 
-fn recovery(buf: &mut Buffer, body: Rect, n: &NetworkSheet, code: &str) -> &'static str {
+fn recovery(buf: &mut Buffer, body: Rect, r: &Recovery) -> &'static str {
     let t = theme();
     let mut y = body.y;
     line(buf, body, &mut y, &tr("Save your recovery code"), t.bold);
     y += 1;
-    line(buf, body, &mut y, code, t.bold);
+    line(buf, body, &mut y, &r.code, t.bold);
     y += 1;
-    let network = n.current().and_then(|x| x["name"].as_str()).unwrap_or_default();
     let note = tr(
         "It makes another computer the owner of {network} if {name} is lost. It's shown only once and kept on no computer.",
     );
-    wrapped(buf, body, &mut y, &note.replace("{network}", network).replace("{name}", &n.computer()), t.secondary);
+    wrapped(buf, body, &mut y, &note.replace("{network}", &r.network).replace("{name}", &r.computer), t.secondary);
     "y copy · s I saved it"
 }
 
@@ -94,7 +93,7 @@ fn recover(buf: &mut Buffer, body: Rect, code: &Editor) -> &'static str {
 fn leave(buf: &mut Buffer, body: Rect, n: &NetworkSheet) -> &'static str {
     let t = theme();
     let mut y = body.y;
-    let network = n.current().and_then(|x| x["name"].as_str()).unwrap_or_default();
+    let network = n.name();
     line(buf, body, &mut y, &tr("Leave {network}?").replace("{network}", network), t.red);
     let note = tr(
         "This computer stops being in {network}. The others keep listing it until the owner or an admin removes it there; rejoining needs a new invite.",

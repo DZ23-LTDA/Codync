@@ -53,6 +53,8 @@ export function NetworkSection({ store }: { store: BotStore }) {
   const invite = sheetFor('invite')
   const recover = sheetFor('recover')
   const rule = sheetFor('rule')
+  const removing = open?.kind === 'remove' ? open : null
+  const leaving = open?.kind === 'leave' ? open.net : null
 
   return (
     <VStack gap={14}>
@@ -103,27 +105,27 @@ export function NetworkSection({ store }: { store: BotStore }) {
         {store.recoveryCode ? <RecoveryCodeSheet recovery={store.recoveryCode} done={() => store.setRecoveryCode(null)} /> : null}
       </Sheet>
       <Dialog
-        open={open?.kind === 'remove'}
-        title={tr('Remove {name} from the network?').replaceAll('{name}', open?.kind === 'remove' ? open.computer.name : '')}
+        open={removing !== null}
+        title={tr('Remove {name} from the network?').replaceAll('{name}', removing?.computer.name ?? '')}
         message={tr("It can't come back with its current key. For a stolen computer, also remove the computers it invited.")}
         actions={
-          open?.kind === 'remove'
+          removing
             ? [
-                { title: 'Remove', destructive: true, action: () => run(() => network.remove(store, open.net.id, open.computer.name, false)) },
-                { title: 'Remove with its invites', destructive: true, action: () => run(() => network.remove(store, open.net.id, open.computer.name, true)) },
+                { title: 'Remove', destructive: true, action: () => run(() => network.remove(store, removing.net.id, removing.computer.name, false)) },
+                { title: 'Remove with its invites', destructive: true, action: () => run(() => network.remove(store, removing.net.id, removing.computer.name, true)) },
               ]
             : []
         }
         onClose={close}
       />
       <Dialog
-        open={open?.kind === 'leave'}
-        title={tr('Leave {network}?').replaceAll('{network}', open?.kind === 'leave' ? open.net.name : '')}
+        open={leaving !== null}
+        title={tr('Leave {network}?').replaceAll('{network}', leaving?.name ?? '')}
         message={tr('This computer stops being in {network}. The others keep listing it until the owner or an admin removes it there; rejoining needs a new invite.').replaceAll(
           '{network}',
-          open?.kind === 'leave' ? open.net.name : '',
+          leaving?.name ?? '',
         )}
-        actions={open?.kind === 'leave' ? [{ title: 'Leave', destructive: true, action: () => run(() => network.leave(store, open.net.id)) }] : []}
+        actions={leaving ? [{ title: 'Leave', destructive: true, action: () => run(() => network.leave(store, leaving.id)) }] : []}
         onClose={close}
       />
     </VStack>

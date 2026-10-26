@@ -16,8 +16,8 @@ use crate::LockExt;
 use crate::hub::Hub;
 use crate::network::Recipient;
 use crate::remote::cloud::{self, CloudStatus};
-use crate::store::{Store, now_ms};
-use anyhow::{Result, bail};
+use crate::store::{BotConfig, Store, now_ms};
+use anyhow::{Result, anyhow, bail};
 use serde_json::{Value, json};
 use std::sync::{Arc, Mutex};
 
@@ -45,6 +45,22 @@ pub fn enabled(store: &Store) -> bool {
 /// account (a private relay has none).
 pub fn available(hub: &Hub) -> bool {
     hub.cloud.status().owner.is_some()
+}
+
+/// A letter the cloud assistant sent through another of the user's computers: this computer's own
+/// switches decide whether it reaches `bot`, as they do for its calls here.
+pub(super) fn admit_letter(hub: &Hub, bot: &BotConfig) -> Result<()> {
+    if !enabled(&hub.store) {
+        bail!(OFF);
+    }
+    if !bot.reachable_by_assistants {
+        return Err(closed(bot));
+    }
+    Ok(())
+}
+
+fn closed(bot: &BotConfig) -> anyhow::Error {
+    anyhow!("{} isn't open to cloud assistants: Reachable by cloud assistants is off in its settings", bot.name)
 }
 
 /// `setAssistants`: whether the cloud assistant may reach this computer's bots. Local only.
@@ -99,7 +115,15 @@ struct Asker {
     who: String,
     /// What it signs letters to the user's other computers with.
     handle: String,
-    cloud: bool,
+    kind: Kind,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Kind {
+    /// The user's cloud assistant, through the relay.
+    Cloud,
+    /// An agent on this computer (`codync-host mcp network`).
+    Local,
 }
 
 impl Asker {
@@ -109,7 +133,7 @@ impl Asker {
             name: NAME.into(),
             who: "The user's cloud assistant (ChatGPT, Claude or another assistant they connected to Codync)".into(),
             handle: HANDLE.into(),
-            cloud: true,
+            kind: Kind::Cloud,
         }
     }
 
@@ -125,19 +149,20 @@ impl Asker {
             name: format!("{name} (this computer)"),
             who: format!("{name}, an agent on this computer that isn't a Codync bot,"),
             handle: format!("agent-{handle}"),
-            cloud: false,
+            kind: Kind::Local,
         })
+    }
+
+    /// Whether it may see and message `bot`: a cloud assistant only the bots open to it.
+    fn reaches(&self, bot: &BotConfig) -> bool {
+        self.kind == Kind::Local || bot.reachable_by_assistants
     }
 }
 
 async fn run(hub: &Arc<Hub>, asker: &Asker, tool: &str, args: &Value) -> Result<Value> {
     match tool {
         // Also the bots on the user's other computers in this one's network (what they offer).
-        "list_bots" => {
-            let keep: fn(&crate::store::BotConfig) -> bool =
-                if asker.cloud { |bot| bot.reachable_by_assistants } else { |_| true };
-            directory::list(hub, &asker.id, args, &hub.network.directory().await, keep)
-        }
+        "list_bots" => directory::list(hub, &asker.id, args, &hub.network.directory().await, |bot| asker.reaches(bot)),
         "message_bot" => message(hub, asker, args),
         "read_replies" => Ok(hub.assistant.read(&asker.id, args["requestId"].as_str())),
         _ => bail!("unknown tool: {tool}"),
@@ -155,8 +180,8 @@ fn message(hub: &Arc<Hub>, asker: &Asker, args: &Value) -> Result<Value> {
         Recipient::There(address) => return message_elsewhere(hub, asker, &address, message),
     };
     let target = visible_bot(hub, &to)?;
-    if asker.cloud && !target.reachable_by_assistants {
-        bail!("{} isn't open to cloud assistants: Reachable by cloud assistants is off in its settings", target.name);
+    if !asker.reaches(&target) {
+        return Err(closed(&target));
     }
     let request = uuid::Uuid::new_v4().to_string();
     let back = Back::Assistant { request: request.clone() };
@@ -164,15 +189,7 @@ fn message(hub: &Arc<Hub>, asker: &Asker, args: &Value) -> Result<Value> {
     let (source, name) = (asker.id.as_str(), asker.name.as_str());
     let exchange = Exchange { request: &request, source, target: &target.id, text: message, peer_name: Some(name) };
     lifetime.entries.push(exchange.notice(hub, &target.id, &format!("Message from {name}: {message}"), true)?);
-    hub.assistant.add(Reply {
-        asker: asker.id.clone(),
-        request: request.clone(),
-        bot: target.name.clone(),
-        quote: lifetime.quote.clone(),
-        status: RequestStatus::Queued,
-        text: None,
-        at: now_ms(),
-    });
+    hub.assistant.add(Reply::queued(&asker.id, &request, &target.name, message));
     lifetime.deliver(&target.id, 1, request_prompt(&asker.who, name, message))?;
     Ok(json!({
         "requestId": request, "botId": target.id, "name": target.name, "status": RequestStatus::Queued,
@@ -181,18 +198,9 @@ fn message(hub: &Arc<Hub>, asker: &Asker, args: &Value) -> Result<Value> {
 }
 
 /// A bot on another of the user's computers (`reviewer@laptop`): a letter from this computer,
-/// whose answer comes back here. That computer's own rules decide whether it takes it.
+/// whose answer comes back here. That computer's own rules and switches decide whether it takes it.
 fn message_elsewhere(hub: &Arc<Hub>, asker: &Asker, to: &crate::network::Target, message: &str) -> Result<Value> {
-    let (request, peer) = remote::ask_for_assistant(hub, &asker.handle, to, message)?;
-    hub.assistant.add(Reply {
-        asker: asker.id.clone(),
-        request: request.clone(),
-        bot: peer.clone(),
-        quote: crate::agent::acp::truncate(message, super::REQUEST_QUOTE_BYTES),
-        status: RequestStatus::Queued,
-        text: None,
-        at: now_ms(),
-    });
+    let (request, peer) = remote::ask_for_replies(hub, &asker.id, &asker.handle, to, message)?;
     Ok(json!({
         "requestId": request, "botId": hub.network.address_text(to), "name": peer, "status": RequestStatus::Queued,
         "note": "Queued on that computer. Bots can take minutes: get the reply later with read_replies.",
@@ -242,7 +250,7 @@ your work and check read_replies later instead of waiting in a loop.";
 #[derive(Default)]
 pub struct Replies(Mutex<Vec<Reply>>);
 
-struct Reply {
+pub(super) struct Reply {
     /// Whose request (`Asker::id`).
     asker: String,
     request: String,
@@ -255,6 +263,19 @@ struct Reply {
 }
 
 impl Reply {
+    /// A request just made, before anything came back.
+    pub(super) fn queued(asker: &str, request: &str, bot: &str, message: &str) -> Self {
+        Self {
+            asker: asker.into(),
+            request: request.into(),
+            bot: bot.into(),
+            quote: crate::agent::acp::truncate(message, super::REQUEST_QUOTE_BYTES),
+            status: RequestStatus::Queued,
+            text: None,
+            at: now_ms(),
+        }
+    }
+
     fn running(&self) -> bool {
         matches!(self.status, RequestStatus::Queued | RequestStatus::Sent)
     }
@@ -269,7 +290,7 @@ impl Reply {
 }
 
 impl Replies {
-    fn add(&self, reply: Reply) {
+    pub(super) fn add(&self, reply: Reply) {
         let mut all = self.0.locked();
         all.push(reply);
         while all.len() > KEEP {
@@ -289,8 +310,12 @@ impl Replies {
         }
     }
 
+    /// The bot took the request, unless its outcome already came (a quick one can beat this).
     pub(super) fn started(&self, request: &str) {
-        self.set(request, RequestStatus::Sent, None);
+        if let Some(r) = self.0.locked().iter_mut().find(|r| r.request == request && r.status == RequestStatus::Queued)
+        {
+            r.status = RequestStatus::Sent;
+        }
     }
 
     pub(super) fn answered(&self, request: &str, outcome: std::result::Result<String, String>) {

@@ -110,10 +110,8 @@ fn print_status(v: &Value) {
         return;
     }
     for n in networks {
-        let me = n["computer"].as_str().unwrap_or_default();
-        let role = n["role"].as_str().unwrap_or_default();
-        let name = n["name"].as_str().unwrap_or_default();
-        println!("{name}: {me} ({role}) · connector {}", n["connector"].as_str().unwrap_or("public"));
+        let text = |key: &str| n[key].as_str().unwrap_or_default();
+        println!("{}: {} ({}) · connector {}", text("name"), text("computer"), text("role"), text("connector"));
         for c in n["computers"].as_array().into_iter().flatten() {
             let state = if c["me"] == true {
                 "this computer"

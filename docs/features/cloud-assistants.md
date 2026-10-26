@@ -30,12 +30,16 @@ ChatGPT / Claude ──MCP over HTTPS──▶ mcp.codync.dev (cloud Worker)
   nothing can wake a hosted assistant.
 - **Host** (`host/src/chat/team/assistant.rs`): the assistant messages bots like a bot does
   (`Back::Assistant`): the bot's chat shows "Message from Cloud assistant" and the reply is kept in memory (the
-  newest 50 requests, at most 16 running) until read. `list_bots` also lists the bots the user's other
+  newest 50 requests, at most 16 running) until read. A bot with **Reachable by cloud assistants** off
+  (`reachableByAssistants`) is left out of `list_bots` and refused by `message_bot`; agents on this computer using
+  `codync-host mcp network` aren't held to it. `list_bots` also lists the bots the user's other
   computers in this one's network offer (`reviewer@laptop`), and `message_bot` sends those a letter from
   `cloud-assistant@<this computer>` (`Node::set_senders`: it may send but isn't offered, so nothing elsewhere can
-  ask it). That computer's own rules decide whether it takes it, like any sender's; the outcome comes back into the
-  same replies, and a refusal ends the request as failed with that computer's reason. The receiving bot's chat
-  shows "Message from Cloud assistant on desk".
+  ask it). That computer decides whether it takes it with its own rules, its Cloud assistants switch and the bot's
+  `reachableByAssistants` (`remote::take`); the outcome comes back into the same replies, and a refusal ends the
+  request as failed with that computer's reason. The receiving bot's chat shows "Message from Cloud assistant on
+  desk". The relay session answers each call in a task of its own, so a listing that waits for the other
+  computers doesn't hold up the phones on the same connection.
 
 ## Who can get in
 

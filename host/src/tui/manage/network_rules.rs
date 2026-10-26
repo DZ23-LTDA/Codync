@@ -67,7 +67,7 @@ impl NetworkSheet {
             agents.extend(agents_of(c));
         }
         let mut mine = vec![any("Any bot here")];
-        if let Some(me) = self.computers().iter().find(|c| c["me"] == true) {
+        if let Some(me) = self.me() {
             mine.extend(agents_of(me));
         }
         Choices { computers, agents, mine }
@@ -75,44 +75,32 @@ impl NetworkSheet {
 
     /// How a rule reads: "Deny: any bot on laptop → any bot here".
     pub fn rule_text(&self, rule: &Value) -> String {
-        let computer = s(rule, "fromComputer");
-        let agent = s(rule, "fromAgent");
-        let name_on = |computer: &str, id: &str| {
-            self.computers()
-                .iter()
-                .find(|c| c["name"].as_str().is_some_and(|n| n.eq_ignore_ascii_case(computer)))
-                .and_then(|c| {
-                    c["agents"].as_array()?.iter().find(|a| a["id"] == id)?["name"].as_str().map(str::to_owned)
-                })
-                .unwrap_or_else(|| id.to_owned())
-        };
+        let (computer, agent) = (s(rule, "fromComputer"), s(rule, "fromAgent"));
         let from = match (computer.as_str(), agent.as_str()) {
             (ANY, ANY) => tr("any bot on any computer").into_owned(),
             (ANY, agent) => tr("{bot} on any computer").replace("{bot}", agent),
             (computer, ANY) => tr("any bot on {computer}").replace("{computer}", computer),
             (computer, agent) => {
-                tr("{bot} on {computer}").replace("{bot}", &name_on(computer, agent)).replace("{computer}", computer)
+                let on = self
+                    .computers()
+                    .iter()
+                    .find(|c| c["name"].as_str().is_some_and(|n| n.eq_ignore_ascii_case(computer)));
+                let name = on.and_then(|c| agent_name(c, agent)).unwrap_or(agent);
+                tr("{bot} on {computer}").replace("{bot}", name).replace("{computer}", computer)
             }
         };
         let to = match s(rule, "toAgent").as_str() {
             ANY => tr("any bot here").into_owned(),
-            id => self.computers().iter().find(|c| c["me"] == true).map_or_else(
-                || id.to_owned(),
-                |me| {
-                    me["agents"]
-                        .as_array()
-                        .into_iter()
-                        .flatten()
-                        .find(|a| a["id"] == id)
-                        .and_then(|a| a["name"].as_str())
-                        .unwrap_or(id)
-                        .to_owned()
-                },
-            ),
+            id => self.me().and_then(|me| agent_name(me, id)).unwrap_or(id).to_owned(),
         };
         let template = if rule["access"] == "deny" { "Deny: {from} → {to}" } else { "Allow: {from} → {to}" };
         tr(template).replace("{from}", &from).replace("{to}", &to)
     }
+}
+
+/// What one of `computer`'s agents is called, by its id.
+fn agent_name<'a>(computer: &'a Value, id: &str) -> Option<&'a str> {
+    computer["agents"].as_array()?.iter().find(|a| a["id"] == id)?["name"].as_str()
 }
 
 fn s(v: &Value, k: &str) -> String {

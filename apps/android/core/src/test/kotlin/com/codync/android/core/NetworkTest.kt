@@ -45,6 +45,8 @@ class NetworkTest {
         assertEquals("拒絕：laptop 上的任何 Bot → 這裡的任何 Bot", home.describe(home.rules[1]) { phrases[it] ?: it })
         // A rule from the command line for one bot on any computer never reads wider than it is.
         assertEquals("Deny: lead on any computer → any bot here", home.describe(NetworkRule("*", "lead", "*", "deny")) { it })
+        // Nor does an access this app doesn't know.
+        assertEquals("Deny: any bot on any computer → any bot here", home.describe(NetworkRule(access = "ask")) { it })
     }
 
     @Test fun `a computer in no network shows only when cloud assistants can reach it and are on`() {

@@ -28,9 +28,8 @@ public struct NetworkSheet: View {
             CardForm {
                 let networks = store.network?.networks ?? []
                 ForEach(networks) { network in
-                    // One section per network; the note that changes happen at a computer closes the last.
-                    CardSection(network.name, footer: network.id == networks.last?.id
-                                ? "Changes are made on a computer: in Codync's settings there, or with codync-host network." : nil) {
+                    // One section per network: its computers, then who may message the bots here.
+                    CardSection(network.name) {
                         ForEach(network.computers ?? []) { NetworkComputerRow(computer: $0) }
                     }
                     if let rules = network.rules, !rules.isEmpty {
@@ -42,6 +41,10 @@ public struct NetworkSheet: View {
                             }
                         }
                     }
+                }
+                // The note that changes happen at a computer closes the networks, after the last one's rules.
+                if !networks.isEmpty {
+                    CardSection(footer: "Changes are made on a computer: in Codync's settings there, or with codync-host network.") {}
                 }
                 if store.network?.assistantsAvailable == true {
                     CardSection(footer: "ChatGPT or Claude in your Codync account can message this computer's bots when it's on. Codync's cloud can read these calls.") {

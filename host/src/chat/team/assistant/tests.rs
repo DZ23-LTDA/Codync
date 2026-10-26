@@ -99,6 +99,12 @@ async fn a_bot_closed_to_cloud_assistants_is_neither_listed_nor_reached() {
         &call(hub, "user_1", "message_bot", &json!({"botId": "b", "message": "hi"})).await,
         "isn't open to cloud assistants",
     );
+    // Nor through another of the user's computers: this computer's switches decide its letters too.
+    let bot = |id: &str| hub.store.bot(id).unwrap().unwrap().config;
+    assert!(admit_letter(hub, &bot("b")).unwrap_err().to_string().contains("isn't open to cloud assistants"));
+    assert!(admit_letter(hub, &bot("c")).is_ok());
+    set_enabled(hub, false).unwrap();
+    assert!(admit_letter(hub, &bot("c")).unwrap_err().to_string().contains("Cloud assistants are off"));
     f.shutdown().await;
 }
 
@@ -117,7 +123,7 @@ async fn an_answer_from_another_computer_waits_in_the_replies() {
     };
     for request in ["l1", "l2"] {
         hub.assistant.add(added(request));
-        remote::awaits_for_assistant(hub, request, "Coder on laptop", "status?");
+        remote::awaits_in_replies(hub, request, "Coder on laptop", "status?");
     }
     let (tx, rx) = tokio::sync::mpsc::channel(4);
     tokio::spawn(remote::listen(hub.clone(), "network".into(), rx));

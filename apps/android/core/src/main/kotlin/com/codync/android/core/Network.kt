@@ -54,7 +54,8 @@ data class NetworkInfo(
         val to = if (rule.toAgent == ANY) tr("any bot here") else computers.firstOrNull { it.me }?.let { me ->
             me.agents.firstOrNull { it.id == rule.toAgent }?.name
         } ?: rule.toAgent
-        val access = if (rule.access == "deny") "Deny: {from} → {to}" else "Allow: {from} → {to}"
+        // An access this app doesn't know reads as deny, never wider than it is.
+        val access = if (rule.access == "allow") "Allow: {from} → {to}" else "Deny: {from} → {to}"
         return tr(access).replace("{from}", from).replace("{to}", to)
     }
 
@@ -86,4 +87,4 @@ data class NetworkAgent(val id: String, val name: String = id)
 
 /** `{fromComputer, fromAgent, toAgent, access}`, `*` meaning any. */
 @Serializable
-data class NetworkRule(val fromComputer: String = "*", val fromAgent: String = "*", val toAgent: String = "*", val access: String = "allow")
+data class NetworkRule(val fromComputer: String = "*", val fromAgent: String = "*", val toAgent: String = "*", val access: String = "deny")

@@ -258,6 +258,11 @@ async fn a_bot_kept_off_the_network_and_a_deny_rule_keep_letters_out() {
     assert!(failed["data"]["botMessage"]["detail"].as_str().unwrap().contains("doesn't take messages"), "{failed}");
     let history = desk.call("history", json!({"botId": reviewer})).await;
     assert!(!history.to_string().contains("review this"), "nothing reached the reviewer");
+
+    // Kept off the network, Secret still asks the laptop's lead; the answer gets past the deny rule.
+    desk.call("send", json!({"botId": secret, "text": "TRY lead@laptop status?"})).await;
+    let answered = desk.wait_for(&secret, exchange("completed")).await;
+    assert_eq!(answered["data"]["botMessage"]["reply"], "reply: status?", "{answered}");
 }
 
 #[tokio::test]

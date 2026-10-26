@@ -46,6 +46,7 @@ pub struct Slot {
     pub id: String,
     /// What the user calls it (`home`), unique on this computer.
     pub name: String,
+    pub connector: Connector,
     pub node: Arc<Node>,
 }
 
@@ -58,6 +59,9 @@ pub struct Network {
     /// Names this computer sends letters as without offering them (`Node::set_senders`): the cloud
     /// assistant, and agents that aren't bots (`codync-host mcp network`).
     senders: Mutex<BTreeSet<String>>,
+    /// The address names of the bots kept off the network (Offered to the network off): they
+    /// still message the others and hear back.
+    unoffered: Mutex<Vec<String>>,
     /// One create, join or leave at a time.
     changing: tokio::sync::Mutex<()>,
 }
@@ -134,7 +138,7 @@ impl Network {
             .flat_map(|s| {
                 s.node.directory().into_iter().filter(|p| !p.me).map(move |mut p| {
                     if several {
-                        p.name = format!("{}.{}", p.name, s.name);
+                        p.name = qualified(&p.name, &s.name);
                     }
                     p
                 })
@@ -159,16 +163,13 @@ impl Network {
     /// `name@computer.network` names the network; a bare name one other computer offers is there.
     /// Refuses a name that two networks would both take, naming the full addresses.
     pub fn recipient(&self, name: &str) -> Result<Recipient> {
-        let (handle, at) = name.rsplit_once('@').map_or((name, None), |(handle, at)| (handle, Some(at)));
+        let (handle, at) = split_address(name);
         let here = self.handles.locked().bot(handle);
         let local = || Ok(Recipient::Here(here.clone().unwrap_or_else(|| name.to_owned())));
         if at.is_none() && here.is_some() {
             return local();
         }
-        let (computer, network) = match at.map(|at| at.split_once('.').map_or((at, None), |(c, n)| (c, Some(n)))) {
-            Some((computer, network)) => (Some(computer), network),
-            None => (None, None),
-        };
+        let (computer, network) = at.map_or((None, None), |(computer, network)| (Some(computer), network));
         let slots = match network {
             Some(n) => vec![self.slot(Some(n))?],
             None => self.slots(),
@@ -203,7 +204,7 @@ impl Network {
     /// `agent@computer.network`.
     fn full_address(&self, target: &Target) -> String {
         let network = self.slot(Some(&target.network)).map_or_else(|_| target.network.clone(), |s| s.name);
-        format!("{}.{network}", target.address)
+        format!("{}@{}", target.address.agent, qualified(&target.address.computer, &network))
     }
 
     /// Lets this computer send letters as `name` without offering it, unless a bot goes by it.
@@ -211,19 +212,41 @@ impl Network {
         if let Some(bot) = self.bot_for(name) {
             bail!("a bot here ({bot}) already goes by {name} on the network: give the agent another name");
         }
-        let mut senders = self.senders.locked();
-        if senders.insert(name.to_owned()) {
-            for slot in self.slots() {
-                slot.node.set_senders(senders.iter().cloned());
-            }
+        if self.senders.locked().insert(name.to_owned()) {
+            self.share_senders();
         }
         Ok(())
+    }
+
+    /// Tells every network's node who this computer sends as without offering: `send_as`'s names
+    /// and the bots kept off the network.
+    fn share_senders(&self) {
+        let mut senders: Vec<String> = self.senders.locked().iter().cloned().collect();
+        senders.extend(self.unoffered.locked().iter().cloned());
+        for slot in self.slots() {
+            slot.node.set_senders(senders.clone());
+        }
     }
 
     /// This computer's bot behind an address name, if any.
     pub fn bot_for(&self, handle: &str) -> Option<String> {
         self.handles.locked().bot(handle)
     }
+}
+
+/// `computer.network`: a computer named with its network, while this computer is in several.
+fn qualified(computer: &str, network: &str) -> String {
+    format!("{computer}.{network}")
+}
+
+/// `desk.home` → (`desk`, `home`); a bare `desk` names no network.
+pub fn split_computer(at: &str) -> (&str, Option<&str>) {
+    at.split_once('.').map_or((at, None), |(computer, network)| (computer, Some(network)))
+}
+
+/// `name`, `name@computer` or `name@computer.network`, in parts.
+fn split_address(name: &str) -> (&str, Option<(&str, Option<&str>)>) {
+    name.rsplit_once('@').map_or((name, None), |(handle, at)| (handle, Some(split_computer(at))))
 }
 
 /// `a, b and c`.
@@ -238,7 +261,10 @@ fn list(names: &[impl AsRef<str>]) -> String {
 
 /// Starts the node of every network this computer is in.
 pub async fn start(hub: &Arc<Hub>) {
-    for saved in saved::load(hub) {
+    if let Err(error) = saved::migrate(&hub.store, &crate::service::data_dir()) {
+        tracing::warn!(error = format!("{error:#}"), "couldn't keep the network this computer was in");
+    }
+    for saved in saved::load(&hub.store) {
         let id = saved.id.clone();
         if let Err(error) = boot(hub, &saved).await {
             tracing::warn!(network = id, error = format!("{error:#}"), "couldn't start a network");
@@ -253,12 +279,11 @@ async fn boot(hub: &Arc<Hub>, saved: &saved::Saved) -> Result<Slot> {
 }
 
 async fn start_node(saved: &saved::Saved) -> Result<(Node, tokio::sync::mpsc::Receiver<codync_network::Message>)> {
-    let connector: Connector = saved.connector.parse()?;
-    Node::start(&saved::dir(&saved.id), &connector).await.context("couldn't start the network")
+    Node::start(&saved::dir(&saved.id), &saved.connector).await.context("couldn't start the network")
 }
 
 /// A started node becomes one of this computer's networks: its rules and name, what this computer
-/// offers, and the letters that reach it.
+/// offers and sends as, and the letters that reach it.
 fn take_in(
     hub: &Arc<Hub>,
     saved: &saved::Saved,
@@ -269,8 +294,8 @@ fn take_in(
         tracing::warn!(error = format!("{error:#}"), "couldn't apply the network's rules; none apply");
     }
     node.set_network_name(Some(saved.name.clone()));
-    node.set_senders(hub.network.senders.locked().iter().cloned());
-    let slot = Slot { id: saved.id.clone(), name: saved.name.clone(), node: Arc::new(node) };
+    let (id, name, connector) = (saved.id.clone(), saved.name.clone(), saved.connector.clone());
+    let slot = Slot { id, name, connector, node: Arc::new(node) };
     hub.network.slots.locked().push(slot.clone());
     tokio::spawn(watch(hub.clone(), slot.node.changes()));
     publish(hub);
@@ -287,8 +312,9 @@ async fn watch(hub: Arc<Hub>, mut changes: tokio::sync::watch::Receiver<()>) {
     }
 }
 
-/// Offers this computer's visible bots to every network, under their address names. Called
-/// after every change to a bot's name, description or visibility.
+/// Offers this computer's visible bots to every network, under their address names, except those
+/// kept off it, which only send. Called after every change to a bot's name, description,
+/// visibility or network switch.
 pub fn publish(hub: &Hub) {
     let slots = hub.network.slots();
     if slots.is_empty() {
@@ -313,15 +339,17 @@ pub fn publish(hub: &Hub) {
     {
         tracing::warn!(error = format!("{error:#}"), "couldn't save the bots' address names");
     }
-    let agents: Vec<(Agent, Reach)> = bots
-        .iter()
-        .filter(|b| b.offered_to_network)
+    let (offered, kept_off): (Vec<_>, Vec<_>) = bots.iter().partition(|b| b.offered_to_network);
+    let agents: Vec<(Agent, Reach)> = offered
+        .into_iter()
         .filter_map(|b| {
             let id = handles.handle(&b.id)?;
             Some((Agent { id, name: b.name.clone(), about: b.description.clone() }, Reach::App))
         })
         .collect();
+    *hub.network.unoffered.locked() = kept_off.iter().filter_map(|b| handles.handle(&b.id)).collect();
     drop(handles);
+    hub.network.share_senders();
     for slot in slots {
         slot.node.set_agents(agents.clone());
     }
@@ -331,4 +359,59 @@ pub fn publish(hub: &Hub) {
 fn default_name() -> String {
     let host = gethostname::gethostname().to_string_lossy().into_owned();
     handle(host.split('.').next().unwrap_or("computer"))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn addresses_split_into_their_parts() {
+        assert_eq!(split_address("reviewer"), ("reviewer", None));
+        assert_eq!(split_address("reviewer@desk"), ("reviewer", Some(("desk", None))));
+        assert_eq!(split_address("reviewer@desk.home"), ("reviewer", Some(("desk", Some("home")))));
+        assert_eq!(split_computer(&qualified("desk", "home")), ("desk", Some("home")));
+    }
+
+    #[tokio::test]
+    async fn a_computer_in_two_networks_finds_bots_by_short_addresses() {
+        let root = std::env::temp_dir().join(format!("codync-recipient-{}", uuid::Uuid::new_v4()));
+        let start = async |folder: &str| Node::start(&root.join(folder), &Connector::Private).await.unwrap().0;
+        let offer = |node: &Node, id: &str| {
+            node.set_agents([(Agent { id: id.into(), name: id.into(), about: String::new() }, Reach::App)]);
+        };
+        // This computer is desk in home and in work; each has a computer called laptop.
+        let (home, work) = (start("home").await, start("work").await);
+        home.create("desk").unwrap();
+        work.create("desk").unwrap();
+        for (network, folder, agent) in [(&home, "laptop", "lead"), (&work, "other", "tester")] {
+            let laptop = start(folder).await;
+            offer(&laptop, agent);
+            laptop.join(&network.invite().unwrap(), "laptop").await.unwrap();
+            network.peers().await.unwrap();
+        }
+        let network = Network::default();
+        let slot = |id: &str, node: Node| Slot {
+            id: id.into(),
+            name: id.into(),
+            connector: Connector::Private,
+            node: Arc::new(node),
+        };
+        network.slots.locked().extend([slot("home", home), slot("work", work)]);
+
+        let there = |name: &str| match network.recipient(name).unwrap() {
+            Recipient::There(t) => format!("{}.{}", t.address, t.network),
+            Recipient::Here(bot) => format!("here: {bot}"),
+        };
+        let refused = network.recipient("lead@laptop").err().unwrap().to_string();
+        assert!(refused.contains("lead@laptop.home and lead@laptop.work"), "{refused}");
+        assert_eq!(there("lead@laptop.home"), "lead@laptop.home");
+        assert_eq!(there("tester"), "tester@laptop.work", "only work offers it");
+        assert_eq!(there("reviewer@desk.work"), "here: reviewer@desk.work", "desk is this computer");
+        assert_eq!(there("nobody"), "here: nobody", "no network offers it");
+        for slot in network.slots() {
+            slot.node.shutdown().await;
+        }
+        let _ = std::fs::remove_dir_all(root);
+    }
 }
