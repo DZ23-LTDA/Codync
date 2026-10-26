@@ -215,7 +215,7 @@ first). See [desktop app](../architecture/desktop-app.md).
 *Relay address* and, for a private relay, a write-only *Relay token* (`setCloudUrl`; the
 host's `cloudStatus` says `relay: "private"` and `tokenSet`, and there the account rows are hidden
 and auto-claim never runs), *Add to account* (claim: `POST /v1/claims` → loopback `claimSign` → complete) and
-*Remove from account* (`unclaim`), a pairing QR, and, for this computer only, the computers it can use (its SSH computers) and the devices that can use it, with revoke.
+*Remove from account* (`unclaim`), a pairing QR, and, for this computer only, the computers it can use (its SSH computers, each with its own settings) and the devices that can use it, with revoke.
 Signed in, this computer joins the account on its own once per host identity; an identity
 that was already in the account and was removed (here or from a phone) is never re-added
 silently, only through *Add to account*. The section below, *Other computers in your account*,
