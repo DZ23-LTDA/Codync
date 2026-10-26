@@ -1,7 +1,8 @@
 # codync-network
 
-The user's computers join one private network, and a bot on one messages a bot on another the way bots on one
-computer already do ([bot collaboration](bot-collaboration.md)). The network is the `codync-network` crate
+The user's computers join private networks, and a bot on one messages a bot on another the way bots on one
+computer already do ([bot collaboration](bot-collaboration.md)). A computer can be in several networks (`home`,
+`work`), each kept apart ([several networks](#several-networks)). The apps mark it **Beta**. The network is the `codync-network` crate
 (`host/crates/network`, its own [README](../../host/crates/network/README.md)): peer to peer over QUIC
 ([iroh](https://iroh.computer)), with no Codync server involved. It is off until the user creates or joins a network.
 Why it is built this way, the options weighed and what comes next: [design](../design/codync-network.md).
@@ -13,12 +14,15 @@ On each computer, in the desktop app (Settings → Computers, the **Network** se
 clients that change membership: the `network*` API methods are loopback-only, like pairing a device.
 
 ```sh
-codync-host network create [name] [--connector public|private|https://relay]   # the first computer: the owner
-codync-host network invite                                                     # prints a one-time invite (1 h)
-codync-host network join '<invite>' [name] [--connector …]                     # on the other computer
-codync-host network                                                            # who is around (status)
-codync-host network peers | promote <computer> | remove <computer> [--cascade] | recover <code>
+codync-host network create [name] [--network home] [--connector public|private|https://relay]  # this computer owns it
+codync-host network invite [--network home]                                   # prints a one-time invite (1 h)
+codync-host network join '<invite>' [name] [--network …] [--connector …]      # on the other computer
+codync-host network                                                           # every network and who is around
+codync-host network peers | promote <computer> | remove <computer> [--cascade] | recover <code> | leave
 ```
+
+`--network` names the network (by name or id) and may be left out while the computer is in only one; for `create`
+it is the new network's name (default `home`), for `join` it replaces the name the invite carries.
 
 The apps show the recovery code once, in a sheet that only "I saved it" closes; the host keeps it nowhere and the
 apps never fetch it again. An invite shows when it stops working (`networkInvite` → `expiresAt`). Each computer row
@@ -47,6 +51,31 @@ where it is again and tells the others, so it stays reachable without a restart.
 name; a taken name gets a number (`laptop-2`), also when two admins admit the same name before their copies meet
 (the later admission gets the number, on every copy). No computer's name changes when another is removed; one
 admitted after a removal can take the freed name.
+
+## Several networks
+
+Each network this computer is in has its **own node**: its own key, roster, connector and rules, in its own folder
+of the data directory (`network` for the first, `network-<id>` after), listed in kv `networks`
+(`host/src/network/saved.rs`). One node per network, rather than one node with several rosters, keeps networks
+apart: members of one can't tell the computer is in another (different keys), a stolen key or a bad roster in one
+reaches no other, connectors differ per network (a private home network, a work one on relays), and nothing on the
+wire changed. The cost is one endpoint per network.
+
+- The view (`networkView`, the `network` event, the hello) lists `networks`, the first being the default, each with
+  its `id`, `name`, this computer's name and role there, `canInvite`/`canRecover`, `connector`, `computers` and
+  `rules`. Methods take `network` (`networkInvite`, `networkRemove`, `setNetworkRules`, …); `networkLeave` stops
+  this computer's node for one and deletes its folder (the others list the computer until they remove it).
+- An invite carries the network's name (`Node::set_network_name`, read with `codync_network::read_invite`), so a
+  computer that joins calls it the same; a name already used here gets a number (`home-2`). Joining a network this
+  computer is already in is refused.
+- **Addresses** name the network when they need to: `reviewer@desk.home`. While the computer is in several,
+  `list_bots` ids carry the network (`computer` reads `desk.home`, and the `computer` filter `desk` finds it); a
+  bare name or `name@computer` is taken where exactly one network has it, and two candidates are refused with both
+  full addresses. With one network, ids stay `reviewer@desk`.
+- This computer's bots are offered in every network under the same address name; the per-bot offered switch applies
+  to all of them. Each network's letters come in through its own node and their answers go back through it.
+- A computer that was in one network before keeps it, under the name `home` (its folder and its old kv connector
+  and rules are taken over once).
 
 ## Who may do what
 
@@ -99,6 +128,11 @@ that was off learns of a removal.
   8 handoffs per chain, a burst of 5 messages per pair of agents then one every 2 minutes, the same words twice in
   10 minutes refused. A letter that isn't a request (a notice, or a reply nobody waits for after a restart) shows as
   a "Note from …" notice in the bot's chat.
+- Agents on this computer that aren't Codync bots (a Claude Code or Codex session) get `list_bots`, `message_bot`
+  and `read_replies` from `codync-host mcp network --name "Claude Code"` (stdio MCP, local API `agentCall`, loopback
+  only): the cloud assistant's tools (`chat/team/assistant.rs`), under the agent's own name ("Message from Claude Code
+  (this computer)"), its own replies, no cloud switch and no per-bot cloud scope, and letters elsewhere sent as
+  `agent-<name>@<computer>`. Add it with `claude mcp add codync -- codync-host mcp network --name "Claude Code"`.
 - Agents that aren't Codync bots use the same letters: the standalone `codync-network` daemon offers Claude Code
   sessions (their inbox socket) and Codex threads (`codex queue`), see the crate README. It keeps its own key in
   `~/.codync-network` (the host's is `~/.codync/network`), so beside a host it is a computer of its own.
@@ -128,10 +162,10 @@ and nothing new crosses the wire beyond a refusal's reason.
 
 Planned in order, with what each step touches: [what's left](../plans/codync-network-next.md).
 
-- One network per computer; the `.network` address suffix comes with several.
-- Shared networks (other people's computers): the offered switch and the rules exist, but per network (with
-  several networks per computer) they don't yet.
-- Bots can't reach Claude Code or Codex sessions on another computer through the host (the standalone daemon can).
+- Shared networks (other people's computers): rules are per network, but which bots are offered is one switch per
+  bot for all networks; a per-network list of offered bots comes with networks shared with other people.
+- Bots can't reach Claude Code or Codex sessions on another computer through the host (the standalone daemon can);
+  those sessions reach the bots with `codync-host mcp network`, and the replies wait for `read_replies`.
 - Each computer's share of the roster is capped (256 entries) and keeps its oldest: an owner or admin that has
   made 256 admissions, promotions and removals can't make more. Hellos sending changes since the last one, instead
   of the whole roster, would lift the cap.
@@ -140,12 +174,13 @@ Planned in order, with what each step touches: [what's left](../plans/codync-net
 
 - `host/crates/network`: the crate (`node/`, `roster.rs`, `guard.rs`, `reach.rs`, `wire.rs`); `cargo test -p codync-network`
   runs computers on one machine over direct connections, without a relay or internet.
-- `host/src/network/`: the host's node, published bots and address names, the `network*` API methods, `networkView`
-  and the `network` event.
+- `host/src/network/`: the host's nodes (one per network, `mod.rs`), the saved networks (`saved.rs`), published bots
+  and address names (`handles.rs`), the `network*` API methods, `networkView` and the `network` event (`api.rs`).
 - Clients: desktop `apps/desktop/src/renderer/views/settings/NetworkSection.tsx` (+ `NetworkSheets.tsx`,
   `store/network.ts`), terminal `host/src/tui/manage/network.rs` + `view/network.rs`, iPhone
   `apps/ios/Kit/Sources/CodyncUI/NetworkSheet.swift`, Android `apps/android/app/.../NetworkSheet.kt`.
-- `host/src/chat/team/remote.rs`, `directory.rs`: requests and replies across computers, `list_bots`.
+- `host/src/chat/team/remote.rs`, `directory.rs`: requests and replies across computers, `list_bots`;
+  `assistant.rs`: the cloud assistant and agents that aren't bots (`codync-host mcp network`, `agentCall`).
 - `host/src/network_cli.rs`: `codync-host network`.
 - `host/tests/network_e2e.rs`: two real hosts in one network, a bot messaging a bot on the other computer through
   approval and back, a request its recipient's user stops and one that fails, and the view with its per-row

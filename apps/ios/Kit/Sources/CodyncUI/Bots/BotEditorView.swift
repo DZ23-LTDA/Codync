@@ -255,6 +255,15 @@ struct BotSettingsForm: View {
                     SwitchRow("Manage the team", detail: "Let this bot create bots and change any bot's setup, its own included. The bots it creates can too.",
                               isOn: Binding(get: { draft.manageTeam ?? false }, set: { draft.manageTeam = $0 }))
                 }
+                // Each only where it applies: the computer is in a network, cloud assistants are on.
+                if draft.offeredToNetwork != nil, model.network?.joined == true {
+                    SwitchRow("Offered to the network", detail: "Bots on your other computers can see and message this bot.",
+                              isOn: Binding(get: { draft.offeredToNetwork ?? true }, set: { draft.offeredToNetwork = $0 }))
+                }
+                if draft.reachableByAssistants != nil, model.network?.assistants == true {
+                    SwitchRow("Reachable by cloud assistants", detail: "ChatGPT or Claude in your Codync account can see and message this bot.",
+                              isOn: Binding(get: { draft.reachableByAssistants ?? true }, set: { draft.reachableByAssistants = $0 }))
+                }
             }
 
             PluginToggles(

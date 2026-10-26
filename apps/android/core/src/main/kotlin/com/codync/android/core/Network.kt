@@ -5,24 +5,64 @@ import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.decodeFromJsonElement
 
 /**
- * The computer's network of the user's computers as phones see it (`networkView`, the `network` event): read-only,
+ * The computer's networks of the user's computers as phones see them (`networkView`, the `network` event): read-only,
  * since who is in is decided at a computer (CodyncKit `NetworkView`).
  */
 @Serializable
 data class NetworkView(
     val joined: Boolean = false,
-    /** This computer's name in the network. */
-    val computer: String? = null,
+    /** Every network the computer is in, the default first. */
+    val networks: List<NetworkInfo> = emptyList(),
     val assistants: Boolean = false,
     /** Cloud assistants can reach this computer at all: it's in a Codync account. */
     val assistantsAvailable: Boolean = false,
-    val computers: List<NetworkComputer> = emptyList(),
 ) {
-    /** Something to show: the network, or cloud assistants that can reach this computer's bots. */
+    /** Something to show: a network, or cloud assistants that can reach this computer's bots. */
     val shown: Boolean get() = joined || (assistantsAvailable && assistants)
 
     companion object {
         fun decode(value: JsonElement): NetworkView = WireJson.decodeFromJsonElement(value)
+    }
+}
+
+/** One network the computer is in. */
+@Serializable
+data class NetworkInfo(
+    val id: String,
+    /** What the user calls it (`home`). */
+    val name: String,
+    /** This computer's name in it. */
+    val computer: String? = null,
+    val role: String = "member",
+    val computers: List<NetworkComputer> = emptyList(),
+    /** Who on its other computers may message this computer's bots, the first match deciding. */
+    val rules: List<NetworkRule> = emptyList(),
+) {
+    /**
+     * How [rule] reads: "Allow: {from} → {to}", with the bots' names where this network knows them. [tr] translates
+     * each template before its names go in.
+     */
+    fun describe(rule: NetworkRule, tr: (String) -> String): String {
+        val from = when {
+            rule.fromComputer == ANY && rule.fromAgent == ANY -> tr("any bot on any computer")
+            // `lead@*` (only from the command line) reads "lead on any computer": never wider than it is.
+            rule.fromComputer == ANY -> tr("{bot} on any computer").replace("{bot}", rule.fromAgent)
+            rule.fromAgent == ANY -> tr("any bot on {computer}").replace("{computer}", rule.fromComputer)
+            else -> tr("{bot} on {computer}").replace("{bot}", agentName(rule.fromComputer, rule.fromAgent))
+                .replace("{computer}", rule.fromComputer)
+        }
+        val to = if (rule.toAgent == ANY) tr("any bot here") else computers.firstOrNull { it.me }?.let { me ->
+            me.agents.firstOrNull { it.id == rule.toAgent }?.name
+        } ?: rule.toAgent
+        val access = if (rule.access == "deny") "Deny: {from} → {to}" else "Allow: {from} → {to}"
+        return tr(access).replace("{from}", from).replace("{to}", to)
+    }
+
+    private fun agentName(computer: String, agent: String): String =
+        computers.firstOrNull { it.name.equals(computer, ignoreCase = true) }?.agents?.firstOrNull { it.id == agent }?.name ?: agent
+
+    private companion object {
+        const val ANY = "*"
     }
 }
 
@@ -43,3 +83,7 @@ data class NetworkComputer(
 
 @Serializable
 data class NetworkAgent(val id: String, val name: String = id)
+
+/** `{fromComputer, fromAgent, toAgent, access}`, `*` meaning any. */
+@Serializable
+data class NetworkRule(val fromComputer: String = "*", val fromAgent: String = "*", val toAgent: String = "*", val access: String = "allow")

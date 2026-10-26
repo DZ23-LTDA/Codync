@@ -97,8 +97,21 @@ optional.
 
 - `agent@computer`, like an email or SSH address. A bare name finds the nearest bot (this computer first); a taken
   computer name gets a number (`desk-2`); a bot's address name is never reused for another bot.
-- Several networks per computer come later with a `.network` suffix (`reviewer@desk.home`), the way a DNS search
-  domain resolves short names; until then a computer is in one network.
+- A computer can be in several networks; the `.network` suffix names one (`reviewer@desk.home`), the way a DNS
+  search domain resolves short names: a short address is taken where only one network has it.
+
+## Several networks: one node each
+
+A computer in several networks runs one node per network, each with its own key, roster, connector and rules
+(chosen over one node holding several rosters, which the plan first described):
+
+| | One node per network (chosen) | One node, several rosters |
+|---|---|---|
+| Privacy | a different key in each: one network's members can't tell the computer is also in another | one key everywhere links them |
+| Isolation | a stolen key or bad roster stays in its network | one endpoint and key shared by all |
+| Connectors | per network (private at home, relays for work) | one per computer |
+| Wire | unchanged: old peers keep working | every request names its network |
+| Cost | one endpoint (a socket, a relay connection) per network | one endpoint |
 - `list_bots` takes `query`, `computer` (`this` for this one), `online`, `limit` and `cursor`, and an unnarrowed
   long list says how many bots each computer has, so a computer with many bots doesn't flood the agent. On one
   computer without a network it lists that computer's bots.
@@ -149,10 +162,9 @@ Done: the network screens and the cloud assistants switch in every client (2.29.
 terminal UI manage the network, phones show it, and a `network` event keeps them current. Per-bot offering, the
 cloud assistant scope and inbound rules, checked by the receiving computer. A computer that moves re-signs where it
 is. Cloud assistants and agents that aren't Codync bots (`codync-host mcp network`) reach the bots across the
-network.
+network. A computer can be in several networks.
 
 1. Codync-run iroh relays as the default connector.
-2. Several networks per computer.
-3. Hellos that carry only what changed, lifting the roster's per-computer cap.
-4. Account networks.
-5. A control channel for the standalone daemon on Windows (named pipe).
+2. Hellos that carry only what changed, lifting the roster's per-computer cap.
+3. Account networks; per-network lists of offered bots, for networks shared with other people.
+4. A control channel for the standalone daemon on Windows (named pipe).

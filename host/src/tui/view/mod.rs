@@ -18,6 +18,7 @@ mod goto;
 mod help;
 mod lead_agent;
 mod network;
+mod network_rules;
 mod new_bot;
 mod overlay;
 mod pair;

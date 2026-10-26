@@ -11,6 +11,7 @@ use super::super::l10n::tr;
 use super::super::manage::{CONNECTORS, NetworkSheet, Setup, SetupField, Step};
 use super::super::md;
 use super::buffer::{centered, frame_box, hline, put, put_line, restyle, rput};
+use super::network_rules::{rule_form, rules};
 use super::overlay::input_line;
 use super::style::theme;
 use super::time::clock;
@@ -33,6 +34,9 @@ pub(super) fn network(buf: &mut Buffer, area: Rect, n: &NetworkSheet) {
         Step::Invite(invite) => invite_step(buf, body, n, invite.as_ref()),
         Step::Recover(code) => recover(buf, body, code),
         Step::Remove { computer, cascade } => remove(buf, body, computer, *cascade),
+        Step::Leave => leave(buf, body, n),
+        Step::Rules(at) => rules(buf, body, n, *at),
+        Step::NewRule(form) => rule_form(buf, body, n, form),
     };
     if let Some(e) = &n.error {
         put(buf, inner.x, inner.bottom() - 3, inner.width, e, t.red.patch(t.panel));
@@ -49,9 +53,11 @@ fn recovery(buf: &mut Buffer, body: Rect, n: &NetworkSheet, code: &str) -> &'sta
     y += 1;
     line(buf, body, &mut y, code, t.bold);
     y += 1;
-    let note =
-        tr("It makes another computer the owner if {name} is lost. It's shown only once and kept on no computer.");
-    wrapped(buf, body, &mut y, &note.replace("{name}", &n.computer()), t.secondary);
+    let network = n.current().and_then(|x| x["name"].as_str()).unwrap_or_default();
+    let note = tr(
+        "It makes another computer the owner of {network} if {name} is lost. It's shown only once and kept on no computer.",
+    );
+    wrapped(buf, body, &mut y, &note.replace("{network}", network).replace("{name}", &n.computer()), t.secondary);
     "y copy · s I saved it"
 }
 
@@ -85,6 +91,18 @@ fn recover(buf: &mut Buffer, body: Rect, code: &Editor) -> &'static str {
     "↵ recover · esc back"
 }
 
+fn leave(buf: &mut Buffer, body: Rect, n: &NetworkSheet) -> &'static str {
+    let t = theme();
+    let mut y = body.y;
+    let network = n.current().and_then(|x| x["name"].as_str()).unwrap_or_default();
+    line(buf, body, &mut y, &tr("Leave {network}?").replace("{network}", network), t.red);
+    let note = tr(
+        "This computer stops being in {network}. The others keep listing it until the owner or an admin removes it there; rejoining needs a new invite.",
+    );
+    wrapped(buf, body, &mut y, &note.replace("{network}", network), t.text);
+    "↵ leave · esc cancel"
+}
+
 fn remove(buf: &mut Buffer, body: Rect, computer: &str, cascade: bool) -> &'static str {
     let t = theme();
     let mut y = body.y;
@@ -101,21 +119,34 @@ fn remove(buf: &mut Buffer, body: Rect, computer: &str, cascade: bool) -> &'stat
 fn list(buf: &mut Buffer, body: Rect, n: &NetworkSheet) -> &'static str {
     let t = theme();
     let mut y = body.y;
-    let Some(view) = &n.view else {
+    if n.view.is_none() {
         put(buf, body.x, y, body.width, &tr("Loading…"), t.dim.patch(t.panel));
         return "esc close";
-    };
-    if n.joined() {
+    }
+    if let Some(current) = n.current() {
+        y = networks_line(buf, body, y, n);
         let me = n.computer();
         let role = role_name(n.role());
-        let connector = view["connector"].as_str().unwrap_or("public");
+        let connector = current["connector"].as_str().unwrap_or("public");
         put(buf, body.x, y, body.width, &format!("{me} · {role} · {connector}"), t.secondary.patch(t.panel));
         y += 2;
-        let room = usize::from(body.height).saturating_sub(7).max(1);
+        let rule_rows = n.rules().len().min(3);
+        let room = usize::from(body.height).saturating_sub(9 + rule_rows).max(1);
         let off = n.cursor.saturating_sub(room.saturating_sub(1));
         for (i, c) in n.computers().iter().enumerate().skip(off).take(room) {
             computer_row(buf, body, y, c, i == n.cursor);
             y += 1;
+        }
+        if rule_rows > 0 {
+            y += 1;
+            put(buf, body.x, y, body.width, &tr("Who may message bots here"), t.bold.patch(t.panel));
+            y += 1;
+            for rule in n.rules().iter().take(rule_rows) {
+                line(buf, body, &mut y, &format!("  {}", n.rule_text(rule)), t.secondary);
+            }
+            if n.rules().len() > rule_rows {
+                line(buf, body, &mut y, &format!("  {}", tr("w shows them all")), t.dim);
+            }
         }
     } else {
         put(buf, body.x, y, body.width, &tr("Not in a network."), t.bold.patch(t.panel));
@@ -126,12 +157,28 @@ fn list(buf: &mut Buffer, body: Rect, n: &NetworkSheet) -> &'static str {
     if n.says("assistantsAvailable") {
         assistants(buf, body, y + 1, n.says("assistants"));
     }
-    match (n.joined(), n.says("canInvite"), n.says("canRecover")) {
+    match (n.joined(), n.may("canInvite"), n.may("canRecover")) {
         (false, ..) => "c create network · J join with invite · esc close",
-        (true, true, false) => "i invite · p make admin · x remove · r refresh · esc close",
-        (true, true, true) => "i invite · x remove · o recover ownership · r refresh · esc close",
-        (true, false, _) => "o recover ownership · r refresh · esc close",
+        (true, true, false) => "i invite · p make admin · x remove · w rules · c new · J join · L leave · esc",
+        (true, true, true) => "i invite · x remove · o recover · w rules · c new · J join · L leave · esc",
+        (true, false, _) => "o recover ownership · w rules · c new · J join · L leave · esc",
     }
+}
+
+/// The networks this computer is in, the shown one bracketed; switching only when there are several.
+fn networks_line(buf: &mut Buffer, body: Rect, y: u16, n: &NetworkSheet) -> u16 {
+    let t = theme();
+    let mut x = body.x;
+    for (i, net) in n.networks().iter().enumerate() {
+        let name = net["name"].as_str().unwrap_or_default();
+        let (text, style) =
+            if i == n.net { (format!("‹ {name} ›"), t.bold) } else { (format!("  {name}  "), t.secondary) };
+        x = put(buf, x, y, body.right().saturating_sub(x), &text, style.patch(t.panel));
+    }
+    if n.networks().len() > 1 {
+        rput(buf, body.right(), y, &tr("←→ network"), t.dim.patch(t.panel));
+    }
+    y + 1
 }
 
 /// The cloud assistants switch, for a computer in a Codync account (only there can they reach it).
@@ -194,6 +241,7 @@ fn setup(buf: &mut Buffer, body: Rect, s: &Setup, join: bool) -> &'static str {
         let active = field == s.field;
         let label = match field {
             SetupField::Invite => "Invite",
+            SetupField::Network => "Network name",
             SetupField::Name => "Computer name",
             SetupField::Connector => "Connector",
             SetupField::Relay => "Relay address",
@@ -204,6 +252,10 @@ fn setup(buf: &mut Buffer, body: Rect, s: &Setup, join: bool) -> &'static str {
         match field {
             SetupField::Invite => {
                 input_line(buf, r, y, &s.invite, "Paste the invite from the other computer.", active, false);
+            }
+            SetupField::Network => {
+                let hint = if join { "From the invite" } else { "home" };
+                input_line(buf, r, y, &s.network, hint, active, false);
             }
             SetupField::Name => input_line(buf, r, y, &s.name, "Host name", active, false),
             SetupField::Relay => input_line(buf, r, y, &s.relay, "https://relay.example.com", active, false),
@@ -219,14 +271,14 @@ fn setup(buf: &mut Buffer, body: Rect, s: &Setup, join: bool) -> &'static str {
     "↵ done · tab next field · ←→ connector · esc back"
 }
 
-fn line(buf: &mut Buffer, body: Rect, y: &mut u16, text: &str, style: Style) {
+pub(super) fn line(buf: &mut Buffer, body: Rect, y: &mut u16, text: &str, style: Style) {
     if *y < body.bottom() {
         put(buf, body.x, *y, body.width, text, style.patch(theme().panel));
         *y += 1;
     }
 }
 
-fn wrapped(buf: &mut Buffer, body: Rect, y: &mut u16, text: &str, style: Style) {
+pub(super) fn wrapped(buf: &mut Buffer, body: Rect, y: &mut u16, text: &str, style: Style) {
     let t = theme();
     let width = usize::from(body.width);
     for l in md::wrap(&[Span::styled(text.to_owned(), style.patch(t.panel))], width, &[], &[]) {

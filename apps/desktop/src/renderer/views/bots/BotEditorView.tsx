@@ -17,6 +17,7 @@ import { errorText, isValid, lastPathComponent, normalized, useFollowSaved, useP
 import { FormSheet } from '../marketplace/pieces'
 import { SkillSheet, type SkillRef } from '../marketplace/SkillSheet'
 import { AnchoredPanel, AutoTextArea, AvatarPicker, Field, SwitchRow } from './parts'
+import { NetworkSwitches } from './NetworkSwitches'
 import './bots.css'
 import { useTr } from '../../lib/use-language'
 
@@ -303,6 +304,7 @@ function BotSettingsForm({ draft, onChange, error, plugins, part = 'all' }: {
               onChange={(on) => set('manageTeam', on)}
             />
           ) : null}
+          <NetworkSwitches draft={draft} set={set} />
         </CardSection>
 
         <PluginToggles

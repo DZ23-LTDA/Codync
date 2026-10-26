@@ -57,7 +57,9 @@ internal enum class FormPart { All, Often, Rarely }
                     fallbackBanner(state, store, bot); computerRow(state, online)
                     agentRows(state, store, draft, change, bot) { addingFallback = true }; placeRows(draft, change) { folders = true }
                 }
-                CardSection("Activity") { notifyRow(draft, change); computerUseRow(state, draft, change); manageTeamRow(state, draft, change) }
+                CardSection("Activity") {
+                    notifyRow(draft, change); computerUseRow(state, draft, change); manageTeamRow(state, draft, change); reachRows(state, draft, change)
+                }
                 Plugins(state, draft, change) { viewingSkill = it }
                 draft.id?.let { MemoryCard(it, store) }
                 state.error?.let { Text(it, style = Type.footnote, color = Palette.danger) }
@@ -77,7 +79,7 @@ internal enum class FormPart { All, Often, Rarely }
                 }
                 // The agent and its model are on the Details page; what's left is where it works.
                 CardSection("Workspace") { computerRow(state, online); placeRows(draft, change) { folders = true } }
-                CardSection("Activity") { notifyRow(draft, change); manageTeamRow(state, draft, change) }
+                CardSection("Activity") { notifyRow(draft, change); manageTeamRow(state, draft, change); reachRows(state, draft, change) }
                 Plugins(state, draft, change) { viewingSkill = it }
             }
         }
@@ -202,6 +204,20 @@ private fun CardRows.manageTeamRow(state: AppState, draft: BotDraft, change: (Bo
     row {
         SwitchRow("Manage the team", "Let this bot create bots and change any bot's setup, its own included. The bots it creates can too.",
             draft.manageTeam, { change(draft.copy(manageTeam = it)) })
+    }
+}
+
+// Who else reaches this bot: shown only where it applies (in a network, cloud assistants on) and the host has the switch.
+private fun CardRows.reachRows(state: AppState, draft: BotDraft, change: (BotDraft) -> Unit) {
+    val network = state.network ?: return
+    draft.offeredToNetwork?.takeIf { network.joined }?.let { on ->
+        row { SwitchRow("Offered to the network", "Bots on your other computers can see and message this bot.", on, { change(draft.copy(offeredToNetwork = it)) }) }
+    }
+    draft.reachableByAssistants?.takeIf { network.assistants }?.let { on ->
+        row {
+            SwitchRow("Reachable by cloud assistants", "ChatGPT or Claude in your Codync account can see and message this bot.", on,
+                { change(draft.copy(reachableByAssistants = it)) })
+        }
     }
 }
 

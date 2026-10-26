@@ -1,30 +1,35 @@
 import { useEffect, useState } from 'react'
-import type { NetworkComputer } from '@shared/network'
-import { Button, CardSection, IconButton } from '../../components/Controls'
+import type { Network, NetworkComputer } from '@shared/network'
+import { Button } from '../../components/Controls'
 import { Dialog, Sheet } from '../../components/Overlay'
 import { HStack, VStack } from '../../components/Stack'
 import { Text } from '../../components/Text'
 import { useModel } from '../../lib/observable'
-import { botsTemplate, presenceTitle, roleTitle } from '../../lib/network-copy'
 import { useTr } from '../../lib/use-language'
 import type { BotStore } from '../../store/bot-store'
 import { network, refreshNetwork } from '../../store/network'
+import { NetworkCard } from './NetworkCard'
 import { InviteSheet, NetworkSetupSheet, RecoverSheet, RecoveryCodeSheet } from './NetworkSheets'
 import { errorText } from './parts'
+import { RuleSheet } from './RuleSheet'
 import './network.css'
 
-type Open = 'create' | 'join' | 'invite' | 'recover'
+/** A sheet or dialog open for one network. */
+type Open =
+  | { kind: 'create' | 'join' }
+  | { kind: 'invite' | 'recover' | 'rule' | 'leave'; net: Network }
+  | { kind: 'remove'; net: Network; computer: NetworkComputer }
 
 /**
- * A managed computer's network of the user's computers (codync-network): set it up, invite,
- * and who is in. Hidden on hosts without `networkView`. Membership is decided here, at the
- * computer; phones only see it.
+ * A managed computer's networks of the user's computers (codync-network): one card per
+ * network, with who is in it and who may message the bots here, and making or joining another.
+ * Hidden on hosts without `networkView`. Membership is decided here, at the computer; phones
+ * only see it.
  */
 export function NetworkSection({ store }: { store: BotStore }) {
   const tr = useTr()
   useModel(store)
   const [open, setOpen] = useState<Open | null>(null)
-  const [removing, setRemoving] = useState<NetworkComputer | null>(null)
   const [busy, setBusy] = useState(false)
   const view = store.network
   const manageable = store.connection.kind === 'online' && !store.mismatch
@@ -42,90 +47,85 @@ export function NetworkSection({ store }: { store: BotStore }) {
       .catch((e: unknown) => store.setError(errorText(e)))
       .finally(() => setBusy(false))
   }
-
-  const accessory = view.joined ? (
-    <HStack gap={2}>
-      {view.canInvite ? <IconButton title="Invite a computer" icon="person.crop.circle.badge.plus" disabled={!manageable} onClick={() => setOpen('invite')} /> : null}
-      {view.canRecover ? <IconButton title="Recover ownership" icon="key" disabled={!manageable} onClick={() => setOpen('recover')} /> : null}
-      <IconButton title="Refresh" icon="arrow.clockwise" disabled={busy || !manageable} onClick={() => run(() => network.peers(store))} />
-    </HStack>
-  ) : null
+  const close = () => setOpen(null)
+  const several = view.networks.length > 1
+  const sheetFor = (kind: 'invite' | 'recover' | 'rule') => (open && open.kind === kind ? open.net : null)
+  const invite = sheetFor('invite')
+  const recover = sheetFor('recover')
+  const rule = sheetFor('rule')
 
   return (
-    <>
-      <CardSection
-        title={
-          <HStack as="span" gap={6}>
-            {tr('Network')}
-            <Text as="span" size="caption" weight="semibold" className="beta-tag">{tr('Beta')}</Text>
-          </HStack>
-        }
-        accessory={accessory} footer={view.joined ? 'Bots message the bots on these computers as bot@computer.' : null}>
-        {view.joined
-          ? (view.computers ?? []).map((c) => (
-              <ComputerRow
-                key={c.name}
-                computer={c}
-                disabled={busy || !manageable}
-                promote={() => run(() => network.promote(store, c.name))}
-                remove={() => setRemoving(c)}
-              />
-            ))
-          : [
-              <VStack key="setup" gap={10} className="settings-appear">
-                <Text size="callout" tone="secondary">{tr('Connect your computers so bots on one can message bots on another.')}</Text>
-                <HStack gap={8}>
-                  <Button kind="secondary" disabled={!manageable} onClick={() => setOpen('create')}>Create network</Button>
-                  <Button kind="secondary" disabled={!manageable} onClick={() => setOpen('join')}>Join with invite</Button>
-                </HStack>
-              </VStack>,
-            ]}
-      </CardSection>
+    <VStack gap={14}>
+      <HStack gap={6} className="settings-section-header">
+        <Text as="h3" size="body" weight="semibold" tone="text">{tr('Network')}</Text>
+        <Text as="span" size="caption" weight="semibold" className="beta-tag">{tr('Beta')}</Text>
+      </HStack>
+      {view.networks.map((net) => (
+        <NetworkCard
+          key={net.id}
+          net={net}
+          several={several}
+          disabled={busy || !manageable}
+          act={{
+            invite: () => setOpen({ kind: 'invite', net }),
+            recover: () => setOpen({ kind: 'recover', net }),
+            refresh: () => run(() => network.peers(store)),
+            leave: () => setOpen({ kind: 'leave', net }),
+            promote: (c) => run(() => network.promote(store, net.id, c.name)),
+            remove: (computer) => setOpen({ kind: 'remove', net, computer }),
+            addRule: () => setOpen({ kind: 'rule', net }),
+            setRules: (rules) => run(() => network.setRules(store, net.id, rules)),
+          }}
+        />
+      ))}
+      <VStack gap={10} className="settings-appear">
+        {view.joined ? null : <Text size="callout" tone="secondary">{tr('Connect your computers so bots on one can message bots on another.')}</Text>}
+        <HStack gap={8}>
+          <Button kind="secondary" disabled={!manageable} onClick={() => setOpen({ kind: 'create' })}>Create network</Button>
+          <Button kind="secondary" disabled={!manageable} onClick={() => setOpen({ kind: 'join' })}>Join with invite</Button>
+        </HStack>
+      </VStack>
 
-      <Sheet open={open === 'create' || open === 'join'} onClose={() => setOpen(null)}>
-        <NetworkSetupSheet key={open} store={store} joining={open === 'join'} />
+      <Sheet open={open?.kind === 'create' || open?.kind === 'join'} onClose={close}>
+        <NetworkSetupSheet key={open?.kind} store={store} joining={open?.kind === 'join'} />
       </Sheet>
-      <Sheet open={open === 'invite'} onClose={() => setOpen(null)}>
-        <InviteSheet store={store} />
+      <Sheet open={invite !== null} onClose={close}>
+        {invite ? <InviteSheet key={invite.id} store={store} net={invite} /> : null}
       </Sheet>
-      <Sheet open={open === 'recover'} onClose={() => setOpen(null)}>
-        <RecoverSheet store={store} />
+      <Sheet open={recover !== null} onClose={close}>
+        {recover ? <RecoverSheet key={recover.id} store={store} net={recover} /> : null}
+      </Sheet>
+      <Sheet open={rule !== null} onClose={close}>
+        {rule ? <RuleSheet key={rule.id} store={store} net={rule} /> : null}
       </Sheet>
       {/* Escape and the dim don't close it: only "I saved it" does. */}
       <Sheet open={store.recoveryCode !== null} onClose={() => {}}>
-        {store.recoveryCode ? <RecoveryCodeSheet code={store.recoveryCode} name={store.network?.computer ?? store.hostName} done={() => store.setRecoveryCode(null)} /> : null}
+        {store.recoveryCode ? <RecoveryCodeSheet recovery={store.recoveryCode} done={() => store.setRecoveryCode(null)} /> : null}
       </Sheet>
       <Dialog
-        open={removing !== null}
-        title={tr('Remove {name} from the network?').replaceAll('{name}', removing?.name ?? '')}
+        open={open?.kind === 'remove'}
+        title={tr('Remove {name} from the network?').replaceAll('{name}', open?.kind === 'remove' ? open.computer.name : '')}
         message={tr("It can't come back with its current key. For a stolen computer, also remove the computers it invited.")}
         actions={
-          removing
+          open?.kind === 'remove'
             ? [
-                { title: 'Remove', destructive: true, action: () => run(() => network.remove(store, removing.name, false)) },
-                { title: 'Remove with its invites', destructive: true, action: () => run(() => network.remove(store, removing.name, true)) },
+                { title: 'Remove', destructive: true, action: () => run(() => network.remove(store, open.net.id, open.computer.name, false)) },
+                { title: 'Remove with its invites', destructive: true, action: () => run(() => network.remove(store, open.net.id, open.computer.name, true)) },
               ]
             : []
         }
-        onClose={() => setRemoving(null)}
+        onClose={close}
       />
-    </>
-  )
-}
-
-function ComputerRow({ computer: c, disabled, promote, remove }: { computer: NetworkComputer; disabled: boolean; promote: () => void; remove: () => void }) {
-  const tr = useTr()
-  const bots = tr(botsTemplate(c)).replaceAll('{count}', String(c.agents.length))
-  const detail = [tr(roleTitle(c.role)), tr(presenceTitle(c)), bots].join(' · ')
-  return (
-    <HStack gap={8} className="settings-row settings-appear">
-      <span className={`network-dot${c.me || c.online ? ' online' : ''}`} aria-hidden />
-      <VStack grow className="settings-stack">
-        <Text>{c.name}</Text>
-        <Text size="caption" tone="secondary" truncate title={c.agents.map((a) => a.name).join(', ') || undefined}>{detail}</Text>
-      </VStack>
-      {c.canPromote ? <Button kind="secondary" disabled={disabled} onClick={promote}>Make admin</Button> : null}
-      {c.canRemove ? <IconButton title="Remove from the network" icon="trash" disabled={disabled} onClick={remove} /> : null}
-    </HStack>
+      <Dialog
+        open={open?.kind === 'leave'}
+        title={tr('Leave {network}?').replaceAll('{network}', open?.kind === 'leave' ? open.net.name : '')}
+        message={tr('This computer stops being in {network}. The others keep listing it until the owner or an admin removes it there; rejoining needs a new invite.').replaceAll(
+          '{network}',
+          open?.kind === 'leave' ? open.net.name : '',
+        )}
+        actions={open?.kind === 'leave' ? [{ title: 'Leave', destructive: true, action: () => run(() => network.leave(store, open.net.id)) }] : []}
+        onClose={close}
+      />
+    </VStack>
   )
 }

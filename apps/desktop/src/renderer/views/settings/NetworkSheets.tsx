@@ -5,13 +5,14 @@ import { HStack, VStack } from '../../components/Stack'
 import { Text } from '../../components/Text'
 import { connectorChoices, connectorFor, expiryTime, type ConnectorChoice } from '../../lib/network-copy'
 import { useTr } from '../../lib/use-language'
+import type { Network, RecoveryCode } from '@shared/network'
 import type { BotStore } from '../../store/bot-store'
 import { network } from '../../store/network'
 import { errorText } from './parts'
 
-const NETWORK_ICON = 'point.3.connected.trianglepath.dotted'
+export const NETWORK_ICON = 'point.3.connected.trianglepath.dotted'
 
-function Field({ label, value, set, placeholder, mono = false }: { label: string; value: string; set: (v: string) => void; placeholder: string; mono?: boolean }) {
+export function Field({ label, value, set, placeholder, mono = false }: { label: string; value: string; set: (v: string) => void; placeholder: string; mono?: boolean }) {
   const tr = useTr()
   return (
     <HStack gap={12} className="settings-row">
@@ -28,11 +29,12 @@ function Field({ label, value, set, placeholder, mono = false }: { label: string
   )
 }
 
-/** Create a network (this computer its owner) or join one with an invite. */
+/** Create a network (this computer its owner) or join one with an invite: one more, a computer can be in several. */
 export function NetworkSetupSheet({ store, joining }: { store: BotStore; joining: boolean }) {
   const tr = useTr()
   const dismiss = useDismiss()
   const [invite, setInvite] = useState('')
+  const [networkName, setNetworkName] = useState('')
   const [name, setName] = useState('')
   const [choice, setChoice] = useState<ConnectorChoice>('public')
   const [url, setUrl] = useState('')
@@ -47,8 +49,8 @@ export function NetworkSetupSheet({ store, joining }: { store: BotStore; joining
     setBusy(true)
     setProblem(null)
     try {
-      if (joining) await network.join(store, invite, name, connector.connector)
-      else await network.create(store, name, connector.connector)
+      if (joining) await network.join(store, invite, networkName, name, connector.connector)
+      else await network.create(store, networkName, name, connector.connector)
       dismiss()
     } catch (e) {
       setProblem(errorText(e))
@@ -68,6 +70,7 @@ export function NetworkSetupSheet({ store, joining }: { store: BotStore; joining
         <CardSection footer={joining ? null : 'This computer becomes the owner: it invites the others.'}>
           {[
             ...(joining ? [<Field key="invite" label="Invite" value={invite} set={setInvite} placeholder="codync-network:…" mono />] : []),
+            <Field key="network" label="Network name" value={networkName} set={setNetworkName} placeholder={joining ? 'From the invite' : 'home'} />,
             <Field key="name" label="Computer name" value={name} set={setName} placeholder="Host name" />,
           ]}
         </CardSection>
@@ -84,7 +87,7 @@ export function NetworkSetupSheet({ store, joining }: { store: BotStore; joining
 }
 
 /** The recovery code, once: closing it is confirming it was saved. The host keeps it nowhere. */
-export function RecoveryCodeSheet({ code, name, done }: { code: string; name: string; done: () => void }) {
+export function RecoveryCodeSheet({ recovery: { code, network: networkName, computer }, done }: { recovery: RecoveryCode; done: () => void }) {
   const tr = useTr()
   return (
     <VStack className="network-sheet">
@@ -95,7 +98,9 @@ export function RecoveryCodeSheet({ code, name, done }: { code: string; name: st
           <IconButton title="Copy recovery code" icon="doc.on.doc" onClick={() => window.codync.app.copy(code)} />
         </HStack>
         <Text size="callout" tone="secondary">
-          {tr("It makes another computer the owner if {name} is lost. It's shown only once and kept on no computer.").replaceAll('{name}', name)}
+          {tr("It makes another computer the owner of {network} if {name} is lost. It's shown only once and kept on no computer.")
+            .replaceAll('{network}', networkName)
+            .replaceAll('{name}', computer)}
         </Text>
         <HStack justify="end">
           <Button onClick={done}>I saved it</Button>
@@ -105,23 +110,23 @@ export function RecoveryCodeSheet({ code, name, done }: { code: string; name: st
   )
 }
 
-/** A one-time invite for another computer, good for an hour while this one stays on. */
-export function InviteSheet({ store }: { store: BotStore }) {
+/** A one-time invite to `net` for another computer, good for an hour while this one stays on. */
+export function InviteSheet({ store, net }: { store: BotStore; net: Network }) {
   const tr = useTr()
   const [invite, setInvite] = useState<{ invite: string; expiresAt: number } | { error: string } | null>(null)
   const make = useCallback(async () => {
     setInvite(null)
     try {
-      setInvite(await network.invite(store))
+      setInvite(await network.invite(store, net.id))
     } catch (e) {
       setInvite({ error: errorText(e) })
     }
-  }, [store])
+  }, [store, net.id])
   useEffect(() => void make(), [make])
 
   return (
     <VStack className="network-sheet">
-      <ModalHeader icon="person.crop.circle.badge.plus" title="Invite a computer" trailing={<IconButton title="New invite" icon="arrow.clockwise" onClick={() => void make()} />} />
+      <ModalHeader icon="person.crop.circle.badge.plus" title="Invite a computer" subtitle={net.name} trailing={<IconButton title="New invite" icon="arrow.clockwise" onClick={() => void make()} />} />
       <VStack gap={14} className="network-sheet-body">
         {invite === null ? (
           <Spinner />
@@ -134,7 +139,7 @@ export function InviteSheet({ store }: { store: BotStore }) {
               <IconButton title="Copy invite" icon="doc.on.doc" onClick={() => window.codync.app.copy(invite.invite)} />
             </HStack>
             <Text size="callout" tone="secondary">
-              {tr('One use. Works until {time} while {name} stays on.').replaceAll('{time}', expiryTime(invite.expiresAt)).replaceAll('{name}', store.network?.computer ?? store.hostName)}
+              {tr('One use. Works until {time} while {name} stays on.').replaceAll('{time}', expiryTime(invite.expiresAt)).replaceAll('{name}', net.computer)}
             </Text>
             <Text size="callout" tone="secondary">{tr('On the other computer, choose Join with invite under Network.')}</Text>
           </>
@@ -144,8 +149,8 @@ export function InviteSheet({ store }: { store: BotStore }) {
   )
 }
 
-/** Takes ownership with the recovery code, for when the owner was lost. */
-export function RecoverSheet({ store }: { store: BotStore }) {
+/** Takes ownership of `net` with its recovery code, for when the owner was lost. */
+export function RecoverSheet({ store, net }: { store: BotStore; net: Network }) {
   const tr = useTr()
   const [code, setCode] = useState('')
   const [busy, setBusy] = useState(false)
@@ -154,8 +159,8 @@ export function RecoverSheet({ store }: { store: BotStore }) {
     if (busy || !code.trim()) return
     setBusy(true)
     try {
-      await network.recover(store, code)
-      setResult({ ok: true, text: tr('{name} is the owner now. Remove the lost computer from the list.').replaceAll('{name}', store.network?.computer ?? store.hostName) })
+      await network.recover(store, net.id, code)
+      setResult({ ok: true, text: tr('{name} is the owner now. Remove the lost computer from the list.').replaceAll('{name}', net.computer) })
     } catch (e) {
       setResult({ ok: false, text: errorText(e) })
     } finally {
@@ -168,6 +173,7 @@ export function RecoverSheet({ store }: { store: BotStore }) {
       <ModalHeader
         icon="key"
         title="Recover ownership"
+        subtitle={net.name}
         trailing={busy ? <Spinner /> : result?.ok ? null : <IconButton title="Recover" icon="checkmark" onClick={() => void recover()} />}
       />
       <VStack gap={16} className="network-sheet-body">

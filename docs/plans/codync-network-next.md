@@ -1,7 +1,9 @@
 # codync-network and cloud assistants: what's left
 
-Status (2026-10-26): package 1 (network screens, cloud assistants switch) is built for 2.29.0; the rest is
-planned. 2.28.0 shipped the network (`host/crates/network`, crate
+Status (2026-10-26): built for 2.29.0: packages 1 (network screens, cloud assistants switch), 2 (access rules), 4
+(a computer's address after it moves), 5 (cloud assistants across the network), 6 (a local MCP server) and several
+networks per computer from 8. Still open: 3 (Codync-run relays: renting servers waits for the user), 7, the account
+networks of 8, 9 and 10. 2.28.0 shipped the network (`host/crates/network`, crate
 `codync-network` 0.1.1 on crates.io) and the cloud assistant connector (`mcp.codync.dev`). Read first:
 [design](../design/codync-network.md) (why, and the decisions already made), [feature](../features/codync-network.md)
 (how it behaves today), [cloud assistants](../features/cloud-assistants.md), [relay §7.9](../reference/remote-relay.md).
@@ -189,7 +191,13 @@ assistant as an agent of that computer (or let the host send letters for it unde
 `message_bot` to `name@computer` through `chat::team::remote`, and keep replies in the assistant's reply store. Mind
 the ACL from package 2: the assistant is a sender like any other.
 
-## 6. A local MCP server for agents that aren't Codync bots
+## 6. A local MCP server for agents that aren't Codync bots (built)
+
+Built as `codync-host mcp network --name <agent>`: the cloud assistant's three tools, backed by the host
+(`agentCall`), each agent its own replies; no registration as a network agent, so its answers wait for
+`read_replies` instead of knocking into the session. [Feature](../features/codync-network.md#bots-across-computers).
+
+Before:
 
 Claude Code or Codex sessions on the same computer use the standalone daemon's CLI today. Give them an MCP server:
 `codync-host mcp network` over stdio, or the daemon's own. It offers `list_bots`, `message_bot` and `read_replies`,
@@ -205,6 +213,11 @@ can drop entries that no longer count (an admission whose computer was removed, 
 frame as the reason. This is a wire change: keep old peers working by falling back to the whole log.
 
 ## 8. Account networks and several networks per computer
+
+Several networks per computer is built (2.29.0), with one node per network instead of one node with several
+rosters: [design](../design/codync-network.md#several-networks-one-node-each). Account networks and per-network
+lists of offered bots are still to do.
+
 
 - **Account networks**: the account vouches for its computers, so a computer signed into the account is admitted
   without an invite. It's still signed by a member computer, never by the cloud.

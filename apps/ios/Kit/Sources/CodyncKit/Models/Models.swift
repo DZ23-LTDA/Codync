@@ -304,6 +304,9 @@ public struct BotDraft: Codable, Hashable, Sendable {
     public var skills: [String]?
     public var computer: Bool?
     public var manageTeam: Bool?
+    /// Nil from a host without the switch, so it isn't sent.
+    public var offeredToNetwork: Bool?
+    public var reachableByAssistants: Bool?
     /// Only sent when the user changes it: unset, the host picks by the bot's folder.
     public var sharedMemory: Bool?
     /// Only sent when the user changes it.
@@ -343,6 +346,8 @@ public struct BotDraft: Codable, Hashable, Sendable {
         skills = bot.skills
         computer = bot.computer
         manageTeam = bot.manageTeam
+        offeredToNetwork = bot.offeredToNetwork
+        reachableByAssistants = bot.reachableByAssistants
     }
 
     /// This draft with each field it hasn't changed from `base` (the bot as the form loaded it) taken from `fresh`
@@ -357,7 +362,7 @@ public struct BotDraft: Codable, Hashable, Sendable {
         follow(\.command); follow(\.cwd); follow(\.permission); follow(\.model); follow(\.modelOptions)
         follow(\.fastMode); follow(\.fallbacks); follow(\.selfFallbacks); follow(\.pinned); follow(\.hidden)
         follow(\.notify); follow(\.connectors); follow(\.skills); follow(\.computer); follow(\.manageTeam)
-        follow(\.sharedMemory); follow(\.harnessMemory)
+        follow(\.sharedMemory); follow(\.harnessMemory); follow(\.offeredToNetwork); follow(\.reachableByAssistants)
         return draft
     }
 }

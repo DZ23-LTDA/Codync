@@ -54,25 +54,48 @@ In a [group chat](/docs/groups), members don't message each other this way; they
 
 ## Bots on your other computers
 
-Your computers can join one private network, codync-network, so a bot on your desktop can ask a bot on your laptop or server. Computers connect to each other directly; when they can't, traffic goes through a relay that sees only encrypted data. The network stays off until you set it up on each computer, in the Codync app or the terminal UI there. Phones only show it: who is in the network is decided at a computer.
+Your computers can join private networks, codync-network, so a bot on your desktop can ask a bot on your laptop or server. Computers connect to each other directly; when they can't, traffic goes through a relay that sees only encrypted data. Networks stay off until you set them up on each computer, in the Codync app or the terminal UI there. Phones only show them: who is in a network is decided at a computer. Networks are a **beta** feature.
 
 - **Desktop:** Settings → **Computers**, the **Network** section under each computer.
 - **Terminal UI:** `N` (or **Network** in the `^k` palette).
 - **iPhone and Android:** the network button on a computer's row in **Settings** lists the computers, whether each one answers and the bots it offers.
 
-On the first computer, choose **Create network**. That computer becomes its owner. Codync then shows a **recovery code**, once: keep it in a password manager. It makes another computer the owner if this one is lost (**Recover ownership** on that computer), and it's kept on no computer, so it can't be shown again.
+On the first computer, choose **Create network** and give the network a name (for example `home`). That computer becomes its owner. Codync then shows a **recovery code**, once: keep it in a password manager. It makes another computer the owner if this one is lost (**Recover ownership** on that computer), and it's kept on no computer, so it can't be shown again.
 
 Then add each other computer with a one-time invite, good for an hour while the inviting computer stays on: **Invite a computer** on the owner, then **Join with invite** on the new computer and paste it.
 
 The network lists every computer with its role, whether it answers and how many bots it offers. The owner can make a computer an admin (**Make admin**), which can then invite computers and remove plain members too. **Remove** takes a computer out for good; **Remove with its invites** is for a stolen one, to also remove every computer it added. A computer that was off hears about a removal when it's back.
 
-Prefer the command line? `codync-host network` does the same: `create [name]`, `invite`, `join '<invite>' [name]`, `peers`, `promote <computer>`, `remove <computer> [--cascade]` and `recover <code>`. On a Mac where you installed the app from the disk image rather than with Homebrew, `codync-host` is inside the app: `/Applications/Codync.app/Contents/Resources/codync-host`.
+### Several networks
+
+A computer can be in more than one network, for example `home` with your laptop and `work` with a server. Each network is separate: its own members, roles, invites and rules, and the computers in one don't learn that yours is also in another. Create or join another one the same way; the invite brings the network's name with it. **Leave network** takes this computer out of one (the others keep listing it until you remove it there).
+
+While a computer is in several networks, addresses name the network: `reviewer@desk.home`. A shorter `reviewer@desk` or `reviewer` still works when only one network has it.
+
+Prefer the command line? `codync-host network` does the same: `create [name] --network home`, `invite`, `join '<invite>' [name]`, `peers`, `promote <computer>`, `remove <computer> [--cascade]`, `recover <code>` and `leave`, each with `--network <name>` when the computer is in several. On a Mac where you installed the app from the disk image rather than with Homebrew, `codync-host` is inside the app: `/Applications/Codync.app/Contents/Resources/codync-host`.
 
 Once your computers are in the network, nothing else changes for your bots. A bot lists the bots on your other computers along with its own, as `name@computer` (for example `reviewer@desk`), and asks them the same way. The request runs in that bot's chat on its computer, with that computer's approvals, and the answer comes back to the sender. The rows in the chats name the bot and its computer, for example "Messaged Reviewer on desk".
 
 - **Away computers:** a request to a computer that's asleep waits up to a day and goes out when it's back.
 - **Limits:** besides the limits below, each computer accepts a burst of 5 messages between the same two bots, then one every 2 minutes, and refuses the same words twice within 10 minutes.
-- **Connector:** when you create or join, **When there's no direct path** picks how computers reach each other: **Public relays** (iroh's, meant for trying things out; the default), **Your own relay** (an `iroh-relay` you run) or **Private: direct only** (computers on the same network, Tailscale or a VPN). On the command line: `--connector public|private|https://your-relay`.
+- **Connector:** each network has its own. When you create or join, **When there's no direct path** picks how computers reach each other: **Public relays** (iroh's, meant for trying things out; the default), **Your own relay** (an `iroh-relay` you run) or **Private: direct only** (computers on the same network, Tailscale or a VPN). On the command line: `--connector public|private|https://your-relay`.
+
+### Choose who reaches your bots
+
+Each computer decides for itself who may message its bots; the senders can't get around it.
+
+- **Offered to the network**, in each bot's settings: turn it off and your other computers don't list that bot, and can't message it. On by default.
+- **Who may message bots here**, under each network on the desktop (or `w` in the terminal UI's network sheet): rules such as "Deny: any bot on server → any bot here" or "Allow: Lead on laptop → Reviewer". The first rule that matches decides, and without rules every computer in the network may message every bot. A refused bot is told why, and its request ends failed. Answers to this computer's own requests always get in. Phones show the rules but don't change them.
+
+### Agents that aren't Codync bots
+
+A Claude Code, Codex or other agent session on the same computer can list your bots (here and on your other computers), message one and read its reply, through an MCP server the host runs:
+
+```sh
+claude mcp add codync -- codync-host mcp network --name "Claude Code"
+```
+
+The bot's chat shows "Message from Claude Code (this computer)". Bots can take minutes, so the session collects answers with `read_replies` when it's ready, rather than waiting.
 
 ## Manage the team
 

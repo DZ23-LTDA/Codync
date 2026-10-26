@@ -10,10 +10,12 @@ else a generic "Bug fixes and improvements" line. Delete old sections.
 ## 2.29.0
 
 ### zh-Hant
-- 設定裡每台電腦多了網路按鈕：看網路裡的電腦、是否在線、提供哪些 Bot，以及雲端助理是否開啟。
+- 設定裡每台電腦多了網路按鈕（Beta）：一台電腦可加入多個網路，列出各網路的電腦、是否在線、提供的 Bot、誰能傳訊息給這裡的 Bot，以及雲端助理是否開啟。
+- Bot 設定多了「提供給網路」與「雲端助理可聯繫」開關。
 
 ### en-US
-- A network button on each computer in Settings shows your network's computers, whether each answers, its bots, and whether cloud assistants are on.
+- A network button (beta) on each computer in Settings: a computer can be in several networks; see each one's computers, whether each answers, its bots, who may message the bots here, and cloud assistants.
+- Bot settings have Offered to the network and Reachable by cloud assistants.
 
 ## 2.28.0
 

@@ -52,6 +52,10 @@ export interface Bot {
   computer: boolean
   /** The bot can create bots (which can too) and change any bot's setup (the built-in `manage` tools); null from an older host. */
   manageTeam: boolean | null
+  /** Other computers in the user's networks list this bot and may message it; null from an older host. */
+  offeredToNetwork: boolean | null
+  /** The user's cloud assistant lists this bot and may message it; null from an older host. */
+  reachableByAssistants: boolean | null
   /** The bot that created this one; null when the user did. */
   createdBy: string | null
   /** Uses the memory all the user's bots share ("About you"). */
@@ -108,6 +112,8 @@ export function normalizeBot(raw: Partial<Bot> & { id: string }): Bot {
     skills: raw.skills ?? [],
     computer: raw.computer ?? false,
     manageTeam: raw.manageTeam ?? null,
+    offeredToNetwork: raw.offeredToNetwork ?? null,
+    reachableByAssistants: raw.reachableByAssistants ?? null,
     createdBy: raw.createdBy ?? null,
     sharedMemory: raw.sharedMemory ?? raw.managedWorkspace ?? false,
     harnessMemory: raw.harnessMemory ?? null,
@@ -590,6 +596,8 @@ export interface BotDraft {
   skills?: string[]
   computer?: boolean
   manageTeam?: boolean
+  offeredToNetwork?: boolean
+  reachableByAssistants?: boolean
   sharedMemory?: boolean
   harnessMemory?: boolean
 }
@@ -617,6 +625,8 @@ export function draftOf(bot: Bot): BotDraft {
     skills: bot.skills,
     computer: bot.computer,
     manageTeam: bot.manageTeam ?? undefined,
+    offeredToNetwork: bot.offeredToNetwork ?? undefined,
+    reachableByAssistants: bot.reachableByAssistants ?? undefined,
   }
 }
 

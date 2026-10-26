@@ -1,8 +1,9 @@
 import CodyncKit
 import SwiftUI
 
-/// A computer's network of the user's other computers, read-only: who is in it, whether each one
-/// answers and which bots it offers, and whether cloud assistants may reach this computer's bots.
+/// A computer's networks of the user's other computers, read-only: who is in each, whether each one
+/// answers and which bots it offers, who may message this computer's bots there, and whether cloud
+/// assistants may reach them.
 /// Changes are made at a computer. The computer is the `BotStore` in the environment.
 public struct NetworkSheet: View {
     @Environment(BotStore.self) private var store
@@ -25,9 +26,21 @@ public struct NetworkSheet: View {
                 }
             }
             CardForm {
-                if let view = store.network, view.joined {
-                    CardSection("Computers", footer: "Changes are made on a computer: in Codync's settings there, or with codync-host network.") {
-                        ForEach(view.computers ?? []) { NetworkComputerRow(computer: $0) }
+                let networks = store.network?.networks ?? []
+                ForEach(networks) { network in
+                    // One section per network; the note that changes happen at a computer closes the last.
+                    CardSection(network.name, footer: network.id == networks.last?.id
+                                ? "Changes are made on a computer: in Codync's settings there, or with codync-host network." : nil) {
+                        ForEach(network.computers ?? []) { NetworkComputerRow(computer: $0) }
+                    }
+                    if let rules = network.rules, !rules.isEmpty {
+                        CardSection("Who may message bots here", footer: "The first rule that matches decides. Without rules, every computer in the network may message every bot here. Answers to this computer's own messages always get in.") {
+                            ForEach(Array(rules.enumerated()), id: \.offset) { _, rule in
+                                Text(network.text(of: rule)).font(.subheadline).foregroundStyle(Palette.text)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .padding(.vertical, 4)
+                            }
+                        }
                     }
                 }
                 if store.network?.assistantsAvailable == true {
