@@ -141,7 +141,7 @@ struct ComputersView: View {
 
 /// A computer this iPhone can use, as the rows of its card: its connection and whether it's in the account,
 /// then Extensions, Voice chat (its keys live on the computer), Screen, whether it sends push alerts here,
-/// how it's reached and, for a stale pairing, Remove.
+/// how it's reached, the Codync it runs (and its update) and, for a stale pairing, Remove.
 private struct ComputerRows: View {
     let store: BotStore
     let inAccount: CloudComputer?
@@ -179,6 +179,9 @@ private struct ComputerRows: View {
         }
         .toggleStyle(.codync)
         connection
+        if store.connection == .online, store.hello != nil {
+            CodyncVersionRow(store: store)
+        }
         if accounts.isStale(store.computer.id), inAccount == nil {
             Button(action: remove) { RowLabel("Remove", systemImage: "trash", tint: Palette.danger) }
                 .buttonStyle(.plain)
@@ -284,6 +287,46 @@ private struct ComputerRows: View {
         let count = store.roster.count
         let route = RelayCopy.detailSuffix(route: store.hostRoute, cloud: store.computer.cloud)
         return "\(count) bot\(count == 1 ? "" : "s")\(route)"
+    }
+}
+
+/// The Codync a computer runs, and its update when one is due (`HostVersionLine`).
+private struct CodyncVersionRow: View {
+    let store: BotStore
+    /// Moved on when an update asked from here runs out of time, so one that never finished is offered again.
+    @State private var now = Date.now
+
+    var body: some View {
+        if let line = store.hostVersionLine(now: max(now, .now)) {
+            HStack(spacing: 12) {
+                Image(systemName: "arrow.down.circle").font(.system(size: 17)).frame(width: 26)
+                VStack(alignment: .leading, spacing: 3) {
+                    HStack(spacing: 8) {
+                        Text(verbatim: "Codync")
+                        Text(verbatim: line.version).foregroundStyle(Palette.secondary).monospacedDigit()
+                    }
+                    if !line.detail.isEmpty {
+                        Text(line.detail.map { L10n.tr($0) }.joined(separator: " "))
+                            .font(.footnote)
+                            .foregroundStyle(line.warns ? Palette.warning : Palette.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                switch line.accessory {
+                case .updating: Spinner(size: 16)
+                case let .button(title): Button(L10n.tr(title), action: store.requestHostUpdate).buttonStyle(.primary)
+                case nil: EmptyView()
+                }
+            }
+            .foregroundStyle(Palette.text)
+            .animation(Motion.layout, value: line)
+            .task(id: store.hostUpdateWaitEnds) {
+                guard let ends = store.hostUpdateWaitEnds else { return }
+                try? await Task.sleep(for: .seconds(ends.timeIntervalSinceNow))
+                now = .now
+            }
+        }
     }
 }
 

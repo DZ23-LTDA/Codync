@@ -196,6 +196,7 @@
     "hello.device": "string",
     "hello.home": "string",
     "hello.hostId": "string",
+    "hello.latestVersion": "null",
     "hello.minApp": "string",
     "hello.name": "string",
     "hello.os": "string",

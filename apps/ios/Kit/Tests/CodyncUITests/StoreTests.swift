@@ -638,9 +638,11 @@ extension FakeRemote {
 
 // MARK: - Version compatibility (docs/reference/compatibility.md)
 
-func helloJSON(version: String, minApp: String? = nil, backends: String = "[]", canUpdate: Bool = false) -> String {
+func helloJSON(version: String, minApp: String? = nil, backends: String = "[]", canUpdate: Bool = false,
+               latestVersion: String? = nil) -> String {
     let min = minApp.map { #","minApp":"\#($0)""# } ?? ""
-    return #"{"hostId":"h1","name":"Mac","version":"\#(version)"\#(min),"os":"macos","backends":\#(backends),"rev":0,"canUpdate":\#(canUpdate)}"#
+    let latest = latestVersion.map { #","latestVersion":"\#($0)""# } ?? ""
+    return #"{"hostId":"h1","name":"Mac","version":"\#(version)"\#(min)\#(latest),"os":"macos","backends":\#(backends),"rev":0,"canUpdate":\#(canUpdate)}"#
 }
 
 @MainActor @Test func hostNeedingANewerAppStopsSyncAndAsksForTheUpdate() async throws {
