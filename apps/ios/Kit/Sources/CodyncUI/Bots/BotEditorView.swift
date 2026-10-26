@@ -104,7 +104,6 @@ struct BotSettingsForm: View {
             CardSection("Instructions") { instructions }
             CardSection("Agent") {
                 fallbackBanner
-                agentPicker
                 modelPicker
                 fallbackList
             }
@@ -123,33 +122,15 @@ struct BotSettingsForm: View {
         }
     }
 
-    private var agentPicker: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            ValueRow("Agent", detail: bot?.rest(of: draft.backend)?.line) {
-                ChoicePicker(selection: Binding(get: { draft.backend }, set: { agent in
-                                 withAnimation(Motion.reduced(Motion.layout, reduceMotion)) { draft.setAgent(agent) }
-                             }),
-                             options: (model.hello?.backends ?? []).map { ($0.id, model.agentLabel($0)) } + [("custom", "Custom command")],
-                             image: { AgentIcon.image(registry: model.agentRegistry($0)) })
-            }
-            if let b = model.hello?.backends.first(where: { $0.id == draft.backend }), !b.available {
-                Text(b.installHint).font(.caption).foregroundStyle(Palette.warning)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            }
-            if draft.backend == "custom" {
-                TextField("ACP command, e.g. my-agent --acp", text: Binding(get: { draft.command ?? "" }, set: { draft.command = $0.isEmpty ? nil : $0 }))
-                    .font(.callout.monospaced())
-                    .plainTextInput()
-                    .fieldBox()
-            }
-        }
-    }
-
     private var modelPicker: some View {
         AgentModelPicker(backend: draft.backend, selection: $draft.model, options: $draft.modelOptions,
                          fastMode: Binding(get: { draft.fastMode ?? false }, set: { on in
                              withAnimation(Motion.reduced(Motion.fade, reduceMotion)) { draft.fastMode = on }
-                         }), bot: bot)
+                         }), bot: bot,
+                         agents: (model.hello?.backends ?? []).map { ($0.id, model.agentLabel($0)) } + [("custom", "Custom command")],
+                         onAgentChange: { draft.setAgent($0) }, command: $draft.command,
+                         installHint: model.hello?.backends.first { $0.id == draft.backend && !$0.available }?.installHint,
+                         restLine: bot?.rest(of: draft.backend)?.line)
     }
 
     /// While the bot runs on a fallback: which, and Switch back.
@@ -203,8 +184,7 @@ struct BotSettingsForm: View {
                     Text(model.hostName).lineLimit(1)
                 }
                 if part == .all {
-                    agentPicker
-                    modelPicker
+                        modelPicker
                     fallbackList
                 }
                 ValueRow("Workspace", detail: draft.cwd.isEmpty

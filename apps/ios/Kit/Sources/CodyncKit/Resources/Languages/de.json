@@ -1238,5 +1238,8 @@
   "Install it first.": "Installiere es zuerst.",
   "Not set up on {name} yet.": "Auf {name} noch nicht eingerichtet.",
   "Downloads {name} on {host} if it needs to, then checks its sign-in.": "Lädt {name} bei Bedarf auf {host} herunter und prüft dann die Anmeldung.",
-  "Rate on the App Store": "Im App Store bewerten"
+  "Rate on the App Store": "Im App Store bewerten",
+  "Search agents": "Agenten suchen",
+  "Search models": "Modelle suchen",
+  "No results": "Keine Ergebnisse"
 }

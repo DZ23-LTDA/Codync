@@ -132,14 +132,25 @@ pub(super) fn form_view(buf: &mut Buffer, area: Rect, app: &App, f: &Form) {
             Field::ModelOptions => {
                 let offered = app.model_settings(&f.backend, f.model.text.trim());
                 if offered.is_empty() {
-                    put(buf, vx, y, vw, "none for this model", t.dim.patch(base));
+                    let error = app
+                        .models
+                        .get(&f.backend)
+                        .and_then(Option::as_ref)
+                        .and_then(|models| models.iter().find(|m| m.id == f.model.text.trim()))
+                        .and_then(|model| model.options_error.as_deref());
+                    put(buf, vx, y, vw, error.unwrap_or("none for this model"), t.dim.patch(base));
                 }
                 let mut x = vx;
                 for (j, o) in offered.iter().enumerate() {
                     let picked = f.model_options().and_then(|p| p.get(&o.id));
-                    let value = picked.map_or("default", |v| {
-                        o.values.iter().find(|(id, _)| id == v).map_or(v.as_str(), |(_, name)| name.as_str())
-                    });
+                    let chosen = picked.or(o.default.as_ref());
+                    let name = chosen
+                        .map(|v| o.values.iter().find(|(id, _)| id == v).map_or(v.as_str(), |(_, name)| name.as_str()));
+                    let value = match (picked, name) {
+                        (None, Some(name)) => format!("default · {name}"),
+                        (_, Some(name)) => name.to_owned(),
+                        _ => "default".to_owned(),
+                    };
                     let item = format!("{} ‹{value}›", o.name);
                     let s = if active && j == f.sub { t.bold.add_modifier(Modifier::UNDERLINED) } else { t.text };
                     if x + u(w(&item)) >= inner.right() {

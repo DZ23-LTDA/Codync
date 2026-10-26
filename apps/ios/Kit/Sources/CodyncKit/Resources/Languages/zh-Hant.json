@@ -1238,5 +1238,8 @@
   "Install it first.": "請先安裝。",
   "Not set up on {name} yet.": "還沒在 {name} 上設定。",
   "Downloads {name} on {host} if it needs to, then checks its sign-in.": "需要的話會在 {host} 上下載 {name}，再檢查登入狀態。",
-  "Rate on the App Store": "在 App Store 評分"
+  "Rate on the App Store": "在 App Store 評分",
+  "Search agents": "搜尋智慧體",
+  "Search models": "搜尋模型",
+  "No results": "沒有結果"
 }

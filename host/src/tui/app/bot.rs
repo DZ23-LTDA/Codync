@@ -93,6 +93,7 @@ pub struct AgentModel {
     pub id: String,
     pub name: String,
     pub options: Vec<ModelOption>,
+    pub options_error: Option<String>,
 }
 
 /// A model setting (effort, fast…) and its values as `(id, name)`.
@@ -100,6 +101,7 @@ pub struct ModelOption {
     pub id: String,
     pub name: String,
     pub values: Vec<(String, String)>,
+    pub default: Option<String>,
 }
 
 impl AgentModel {
@@ -112,9 +114,14 @@ impl AgentModel {
         let options = v["options"].as_array().into_iter().flatten().filter_map(|o| {
             let (name, id) = pair(o)?;
             let values = o["values"].as_array()?.iter().filter_map(|v| pair(v).map(|(n, i)| (i, n))).collect();
-            Some(ModelOption { id, name, values })
+            Some(ModelOption { id, name, values, default: o["default"].as_str().map(str::to_owned) })
         });
-        Some(Self { id, name, options: options.collect() })
+        Some(Self {
+            id,
+            name,
+            options: options.collect(),
+            options_error: v["optionsError"].as_str().map(str::to_owned),
+        })
     }
 }
 
