@@ -152,9 +152,10 @@ async fn send(hub: &Arc<Hub>, node: &Node, source: &BotConfig, letter: Letter) -
 /// The user's cloud assistant asks a bot on another computer. Returns the request's id (the
 /// letter's) at once: the letter goes in the background, and its outcome waits in the
 /// assistant's replies.
-pub(super) fn ask_for_assistant(hub: &Arc<Hub>, to: &Address, message: &str) -> Result<(String, String)> {
+pub(super) fn ask_for_assistant(hub: &Arc<Hub>, from: &str, to: &Address, message: &str) -> Result<(String, String)> {
     let node = hub.network.node().ok_or_else(|| anyhow!("this computer isn't in a network"))?;
-    let letter = Letter::new(super::assistant::HANDLE, to.clone(), message);
+    hub.network.send_as(from)?;
+    let letter = Letter::new(from, to.clone(), message);
     let (id, peer) = (letter.id.clone(), peer_name(hub, to));
     awaits_for_assistant(hub, &id, &peer, message);
     let (hub, request) = (hub.clone(), id.clone());

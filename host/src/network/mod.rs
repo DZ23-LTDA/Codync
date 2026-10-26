@@ -41,6 +41,9 @@ pub struct Network {
     node: OnceLock<Arc<Node>>,
     asked: Mutex<Option<Instant>>,
     handles: Mutex<handles::Handles>,
+    /// Names this computer sends letters as without offering them (`Node::set_senders`): the cloud
+    /// assistant, and agents that aren't bots (`codync-host mcp network`).
+    senders: Mutex<std::collections::BTreeSet<String>>,
 }
 
 /// Who a `message_bot` request is for.
@@ -112,6 +115,20 @@ impl Network {
         }
     }
 
+    /// Lets this computer send letters as `name` without offering it, unless a bot goes by it.
+    pub fn send_as(&self, name: &str) -> Result<()> {
+        if let Some(bot) = self.bot_for(name) {
+            bail!("a bot here ({bot}) already goes by {name} on the network: give the agent another name");
+        }
+        let mut senders = self.senders.locked();
+        if senders.insert(name.to_owned())
+            && let Some(node) = self.node()
+        {
+            node.set_senders(senders.iter().cloned());
+        }
+        Ok(())
+    }
+
     /// This computer's bot behind an address name, if any.
     pub fn bot_for(&self, handle: &str) -> Option<String> {
         self.handles.locked().bot(handle)
@@ -138,7 +155,6 @@ async fn boot(hub: &Arc<Hub>) -> Result<Arc<Node>> {
     if let Err(error) = node.set_rules(rules) {
         tracing::warn!(error = format!("{error:#}"), "couldn't apply the network's rules; none apply");
     }
-    node.set_senders([crate::chat::team::assistant::HANDLE.to_owned()]);
     let node = Arc::new(node);
     hub.network.node.set(node.clone()).map_err(|_| anyhow!("the network is already starting; try again"))?;
     tokio::spawn(watch(hub.clone(), node.changes()));

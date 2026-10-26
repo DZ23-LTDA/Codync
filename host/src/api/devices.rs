@@ -46,6 +46,7 @@ const LOCAL_ONLY: &[&str] = &[
     "computerTools",
     "chatCall",
     "teamCall",
+    "agentCall",
     "manageCall",
     "memoryCall",
     "routineCall",

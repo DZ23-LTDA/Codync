@@ -26,7 +26,7 @@ async fn the_cloud_assistant_needs_the_switch_and_the_account_and_reads_replies_
     assert_eq!((&listed["id"], &listed["result"]["bots"][0]["id"]), (&json!("c1"), &json!("b")));
     let sent = call(hub, "user_1", "message_bot", &json!({"botId": "b", "message": "review this"})).await;
     let request = sent["result"]["requestId"].as_str().unwrap().to_owned();
-    let read = || hub.assistant.read(Some(&request))["replies"][0].clone();
+    let read = || hub.assistant.read(ID, Some(&request))["replies"][0].clone();
     f.until(|| read()["status"] == "completed").await;
     assert_eq!((&read()["bot"], &read()["reply"]), (&json!("b"), &json!("reply: review this")));
     // The bot's chat shows who asked.
@@ -50,7 +50,7 @@ async fn read_replies_tells_a_failed_request_from_a_stopped_one() {
         let sent = call(hub, "user_1", "message_bot", &json!({"botId": "b", "message": message})).await;
         sent["result"]["requestId"].as_str().unwrap().to_owned()
     };
-    let read = |request: &str| hub.assistant.read(Some(request))["replies"][0].clone();
+    let read = |request: &str| hub.assistant.read(ID, Some(request))["replies"][0].clone();
 
     let failed = ask("FAIL agent error").await;
     f.until(|| read(&failed)["status"] == "failed").await;
@@ -107,6 +107,7 @@ async fn an_answer_from_another_computer_waits_in_the_replies() {
     let f = Fixture::new();
     let hub = &f.hub;
     let added = |request: &str| Reply {
+        asker: ID.into(),
         request: request.into(),
         bot: "Coder on laptop".into(),
         quote: "status?".into(),
@@ -132,9 +133,31 @@ async fn an_answer_from_another_computer_waits_in_the_replies() {
     };
     tx.send(answer("l1", "all green", "completed")).await.unwrap();
     tx.send(answer("l2", "Couldn't finish: tests fail", "failed")).await.unwrap();
-    let read = |request: &str| hub.assistant.read(Some(request))["replies"][0].clone();
+    let read = |request: &str| hub.assistant.read(ID, Some(request))["replies"][0].clone();
     f.until(|| read("l2")["status"] == "failed").await;
     assert_eq!((&read("l1")["status"], &read("l1")["reply"]), (&json!("completed"), &json!("all green")));
     assert_eq!(read("l2")["detail"], "Couldn't finish: tests fail");
+    f.shutdown().await;
+}
+
+#[tokio::test]
+async fn an_agent_on_this_computer_asks_without_the_cloud_and_reads_only_its_own_replies() {
+    let f = Fixture::new();
+    let hub = &f.hub;
+    // No cloud switch or account: it's on the computer, and the cloud scope doesn't apply to it.
+    hub.update_bot(&json!({"id": "b", "reachableByAssistants": false})).unwrap();
+    let listed = local_call(hub, "Claude Code", "list_bots", &json!({})).await.unwrap();
+    assert!(listed["bots"].as_array().unwrap().iter().any(|b| b["id"] == "b"), "{listed}");
+    let sent =
+        local_call(hub, "Claude Code", "message_bot", &json!({"botId": "b", "message": "review this"})).await.unwrap();
+    let request = sent["requestId"].as_str().unwrap().to_owned();
+    let read = |name: &str| hub.assistant.read(&Asker::local(name).unwrap().id, Some(&request))["replies"][0].clone();
+    f.until(|| read("Claude Code")["status"] == "completed").await;
+    assert_eq!(read("Claude Code")["reply"], "reply: review this");
+    assert!(read("Codex").is_null(), "another agent doesn't see it");
+    let history = hub.store.history("b", i64::MAX, 50).unwrap();
+    let notice = history.into_iter().find(|e| e.data["delegationId"] == *request).unwrap();
+    assert_eq!(notice.data["botMessage"]["peerName"], "Claude Code (this computer)");
+    assert!(local_call(hub, " ", "list_bots", &json!({})).await.is_err(), "it needs a name");
     f.shutdown().await;
 }
