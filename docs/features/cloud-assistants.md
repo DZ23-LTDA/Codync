@@ -37,8 +37,11 @@ ChatGPT / Claude ──MCP over HTTPS──▶ mcp.codync.dev (cloud Worker)
 
 The cloud sees these calls in plain text, and a bot can run anything on its computer, so the computer decides:
 
-- **Off by default.** `codync-host cloud --assistants on` (local API `setAssistants`, loopback only) turns it on
-  for one computer; the setting is the `assistants` field of `cloudStatus`. There's no app switch yet.
+- **Off by default.** The **Cloud assistants** switch on the computer turns it on for that computer: the desktop
+  app (Settings → Computers, beside the account rows, shown while the computer is in the account) and the terminal
+  UI's network sheet (`N`, then `a`), or `codync-host cloud --assistants on`. All go through the local API
+  `setAssistants`, loopback only. The setting is the `assistants` field of `cloudStatus` and of `networkView`, which
+  phones read (they show it in the network sheet and can't change it); the `network` event carries a change.
 - **Only the computer's own account.** The Worker routes a call only to computers the token's account owns, and
   the host checks the call's account against its owner again.
 - **Not on a private relay**: it has no accounts, so the host ignores `assistant.call` there.
@@ -73,7 +76,6 @@ What lifts them, and in what order: [what's left](../plans/codync-network-next.m
 | Limit | Why, and what lifts it |
 |---|---|
 | Hosts before 2.28.0 don't answer (`assistant.call` is ignored, the call times out after 10 s) | the host side ships in 2.28.0 |
-| Only `codync-host cloud --assistants on`; no app switch | an app switch in every client (desktop, iPhone, Android, TUI) is planned |
 | Only computers in the account that use the Codync relay; a private relay has no accounts | by design: the account is how the cloud knows whose computer it is |
 | Only the connected computer's bots, not bots elsewhere in its codync-network | the assistant isn't a network agent yet ([design](../design/codync-network.md#next-in-order)) |
 | No hidden bots or groups | the same visibility rule as `list_bots` for bots |

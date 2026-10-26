@@ -99,6 +99,7 @@ host answers and sends it once the host is up.
 | `setting_changed` | host, iOS, Android | A setting is switched | `setting` (host: `remote_access`/`remote_access_url` (`on`: a relay address is saved, never the address)/`approval` (`on`: approved without the code)/`automatic_updates`/`remote_screen`/`cloud_assistants`; phones: `push`/`live_activities`), `on` |
 | `host_update_installed` | host | `installHostUpdate` | — |
 | `network_joined` | host | `networkCreate` / `networkJoin`: the computer is in a network of the user's computers | `via` (`create`/`invite`), never a name, invite or connector address |
+| `network_changed` | host | `networkInvite` / `networkPromote` / `networkRemove` / `networkRecover` | `action` (`invite`/`promote`/`remove`/`recover`), never a computer's name, the invite or the recovery code |
 
 ## Screens
 
@@ -125,6 +126,7 @@ host answers and sends it once the host is up.
 | `help` | — | — | keys overlay |
 | `library` | a chat's Library (iPhone: the details tab; Android: its sheet) | library tab | library overlay |
 | `artifact` | an artifact's viewer | an artifact's viewer | — (opens in the browser) |
+| `network` | network sheet (a computer's row in Settings) | — (part of `computers`) | network sheet |
 
 ## Funnels
 

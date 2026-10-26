@@ -8,7 +8,9 @@ Why it is built this way, the options weighed and what comes next: [design](../d
 
 ## Set it up
 
-From a terminal on each computer (the API methods are loopback-only: phones can't change who is in):
+On each computer, in the desktop app (Settings → Computers, the **Network** section of each computer it manages,
+`NetworkSection.tsx`), the terminal UI (`N`, `host/src/tui/manage/network.rs`) or the CLI. These are the only
+clients that change membership: the `network*` API methods are loopback-only, like pairing a device.
 
 ```sh
 codync-host network create [name] [--connector public|private|https://relay]   # the first computer: the owner
@@ -17,6 +19,21 @@ codync-host network join '<invite>' [name] [--connector …]                    
 codync-host network                                                            # who is around (status)
 codync-host network peers | promote <computer> | remove <computer> [--cascade] | recover <code>
 ```
+
+The apps show the recovery code once, in a sheet that only "I saved it" closes; the host keeps it nowhere and the
+apps never fetch it again. An invite shows when it stops working (`networkInvite` → `expiresAt`). Each computer row
+offers only what this computer may do to it: the host says so per row (`canRemove`, `canPromote`, from
+`Role::removes` and `Role::promotes` in the crate), so the apps never work out the role rules themselves.
+
+The iPhone and Android apps read the network through `networkView` (allowed for paired devices over the encrypted
+channel): the computers with their roles, presence and offered bots, and whether cloud assistants are on. Never an
+invite or the recovery code. The network button on a computer's row in Settings opens it; it's hidden when the host
+is older (unknown method) or the computer is neither in a network nor has cloud assistants on.
+
+**Live**: the node ticks a change hook (`Node::changes`, a `watch` channel) when members, roles, names, presence or
+offered agents change; the host sends a `network` event (`{"type":"network","network": <networkView>}`) to every
+client then and when cloud assistants are switched. `networkView` also asks the other computers in the background
+when what it heard is over a minute old, so opening the screen brings presence up to date through that event.
 
 `create` prints the **recovery code** once: the network's root key, kept on no computer. The connector picks the
 fallback when two computers can't connect directly: iroh's public relays (`public`, the default), the user's own
@@ -67,6 +84,8 @@ that was off learns of a removal.
   from a bot the computer no longer offers (renamed or deleted while it worked).
 - Exchange notices carry `botMessage.peerName` ("Reviewer on desk") for the bot on the other computer, whose id
   isn't in this computer's bot list; every client shows that name in the row, the pair sheet and its author labels.
+- Other computers' bots stay out of the apps' bot lists: a phone chats with a computer's own bots, and a bot
+  elsewhere is reached by asking a local one. The network screens list them under their computer.
 - A letter to a computer that is away waits in the sender's outbox for up to a day, and so does one for a computer
   that has started but not offered its bots yet (it answers *later*; offering them calls everyone back). A reply
   reaches its request even when the asking bot was renamed or hidden meanwhile. The chain's hop limit counts
@@ -82,7 +101,6 @@ that was off learns of a removal.
 
 Planned in order, with what each step touches: [what's left](../plans/codync-network-next.md).
 
-- The apps have no network screen: setup is the CLI above.
 - One network per computer; the `.network` address suffix comes with several.
 - Shared networks (other people's computers) need the per-network list of offered bots and inbound rules first.
 - Bots can't reach Claude Code or Codex sessions on another computer through the host (the standalone daemon can).
@@ -96,8 +114,13 @@ Planned in order, with what each step touches: [what's left](../plans/codync-net
 
 - `host/crates/network`: the crate (`node/`, `roster.rs`, `guard.rs`, `reach.rs`, `wire.rs`); `cargo test -p codync-network`
   runs computers on one machine over direct connections, without a relay or internet.
-- `host/src/network/`: the host's node, published bots and address names, the `network*` API methods.
+- `host/src/network/`: the host's node, published bots and address names, the `network*` API methods, `networkView`
+  and the `network` event.
+- Clients: desktop `apps/desktop/src/renderer/views/settings/NetworkSection.tsx` (+ `NetworkSheets.tsx`,
+  `store/network.ts`), terminal `host/src/tui/manage/network.rs` + `view/network.rs`, iPhone
+  `apps/ios/Kit/Sources/CodyncUI/NetworkSheet.swift`, Android `apps/android/app/.../NetworkSheet.kt`.
 - `host/src/chat/team/remote.rs`, `directory.rs`: requests and replies across computers, `list_bots`.
 - `host/src/network_cli.rs`: `codync-host network`.
 - `host/tests/network_e2e.rs`: two real hosts in one network, a bot messaging a bot on the other computer through
-  approval and back, and a request its recipient's user stops and one that fails.
+  approval and back, a request its recipient's user stops and one that fails, and the view with its per-row
+  permissions and the `network` event reaching both computers' apps on a promotion.

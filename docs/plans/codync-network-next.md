@@ -1,6 +1,7 @@
 # codync-network and cloud assistants: what's left
 
-Status (2026-10-26): planned, nothing below is built. 2.28.0 shipped the network (`host/crates/network`, crate
+Status (2026-10-26): package 1 (network screens, cloud assistants switch) is built for 2.29.0; the rest is
+planned. 2.28.0 shipped the network (`host/crates/network`, crate
 `codync-network` 0.1.1 on crates.io) and the cloud assistant connector (`mcp.codync.dev`). Read first:
 [design](../design/codync-network.md) (why, and the decisions already made), [feature](../features/codync-network.md)
 (how it behaves today), [cloud assistants](../features/cloud-assistants.md), [relay §7.9](../reference/remote-relay.md).
@@ -39,7 +40,11 @@ The work is split into packages, in the order to build them. Each one ships on i
   on one Mac work for the network ([the earlier e2e](../features/codync-network.md#code-and-verification)).
 - Never name another product a feature copies, in code, docs or commits.
 
-## 1. Network screens in the apps
+## 1. Network screens in the apps (built, 2.29.0)
+
+Built as below, with these choices: no QR on the invite (nothing scans one: joining happens on a computer, by
+paste); other computers' bots stay out of the bot list (the recommended default); the desktop's remove dialog offers
+"Remove" and "Remove with its invites" instead of a toggle. What it does now: [feature](../features/codync-network.md#set-it-up).
 
 **Goal**: everything `codync-host network` does, done from the desktop app and the terminal; phones see the
 network without changing it.
