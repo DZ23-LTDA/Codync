@@ -469,6 +469,8 @@ export interface Hello {
   minApp?: string
   /** `installHostUpdate` can update this computer (absent before hosts could be updated from a client). */
   canUpdate?: boolean
+  /** The latest release the computer found; null while unknown (development builds, Homebrew, Windows; absent from older hosts). */
+  latestVersion?: string | null
   cloud?: string | null
   /** Product analytics on this computer: on unless its owner turned it off. */
   analytics?: boolean

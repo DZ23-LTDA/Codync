@@ -95,27 +95,46 @@ fn route(executable: &Path) -> Result<Route> {
     Ok(Route::App)
 }
 
-/// The latest release `release_watch` found, whatever installed this host.
+/// The latest release a lookup found, whatever installed this host (`latest_version`).
 static LATEST: Mutex<Option<String>> = Mutex::new(None);
 
-/// The latest release for this platform (`hello.latestVersion`), so a phone can say whether this computer is
-/// current and offer the update; None until a lookup succeeds, and always on development builds.
-pub fn latest_version() -> Option<String> {
-    LATEST.locked().clone()
+fn note_latest(version: &str) {
+    *LATEST.locked() = Some(version.to_owned());
 }
 
-/// Looks up the latest release at start and every 6 hours, for `latest_version`. Release builds only:
-/// a development host never offers a release.
+/// The latest release for this platform (`hello.latestVersion`), so a phone can say whether this computer is
+/// current and offer the update. None until a lookup succeeds and on development builds; also on a host
+/// Homebrew owns, which `brew` updates.
+pub fn latest_version() -> Option<String> {
+    let homebrew = service::current_exe().is_ok_and(|exe| install::method(&exe) == install::Method::Homebrew);
+    LATEST.locked().clone().filter(|_| !homebrew)
+}
+
+/// Looks up the latest release at start and every 6 hours, for `latest_version`; a failed lookup (offline
+/// at login, GitHub unreachable) is tried again sooner, from a minute up to every 30 minutes. Release builds
+/// on platforms with releases only: a development host never offers one.
 pub async fn release_watch() {
-    if crate::environment::Environment::current() != crate::environment::Environment::Main {
+    if crate::environment::Environment::current() != crate::environment::Environment::Main
+        || release::platform().is_err()
+    {
         return;
     }
+    let mut retry = Duration::from_mins(1);
     loop {
-        match release::latest().await {
-            Ok(release) => *LATEST.locked() = Some(release.version),
-            Err(error) => tracing::debug!(error = format!("{error:#}"), "latest release lookup failed"),
-        }
-        tokio::time::sleep(Duration::from_hours(6)).await;
+        let wait = match release::latest().await {
+            Ok(release) => {
+                note_latest(&release.version);
+                retry = Duration::from_mins(1);
+                Duration::from_hours(6)
+            }
+            Err(error) => {
+                tracing::debug!(error = format!("{error:#}"), "latest release lookup failed");
+                let wait = retry;
+                retry = (retry * 5).min(Duration::from_mins(30));
+                wait
+            }
+        };
+        tokio::time::sleep(wait).await;
     }
 }
 
@@ -212,6 +231,7 @@ pub async fn check() -> Result<Value> {
     state.checked_at = Some(crate::store::now_ms());
     match release::latest().await {
         Ok(release) => {
+            note_latest(&release.version);
             let available = (semver::Version::parse(&release.version)?
                 > semver::Version::parse(env!("CARGO_PKG_VERSION"))?)
             .then_some(release.version);

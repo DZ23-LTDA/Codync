@@ -1244,7 +1244,7 @@
   "Search models": "搜索模型",
   "No results": "没有结果",
   "Up to date": "已是最新版本",
-  "{version} available": "有新版本 {version}",
+  "Version {version} is available.": "有新版本 {version}。",
   "This app needs {version} or newer.": "这个 App 需要 {version} 或更高版本。",
   "Update": "更新",
   "Updating Codync on {name}. This takes a few minutes.": "正在更新 {name} 上的 Codync，需要几分钟。",

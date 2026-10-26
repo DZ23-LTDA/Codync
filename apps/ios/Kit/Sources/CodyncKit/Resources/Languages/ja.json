@@ -1244,7 +1244,7 @@
   "Search models": "モデルを検索",
   "No results": "結果がありません",
   "Up to date": "最新です",
-  "{version} available": "{version} が利用可能",
+  "Version {version} is available.": "バージョン {version} が利用可能です。",
   "This app needs {version} or newer.": "このアプリには {version} 以降が必要です。",
   "Update": "アップデート",
   "Updating Codync on {name}. This takes a few minutes.": "{name} の Codync をアップデート中です。数分かかります。",

@@ -112,8 +112,8 @@ private class ComputerActions(val extensions: () -> Unit, val screen: () -> Unit
 /**
  * The paired computer as the rows of its card: its connection and whether it's in the account, then
  * Extensions, Voice chat (its keys live on the computer), Screen, whether it sends push alerts here
- * (the only computer this phone pairs, so the switch is the phone's), how it's reached and, for a stale
- * pairing, Remove (iOS `ComputerRows`).
+ * (the only computer this phone pairs, so the switch is the phone's), how it's reached, the Codync it runs
+ * (and its update) and, for a stale pairing, Remove (iOS `ComputerRows`).
  */
 private fun CardRows.computerRows(state: AppState, store: AppStore, inAccount: Boolean, actions: ComputerActions) {
     row { ComputerSummary(state, inAccount, actions) }
@@ -128,9 +128,7 @@ private fun CardRows.computerRows(state: AppState, store: AppStore, inAccount: B
         }
     }
     row { ConnectionRow(state.computers.first(), store) }
-    if (state.connection is LinkState.Ready) state.hostVersionLine(System.currentTimeMillis())?.let { line ->
-        row { CodyncVersionRow(line, store::requestHostUpdate) }
-    }
+    if (state.connection is LinkState.Ready && state.hello != null) row { CodyncVersionRow(state, store::requestHostUpdate) }
     if (state.isStale && !inAccount) row { RowLabel("Remove", "trash", Palette.danger, modifier = Modifier.plainButton(action = actions.remove)) }
 }
 
@@ -166,9 +164,9 @@ private fun CardRows.computerRows(state: AppState, store: AppStore, inAccount: B
     }
 }
 
-/** How this phone reaches the computer: the short name on the row, the whole route in the menu. */
 /** The Codync the computer runs, and its update when one is due (iOS `CodyncVersionRow`). */
-@Composable private fun CodyncVersionRow(line: HostVersionLine, update: () -> Unit) {
+@Composable private fun CodyncVersionRow(state: AppState, update: () -> Unit) {
+    val line = state.hostVersionLine(rememberHostUpdateNow(state.hostUpdate)) ?: return
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         Box(Modifier.width(26.dp), contentAlignment = Alignment.Center) { Symbol("arrow.down.circle", size = 20.dp, tint = Palette.text) }
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
@@ -179,11 +177,15 @@ private fun CardRows.computerRows(state: AppState, store: AppStore, inAccount: B
             if (line.detail.isNotEmpty()) Text(line.detail.map { tr(it) }.joinToString(" "), style = Type.footnote,
                 color = if (line.warns) Palette.warning else Palette.secondary)
         }
-        if (line.updating) Spinner(16.dp)
-        line.action?.let { PrimaryButton(it, action = update) }
+        when (val accessory = line.accessory) {
+            HostVersionLine.Accessory.Updating -> Spinner(16.dp)
+            is HostVersionLine.Accessory.Button -> PrimaryButton(accessory.title, action = update)
+            null -> {}
+        }
     }
 }
 
+/** How this phone reaches the computer: the short name on the row, the whole route in the menu. */
 @Composable private fun ConnectionRow(computer: Computer, store: AppStore) {
     DropdownMenu({ ConnectionRoute.entries.map { route -> MenuItem(routeTitle(route, computer.cloud), icon = route.icon, selected = route == computer.route) { store.setRoute(route) } } },
         Modifier.fillMaxWidth(), label = "Connection") {

@@ -11,7 +11,7 @@ import {
 } from '@shared/models'
 import type { HostClient, HostRoute, HostTransport } from '../client/host-client'
 import { rosterOrder } from '../lib/computer-roster'
-import { offerHostUpdate, type HostUpdate, type HostUpdateOffer } from '../lib/host-update'
+import { HOST_UPDATE_WAIT, hostVersionLine, offerHostUpdate, type HostUpdate, type HostUpdateOffer, type HostVersionLine } from '../lib/host-update'
 import { Observable } from '../lib/observable'
 import { ComposerDrafts } from '@shared/composer-drafts'
 import { canLoadHistory } from '@shared/mirror-window'
@@ -109,6 +109,18 @@ export class BotMirror extends Observable {
   /** What the update notice offers while this computer is behind this app. */
   get hostUpdateOffer(): HostUpdateOffer {
     return offerHostUpdate(this.hostUpdate, this.hello?.canUpdate === true)
+  }
+
+  /** This computer's Codync row at `now` (Settings > Computers); null until its `hello` arrives. */
+  hostVersionLine(now = Date.now()): HostVersionLine | null {
+    if (!this.hello) return null
+    return hostVersionLine(this.hello.version, this.hello.latestVersion, this.mismatch,
+      offerHostUpdate(this.hostUpdate, this.hello.canUpdate === true, now), this.hostName, this.hello.os)
+  }
+
+  /** When an update asked from here stops reading as under way; null when none was asked. */
+  get hostUpdateWaitEnds(): number | null {
+    return this.hostUpdate?.kind === 'requested' ? this.hostUpdate.at + HOST_UPDATE_WAIT : null
   }
 
   /** Roster order: the lead, then pinned bots, then where the user dragged them, then most recent activity. */

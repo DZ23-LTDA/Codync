@@ -1244,7 +1244,7 @@
   "Search models": "Buscar modelos",
   "No results": "Sin resultados",
   "Up to date": "Actualizado",
-  "{version} available": "{version} disponible",
+  "Version {version} is available.": "La versión {version} está disponible.",
   "This app needs {version} or newer.": "Esta app necesita {version} o una versión más reciente.",
   "Update": "Actualizar",
   "Updating Codync on {name}. This takes a few minutes.": "Actualizando Codync en {name}. Tarda unos minutos.",

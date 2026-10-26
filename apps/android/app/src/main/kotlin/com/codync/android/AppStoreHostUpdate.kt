@@ -55,30 +55,36 @@ private fun howToUpdate(os: String?) = when (os) {
  * sentences, each its own phrase to translate.
  */
 internal data class HostVersionLine(val version: String, val detail: List<String>, val warns: Boolean = false,
-    val action: String? = null, val updating: Boolean = false)
+    val accessory: Accessory? = null) {
+    /** What the row ends with: a spinner while the computer updates, or the button that asks it to. */
+    sealed interface Accessory {
+        data object Updating : Accessory
+        data class Button(val title: String) : Accessory
+    }
+}
 
 /** `latest` is the latest release the computer found (null while it doesn't know: then no verdict). */
 internal fun hostVersionLine(version: String, latest: String?, mismatch: VersionMismatch?, canUpdate: Boolean,
     update: HostUpdate?, host: String, os: String?, now: Long): HostVersionLine {
-    if (update.updating(now)) return HostVersionLine(version, listOf(updatingText(host)), updating = true)
+    if (update.updating(now)) return HostVersionLine(version, listOf(updatingText(host)), accessory = HostVersionLine.Accessory.Updating)
     val minimum = (mismatch as? VersionMismatch.UpdateHost)?.minimum
     val available = latest?.takeIf { AppVersion.isBelow(version, it) }
-    val due = minimum?.let { "This app needs $it or newer." } ?: available?.let { "$it available" }
+    val due = minimum?.let { "This app needs $it or newer." } ?: available?.let { "Version $it is available." }
         ?: return HostVersionLine(version, if (latest == null) emptyList() else listOf("Up to date"))
     if (!canUpdate) return HostVersionLine(version, listOf(due, howToUpdate(os)), warns = minimum != null)
+    val tryAgain = HostVersionLine.Accessory.Button("Try again")
     return when (update) {
-        is HostUpdate.Failed -> HostVersionLine(version, listOf(update.message), warns = true, action = "Try again")
-        is HostUpdate.Requested -> HostVersionLine(version, listOf(notUpdatedText(host)), warns = true, action = "Try again")
-        null -> HostVersionLine(version, listOf(due), warns = minimum != null, action = "Update")
+        is HostUpdate.Failed -> HostVersionLine(version, listOf(update.message), warns = true, accessory = tryAgain)
+        is HostUpdate.Requested -> HostVersionLine(version, listOf(notUpdatedText(host)), warns = true, accessory = tryAgain)
+        null -> HostVersionLine(version, listOf(due), warns = minimum != null, accessory = HostVersionLine.Accessory.Button("Update"))
     }
 }
 
-/** This computer's Codync row; null until its `hello` arrives. */
+/** This computer's Codync row at `now`; null until its `hello` arrives. */
 internal fun AppState.hostVersionLine(now: Long): HostVersionLine? {
     val hello = hello ?: return null
     val version = hello.text("version") ?: return null
-    val host = hello.text("name") ?: computers.firstOrNull()?.name ?: "your computer"
-    return hostVersionLine(version, hello.text("latestVersion"), mismatch, canUpdateHost, hostUpdate, host, hello.text("os"), now)
+    return hostVersionLine(version, hello.text("latestVersion"), mismatch, canUpdateHost, hostUpdate, hostName, hello.text("os"), now)
 }
 
 /** Asks a computer that's behind to install the latest release (the update card's Update now). */
