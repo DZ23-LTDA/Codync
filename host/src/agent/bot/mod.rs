@@ -105,6 +105,7 @@ pub fn spawn(hub: Arc<Hub>, base: BotConfig) -> BotHandle {
         turn_call: None,
         turn_memory_revision: String::new(),
         announce: None,
+        first_prompt: None,
         turn: None,
         queue: VecDeque::new(),
         active_request: None,
@@ -267,6 +268,8 @@ struct Actor {
     turn_memory_revision: String,
     /// A profile update this turn carried, recorded once the agent got it.
     announce: Option<(Snapshot, Identity)>,
+    /// The snapshot of a new session's first prompt, marked delivered once the agent answered it.
+    first_prompt: Option<Snapshot>,
     turn: Option<i64>,
     queue: VecDeque<Queued>,
     active_request: Option<crate::chat::team::BotRequest>,
