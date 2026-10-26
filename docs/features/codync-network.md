@@ -33,7 +33,7 @@ offers only what this computer may do to it: the host says so per row (`canRemov
 The iPhone and Android apps read the network from the event stream's hello and through `networkView` (allowed for
 paired devices over the encrypted channel): the computers with their roles, presence and offered bots, and whether
 cloud assistants are on (`assistants`) and can reach the computer at all (`assistantsAvailable`: it's in a Codync
-account). Never an invite or the recovery code. The network button on a computer's row in Settings opens it; it's
+account). Never an invite or the recovery code. The **Network** row on the computer's card in Manage computers (and its long-press menu) opens it; it's
 hidden when the host is older (no `network` in the hello) or the computer is neither in a network nor has cloud
 assistants on that can reach it.
 

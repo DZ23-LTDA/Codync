@@ -115,8 +115,8 @@ host answers and sends it once the host is up.
 | `memory` | bot memory (Android: the card in bot details, once it scrolls into sight) | memory tab | memory overlay |
 | `routines` | routines (iPhone: a routine's editor, the list being part of bot details) | a routine's editor | routines overlay |
 | `marketplace` | extensions | extensions | marketplace overlay |
-| `settings` | computers & settings, opened from the account | settings | — |
-| `computers` | computers & settings, opened from the computers sheet | computers & devices | — |
+| `settings` | Settings tab | settings | — |
+| `computers` | Computer management, from Manage computers or a link | computers & devices | — |
 | `usage` | usage | usage | usage overlay |
 | `account` | account sheet | account panel | — |
 | `pairing` | pair a computer after setup (first run: `onboarding_step_viewed`) | pair a phone | pair overlay |
@@ -126,7 +126,7 @@ host answers and sends it once the host is up.
 | `help` | — | — | keys overlay |
 | `library` | a chat's Library (iPhone: the details tab; Android: its sheet) | library tab | library overlay |
 | `artifact` | an artifact's viewer | an artifact's viewer | — (opens in the browser) |
-| `network` | network sheet (a computer's row in Settings) | — (part of `computers`) | network sheet |
+| `network` | network sheet (Network on a computer's card in Manage computers) | — (part of `computers`) | network sheet |
 
 ## Funnels
 

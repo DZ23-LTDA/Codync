@@ -252,6 +252,7 @@ impl App {
                             f.backend.clone_from(&ids[cycle(i, d, ids.len())]);
                             // Another agent's model ids mean nothing here, and it can't be its own fallback.
                             f.model.clear();
+                            f.model_options = Default::default();
                             let own = f.backend.clone();
                             f.fallbacks.retain(|x| x.backend != own);
                             self.want_models(&f.backend);
@@ -390,6 +391,21 @@ impl Form {
 mod tests {
     use super::super::{AgentModel, test_app};
     use super::*;
+
+    #[tokio::test]
+    async fn changing_agent_clears_default_model_effort() {
+        let mut app = test_app();
+        app.backends = vec![json!({"id": "claude", "available": true}), json!({"id": "codex", "available": true})];
+        let bot = json!({"id": "b", "backend": "claude", "modelOptions": {"effort": "high"}});
+        app.bots.insert("b".into(), Bot::parse(&bot).expect("a bot"));
+        app.selected = Some("b".into());
+        app.edit_bot();
+        let Some(Overlay::Form(mut f)) = app.overlays.pop() else { panic!("editor opens") };
+        f.field = FIELDS.iter().position(|x| *x == Field::Agent).expect("agent field");
+        let Some(Overlay::Form(f)) = app.form_key(f, KeyEvent::from(KeyCode::Right)) else { panic!("editor stays") };
+        assert_ne!(f.backend, "claude");
+        assert!(f.model_options.1.is_empty());
+    }
 
     #[tokio::test]
     async fn model_options_cycle_and_belong_to_their_model() {
