@@ -142,7 +142,7 @@ that was off learns of a removal.
   reaches its request even when the asking bot was renamed or hidden meanwhile. The chain's hop limit counts
   across computers (replies carry it back, one more handoff each), and the receiving computer enforces its own budgets:
   8 handoffs per chain, a burst of 5 messages per pair of agents then one every 2 minutes, the same words twice in
-  10 minutes refused. A letter's id is at most 64 bytes, its addresses 128, its body 64 KiB; what another computer
+  10 minutes refused. A letter's id is at most 64 bytes, its addresses 256 (40 characters of any script), its body 64 KiB; what another computer
   offers is kept to its first 200 agents, names cut to 80 bytes and descriptions to 1 KiB. A letter that isn't a
   request (a notice, or a reply nobody waits for after a restart) shows as a "Note from …" notice in the bot's chat.
 - Agents on this computer that aren't Codync bots (a Claude Code or Codex session) get `list_bots`, `message_bot`
