@@ -245,6 +245,7 @@ function ChatSplitView() {
       window.codync.app.onCommand((c) => {
         if (c.kind === 'newBot' && onlineStores.length) create('bot')
         if (c.kind === 'search') setSearching(true)
+        if (c.kind === 'networkSettings') setSettings('network')
         if (c.kind === 'toggleSidebar') setCompact(!prefs.sidebarCompact.get())
         if (c.kind === 'voiceKey') {
           // No chat open: talk to the top bot in the sidebar.

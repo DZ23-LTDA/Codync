@@ -1142,6 +1142,7 @@
   "Stop task": "작업 중지",
   "Enable remote screen": "원격 화면 활성화",
   "Set up computer access…": "컴퓨터 접근 설정…",
+  "Network settings…": "네트워크 설정…",
   "Restarting…": "재시작 중…",
   "Restart to update": "업데이트를 위해 재시작",
   "Downloading… {percent}%": "다운로드 중… {percent}%",
