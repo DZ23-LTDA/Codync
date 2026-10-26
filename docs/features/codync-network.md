@@ -108,7 +108,11 @@ that was off learns of a removal.
   deleted bot can't reach the wrong one. What the network offers is published after each bot is created, changed
   or deleted.
 - `list_bots` lists this computer's bots, then the other computers' (ids `name@computer`, `status` online/away),
-  filtered by `query`, `computer`, `online`, and paged by `limit` (default 20, at most 50) and `cursor`. A listing
+  filtered by `query`, `computer`, `online` and `kind`, and paged by `limit` (default 20, at most 50) and `cursor`.
+  Every row says its `kind`: `codync` (a Codync bot), `claude-code`, `codex` (sessions a standalone daemon offers),
+  `terminal`, or `other` (a computer from before kinds). Each computer states the kind in what it offers
+  (`codync_network::AgentKind` on the wire `Agent`); for the sessions the network knocks on, the crate takes it from
+  their `Reach`, and the network view's `agents` carry it too. A listing
   past the limit adds `summary` (bots per computer). What other computers offer is cached for a minute and refreshed
   in the background; the first listing waits up to 5 s for it.
 - `message_bot` takes a bot id, an address name, or `name@computer`. A request to another computer is a letter; the

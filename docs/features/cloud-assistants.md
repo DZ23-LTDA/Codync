@@ -25,7 +25,8 @@ ChatGPT / Claude ──MCP over HTTPS──▶ mcp.codync.dev (cloud Worker)
 - **Protocol**: Streamable HTTP with JSON answers and no sessions. Stateless clients (2026-07-28: version in each
   request's `_meta`, `server/discover`) and `initialize` clients (2025-03-26 to 2025-11-25) both work.
 - **Tools**: `list_computers` (from the account, answered by the Worker), and `list_bots`, `message_bot`,
-  `read_replies`, answered by the host. With several computers online, a listing asks each; a message needs
+  `read_replies`, answered by the host (`list_bots` narrows by `query` and `kind`: `codync`, `claude-code`, `codex`,
+  `terminal`). With several computers online, a listing asks each; a message needs
   `computer` then. `message_bot` returns at once; the bot's reply waits on the host for `read_replies`, since
   nothing can wake a hosted assistant.
 - **Host** (`host/src/chat/team/assistant.rs`): the assistant messages bots like a bot does

@@ -114,6 +114,14 @@ async fn a_bot_messages_a_bot_on_another_computer_and_relays_its_reply() {
     // Every visible bot goes by its address name (the host's own lead bot too).
     assert!(desk_row["agents"].as_array().unwrap().iter().any(|a| a["id"] == "reviewer"), "{desk_row}");
 
+    // Listings say what kind of agent each one is, and can pick one kind.
+    let list =
+        |kind: &str| json!({"botId": lead, "name": "list_bots", "arguments": {"kind": kind, "computer": "desk"}});
+    let bots = laptop.call("teamCall", list("codync")).await;
+    let reviewer_row = bots["bots"].as_array().unwrap().iter().find(|b| b["id"] == "reviewer@desk").cloned().unwrap();
+    assert_eq!(reviewer_row["kind"], "codync");
+    assert_eq!(laptop.call("teamCall", list("codex")).await["total"], 0);
+
     // The lead lists the reviewer by its address and messages it; its turn ends at once.
     laptop.call("send", json!({"botId": lead, "text": "DELEGATE reviewer@desk"})).await;
     let permission = desk.wait_for(&reviewer, |e| e["kind"] == "permission" && e["data"]["status"] == "pending").await;

@@ -5,7 +5,7 @@ use super::visible_bots;
 use crate::hub::Hub;
 use crate::store::BotConfig;
 use anyhow::Result;
-use codync_network::Peer;
+use codync_network::{AgentKind, Peer};
 use serde_json::{Value, json};
 
 const DEFAULT_LIMIT: usize = 20;
@@ -20,6 +20,7 @@ struct Row {
     /// The other computer it is on; `None` for this one.
     computer: Option<String>,
     online: bool,
+    kind: AgentKind,
 }
 
 /// `keep` picks which of this computer's bots the caller may see.
@@ -46,11 +47,12 @@ fn rows(hub: &Hub, from: &str, remote: &[Peer], keep: impl Fn(&BotConfig) -> boo
         .map(|c| Row {
             words: format!("{} {}", c.name, c.description).to_lowercase(),
             value: json!({
-                "id": c.id, "name": c.name, "description": c.description,
+                "id": c.id, "name": c.name, "description": c.description, "kind": AgentKind::Codync,
                 "backend": c.backend, "cwd": c.cwd, "status": hub.runtime(&c.id).status,
             }),
             computer: None,
             online: true,
+            kind: AgentKind::Codync,
         })
         .collect();
     let mut others: Vec<Row> = remote
@@ -59,11 +61,12 @@ fn rows(hub: &Hub, from: &str, remote: &[Peer], keep: impl Fn(&BotConfig) -> boo
             p.agents.iter().map(|a| Row {
                 words: format!("{} {}", a.name, a.about).to_lowercase(),
                 value: json!({
-                    "id": format!("{}@{}", a.id, p.name), "name": a.name, "description": a.about,
+                    "id": format!("{}@{}", a.id, p.name), "name": a.name, "description": a.about, "kind": a.kind,
                     "computer": p.name, "status": if p.online { "online" } else { "away" },
                 }),
                 computer: Some(p.name.clone()),
                 online: p.online,
+                kind: a.kind,
             })
         })
         .collect();
@@ -72,11 +75,13 @@ fn rows(hub: &Hub, from: &str, remote: &[Peer], keep: impl Fn(&BotConfig) -> boo
     Ok(rows)
 }
 
-/// What `query`, `computer` and `online` keep.
+/// What `query`, `computer`, `online` and `kind` keep.
 struct Filter {
     words: Vec<String>,
     computer: Option<String>,
     online: bool,
+    /// A kind this version doesn't know reads as `other`, never as no filter.
+    kind: Option<AgentKind>,
 }
 
 impl Filter {
@@ -85,11 +90,12 @@ impl Filter {
             words: args["query"].as_str().unwrap_or_default().split_whitespace().map(str::to_lowercase).collect(),
             computer: args["computer"].as_str().map(str::to_lowercase),
             online: args["online"].as_bool() == Some(true),
+            kind: args["kind"].as_str().map(|k| serde_json::from_value(json!(k)).unwrap_or_default()),
         }
     }
 
     fn narrows(&self) -> bool {
-        !self.words.is_empty() || self.computer.is_some() || self.online
+        !self.words.is_empty() || self.computer.is_some() || self.online || self.kind.is_some()
     }
 
     /// `here` is this computer's name in its network.
@@ -102,6 +108,7 @@ impl Filter {
         self.words.iter().all(|w| row.words.contains(w))
             && self.computer.as_ref().is_none_or(on)
             && (!self.online || row.online)
+            && self.kind.is_none_or(|kind| kind == row.kind)
     }
 }
 
@@ -147,6 +154,7 @@ mod tests {
             words: format!("{name} {about}").to_lowercase(),
             computer: computer.map(str::to_owned),
             online,
+            kind: AgentKind::Codync,
         }
     }
 
@@ -179,5 +187,23 @@ mod tests {
         let rest = page(&rows, &json!({"limit": 2, "cursor": "2"}), true);
         assert!(rest.get("next").is_none() && rest["bots"].as_array().unwrap().len() == 1);
         assert!(page(&rows, &json!({"limit": 2}), false).get("summary").is_none());
+    }
+
+    #[test]
+    fn list_bots_picks_a_kind_of_agent() {
+        let mut session = row("main", "", Some("laptop"), true);
+        session.kind = AgentKind::ClaudeCode;
+        let mut thread = row("refactor", "", Some("laptop"), true);
+        thread.kind = AgentKind::Codex;
+        let rows = [row("Coder", "", None, true), session, thread];
+        assert_eq!(kept(&rows, &json!({"kind": "codync"}), None), ["Coder"]);
+        assert_eq!(kept(&rows, &json!({"kind": "claude-code"}), None), ["main"]);
+        assert_eq!(kept(&rows, &json!({"kind": "codex", "computer": "laptop"}), None), ["refactor"]);
+        assert_eq!(
+            kept(&rows, &json!({"kind": "gemini"}), None),
+            Vec::<&str>::new(),
+            "an unknown kind isn't no filter"
+        );
+        assert!(Filter::of(&json!({"kind": "codex"})).narrows());
     }
 }

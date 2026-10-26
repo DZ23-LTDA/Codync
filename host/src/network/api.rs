@@ -37,7 +37,8 @@ fn network(slot: &Slot) -> Value {
         .directory()
         .into_iter()
         .map(|p| {
-            let agents: Vec<Value> = p.agents.iter().map(|a| json!({"id": a.id, "name": a.name})).collect();
+            let agents: Vec<Value> =
+                p.agents.iter().map(|a| json!({"id": a.id, "name": a.name, "kind": a.kind})).collect();
             let may = |rule: fn(Role, Role) -> bool| !p.me && mine.is_some_and(|me| rule(me, p.role));
             json!({
                 "name": p.name, "role": p.role, "me": p.me, "online": p.online, "agents": agents,

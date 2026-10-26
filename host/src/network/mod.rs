@@ -15,7 +15,7 @@ mod saved;
 use crate::LockExt;
 use crate::hub::Hub;
 use anyhow::{Context, Result, anyhow, bail};
-use codync_network::{Address, Agent, Connector, Node, Peer, Reach};
+use codync_network::{Address, Agent, AgentKind, Connector, Node, Peer, Reach};
 use serde_json::json;
 use std::collections::{BTreeSet, HashMap};
 use std::sync::{Arc, Mutex};
@@ -344,7 +344,8 @@ pub fn publish(hub: &Hub) {
         .into_iter()
         .filter_map(|b| {
             let id = handles.handle(&b.id)?;
-            Some((Agent { id, name: b.name.clone(), about: b.description.clone() }, Reach::App))
+            let about = b.description.clone();
+            Some((Agent { id, name: b.name.clone(), about, kind: AgentKind::Codync }, Reach::App))
         })
         .collect();
     *hub.network.unoffered.locked() = kept_off.iter().filter_map(|b| handles.handle(&b.id)).collect();
@@ -378,7 +379,8 @@ mod tests {
         let root = std::env::temp_dir().join(format!("codync-recipient-{}", uuid::Uuid::new_v4()));
         let start = async |folder: &str| Node::start(&root.join(folder), &Connector::Private).await.unwrap().0;
         let offer = |node: &Node, id: &str| {
-            node.set_agents([(Agent { id: id.into(), name: id.into(), about: String::new() }, Reach::App)]);
+            let agent = Agent { id: id.into(), name: id.into(), about: String::new(), kind: AgentKind::Codync };
+            node.set_agents([(agent, Reach::App)]);
         };
         // This computer is desk in home and in work; each has a computer called laptop.
         let (home, work) = (start("home").await, start("work").await);

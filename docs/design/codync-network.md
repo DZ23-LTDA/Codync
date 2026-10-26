@@ -112,7 +112,8 @@ A computer in several networks runs one node per network, each with its own key,
 | Connectors | per network (private at home, relays for work) | one per computer |
 | Wire | unchanged: old peers keep working | every request names its network |
 | Cost | one endpoint (a socket, a relay connection) per network | one endpoint |
-- `list_bots` takes `query`, `computer` (`this` for this one), `online`, `limit` and `cursor`, and an unnarrowed
+- `list_bots` takes `query`, `computer` (`this` for this one), `online`, `kind` (`codync`, `claude-code`,
+  `codex`, `terminal`), `limit` and `cursor`, and an unnarrowed
   long list says how many bots each computer has, so a computer with many bots doesn't flood the agent. On one
   computer without a network it lists that computer's bots.
 

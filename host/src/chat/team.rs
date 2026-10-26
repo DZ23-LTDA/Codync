@@ -46,12 +46,13 @@ pub fn tools() -> Value {
     json!([
         {
             "name": "list_bots",
-            "description": "List the Codync bots you can message, with their IDs, specialties and status: this computer's first, then those on the user's other computers. Narrow it with query (words in a bot's name or description), computer, or online; it returns at most limit at a time, with next for the rest.",
+            "description": "List the Codync bots you can message, with their IDs, kinds, specialties and status: this computer's first, then those on the user's other computers (where Claude Code sessions and Codex threads can be offered too). Narrow it with query (words in a bot's name or description), computer, kind, or online; it returns at most limit at a time, with next for the rest.",
             "inputSchema": {
                 "type": "object",
                 "properties": {
                     "query": {"type": "string", "description": "Words that must all appear in the bot's name or description."},
                     "computer": {"type": "string", "description": "Only the bots on the computer with this name (`this`: the one you run on)."},
+                    "kind": {"type": "string", "enum": ["codync", "claude-code", "codex", "terminal"], "description": "Only this kind of agent: codync (Codync bots), claude-code (Claude Code sessions), codex (Codex threads) or terminal (a person at a terminal on another computer)."},
                     "online": {"type": "boolean", "description": "Only bots whose computer can take a message now."},
                     "limit": {"type": "integer", "minimum": 1, "maximum": 50, "description": "At most this many (default 20)."},
                     "cursor": {"type": "string", "description": "next from the previous call, for the rest."},
