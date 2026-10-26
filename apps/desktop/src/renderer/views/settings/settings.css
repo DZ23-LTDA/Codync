@@ -85,6 +85,10 @@
   gap: 10px;
   width: 100%;
 }
+/* A row that unfolds more. */
+button.settings-row {
+  text-align: left;
+}
 .settings-stack {
   display: flex;
   flex-direction: column;
