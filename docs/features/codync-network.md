@@ -110,8 +110,6 @@ Planned in order, with what each step touches: [what's left](../plans/codync-net
 - One network per computer; the `.network` address suffix comes with several.
 - Shared networks (other people's computers) need the per-network list of offered bots and inbound rules first.
 - Bots can't reach Claude Code or Codex sessions on another computer through the host (the standalone daemon can).
-- The cloud assistant connector ([cloud assistants](cloud-assistants.md)) reaches only the bots of the computer it
-  talks to, not that computer's network.
 - Each computer's share of the roster is capped (256 entries) and keeps its oldest: an owner or admin that has
   made 256 admissions, promotions and removals can't make more. Hellos sending changes since the last one, instead
   of the whole roster, would lift the cap.

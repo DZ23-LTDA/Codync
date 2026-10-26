@@ -150,8 +150,7 @@ terminal UI manage the network, phones show it, and a `network` event keeps them
 
 1. Per-bot offering and inbound rules (needed before networks shared with other people).
 2. Codync-run iroh relays as the default connector.
-3. The cloud assistant reaching bots on the connected computer's network.
-4. A local MCP server for agents that aren't Codync bots.
-5. Hellos that carry only what changed, lifting the roster's per-computer cap.
-6. Account networks; several networks per computer.
-7. A control channel for the standalone daemon on Windows (named pipe).
+3. A local MCP server for agents that aren't Codync bots.
+4. Hellos that carry only what changed, lifting the roster's per-computer cap.
+5. Account networks; several networks per computer.
+6. A control channel for the standalone daemon on Windows (named pipe).

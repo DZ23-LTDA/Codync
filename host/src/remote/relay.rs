@@ -410,7 +410,7 @@ impl Session {
             }
             // A private relay has no accounts, so no cloud assistant (§7.9).
             "assistant.call" if self.address.kind == cloud::RelayKind::Codync => {
-                let result = crate::chat::team::assistant::answer(&self.hub, &v);
+                let result = crate::chat::team::assistant::answer(&self.hub, &v).await;
                 self.send(&result).await?;
             }
             "cloud.changed" => self.pull(),

@@ -173,7 +173,13 @@ connector and no Tailscale, a laptop that changes networks can't be found until 
 endpoint's addresses (iroh exposes changes), re-sign `Locate` when they change, and hello everyone. The roster keeps
 only each computer's newest location, so this doesn't grow the log. Test: change addresses in a two-node test.
 
-## 5. Cloud assistants beyond the connected computer
+## 5. Cloud assistants beyond the connected computer (built)
+
+Built with the second option: the host sends letters for the assistant as `cloud-assistant` (reserved: no bot gets
+that address name), which it may send as without offering it (`Node::set_senders`); answers come back into the
+assistant's replies (`remote::Asker::Assistant`). The Worker's tool descriptions mention `name@computer` ids.
+
+Before:
 
 The connector reaches only the bots of the computer it talks to. To reach that computer's network: publish the
 assistant as an agent of that computer (or let the host send letters for it under a reserved name), route

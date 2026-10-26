@@ -138,6 +138,7 @@ async fn boot(hub: &Arc<Hub>) -> Result<Arc<Node>> {
     if let Err(error) = node.set_rules(rules) {
         tracing::warn!(error = format!("{error:#}"), "couldn't apply the network's rules; none apply");
     }
+    node.set_senders([crate::chat::team::assistant::HANDLE.to_owned()]);
     let node = Arc::new(node);
     hub.network.node.set(node.clone()).map_err(|_| anyhow!("the network is already starting; try again"))?;
     tokio::spawn(watch(hub.clone(), node.changes()));
@@ -174,6 +175,8 @@ pub fn publish(hub: &Hub) {
     let mut handles = hub.network.handles.locked();
     let mut given: HashMap<String, String> =
         hub.store.kv_get(KV_HANDLES).and_then(|v| serde_json::from_str(&v).ok()).unwrap_or_default();
+    // The cloud assistant's address name never goes to a bot (`chat::team::assistant::HANDLE`).
+    given.entry(crate::chat::team::assistant::HANDLE.into()).or_insert_with(|| "assistant".into());
     let before = given.len();
     *handles = handles::Handles::of(bots.iter().map(|b| (b.id.clone(), b.name.clone())), &mut given);
     if given.len() != before

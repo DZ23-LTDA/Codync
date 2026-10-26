@@ -30,8 +30,12 @@ ChatGPT / Claude ──MCP over HTTPS──▶ mcp.codync.dev (cloud Worker)
   nothing can wake a hosted assistant.
 - **Host** (`host/src/chat/team/assistant.rs`): the assistant messages bots like a bot does
   (`Back::Assistant`): the bot's chat shows "Message from Cloud assistant" and the reply is kept in memory (the
-  newest 50 requests, at most 16 running) until read. Only this computer's bots: bots on the user's other
-  computers in its network aren't reachable through the connector yet.
+  newest 50 requests, at most 16 running) until read. `list_bots` also lists the bots the user's other
+  computers in this one's network offer (`reviewer@laptop`), and `message_bot` sends those a letter from
+  `cloud-assistant@<this computer>` (`Node::set_senders`: it may send but isn't offered, so nothing elsewhere can
+  ask it). That computer's own rules decide whether it takes it, like any sender's; the outcome comes back into the
+  same replies, and a refusal ends the request as failed with that computer's reason. The receiving bot's chat
+  shows "Message from Cloud assistant on desk".
 
 ## Who can get in
 
@@ -79,7 +83,6 @@ What lifts them, and in what order: [what's left](../plans/codync-network-next.m
 |---|---|
 | Hosts before 2.28.0 don't answer (`assistant.call` is ignored, the call times out after 10 s) | the host side ships in 2.28.0 |
 | Only computers in the account that use the Codync relay; a private relay has no accounts | by design: the account is how the cloud knows whose computer it is |
-| Only the connected computer's bots, not bots elsewhere in its codync-network | the assistant isn't a network agent yet ([design](../design/codync-network.md#next-in-order)) |
 | No hidden bots or groups | the same visibility rule as `list_bots` for bots |
 | No callback when a reply is ready | MCP can't wake a hosted assistant; it calls `read_replies` |
 | Replies in host memory: newest 50, at most 16 running, gone on restart | kept small and unencrypted data off disk; persist if users need it |

@@ -6,11 +6,12 @@
 //! until it reads them (in memory: a restart forgets them).
 
 use super::{
-    Back, Exchange, MessageLifetime, RequestStatus, STOPPED, check_message, directory, message_args, request_prompt,
-    visible_bot,
+    Back, Exchange, MessageLifetime, RequestStatus, STOPPED, check_message, directory, message_args, remote,
+    request_prompt, visible_bot,
 };
 use crate::LockExt;
 use crate::hub::Hub;
+use crate::network::Recipient;
 use crate::remote::cloud::{self, CloudStatus};
 use crate::store::{Store, now_ms};
 use anyhow::{Result, bail};
@@ -18,8 +19,11 @@ use serde_json::{Value, json};
 use std::sync::{Arc, Mutex};
 
 /// How it shows in a bot's chat, and its id there (`sourceBotId`).
-const NAME: &str = "Cloud assistant";
+pub(super) const NAME: &str = "Cloud assistant";
 const ID: &str = "assistant";
+/// What it signs letters to the user's other computers with (`cloud-assistant@desk` there). No
+/// bot ever gets this address name.
+pub(crate) const HANDLE: &str = "cloud-assistant";
 /// kv: `on` lets the cloud assistant in.
 const KV: &str = "cloud_assistants";
 /// Requests still running at a time.
@@ -52,10 +56,10 @@ pub fn set_enabled(hub: &Hub, on: bool) -> Result<CloudStatus> {
 }
 
 /// Answers one `assistant.call` from the relay: `{"t":"assistant.result","id","ok","result"|"error"}`.
-pub fn answer(hub: &Arc<Hub>, call: &Value) -> Value {
+pub async fn answer(hub: &Arc<Hub>, call: &Value) -> Value {
     let id = &call["id"];
     let tool = call["tool"].as_str().unwrap_or_default();
-    match run(hub, call["user"].as_str().unwrap_or_default(), tool, &call["args"]) {
+    match run(hub, call["user"].as_str().unwrap_or_default(), tool, &call["args"]).await {
         Ok(result) => json!({"t": "assistant.result", "id": id, "ok": true, "result": result}),
         Err(e) => {
             tracing::info!(tool, error = format!("{e:#}"), "refused a cloud assistant call");
@@ -64,7 +68,7 @@ pub fn answer(hub: &Arc<Hub>, call: &Value) -> Value {
     }
 }
 
-fn run(hub: &Arc<Hub>, user: &str, tool: &str, args: &Value) -> Result<Value> {
+async fn run(hub: &Arc<Hub>, user: &str, tool: &str, args: &Value) -> Result<Value> {
     if !enabled(&hub.store) {
         bail!(OFF);
     }
@@ -73,7 +77,10 @@ fn run(hub: &Arc<Hub>, user: &str, tool: &str, args: &Value) -> Result<Value> {
         bail!("This computer isn't in your Codync account.");
     }
     match tool {
-        "list_bots" => directory::list(hub, ID, args, &[], |bot| bot.reachable_by_assistants),
+        // Also the bots on the user's other computers in this one's network (what they offer).
+        "list_bots" => {
+            directory::list(hub, ID, args, &hub.network.directory().await, |bot| bot.reachable_by_assistants)
+        }
         "message_bot" => message(hub, args),
         "read_replies" => Ok(hub.assistant.read(args["requestId"].as_str())),
         _ => bail!("unknown tool: {tool}"),
@@ -83,12 +90,16 @@ fn run(hub: &Arc<Hub>, user: &str, tool: &str, args: &Value) -> Result<Value> {
 fn message(hub: &Arc<Hub>, args: &Value) -> Result<Value> {
     let (to, message) = message_args(args)?;
     check_message(message)?;
-    let target = visible_bot(hub, to)?;
-    if !target.reachable_by_assistants {
-        bail!("{} isn't open to cloud assistants: Reachable by cloud assistants is off in its settings", target.name);
-    }
     if hub.assistant.running() >= MAX_RUNNING {
         bail!("{MAX_RUNNING} requests are still running: read_replies first, then try again");
+    }
+    let to = match hub.network.recipient(to)? {
+        Recipient::Here(bot) => bot,
+        Recipient::There(address) => return message_elsewhere(hub, &address, message),
+    };
+    let target = visible_bot(hub, &to)?;
+    if !target.reachable_by_assistants {
+        bail!("{} isn't open to cloud assistants: Reachable by cloud assistants is off in its settings", target.name);
     }
     let request = uuid::Uuid::new_v4().to_string();
     let back = Back::Assistant { request: request.clone() };
@@ -108,6 +119,24 @@ fn message(hub: &Arc<Hub>, args: &Value) -> Result<Value> {
     Ok(json!({
         "requestId": request, "botId": target.id, "name": target.name, "status": RequestStatus::Queued,
         "note": "Queued. Bots can take minutes: get the reply later with read_replies.",
+    }))
+}
+
+/// A bot on another of the user's computers (`reviewer@laptop`): a letter from this computer,
+/// whose answer comes back here. That computer's own rules decide whether it takes it.
+fn message_elsewhere(hub: &Arc<Hub>, to: &codync_network::Address, message: &str) -> Result<Value> {
+    let (request, peer) = remote::ask_for_assistant(hub, to, message)?;
+    hub.assistant.add(Reply {
+        request: request.clone(),
+        bot: peer.clone(),
+        quote: crate::agent::acp::truncate(message, super::REQUEST_QUOTE_BYTES),
+        status: RequestStatus::Queued,
+        text: None,
+        at: now_ms(),
+    });
+    Ok(json!({
+        "requestId": request, "botId": to.to_string(), "name": peer, "status": RequestStatus::Queued,
+        "note": "Queued on that computer. Bots can take minutes: get the reply later with read_replies.",
     }))
 }
 
