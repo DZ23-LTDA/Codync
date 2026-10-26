@@ -264,7 +264,9 @@ impl App {
             KeyCode::Esc => Step::List,
             KeyCode::Enter if !code.text.trim().is_empty() => {
                 n.busy = true;
-                let done = NetReply::Done("This computer is the owner now. Remove the lost computer from the list.");
+                let done = NetReply::Done(
+                    "This computer is the owner now. Remove the lost computer from the list; if it was stolen, also remove the computers it invited.",
+                );
                 self.net("networkRecover", json!({"network": n.id(), "code": code.text.trim()}), done);
                 Step::Recover(code)
             }

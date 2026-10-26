@@ -160,7 +160,7 @@ export function RecoverSheet({ store, net }: { store: BotStore; net: Network }) 
     setBusy(true)
     try {
       await network.recover(store, net.id, code)
-      setResult({ ok: true, text: tr('{name} is the owner now. Remove the lost computer from the list.').replaceAll('{name}', net.computer) })
+      setResult({ ok: true, text: tr('{name} is the owner now. Remove the lost computer from the list; if it was stolen, also remove the computers it invited.').replaceAll('{name}', net.computer) })
     } catch (e) {
       setResult({ ok: false, text: errorText(e) })
     } finally {
