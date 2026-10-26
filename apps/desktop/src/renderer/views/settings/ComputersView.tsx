@@ -14,6 +14,7 @@ import { StoreContext, useApp } from '../../store/context'
 import { ComputerBadge } from '../ComputerBadge'
 import { PairingCode } from '../PairingCode'
 import { AuthorizedDevicesSection } from './AuthorizedDevicesSection'
+import { ComputersUsedSection } from './ComputersUsedSection'
 import { cloudStatusLine } from '../../lib/relay-copy'
 import { useTr } from '../../lib/use-language'
 import { errorText, liveClient, relativeDay, SectionHeader, statusText, thisMac } from './parts'
@@ -36,8 +37,8 @@ export function ComputersView() {
   const [editing, setEditing] = useState<{ profile: SSHProfile; isNew: boolean } | null>(null)
   const [removingCopy, setRemovingCopy] = useState<CloudComputer | null>(null)
   const managed = app.managedStores
-  const managedIds = new Set(managed.map((s) => s.computer.id))
-  const others = cloud.computers.filter((c) => !managedIds.has(c.computerId))
+  // Every computer in the account but this one, the SSH computers too: their cards above are about managing them.
+  const others = cloud.computers.filter((c) => c.computerId !== app.local?.computer.id)
   const addSSH = (host: string) => setEditing({ profile: { ...newSSHProfile(window.codync.hostPort), host }, isNew: true })
 
   return (
@@ -72,9 +73,7 @@ export function ComputersView() {
           {!account.isSignedIn ? (
             <Text as="div" size="callout" tone="secondary">{tr(`Sign in to see the other computers in your account.`)}</Text>
           ) : others.length === 0 ? (
-            <Text as="div" size="callout" tone="secondary">
-              {managed.length > 1 ? tr(`Your other computers are listed above.`) : tr(`No other computers in your account yet.`)}
-            </Text>
+            <Text as="div" size="callout" tone="secondary">{tr(`No other computers in your account yet.`)}</Text>
           ) : null}
           {others.map((computer) => (
             <AccountComputerRow key={computer.computerId} computer={computer} olderCopy={cloud.isOlderCopy(computer)} onRemove={() => setRemovingCopy(computer)} />
@@ -240,6 +239,8 @@ function ManagedComputerCard({ store, ssh: overSSH }: { store: BotStore; ssh: bo
             : null,
         ]}
       </CardSection>
+
+      <ComputersUsedSection store={store} />
 
       <AuthorizedDevicesSection store={store} viaSSH={overSSH} />
 
