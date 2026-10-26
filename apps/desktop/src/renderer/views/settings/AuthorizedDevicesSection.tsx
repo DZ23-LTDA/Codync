@@ -7,13 +7,12 @@ import { HStack, IconSlot, VStack } from '../../components/Stack'
 import { Text } from '../../components/Text'
 import { useModel } from '../../lib/observable'
 import type { BotStore } from '../../store/bot-store'
-import { deviceIcon, errorText, isMac, liveClient, relativeDay } from './parts'
+import { deviceIcon, errorText, liveClient, relativeDay } from './parts'
 import { useTr } from '../../lib/use-language'
-import { useApp } from '../../store/context'
 
 
 /** The devices that can use a computer this app manages, each one revocable. */
-export function AuthorizedDevicesSection({ store, viaSSH }: { store: BotStore; /** The computer is reached over SSH: this one is using it, though it isn't a paired device. */ viaSSH: boolean }) {
+export function AuthorizedDevicesSection({ store }: { store: BotStore }) {
   const tr = useTr()
   useModel(store)
   const [devices, setDevices] = useState<AuthorizedDevice[] | { error: string } | null>(null)
@@ -51,8 +50,7 @@ export function AuthorizedDevicesSection({ store, viaSSH }: { store: BotStore; /
           : 'error' in devices
             ? [<Text key="error" tone="danger" className="settings-appear">{devices.error}</Text>]
             : [
-                ...(viaSSH ? [<ThisComputerRow key="ssh" connected={online} />] : []),
-                ...(devices.length === 0 && !viaSSH
+                ...(devices.length === 0
                   ? [<Text key="none" tone="secondary">{tr(`None yet. Pair an iPhone, or approve one from your account.`)}</Text>]
                   : []),
                 ...devices.map((device) => (
@@ -77,23 +75,6 @@ export function AuthorizedDevicesSection({ store, viaSSH }: { store: BotStore; /
         onClose={() => setConfirmRevoke(null)}
       />
     </>
-  )
-}
-
-/** This computer among a computer's users, when it reaches it over SSH. */
-function ThisComputerRow({ connected }: { connected: boolean }) {
-  const tr = useTr()
-  const name = useApp().local?.hostName ?? tr(isMac ? 'This Mac' : 'This computer')
-  return (
-    <HStack gap={8} className="settings-row settings-appear">
-      <IconSlot width={18} tone="secondary">
-        <Icon name="desktopcomputer" size={13} />
-      </IconSlot>
-      <VStack grow className="settings-stack">
-        <span>{name}</span>
-        <Text size="caption" tone="tertiary">{[tr(isMac ? 'This Mac' : 'This computer'), tr('Over SSH'), ...(connected ? [tr('Connected')] : [])].join(' · ')}</Text>
-      </VStack>
-    </HStack>
   )
 }
 

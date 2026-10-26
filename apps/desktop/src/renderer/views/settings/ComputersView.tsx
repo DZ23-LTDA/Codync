@@ -44,7 +44,8 @@ export function ComputersView() {
   return (
     <div className="settings-computers">
       <VStack gap={44} className="settings-computers-content">
-        {managed.map((store) => (
+        {/* With this computer present, the SSH computers sit in its "can use" section. */}
+        {managed.filter((store) => !app.local || store === app.local).map((store) => (
           <ManagedComputerCard key={store.computer.id} store={store} ssh={sshState.isSSH(store.computer.id)} />
         ))}
 
@@ -98,7 +99,7 @@ export function ComputersView() {
 const isMacLabel = thisMac === 'this Mac' ? 'This Mac' : 'This computer'
 
 /** This computer or an SSH computer: relay, account membership, the Codync it runs, pairing and authorized devices. */
-function ManagedComputerCard({ store, ssh: overSSH }: { store: BotStore; ssh: boolean }) {
+function ManagedComputerCard({ store, ssh: overSSH, nested = false }: { store: BotStore; ssh: boolean; /** Shown under another computer's "can use": its own users aren't listed there. */ nested?: boolean }) {
   const tr = useTr()
   const app = useApp()
   const account = useAccount()
@@ -240,9 +241,11 @@ function ManagedComputerCard({ store, ssh: overSSH }: { store: BotStore; ssh: bo
         ]}
       </CardSection>
 
-      <ComputersUsedSection store={store} />
+      {store === app.local ? (
+        <ComputersUsedSection store={store} details={(computer) => <ManagedComputerCard store={computer} ssh nested />} />
+      ) : null}
 
-      <AuthorizedDevicesSection store={store} viaSSH={overSSH} />
+      {nested ? null : <AuthorizedDevicesSection store={store} />}
 
       <Sheet open={showVoice} onClose={() => setShowVoice(false)}>
         <StoreContext.Provider value={store}>
