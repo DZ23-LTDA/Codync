@@ -111,7 +111,7 @@ async fn a_bot_messages_a_bot_on_another_computer_and_relays_its_reply() {
     let desk_row = peers["computers"].as_array().unwrap().iter().find(|c| c["name"] == "desk").unwrap().clone();
     assert_eq!((desk_row["online"].as_bool(), desk_row["role"].as_str()), (Some(true), Some("owner")));
     // Every visible bot goes by its address name (the host's own lead bot too).
-    assert!(desk_row["bots"].as_array().unwrap().contains(&json!("reviewer")), "{desk_row}");
+    assert!(desk_row["agents"].as_array().unwrap().iter().any(|a| a["id"] == "reviewer"), "{desk_row}");
 
     // The lead lists the reviewer by its address and messages it; its turn ends at once.
     laptop.call("send", json!({"botId": lead, "text": "DELEGATE reviewer@desk"})).await;
@@ -199,6 +199,7 @@ async fn the_network_view_says_who_may_do_what_and_changes_reach_the_apps() {
     desk.call("networkPeers", json!({})).await;
     let view = desk.call("networkView", json!({})).await;
     assert_eq!((view["joined"].as_bool(), view["assistants"].as_bool()), (Some(true), Some(false)));
+    assert_eq!((&view["canInvite"], &view["canRecover"]), (&json!(true), &json!(false)), "the owner invites");
     let row = computer(&view, "laptop");
     assert_eq!((row["canRemove"].as_bool(), row["canPromote"].as_bool()), (Some(true), Some(true)));
     assert!(row["agents"].as_array().unwrap().iter().any(|a| a["name"] == "Lead"), "{row}");
@@ -212,6 +213,7 @@ async fn the_network_view_says_who_may_do_what_and_changes_reach_the_apps() {
         (computer(&theirs, "desk")["canRemove"].as_bool(), theirs["role"].as_str()),
         (Some(false), Some("member"))
     );
+    assert_eq!((&theirs["canInvite"], &theirs["canRecover"]), (&json!(false), &json!(true)));
 
     // The owner promotes the laptop: both computers' apps hear of it without asking.
     let there = tokio::spawn(network_event(laptop.base.clone(), laptop.token.clone(), |v| v["role"] == "admin"));

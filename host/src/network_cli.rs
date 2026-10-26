@@ -107,7 +107,7 @@ fn print_status(v: &Value) {
         } else {
             "away"
         };
-        let bots: Vec<&str> = c["bots"].as_array().into_iter().flatten().filter_map(Value::as_str).collect();
+        let bots: Vec<&str> = c["agents"].as_array().into_iter().flatten().filter_map(|a| a["id"].as_str()).collect();
         let name = c["name"].as_str().unwrap_or_default();
         let role = c["role"].as_str().unwrap_or_default();
         println!("  {name:<20} {role:<7} {state:<14} {}", bots.join(", "));

@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react'
-import type { NetworkComputer } from '@shared/models'
-import { Button, CardSection, IconButton, Switch } from '../../components/Controls'
+import type { NetworkComputer } from '@shared/network'
+import { Button, CardSection, IconButton } from '../../components/Controls'
 import { Dialog, Sheet } from '../../components/Overlay'
 import { HStack, VStack } from '../../components/Stack'
 import { Text } from '../../components/Text'
 import { useModel } from '../../lib/observable'
-import { botsTemplate, canInvite, canRecover, presenceTitle, roleTitle } from '../../lib/network-copy'
+import { botsTemplate, presenceTitle, roleTitle } from '../../lib/network-copy'
 import { useTr } from '../../lib/use-language'
 import type { BotStore } from '../../store/bot-store'
 import { network, refreshNetwork } from '../../store/network'
@@ -24,7 +24,6 @@ export function NetworkSection({ store }: { store: BotStore }) {
   const tr = useTr()
   useModel(store)
   const [open, setOpen] = useState<Open | null>(null)
-  const [recoveryCode, setRecoveryCode] = useState<string | null>(null)
   const [removing, setRemoving] = useState<NetworkComputer | null>(null)
   const [busy, setBusy] = useState(false)
   const view = store.network
@@ -46,8 +45,8 @@ export function NetworkSection({ store }: { store: BotStore }) {
 
   const accessory = view.joined ? (
     <HStack gap={2}>
-      {canInvite(view.role) ? <IconButton title="Invite a computer" icon="person.crop.circle.badge.plus" disabled={!manageable} onClick={() => setOpen('invite')} /> : null}
-      {canRecover(view.role) ? <IconButton title="Recover ownership" icon="key" disabled={!manageable} onClick={() => setOpen('recover')} /> : null}
+      {view.canInvite ? <IconButton title="Invite a computer" icon="person.crop.circle.badge.plus" disabled={!manageable} onClick={() => setOpen('invite')} /> : null}
+      {view.canRecover ? <IconButton title="Recover ownership" icon="key" disabled={!manageable} onClick={() => setOpen('recover')} /> : null}
       <IconButton title="Refresh" icon="arrow.clockwise" disabled={busy || !manageable} onClick={() => run(() => network.peers(store))} />
     </HStack>
   ) : null
@@ -77,7 +76,7 @@ export function NetworkSection({ store }: { store: BotStore }) {
       </CardSection>
 
       <Sheet open={open === 'create' || open === 'join'} onClose={() => setOpen(null)}>
-        <NetworkSetupSheet key={open} store={store} joining={open === 'join'} created={setRecoveryCode} />
+        <NetworkSetupSheet key={open} store={store} joining={open === 'join'} />
       </Sheet>
       <Sheet open={open === 'invite'} onClose={() => setOpen(null)}>
         <InviteSheet store={store} />
@@ -86,8 +85,8 @@ export function NetworkSection({ store }: { store: BotStore }) {
         <RecoverSheet store={store} />
       </Sheet>
       {/* Escape and the dim don't close it: only "I saved it" does. */}
-      <Sheet open={recoveryCode !== null} onClose={() => {}}>
-        {recoveryCode ? <RecoveryCodeSheet code={recoveryCode} name={store.hostName} done={() => setRecoveryCode(null)} /> : null}
+      <Sheet open={store.recoveryCode !== null} onClose={() => {}}>
+        {store.recoveryCode ? <RecoveryCodeSheet code={store.recoveryCode} name={store.network?.computer ?? store.hostName} done={() => store.setRecoveryCode(null)} /> : null}
       </Sheet>
       <Dialog
         open={removing !== null}
@@ -121,34 +120,5 @@ function ComputerRow({ computer: c, disabled, promote, remove }: { computer: Net
       {c.canPromote ? <Button kind="secondary" disabled={disabled} onClick={promote}>Make admin</Button> : null}
       {c.canRemove ? <IconButton title="Remove from the network" icon="trash" disabled={disabled} onClick={remove} /> : null}
     </HStack>
-  )
-}
-
-/**
- * Whether the user's cloud assistant may message this computer's bots. The cloud reads these
- * calls, so the computer decides; shown only for a computer in the account (a private relay has none).
- */
-export function AssistantsSwitch({ store, disabled }: { store: BotStore; disabled: boolean }) {
-  const tr = useTr()
-  const on = store.cloud?.assistants === true
-  const [busy, setBusy] = useState(false)
-  const set = (enabled: boolean) => {
-    setBusy(true)
-    network
-      .setAssistants(store, enabled)
-      .catch((e: unknown) => store.setError(errorText(e)))
-      .finally(() => setBusy(false))
-  }
-  return (
-    <Switch on={on} disabled={disabled || busy} onChange={set}>
-      <span className="settings-stack settings-appear">
-        <Text>{tr(`Cloud assistants`)}</Text>
-        <Text size="caption" tone={on ? 'attention' : 'secondary'}>
-          {on
-            ? tr(`ChatGPT or Claude in your Codync account can message this computer's bots. Codync's cloud can read these calls.`)
-            : tr(`Let ChatGPT or Claude message this computer's bots through your Codync account.`)}
-        </Text>
-      </span>
-    </Switch>
   )
 }

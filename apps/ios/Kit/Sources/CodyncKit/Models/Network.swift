@@ -9,6 +9,8 @@ public struct NetworkView: Codable, Hashable, Sendable {
     public var role: Role?
     /// The user's cloud assistant may message this computer's bots.
     public var assistants: Bool?
+    /// Cloud assistants can reach this computer at all: it's in a Codync account.
+    public var assistantsAvailable: Bool?
     public var computers: [Computer]?
 
     public enum Role: String, Codable, Hashable, Sendable {
@@ -43,7 +45,6 @@ public struct NetworkView: Codable, Hashable, Sendable {
         public var name: String
     }
 
-    public var isAssistantsOn: Bool { assistants ?? false }
-    /// Worth showing: in a network, or cloud assistants are on.
-    public var hasContent: Bool { joined || isAssistantsOn }
+    /// Worth showing: in a network, or cloud assistants can reach this computer's bots.
+    public var hasContent: Bool { joined || (assistantsAvailable == true && assistants == true) }
 }

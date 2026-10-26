@@ -29,7 +29,7 @@ function Field({ label, value, set, placeholder, mono = false }: { label: string
 }
 
 /** Create a network (this computer its owner) or join one with an invite. */
-export function NetworkSetupSheet({ store, joining, created }: { store: BotStore; joining: boolean; created: (recoveryCode: string) => void }) {
+export function NetworkSetupSheet({ store, joining }: { store: BotStore; joining: boolean }) {
   const tr = useTr()
   const dismiss = useDismiss()
   const [invite, setInvite] = useState('')
@@ -47,14 +47,9 @@ export function NetworkSetupSheet({ store, joining, created }: { store: BotStore
     setBusy(true)
     setProblem(null)
     try {
-      if (joining) {
-        await network.join(store, invite, name, connector.connector)
-        dismiss()
-      } else {
-        const code = await network.create(store, name, connector.connector)
-        dismiss()
-        created(code)
-      }
+      if (joining) await network.join(store, invite, name, connector.connector)
+      else await network.create(store, name, connector.connector)
+      dismiss()
     } catch (e) {
       setProblem(errorText(e))
     } finally {
@@ -139,7 +134,7 @@ export function InviteSheet({ store }: { store: BotStore }) {
               <IconButton title="Copy invite" icon="doc.on.doc" onClick={() => window.codync.app.copy(invite.invite)} />
             </HStack>
             <Text size="callout" tone="secondary">
-              {tr('One use. Works until {time} while {name} stays on.').replaceAll('{time}', expiryTime(invite.expiresAt)).replaceAll('{name}', store.hostName)}
+              {tr('One use. Works until {time} while {name} stays on.').replaceAll('{time}', expiryTime(invite.expiresAt)).replaceAll('{name}', store.network?.computer ?? store.hostName)}
             </Text>
             <Text size="callout" tone="secondary">{tr('On the other computer, choose Join with invite under Network.')}</Text>
           </>
@@ -160,7 +155,7 @@ export function RecoverSheet({ store }: { store: BotStore }) {
     setBusy(true)
     try {
       await network.recover(store, code)
-      setResult({ ok: true, text: tr('{name} is the owner now. Remove the lost computer from the list.').replaceAll('{name}', store.hostName) })
+      setResult({ ok: true, text: tr('{name} is the owner now. Remove the lost computer from the list.').replaceAll('{name}', store.network?.computer ?? store.hostName) })
     } catch (e) {
       setResult({ ok: false, text: errorText(e) })
     } finally {

@@ -1,7 +1,8 @@
 import Foundation
 
 public enum HostEvent: Sendable {
-    case hello(hostId: String, rev: Int64, usage: Usage, screen: ScreenState?)
+    /// The stream's first event; `network` is nil from hosts before the network view.
+    case hello(hostId: String, rev: Int64, usage: Usage, screen: ScreenState?, network: NetworkView?)
     case bot(Bot)
     case botDeleted(id: String, rev: Int64)
     case entry(Entry)
@@ -110,7 +111,8 @@ public struct HostClient: Sendable {
         case "hello":
             let usage = (try? d.decode(UsageWrap.self, from: data))?.usage ?? Usage()
             let screen = (try? d.decode(ScreenWrap.self, from: data))?.screen
-            return .hello(hostId: env.hostId ?? "", rev: env.rev ?? 0, usage: usage, screen: screen)
+            let network = (try? d.decode(NetworkWrap.self, from: data))?.network
+            return .hello(hostId: env.hostId ?? "", rev: env.rev ?? 0, usage: usage, screen: screen, network: network)
         case "bot":
             if let stub = try? d.decode(StubWrap.self, from: data), stub.bot.deleted == true {
                 return .botDeleted(id: stub.bot.id, rev: stub.bot.rev)
@@ -128,7 +130,7 @@ public struct HostClient: Sendable {
         case "call":
             return (try? d.decode(CallCue.self, from: data)).map { .call($0) }
         case "network":
-            // Not worth a rewind: the next connect asks for the view again.
+            // Not worth a rewind: the next stream's hello carries the view again.
             return (try? d.decode(NetworkWrap.self, from: data)).map { .network($0.network) }
         case "resync":
             return .resync

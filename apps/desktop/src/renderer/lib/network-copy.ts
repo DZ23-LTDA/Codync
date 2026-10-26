@@ -1,6 +1,6 @@
 /** What the Network section says about this computer's network (codync-network). */
 
-import type { NetworkComputer, NetworkRole } from '@shared/models'
+import type { NetworkComputer, NetworkRole } from '@shared/network'
 
 /** How computers reach each other without a direct path. */
 export type ConnectorChoice = 'public' | 'private' | 'relay'
@@ -24,10 +24,6 @@ export const presenceTitle = (c: NetworkComputer) => (c.me ? 'This computer' : c
 
 /** "3 bots", untranslated template first: the caller translates, then puts the count in. */
 export const botsTemplate = (c: NetworkComputer) => (c.agents.length === 1 ? '1 bot' : '{count} bots')
-
-/** The owner and admins invite; whoever isn't the owner may take ownership with the recovery code. */
-export const canInvite = (role: NetworkRole | null | undefined) => role === 'owner' || role === 'admin'
-export const canRecover = (role: NetworkRole | null | undefined) => role !== 'owner'
 
 /** "3:27 PM" for an invite's expiry (Unix ms). */
 export const expiryTime = (expiresAt: number) => new Date(expiresAt).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })

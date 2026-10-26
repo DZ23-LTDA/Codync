@@ -4,6 +4,7 @@
 
 use crossterm::event::{KeyCode, KeyEvent};
 use serde_json::{Value, json};
+use std::borrow::Cow;
 
 use super::super::app::{After, App, Editor, Overlay, copy};
 use super::super::l10n::tr;
@@ -123,6 +124,17 @@ impl NetworkSheet {
         self.view.as_ref().and_then(|v| v["role"].as_str()).unwrap_or_default()
     }
 
+    /// This computer's name in the network.
+    pub fn computer(&self) -> Cow<'_, str> {
+        self.view.as_ref().and_then(|v| v["computer"].as_str()).map_or_else(|| tr("this computer"), Cow::Borrowed)
+    }
+
+    /// What the host says this computer may do or has (`canInvite`, `canRecover`,
+    /// `assistantsAvailable`, `assistants`).
+    pub fn says(&self, flag: &str) -> bool {
+        self.view.as_ref().is_some_and(|v| v[flag] == true)
+    }
+
     pub fn computers(&self) -> &[Value] {
         self.view.as_ref().map_or(&[], rows)
     }
@@ -153,6 +165,11 @@ impl App {
     }
 
     pub(in crate::tui) fn network_reply(&mut self, r: NetReply, res: Result<Value, String>) {
+        let open = self.overlays.iter().any(|o| matches!(o, Overlay::Network(_)));
+        if matches!(r, NetReply::Created) && res.is_ok() && !open {
+            // The recovery code is shown only once: bring back the sheet that was closed meanwhile.
+            self.open_network();
+        }
         let Some(Overlay::Network(n)) = self.overlays.iter_mut().rev().find(|o| matches!(o, Overlay::Network(_)))
         else {
             return;
@@ -169,14 +186,8 @@ impl App {
         let mut flash = None;
         match r {
             NetReply::View => {
-                // `networkStatus` and `networkPeers` don't carry the assistants switch: keep it.
-                let assistants = n.view.as_ref().map(|old| old["assistants"].clone());
-                let mut view = v;
-                if view.get("assistants").is_none() {
-                    view["assistants"] = assistants.unwrap_or(Value::Bool(false));
-                }
-                n.cursor = n.cursor.min(rows(&view).len().saturating_sub(1));
-                n.view = Some(view);
+                n.cursor = n.cursor.min(rows(&v).len().saturating_sub(1));
+                n.view = Some(v);
                 if matches!(n.step, Step::Join(_)) {
                     n.step = Step::List;
                 }
@@ -210,56 +221,71 @@ impl App {
             Step::List => return self.network_list_key(n, k),
             Step::Create(s) => self.setup_key(&mut n, s, false, k),
             Step::Join(s) => self.setup_key(&mut n, s, true, k),
-            Step::Recovery(code) => match k.code {
-                KeyCode::Char('y') => {
-                    copy(&code);
-                    self.flash("Recovery code copied");
-                    Step::Recovery(code)
-                }
-                // Closed only once the user says they kept it.
-                KeyCode::Char('s') => Step::List,
-                _ => Step::Recovery(code),
-            },
-            Step::Invite(invite) => match (k.code, invite) {
-                (KeyCode::Esc | KeyCode::Char('q'), _) => Step::List,
-                (KeyCode::Char('y'), Some((code, until))) => {
-                    copy(&code);
-                    self.flash("Invite copied");
-                    Step::Invite(Some((code, until)))
-                }
-                (KeyCode::Char('n'), _) => {
-                    self.net("networkInvite", json!({}), NetReply::Invite);
-                    Step::Invite(None)
-                }
-                (_, invite) => Step::Invite(invite),
-            },
-            Step::Recover(mut code) => match k.code {
-                KeyCode::Esc => Step::List,
-                KeyCode::Enter if !code.text.trim().is_empty() => {
-                    n.busy = true;
-                    let done =
-                        NetReply::Done("This computer is the owner now. Remove the lost computer from the list.");
-                    self.net("networkRecover", json!({"code": code.text.trim()}), done);
-                    Step::Recover(code)
-                }
-                _ => {
-                    code.key(k);
-                    Step::Recover(code)
-                }
-            },
-            Step::Remove { computer, cascade } => match k.code {
-                KeyCode::Esc | KeyCode::Char('q') => Step::List,
-                KeyCode::Char('c' | ' ') => Step::Remove { computer, cascade: !cascade },
-                KeyCode::Enter => {
-                    n.busy = true;
-                    let body = json!({"computer": computer, "cascade": cascade});
-                    self.net("networkRemove", body, NetReply::Done("Removed from the network"));
-                    Step::Remove { computer, cascade }
-                }
-                _ => Step::Remove { computer, cascade },
-            },
+            Step::Recovery(code) => self.recovery_key(code, k),
+            Step::Invite(invite) => self.invite_key(invite, k),
+            Step::Recover(code) => self.recover_key(&mut n, code, k),
+            Step::Remove { computer, cascade } => self.remove_key(&mut n, computer, cascade, k),
         };
         Some(Overlay::Network(n))
+    }
+
+    fn recovery_key(&mut self, code: String, k: KeyEvent) -> Step {
+        match k.code {
+            KeyCode::Char('y') => {
+                copy(&code);
+                self.flash("Recovery code copied");
+                Step::Recovery(code)
+            }
+            // Closed only once the user says they kept it.
+            KeyCode::Char('s') => Step::List,
+            _ => Step::Recovery(code),
+        }
+    }
+
+    fn invite_key(&mut self, invite: Option<(String, i64)>, k: KeyEvent) -> Step {
+        match (k.code, invite) {
+            (KeyCode::Esc | KeyCode::Char('q'), _) => Step::List,
+            (KeyCode::Char('y'), Some((code, until))) => {
+                copy(&code);
+                self.flash("Invite copied");
+                Step::Invite(Some((code, until)))
+            }
+            (KeyCode::Char('n'), _) => {
+                self.net("networkInvite", json!({}), NetReply::Invite);
+                Step::Invite(None)
+            }
+            (_, invite) => Step::Invite(invite),
+        }
+    }
+
+    fn recover_key(&mut self, n: &mut NetworkSheet, mut code: Editor, k: KeyEvent) -> Step {
+        match k.code {
+            KeyCode::Esc => Step::List,
+            KeyCode::Enter if !code.text.trim().is_empty() => {
+                n.busy = true;
+                let done = NetReply::Done("This computer is the owner now. Remove the lost computer from the list.");
+                self.net("networkRecover", json!({"code": code.text.trim()}), done);
+                Step::Recover(code)
+            }
+            _ => {
+                code.key(k);
+                Step::Recover(code)
+            }
+        }
+    }
+
+    fn remove_key(&mut self, n: &mut NetworkSheet, computer: String, cascade: bool, k: KeyEvent) -> Step {
+        match k.code {
+            KeyCode::Esc | KeyCode::Char('q') => Step::List,
+            KeyCode::Char('c' | ' ') => Step::Remove { computer, cascade: !cascade },
+            KeyCode::Enter => {
+                n.busy = true;
+                let body = json!({"computer": computer, "cascade": cascade});
+                self.net("networkRemove", body, NetReply::Done("Removed from the network"));
+                Step::Remove { computer, cascade }
+            }
+            _ => Step::Remove { computer, cascade },
+        }
     }
 
     fn network_list_key(&mut self, mut n: Box<NetworkSheet>, k: KeyEvent) -> Option<Overlay> {
@@ -270,9 +296,8 @@ impl App {
             KeyCode::Esc | KeyCode::Char('q' | 'N') => return None,
             KeyCode::Down | KeyCode::Char('j') => n.cursor = (n.cursor + 1).min(last),
             KeyCode::Up | KeyCode::Char('k') => n.cursor = n.cursor.saturating_sub(1),
-            KeyCode::Char('a') if n.view.is_some() => {
-                let on = n.view.as_ref().is_some_and(|v| v["assistants"] == true);
-                self.net("setAssistants", json!({"enabled": !on}), NetReply::Assistants);
+            KeyCode::Char('a') if n.says("assistantsAvailable") => {
+                self.net("setAssistants", json!({"enabled": !n.says("assistants")}), NetReply::Assistants);
             }
             KeyCode::Char('c') if n.view.is_some() && !n.joined() => n.step = Step::Create(Setup::default()),
             KeyCode::Char('J') if n.view.is_some() && !n.joined() => n.step = Step::Join(Setup::join()),
@@ -280,11 +305,11 @@ impl App {
                 n.busy = true;
                 self.net("networkPeers", json!({}), NetReply::View);
             }
-            KeyCode::Char('i') if n.joined() && n.role() != "member" => {
+            KeyCode::Char('i') if n.says("canInvite") => {
                 self.net("networkInvite", json!({}), NetReply::Invite);
                 n.step = Step::Invite(None);
             }
-            KeyCode::Char('o') if n.joined() && n.role() != "owner" => n.step = Step::Recover(Editor::default()),
+            KeyCode::Char('o') if n.says("canRecover") => n.step = Step::Recover(Editor::default()),
             KeyCode::Char('p') => match selected {
                 Some(c) if c["canPromote"] == true => {
                     self.net("networkPromote", json!({"computer": name(&c)}), NetReply::Done("Made an admin"));
@@ -307,6 +332,8 @@ impl App {
     fn setup_key(&mut self, n: &mut NetworkSheet, mut s: Setup, join: bool, k: KeyEvent) -> Step {
         match k.code {
             KeyCode::Esc => return Step::List,
+            // Already sent: a second one would only be refused.
+            KeyCode::Enter if n.busy => {}
             KeyCode::Tab | KeyCode::Down => s.step(join, 1),
             KeyCode::BackTab | KeyCode::Up => s.step(join, -1),
             KeyCode::Left | KeyCode::Right | KeyCode::Char(' ') if s.field == SetupField::Connector => {
@@ -355,7 +382,8 @@ mod tests {
     }
 
     fn joined(role: &str) -> Value {
-        json!({"joined": true, "computer": "desk", "role": role, "assistants": false, "computers": [
+        json!({"joined": true, "computer": "desk", "role": role, "canInvite": role != "member", "canRecover": role != "owner",
+            "assistants": false, "assistantsAvailable": true, "computers": [
             {"name": "desk", "role": role, "me": true, "online": true, "agents": [], "canRemove": false, "canPromote": false},
             {"name": "laptop", "role": "member", "me": false, "online": true, "agents": [{"id": "coder", "name": "Coder"}],
              "canRemove": role != "member", "canPromote": role == "owner"},
@@ -391,6 +419,14 @@ mod tests {
         assert!(matches!(n.step, Step::Recovery(_)), "esc doesn't skip saving it");
         let Some(Overlay::Network(n)) = app.network_key(n, key(KeyCode::Char('s'))) else { panic!("kept open") };
         assert!(matches!(n.step, Step::List));
+    }
+
+    #[tokio::test]
+    async fn a_recovery_code_that_comes_after_the_sheet_closed_opens_it_again() {
+        let mut app = test_app();
+        app.network_reply(NetReply::Created, Ok(json!({"recoveryCode": "1234"})));
+        let Some(Overlay::Network(n)) = app.overlays.last() else { panic!("the sheet is back") };
+        assert!(matches!(&n.step, Step::Recovery(code) if code == "1234"));
     }
 
     #[test]

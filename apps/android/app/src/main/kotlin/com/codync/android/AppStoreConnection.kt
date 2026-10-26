@@ -136,7 +136,6 @@ fun AppStore.connect() {
                                 reconcileMailbox(active)
                                 acknowledgeVisible()
                                 syncPush()
-                                loadNetwork(active)
                                 while (isActive) {
                                     if (state.value.mismatch != null) { awaitUpdate(active); continue }
                                     val cursor = withContext(Dispatchers.IO) { requireNotNull(database).revision() }

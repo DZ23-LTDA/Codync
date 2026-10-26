@@ -59,3 +59,25 @@ async fn read_replies_tells_a_failed_request_from_a_stopped_one() {
     assert_eq!(read(&stopped)["detail"], STOPPED);
     f.shutdown().await;
 }
+
+#[tokio::test]
+async fn phones_hear_the_switch_through_the_network_view() {
+    let f = Fixture::new();
+    let hub = &f.hub;
+    let mut events = hub.events.subscribe();
+    let switched = |events: &mut tokio::sync::broadcast::Receiver<Value>| {
+        std::iter::from_fn(|| events.try_recv().ok()).find(|e| e["type"] == "network").expect("a network event")
+    };
+    set_enabled(hub, true).unwrap();
+    let view = &switched(&mut events)["network"];
+    assert_eq!(
+        (&view["assistants"], &view["assistantsAvailable"]),
+        (&json!(true), &json!(false)),
+        "not in an account yet"
+    );
+    cloud::update_status(hub, |s| s.owner = Some(Owner { user_id: "user_1".into(), email: None }));
+    set_enabled(hub, false).unwrap();
+    let view = &switched(&mut events)["network"];
+    assert_eq!((&view["assistants"], &view["assistantsAvailable"]), (&json!(false), &json!(true)));
+    f.shutdown().await;
+}

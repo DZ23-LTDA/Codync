@@ -34,6 +34,12 @@ pub fn enabled(store: &Store) -> bool {
     store.kv_get(KV).as_deref() == Some("on")
 }
 
+/// Whether the cloud can bring the user's assistant here at all: this computer is in their Codync
+/// account (a private relay has none).
+pub fn available(hub: &Hub) -> bool {
+    hub.cloud.status().owner.is_some()
+}
+
 /// `setAssistants`: whether the cloud assistant may reach this computer's bots. Local only.
 pub fn set_enabled(hub: &Hub, on: bool) -> Result<CloudStatus> {
     cloud::require_accounts(&hub.store)?;

@@ -1313,5 +1313,6 @@
   "Only the owner makes plain members admins": "Nur der Eigentümer macht einfache Mitglieder zu Admins",
   "Remove this computer from another one": "Entferne diesen Computer von einem anderen aus",
   "Only the owner removes admins; admins remove members": "Nur der Eigentümer entfernt Admins; Admins entfernen Mitglieder",
-  "Network: your other computers…": "Netzwerk: deine anderen Computer…"
+  "Network: your other computers…": "Netzwerk: deine anderen Computer…",
+  "a switches": "a umschalten"
 }

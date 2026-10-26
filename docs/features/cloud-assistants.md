@@ -41,7 +41,9 @@ The cloud sees these calls in plain text, and a bot can run anything on its comp
   app (Settings → Computers, beside the account rows, shown while the computer is in the account) and the terminal
   UI's network sheet (`N`, then `a`), or `codync-host cloud --assistants on`. All go through the local API
   `setAssistants`, loopback only. The setting is the `assistants` field of `cloudStatus` and of `networkView`, which
-  phones read (they show it in the network sheet and can't change it); the `network` event carries a change.
+  phones read (they show it in the network sheet and can't change it); the `network` event carries a change. The
+  view's `assistantsAvailable` says whether the computer is in a Codync account: the terminal UI and the phones show
+  the switch only then, as the desktop app does.
 - **Only the computer's own account.** The Worker routes a call only to computers the token's account owns, and
   the host checks the call's account against its owner again.
 - **Not on a private relay**: it has no accounts, so the host ignores `assistant.call` there.

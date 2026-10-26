@@ -1,4 +1,4 @@
-import type { CloudStatus, NetworkView } from '@shared/models'
+import type { NetworkView } from '@shared/network'
 import type { BotStore } from './bot-store'
 
 /**
@@ -33,14 +33,16 @@ async function changing<T>(store: BotStore, work: () => Promise<T>): Promise<T> 
 export const network = {
   /** Asks every computer now. */
   peers: (store: BotStore) => changing(store, () => call(store, 'networkPeers', {}, SLOW)),
-  /** Returns the recovery code: show it once, keep it nowhere. */
+  /** Keeps the recovery code on the store until the user says they saved it, wherever they went meanwhile. */
   create: (store: BotStore, name: string, connector: string) =>
-    changing(store, async () => (await call<{ recoveryCode: string }>(store, 'networkCreate', { name: name.trim() || null, connector }, SLOW)).recoveryCode),
+    changing(store, async () => {
+      const { recoveryCode } = await call<{ recoveryCode: string }>(store, 'networkCreate', { name: name.trim() || null, connector }, SLOW)
+      store.setRecoveryCode(recoveryCode)
+    }),
   join: (store: BotStore, invite: string, name: string, connector: string) =>
     changing(store, () => call(store, 'networkJoin', { invite: invite.trim(), name: name.trim() || null, connector }, SLOW)),
   invite: (store: BotStore) => call<{ invite: string; expiresAt: number }>(store, 'networkInvite'),
   promote: (store: BotStore, computer: string) => changing(store, () => call(store, 'networkPromote', { computer })),
   remove: (store: BotStore, computer: string, cascade: boolean) => changing(store, () => call(store, 'networkRemove', { computer, cascade })),
   recover: (store: BotStore, code: string) => changing(store, () => call(store, 'networkRecover', { code: code.trim() })),
-  setAssistants: (store: BotStore, enabled: boolean) => changing(store, () => call<CloudStatus>(store, 'setAssistants', { enabled })),
 }

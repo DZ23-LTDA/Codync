@@ -23,17 +23,22 @@ codync-host network peers | promote <computer> | remove <computer> [--cascade] |
 The apps show the recovery code once, in a sheet that only "I saved it" closes; the host keeps it nowhere and the
 apps never fetch it again. An invite shows when it stops working (`networkInvite` → `expiresAt`). Each computer row
 offers only what this computer may do to it: the host says so per row (`canRemove`, `canPromote`, from
-`Role::removes` and `Role::promotes` in the crate), so the apps never work out the role rules themselves.
+`Role::removes` and `Role::promotes` in the crate) and for this computer (`canInvite` from `Role::invites`,
+`canRecover`), so the apps never work out the role rules themselves.
 
-The iPhone and Android apps read the network through `networkView` (allowed for paired devices over the encrypted
-channel): the computers with their roles, presence and offered bots, and whether cloud assistants are on. Never an
-invite or the recovery code. The network button on a computer's row in Settings opens it; it's hidden when the host
-is older (unknown method) or the computer is neither in a network nor has cloud assistants on.
+The iPhone and Android apps read the network from the event stream's hello and through `networkView` (allowed for
+paired devices over the encrypted channel): the computers with their roles, presence and offered bots, and whether
+cloud assistants are on (`assistants`) and can reach the computer at all (`assistantsAvailable`: it's in a Codync
+account). Never an invite or the recovery code. The network button on a computer's row in Settings opens it; it's
+hidden when the host is older (no `network` in the hello) or the computer is neither in a network nor has cloud
+assistants on that can reach it.
 
 **Live**: the node ticks a change hook (`Node::changes`, a `watch` channel) when members, roles, names, presence or
 offered agents change; the host sends a `network` event (`{"type":"network","network": <networkView>}`) to every
-client then and when cloud assistants are switched. `networkView` also asks the other computers in the background
-when what it heard is over a minute old, so opening the screen brings presence up to date through that event.
+client then and when cloud assistants are switched, and the stream's hello carries the view, so one sent before a
+client subscribed isn't lost. Every client reads `networkView` when its network screen opens; that asks the other
+computers in the background when what the host heard is over a minute old, so presence comes up to date through the
+event. The first ask after the host starts is left to bot listings (`list_bots`), which wait up to 5 s for it.
 
 `create` prints the **recovery code** once: the network's root key, kept on no computer. The connector picks the
 fallback when two computers can't connect directly: iroh's public relays (`public`, the default), the user's own

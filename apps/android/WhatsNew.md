@@ -7,6 +7,14 @@ released version's section; a version without one gets the PRs' "What's New: And
 else a generic "Bug fixes and improvements" line. Delete old sections.
 -->
 
+## 2.29.0
+
+### zh-Hant
+- 設定裡每台電腦多了網路按鈕：看網路裡的電腦、是否在線、提供哪些 Bot，以及雲端助理是否開啟。
+
+### en-US
+- A network button on each computer in Settings shows your network's computers, whether each answers, its bots, and whether cloud assistants are on.
+
 ## 2.28.0
 
 ### zh-Hant

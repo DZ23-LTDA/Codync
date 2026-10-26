@@ -6,6 +6,7 @@ use ratatui::style::Style;
 use ratatui::text::Span;
 use serde_json::Value;
 
+use super::super::app::Editor;
 use super::super::l10n::tr;
 use super::super::manage::{CONNECTORS, NetworkSheet, Setup, SetupField, Step};
 use super::super::md;
@@ -23,64 +24,14 @@ pub(super) fn network(buf: &mut Buffer, area: Rect, n: &NetworkSheet) {
     }
     hline(buf, inner.x, inner.bottom() - 2, inner.width, t.dim.patch(t.panel));
     let body = Rect::new(inner.x, inner.y, inner.width, inner.height - 2);
-    let mut y = body.y;
     let keys = match &n.step {
         Step::List => list(buf, body, n),
         Step::Create(s) => setup(buf, body, s, false),
         Step::Join(s) => setup(buf, body, s, true),
-        Step::Recovery(code) => {
-            let name = n.view.as_ref().and_then(|v| v["computer"].as_str()).unwrap_or("this computer");
-            line(buf, body, &mut y, &tr("Save your recovery code"), t.bold);
-            y += 1;
-            line(buf, body, &mut y, code, t.bold);
-            y += 1;
-            let note = tr(
-                "It makes another computer the owner if {name} is lost. It's shown only once and kept on no computer.",
-            );
-            wrapped(buf, body, &mut y, &note.replace("{name}", name), t.secondary);
-            "y copy · s I saved it"
-        }
-        Step::Invite(invite) => {
-            line(buf, body, &mut y, &tr("Invite a computer"), t.bold);
-            y += 1;
-            match invite {
-                None => line(buf, body, &mut y, &tr("Getting an invite…"), t.dim),
-                Some((code, until)) => {
-                    wrapped(buf, body, &mut y, code, t.bold);
-                    y += 1;
-                    let name = n.view.as_ref().and_then(|v| v["computer"].as_str()).unwrap_or("this computer");
-                    let note = tr("One use. Works until {time} while {name} stays on.")
-                        .replace("{time}", &clock(*until))
-                        .replace("{name}", name);
-                    line(buf, body, &mut y, &note, t.secondary);
-                    line(
-                        buf,
-                        body,
-                        &mut y,
-                        &tr("On the other computer, choose Join with invite under Network."),
-                        t.secondary,
-                    );
-                }
-            }
-            "y copy · n new invite · esc back"
-        }
-        Step::Recover(code) => {
-            line(buf, body, &mut y, &tr("Recover ownership"), t.bold);
-            let note = tr("For when the owner is lost: this computer becomes the owner.");
-            wrapped(buf, body, &mut y, &note, t.secondary);
-            y += 1;
-            input_line(buf, Rect::new(body.x, y, body.width, 1), y, code, "Recovery code", true, false);
-            "↵ recover · esc back"
-        }
-        Step::Remove { computer, cascade } => {
-            line(buf, body, &mut y, &tr("Remove {name} from the network?").replace("{name}", computer), t.red);
-            line(buf, body, &mut y, &tr("It can't come back with its current key."), t.text);
-            y += 1;
-            let mark = if *cascade { "◉" } else { "○" };
-            line(buf, body, &mut y, &format!("{mark} {}", tr("Also remove the computers it invited")), t.text);
-            line(buf, body, &mut y, &format!("  {}", tr("For a stolen computer.")), t.secondary);
-            "↵ remove · c switches · esc cancel"
-        }
+        Step::Recovery(code) => recovery(buf, body, n, code),
+        Step::Invite(invite) => invite_step(buf, body, n, invite.as_ref()),
+        Step::Recover(code) => recover(buf, body, code),
+        Step::Remove { computer, cascade } => remove(buf, body, computer, *cascade),
     };
     if let Some(e) = &n.error {
         put(buf, inner.x, inner.bottom() - 3, inner.width, e, t.red.patch(t.panel));
@@ -88,6 +39,61 @@ pub(super) fn network(buf: &mut Buffer, area: Rect, n: &NetworkSheet) {
         put(buf, inner.x, inner.bottom() - 3, inner.width, &tr("Working…"), t.dim.patch(t.panel));
     }
     put(buf, inner.x, inner.bottom() - 1, inner.width, &format!(" {}", tr(keys)), t.dim.patch(t.panel));
+}
+
+fn recovery(buf: &mut Buffer, body: Rect, n: &NetworkSheet, code: &str) -> &'static str {
+    let t = theme();
+    let mut y = body.y;
+    line(buf, body, &mut y, &tr("Save your recovery code"), t.bold);
+    y += 1;
+    line(buf, body, &mut y, code, t.bold);
+    y += 1;
+    let note =
+        tr("It makes another computer the owner if {name} is lost. It's shown only once and kept on no computer.");
+    wrapped(buf, body, &mut y, &note.replace("{name}", &n.computer()), t.secondary);
+    "y copy · s I saved it"
+}
+
+fn invite_step(buf: &mut Buffer, body: Rect, n: &NetworkSheet, invite: Option<&(String, i64)>) -> &'static str {
+    let t = theme();
+    let mut y = body.y;
+    line(buf, body, &mut y, &tr("Invite a computer"), t.bold);
+    y += 1;
+    match invite {
+        None => line(buf, body, &mut y, &tr("Getting an invite…"), t.dim),
+        Some((code, until)) => {
+            wrapped(buf, body, &mut y, code, t.bold);
+            y += 1;
+            let note = tr("One use. Works until {time} while {name} stays on.")
+                .replace("{time}", &clock(*until))
+                .replace("{name}", &n.computer());
+            line(buf, body, &mut y, &note, t.secondary);
+            line(buf, body, &mut y, &tr("On the other computer, choose Join with invite under Network."), t.secondary);
+        }
+    }
+    "y copy · n new invite · esc back"
+}
+
+fn recover(buf: &mut Buffer, body: Rect, code: &Editor) -> &'static str {
+    let t = theme();
+    let mut y = body.y;
+    line(buf, body, &mut y, &tr("Recover ownership"), t.bold);
+    wrapped(buf, body, &mut y, &tr("For when the owner is lost: this computer becomes the owner."), t.secondary);
+    y += 1;
+    input_line(buf, Rect::new(body.x, y, body.width, 1), y, code, "Recovery code", true, false);
+    "↵ recover · esc back"
+}
+
+fn remove(buf: &mut Buffer, body: Rect, computer: &str, cascade: bool) -> &'static str {
+    let t = theme();
+    let mut y = body.y;
+    line(buf, body, &mut y, &tr("Remove {name} from the network?").replace("{name}", computer), t.red);
+    line(buf, body, &mut y, &tr("It can't come back with its current key."), t.text);
+    y += 1;
+    let mark = if cascade { "◉" } else { "○" };
+    line(buf, body, &mut y, &format!("{mark} {}", tr("Also remove the computers it invited")), t.text);
+    line(buf, body, &mut y, &format!("  {}", tr("For a stolen computer.")), t.secondary);
+    "↵ remove · c switches · esc cancel"
 }
 
 /// The computers, or how to start; then the cloud assistants switch. Returns the key hints.
@@ -99,7 +105,7 @@ fn list(buf: &mut Buffer, body: Rect, n: &NetworkSheet) -> &'static str {
         return "esc close";
     };
     if n.joined() {
-        let me = view["computer"].as_str().unwrap_or_default();
+        let me = n.computer();
         let role = role_name(n.role());
         let connector = view["connector"].as_str().unwrap_or("public");
         put(buf, body.x, y, body.width, &format!("{me} · {role} · {connector}"), t.secondary.patch(t.panel));
@@ -116,22 +122,33 @@ fn list(buf: &mut Buffer, body: Rect, n: &NetworkSheet) -> &'static str {
         let note = tr("Connect your computers so bots on one can message bots on another.");
         wrapped(buf, body, &mut y, &note, t.secondary);
     }
-    y += 1;
-    let on = view["assistants"] == true;
-    put(buf, body.x, y, body.width, &tr("Cloud assistants"), t.text.patch(t.panel));
-    let x = rput(buf, body.right(), y, "  a switches", t.dim.patch(t.panel));
-    rput(buf, x, y, if on { "◉ On" } else { "○ Off" }, if on { t.text } else { t.secondary }.patch(t.panel));
-    y += 1;
-    let about = tr(
-        "ChatGPT or Claude in your Codync account can message this computer's bots. Codync's cloud can read these calls.",
-    );
-    wrapped(buf, body, &mut y, &about, t.secondary);
-    match (n.joined(), n.role()) {
-        (false, _) => "c create network · J join with invite · esc close",
-        (true, "owner") => "i invite · p make admin · x remove · r refresh · esc close",
-        (true, "admin") => "i invite · x remove · o recover ownership · r refresh · esc close",
-        (true, _) => "o recover ownership · r refresh · esc close",
+    if n.says("assistantsAvailable") {
+        assistants(buf, body, y + 1, n.says("assistants"));
     }
+    match (n.joined(), n.says("canInvite"), n.says("canRecover")) {
+        (false, ..) => "c create network · J join with invite · esc close",
+        (true, true, false) => "i invite · p make admin · x remove · r refresh · esc close",
+        (true, true, true) => "i invite · x remove · o recover ownership · r refresh · esc close",
+        (true, false, _) => "o recover ownership · r refresh · esc close",
+    }
+}
+
+/// The cloud assistants switch, for a computer in a Codync account (only there can they reach it).
+fn assistants(buf: &mut Buffer, body: Rect, mut y: u16, on: bool) {
+    let t = theme();
+    put(buf, body.x, y, body.width, &tr("Cloud assistants"), t.text.patch(t.panel));
+    let x = rput(buf, body.right(), y, &format!("  {}", tr("a switches")), t.dim.patch(t.panel));
+    let state = if on { format!("◉ {}", tr("On")) } else { format!("○ {}", tr("Off")) };
+    rput(buf, x, y, &state, if on { t.text } else { t.secondary }.patch(t.panel));
+    y += 1;
+    let about = if on {
+        tr(
+            "ChatGPT or Claude in your Codync account can message this computer's bots. Codync's cloud can read these calls.",
+        )
+    } else {
+        tr("Let ChatGPT or Claude message this computer's bots through your Codync account.")
+    };
+    wrapped(buf, body, &mut y, &about, t.secondary);
 }
 
 fn computer_row(buf: &mut Buffer, body: Rect, y: u16, c: &Value, sel: bool) {

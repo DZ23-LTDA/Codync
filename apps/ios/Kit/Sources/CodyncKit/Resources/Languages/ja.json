@@ -1313,5 +1313,6 @@
   "Only the owner makes plain members admins": "一般メンバーを管理者にできるのはオーナーだけです",
   "Remove this computer from another one": "このコンピューターは別のコンピューターから削除してください",
   "Only the owner removes admins; admins remove members": "管理者を削除できるのはオーナーだけで、管理者はメンバーを削除できます",
-  "Network: your other computers…": "ネットワーク：ほかのコンピューター…"
+  "Network: your other computers…": "ネットワーク：ほかのコンピューター…",
+  "a switches": "a 切り替え"
 }

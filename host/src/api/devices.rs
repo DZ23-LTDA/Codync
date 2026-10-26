@@ -246,6 +246,7 @@ mod tests {
             assert!(permit(&both, m).is_err(), "{m} is loopback only");
         }
         assert!(permit(&both, "send").is_ok());
+        assert!(permit(&both, "networkView").is_ok(), "phones read the network");
         assert!(permit(&both, "screenOffer").is_ok());
         assert!(permit(&both, "screenPrepare").is_ok());
         assert!(permit(&control, "screenPrepare").is_err());

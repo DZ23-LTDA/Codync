@@ -14,7 +14,7 @@ import { StoreContext, useApp } from '../../store/context'
 import { ComputerBadge } from '../ComputerBadge'
 import { PairingCode } from '../PairingCode'
 import { AuthorizedDevicesSection } from './AuthorizedDevicesSection'
-import { AssistantsSwitch, NetworkSection } from './NetworkSection'
+import { NetworkSection } from './NetworkSection'
 import { cloudStatusLine } from '../../lib/relay-copy'
 import { useTr } from '../../lib/use-language'
 import { errorText, liveClient, relativeDay, SectionHeader, statusText, thisMac } from './parts'
@@ -216,8 +216,21 @@ function ManagedComputerCard({ store, ssh: overSSH }: { store: BotStore; ssh: bo
                     </Text>
                   </span>
                 </Switch>,
-                // Hosts before 2.28.0 have no cloud assistants.
-                ...(cloud?.assistants != null ? [<AssistantsSwitch key="assistants" store={store} disabled={busy || !manageable} />] : []),
+                // Hosts before 2.28.0 have no cloud assistants. The cloud reads these calls, so the computer decides.
+                ...(cloud?.assistants != null
+                  ? [
+                      <Switch key="assistants" on={cloud.assistants} disabled={busy || !manageable} onChange={(on) => run(() => app.cloud.setAssistants(store, on))}>
+                        <span className="settings-stack settings-appear">
+                          <Text>{tr(`Cloud assistants`)}</Text>
+                          <Text size="caption" tone={cloud.assistants ? 'attention' : 'secondary'}>
+                            {cloud.assistants
+                              ? tr(`ChatGPT or Claude in your Codync account can message this computer's bots. Codync's cloud can read these calls.`)
+                              : tr(`Let ChatGPT or Claude message this computer's bots through your Codync account.`)}
+                          </Text>
+                        </span>
+                      </Switch>,
+                    ]
+                  : []),
               ]
             : []),
         ]}

@@ -14,10 +14,12 @@ data class NetworkView(
     /** This computer's name in the network. */
     val computer: String? = null,
     val assistants: Boolean = false,
+    /** Cloud assistants can reach this computer at all: it's in a Codync account. */
+    val assistantsAvailable: Boolean = false,
     val computers: List<NetworkComputer> = emptyList(),
 ) {
-    /** Something to show: the network, or cloud assistants turned on. */
-    val shown: Boolean get() = joined || assistants
+    /** Something to show: the network, or cloud assistants that can reach this computer's bots. */
+    val shown: Boolean get() = joined || (assistantsAvailable && assistants)
 
     companion object {
         fun decode(value: JsonElement): NetworkView = WireJson.decodeFromJsonElement(value)

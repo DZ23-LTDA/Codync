@@ -19,10 +19,6 @@ extension BotStore {
                     try await Task.sleep(for: hostUpdateOffer() == .updating ? Self.updatingRecheck : Self.mismatchRecheck)
                     continue
                 }
-                // Hosts before the network view answer "unknown method": nothing to show.
-                let view = try? await client.networkView()
-                guard !Task.isCancelled, !retired else { return }
-                network = view
                 requestedSince = rev
                 windowFloors = [:]
                 for try await event in client.events(since: requestedSince, client: "ios") {
@@ -83,7 +79,7 @@ extension BotStore {
 
     private func apply(_ event: HostEvent) {
         switch event {
-        case let .hello(id, hostRev, newUsage, newScreen):
+        case let .hello(id, hostRev, newUsage, newScreen, newNetwork):
             if let hostId, hostId != id {
                 // Different host database: start over.
                 resetMirror()
@@ -91,6 +87,7 @@ extension BotStore {
             hostId = id
             setUsage(newUsage)
             screen = newScreen
+            network = newNetwork
             let hostRewound = hostRev < rev
             if hostRewound { rev = 0 }
             windowFloors = requestedSince > 0 && !hostRewound ? loadedFloors() : [:]

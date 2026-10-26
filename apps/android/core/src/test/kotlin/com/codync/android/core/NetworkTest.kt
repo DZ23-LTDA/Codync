@@ -6,11 +6,11 @@ import org.junit.Test
 
 class NetworkTest {
     private val view = WireJson.parseToJsonElement("""
-        {"joined": true, "computer": "desk", "role": "owner", "connector": "public", "assistants": false,
+        {"joined": true, "computer": "desk", "role": "owner", "connector": "public", "assistants": false, "assistantsAvailable": true,
          "computers": [
-           {"name": "desk", "role": "owner", "me": true, "online": true, "bots": ["reviewer"],
+           {"name": "desk", "role": "owner", "me": true, "online": true,
             "agents": [{"id": "reviewer", "name": "Reviewer"}], "canRemove": false, "canPromote": false},
-           {"name": "laptop", "role": "admin", "me": false, "online": false, "bots": [], "agents": [],
+           {"name": "laptop", "role": "admin", "me": false, "online": false, "agents": [],
             "canRemove": true, "canPromote": false, "later": 1}]}
     """)
 
@@ -23,9 +23,20 @@ class NetworkTest {
         assertEquals(listOf(NetworkAgent("reviewer", "Reviewer")), read.computers[0].agents)
     }
 
-    @Test fun `a computer in no network shows only when cloud assistants are on`() {
-        assertFalse(NetworkView.decode(buildJsonObject { put("joined", false); put("assistants", false) }).shown)
-        assertTrue(NetworkView.decode(buildJsonObject { put("joined", false); put("assistants", true) }).shown)
+    @Test fun `a computer in no network shows only when cloud assistants can reach it and are on`() {
+        fun alone(on: Boolean, available: Boolean) =
+            NetworkView.decode(buildJsonObject { put("joined", false); put("assistants", on); put("assistantsAvailable", available) })
+        assertFalse(alone(on = false, available = true).shown)
+        assertFalse("not in an account", alone(on = true, available = false).shown)
+        assertTrue(alone(on = true, available = true).shown)
+    }
+
+    @Test fun `the stream's hello carries the network, and hosts before it none`() {
+        fun hello(network: JsonElement?) = MirrorEvent.decode(buildJsonObject {
+            put("type", "hello"); put("hostId", "h"); put("rev", 1); network?.let { put("network", it) }
+        }) as MirrorEvent.Hello
+        assertEquals("desk", hello(view).network?.computer)
+        assertNull(hello(null).network)
     }
 
     @Test fun `the network event is live state, and one this app can't read is passed over`() {

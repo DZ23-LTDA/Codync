@@ -154,7 +154,7 @@ import kotlinx.serialization.json.put
         } }
     }
     CodyncSheet(voice, { voice = false }) { VoiceChatSettings(state, store) }
-    CodyncSheet(network, { network = false }) { state.network?.let { NetworkSheet(it) } }
+    CodyncSheet(network, { network = false }) { state.network?.let { NetworkSheet(it, store::refreshNetwork) } }
     SwatchPanel(coloring, paired?.color, { coloring = false }, store::setColor)
     CodyncSheet(aboutAnalytics, { aboutAnalytics = false }) { AnalyticsSheet() }
     CodyncDialog("Start over?", confirmStartOver, { confirmStartOver = false },

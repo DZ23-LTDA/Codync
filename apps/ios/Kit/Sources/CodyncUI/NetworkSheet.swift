@@ -23,13 +23,17 @@ public struct NetworkSheet: View {
                         ForEach(view.computers ?? []) { NetworkComputerRow(computer: $0) }
                     }
                 }
-                CardSection(footer: "ChatGPT or Claude in your Codync account can message this computer's bots when it's on. Codync's cloud can read these calls.") {
-                    ValueRow("Cloud assistants", value: store.network?.isAssistantsOn == true ? "On" : "Off")
+                if store.network?.assistantsAvailable == true {
+                    CardSection(footer: "ChatGPT or Claude in your Codync account can message this computer's bots when it's on. Codync's cloud can read these calls.") {
+                        ValueRow("Cloud assistants", value: store.network?.assistants == true ? "On" : "Off")
+                    }
                 }
             }
             .animation(Motion.layout, value: store.network)
         }
         .background(Palette.background)
+        // Presence as of now: the host asks the others when stale, and its event updates this.
+        .task { await store.refreshNetwork() }
         .tracked(.screenViewed(.network))
     }
 }

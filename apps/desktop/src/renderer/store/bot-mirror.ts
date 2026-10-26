@@ -6,10 +6,10 @@ import {
   type Computer,
   type Entry,
   type Hello,
-  type NetworkView,
   type ScreenState,
   type Usage,
 } from '@shared/models'
+import type { NetworkView } from '@shared/network'
 import type { HostClient, HostRoute, HostTransport } from '../client/host-client'
 import { rosterOrder } from '../lib/computer-roster'
 import { offerHostUpdate, type HostUpdate, type HostUpdateOffer } from '../lib/host-update'
@@ -46,6 +46,8 @@ export class BotMirror extends Observable {
   cloud: CloudStatus | null = null
   /** This computer's network; null until known, and on hosts without `networkView`. */
   network: NetworkView | null = null
+  /** A new network's recovery code until the user says they saved it: the host keeps it nowhere. */
+  recoveryCode: string | null = null
   historyComplete = new Set<string>()
   routineDrafts = new Map<string, string>()
   readonly composerDrafts: ComposerDrafts
@@ -205,6 +207,11 @@ export class BotMirror extends Observable {
 
   setNetwork(network: NetworkView | null) {
     this.network = network
+    this.changed()
+  }
+
+  setRecoveryCode(code: string | null) {
+    this.recoveryCode = code
     this.changed()
   }
 
