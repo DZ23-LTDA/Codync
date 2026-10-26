@@ -136,6 +136,7 @@ fun AppStore.connect() {
                                 reconcileMailbox(active)
                                 acknowledgeVisible()
                                 syncPush()
+                                loadNetwork(active)
                                 while (isActive) {
                                     if (state.value.mismatch != null) { awaitUpdate(active); continue }
                                     val cursor = withContext(Dispatchers.IO) { requireNotNull(database).revision() }
@@ -185,6 +186,7 @@ private suspend fun AppStore.consumeEvents(active: EncryptedChannel, cursor: Lon
             withContext(Dispatchers.IO) { requireNotNull(database).apply(batch) }
             refresh()
             receiveArtifacts(batch)
+            receiveNetwork(batch)
             hearCalls(batch)
             acknowledgeVisible(readAfter(batch, state.value.readingChats))
             if (resync) throw Resync()

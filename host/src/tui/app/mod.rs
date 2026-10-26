@@ -480,7 +480,7 @@ pub fn tilde(path: &str, home: &str) -> String {
 }
 
 #[cfg(test)]
-fn test_app() -> App {
+pub(in crate::tui) fn test_app() -> App {
     let (tx, _) = tokio::sync::mpsc::unbounded_channel();
     App::new(Client::new("http://127.0.0.1:1", None), tx, String::new())
 }

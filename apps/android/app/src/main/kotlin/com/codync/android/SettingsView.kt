@@ -68,6 +68,7 @@ import kotlinx.serialization.json.put
     var coloring by remember { mutableStateOf(false) }
     var confirmStartOver by remember { mutableStateOf(false) }
     var voice by remember { mutableStateOf(false) }
+    var network by remember { mutableStateOf(false) }
     var aboutAnalytics by remember { mutableStateOf(false) }
     LaunchedEffect(state.contextId) { store.refreshCloud() }
     Column(Modifier.fillMaxSize().background(Palette.background)) {
@@ -77,7 +78,7 @@ import kotlinx.serialization.json.put
                 else "Each bot runs on its own computer. Sign in to see the computers in your account.") {
                 if (paired != null) row {
                     val inAccount = state.cloudComputers.firstOrNull { it.computerId == paired.id }
-                    ComputerRow(state, store, inAccount != null, ComputerActions(extensions, store::openScreen, voice = { voice = true }, color = { coloring = true },
+                    ComputerRow(state, store, inAccount != null, ComputerActions(extensions, store::openScreen, voice = { voice = true }, network = { network = true }, color = { coloring = true },
                         ask = inAccount?.let { c -> { ask(c) } },
                         revoke = inAccount?.takeIf { it.isGranted }?.let { c -> { confirmRevoke = c } }) { confirmForget = true })
                 }
@@ -153,6 +154,7 @@ import kotlinx.serialization.json.put
         } }
     }
     CodyncSheet(voice, { voice = false }) { VoiceChatSettings(state, store) }
+    CodyncSheet(network, { network = false }) { state.network?.let { NetworkSheet(it) } }
     SwatchPanel(coloring, paired?.color, { coloring = false }, store::setColor)
     CodyncSheet(aboutAnalytics, { aboutAnalytics = false }) { AnalyticsSheet() }
     CodyncDialog("Start over?", confirmStartOver, { confirmStartOver = false },
@@ -190,7 +192,7 @@ import kotlinx.serialization.json.put
 }
 
 /** What the paired computer's row and its menu open; `revoke` is set when this phone's account access can be revoked. */
-private class ComputerActions(val extensions: () -> Unit, val screen: () -> Unit, val voice: () -> Unit, val color: () -> Unit,
+private class ComputerActions(val extensions: () -> Unit, val screen: () -> Unit, val voice: () -> Unit, val network: () -> Unit, val color: () -> Unit,
     val ask: (() -> Unit)?, val revoke: (() -> Unit)?, val remove: () -> Unit)
 
 /** The paired computer: its connection, how it's reached, and whether it's in the account. */
@@ -199,6 +201,7 @@ private class ComputerActions(val extensions: () -> Unit, val screen: () -> Unit
     val link = state.connection
     val online = link is LinkState.Ready
     val viewable = online && state.screen != null
+    val inNetwork = online && state.network?.shown == true
     val detail = if (link is LinkState.Ready) {
         val count = state.bots.count { !it.deleted && it.kind != "group" }
         "$count bot${if (count == 1) "" else "s"} · ${routeLabel(link.route, computer.cloud)}"
@@ -209,6 +212,7 @@ private class ComputerActions(val extensions: () -> Unit, val screen: () -> Unit
             if (online) MenuItem("Extensions", icon = "square.grid.2x2", action = actions.extensions) else null,
             if (online) MenuItem("Voice chat", icon = "waveform", action = actions.voice) else null,
             if (viewable) MenuItem("Screen", icon = "display", action = actions.screen) else null,
+            if (inNetwork) MenuItem("Network", icon = NETWORK_ICON, action = actions.network) else null,
             actions.revoke?.let { MenuItem("Revoke this phone's access", icon = "lock.slash", destructive = true, divider = true, action = it) },
             if (!inAccount) MenuItem("Remove", icon = "trash", destructive = true, divider = actions.revoke == null, action = actions.remove) else null,
         )
@@ -244,6 +248,7 @@ private class ComputerActions(val extensions: () -> Unit, val screen: () -> Unit
         if (state.connection is LinkState.Ready) {
             IconButton("Extensions", "square.grid.2x2", action = actions.extensions)
             if (state.screen != null) IconButton("Screen", "display", action = actions.screen)
+            if (state.network?.shown == true) IconButton("Network", NETWORK_ICON, action = actions.network)
         }
         DropdownMenu({ ConnectionRoute.entries.map { route -> MenuItem(routeTitle(route, computer.cloud), icon = route.icon, selected = route == computer.route) { store.setRoute(route) } } },
             Modifier.size(36.dp), label = "Connection") {
@@ -344,6 +349,8 @@ private class ComputerActions(val extensions: () -> Unit, val screen: () -> Unit
         }
     }
 }
+
+private const val NETWORK_ICON = "point.3.connected.trianglepath.dotted"
 
 private val ConnectionRoute.icon get() = when (this) {
     ConnectionRoute.Automatic -> "arrow.triangle.branch"

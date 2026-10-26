@@ -1,4 +1,4 @@
-import { isChat, type AccessRequest, type CloudStatus, type Entry } from '@shared/models'
+import { isChat, type AccessRequest, type CloudStatus, type Entry, type NetworkView } from '@shared/models'
 import { isOutsideLoadedWindow, snapshotFloors } from '@shared/mirror-window'
 import { HostClient, HostError, type HostEvent } from '../client/host-client'
 import { BotMirror, type Connection } from './bot-mirror'
@@ -134,6 +134,12 @@ export class BotSync extends BotMirror {
           try {
             this.cloud = await client.call<CloudStatus>('cloudStatus')
           } catch {}
+          try {
+            this.network = await client.call<NetworkView>('networkView')
+          } catch {
+            // Hosts before the network screens don't have it: no Network section.
+            this.network = null
+          }
           this.changed()
         }
         if (!alive()) return
@@ -240,6 +246,9 @@ export class BotSync extends BotMirror {
         break
       case 'cloud':
         this.cloud = event.cloud
+        break
+      case 'network':
+        this.network = event.network
         break
       case 'call': {
         const { cue } = event

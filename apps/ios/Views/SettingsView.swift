@@ -274,6 +274,7 @@ private struct ComputerRow: View {
     @Environment(AccountStore.self) private var accounts
     @State private var coloring = false
     @State private var voiceSettings = false
+    @State private var networkSheet = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -320,6 +321,7 @@ private struct ComputerRow: View {
             if store.connection == .online {
                 items.append(MenuItem("Extensions", icon: "square.grid.2x2", action: openMarketplace))
                 items.append(MenuItem("Voice chat", icon: "waveform") { voiceSettings = true })
+                if showsNetwork { items.append(MenuItem("Network", icon: Self.networkIcon) { networkSheet = true }) }
             }
             if store.screen != nil, store.connection == .online {
                 items.append(MenuItem("Screen", icon: "display", action: openScreen))
@@ -333,6 +335,7 @@ private struct ComputerRow: View {
             return items
         }
         .codyncSheet(isPresented: $voiceSettings) { VoiceChatSettingsView().environment(store) }
+        .codyncSheet(isPresented: $networkSheet) { NetworkSheet().environment(store) }
         .codyncOverlay(isPresented: $coloring) { close in
             ZStack {
                 Color.black.opacity(0.35).ignoresSafeArea().onTapGesture(perform: close)
@@ -358,6 +361,7 @@ private struct ComputerRow: View {
             if store.connection == .online {
                 IconButton("Extensions", systemImage: "square.grid.2x2", action: openMarketplace)
                 if store.screen != nil { IconButton("Screen", systemImage: "display", action: openScreen) }
+                if showsNetwork { IconButton("Network", systemImage: Self.networkIcon) { networkSheet = true } }
             }
             DropdownMenu {
                 ConnectionRoute.allCases.map { route in
@@ -376,6 +380,11 @@ private struct ComputerRow: View {
             if stale, inAccount == nil { IconButton("Remove", systemImage: "trash", action: remove) }
         }
     }
+
+    private static let networkIcon = "point.3.connected.trianglepath.dotted"
+
+    /// In a network of the user's computers, or cloud assistants on (hosts before it say nothing).
+    private var showsNetwork: Bool { store.network?.hasContent == true }
 
     private var preference: ConnectionRoute { store.computer.route ?? .automatic }
 

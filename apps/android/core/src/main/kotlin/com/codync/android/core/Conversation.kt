@@ -158,6 +158,8 @@ sealed interface MirrorEvent {
     data class ArtifactChanged(val artifact: Artifact) : MirrorEvent
     /** For the voice of a call on this device: live only, never a checkpoint. */
     data class Call(val cue: CallCue) : MirrorEvent
+    /** The computer's network changed: live only, never a checkpoint. */
+    data class Network(val view: NetworkView) : MirrorEvent
     data object Resync : MirrorEvent
     data object Ignored : MirrorEvent
 
@@ -173,6 +175,8 @@ sealed interface MirrorEvent {
             // One this app can't read is passed over rather than fetching everything again: a card or the Library reads it again.
             "artifact" -> runCatching { ArtifactChanged(Artifact.decode(value.getValue("artifact"))) }.getOrDefault(Ignored)
             "call" -> CallCue.decode(value)?.let(::Call) ?: Ignored
+            // One this app can't read is passed over: the sheet reads `networkView` when the link comes back.
+            "network" -> runCatching { Network(NetworkView.decode(value.getValue("network"))) }.getOrDefault(Ignored)
             "resync" -> Resync
             // Match the existing clients: unknown events do not advance the cursor.
             else -> Ignored

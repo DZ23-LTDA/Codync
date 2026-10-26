@@ -62,6 +62,7 @@ impl App {
             }
             Some("usage") => self.usage = v["usage"].clone(),
             Some("screen") => self.screen = v["screen"].clone(),
+            Some("network") => self.network_changed(&v["network"]),
             Some("bot") => {
                 self.upsert_bot(&v["bot"]);
                 self.memory_moved(&v["bot"]);
@@ -159,6 +160,10 @@ impl App {
             self.on_sheet_reply(s, r);
             return;
         }
+        if let After::Network(n) = after {
+            self.network_reply(n, r);
+            return;
+        }
         let v = match r {
             Ok(v) => v,
             Err(e) => {
@@ -204,6 +209,7 @@ impl App {
             | After::Tracked
             | After::Answered(_)
             | After::Sheet(_)
+            | After::Network(_)
             | After::Sent(_)
             | After::Connection(_, _) => {}
             After::Installed => {

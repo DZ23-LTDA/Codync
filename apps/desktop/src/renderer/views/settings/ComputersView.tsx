@@ -14,6 +14,7 @@ import { StoreContext, useApp } from '../../store/context'
 import { ComputerBadge } from '../ComputerBadge'
 import { PairingCode } from '../PairingCode'
 import { AuthorizedDevicesSection } from './AuthorizedDevicesSection'
+import { AssistantsSwitch, NetworkSection } from './NetworkSection'
 import { cloudStatusLine } from '../../lib/relay-copy'
 import { useTr } from '../../lib/use-language'
 import { errorText, liveClient, relativeDay, SectionHeader, statusText, thisMac } from './parts'
@@ -215,10 +216,14 @@ function ManagedComputerCard({ store, ssh: overSSH }: { store: BotStore; ssh: bo
                     </Text>
                   </span>
                 </Switch>,
+                // Hosts before 2.28.0 have no cloud assistants.
+                ...(cloud?.assistants != null ? [<AssistantsSwitch key="assistants" store={store} disabled={busy || !manageable} />] : []),
               ]
             : []),
         ]}
       </CardSection>
+
+      <NetworkSection store={store} />
 
       <AuthorizedDevicesSection store={store} />
 

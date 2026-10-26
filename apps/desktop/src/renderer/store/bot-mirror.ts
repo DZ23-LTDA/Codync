@@ -6,6 +6,7 @@ import {
   type Computer,
   type Entry,
   type Hello,
+  type NetworkView,
   type ScreenState,
   type Usage,
 } from '@shared/models'
@@ -43,6 +44,8 @@ export class BotMirror extends Observable {
   screen: ScreenState | null = null
   accessRequests: AccessRequest[] = []
   cloud: CloudStatus | null = null
+  /** This computer's network; null until known, and on hosts without `networkView`. */
+  network: NetworkView | null = null
   historyComplete = new Set<string>()
   routineDrafts = new Map<string, string>()
   readonly composerDrafts: ComposerDrafts
@@ -197,6 +200,11 @@ export class BotMirror extends Observable {
 
   setError(message: string | null) {
     this.lastError = message
+    this.changed()
+  }
+
+  setNetwork(network: NetworkView | null) {
+    this.network = network
     this.changed()
   }
 

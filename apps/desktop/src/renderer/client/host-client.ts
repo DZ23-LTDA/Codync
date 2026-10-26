@@ -5,6 +5,7 @@ import {
   type AccessRequest,
   type Bot,
   type CloudStatus,
+  type NetworkView,
   type Entry,
   type Hello,
   type ScreenState,
@@ -73,6 +74,8 @@ export type HostEvent =
   | { type: 'screen'; screen: ScreenState }
   | { type: 'accessRequests'; requests: AccessRequest[] }
   | { type: 'cloud'; cloud: CloudStatus }
+  /** This computer's network changed (members, roles, presence, offered bots) or cloud assistants were switched. */
+  | { type: 'network'; network: NetworkView }
   /** For the voice of a call in this app (only the computer's own apps receive this computer's calls' cues). */
   | { type: 'call'; cue: CallCue }
   | { type: 'resync' }
@@ -121,6 +124,8 @@ export function parseEvent(line: string): HostEvent | null {
       return { type, requests: (raw.requests as AccessRequest[]) ?? [] }
     case 'cloud':
       return raw.cloud ? { type, cloud: raw.cloud as CloudStatus } : null
+    case 'network':
+      return raw.network ? { type, network: raw.network as NetworkView } : null
     case 'call': {
       const cue = parseCallCue(raw)
       return cue ? { type, cue } : null

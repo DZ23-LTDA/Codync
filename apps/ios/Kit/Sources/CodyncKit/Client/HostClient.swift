@@ -11,6 +11,8 @@ public enum HostEvent: Sendable {
     case artifact(Artifact)
     /// For the voice of a call on this device (only the device holding the call receives it).
     case call(CallCue)
+    /// The computer's network changed (members, roles, presence, offered bots, cloud assistants).
+    case network(NetworkView)
     case resync
     /// An event this app version couldn't decode (host newer/older than the app).
     case undecodable(type: String)
@@ -101,6 +103,7 @@ public struct HostClient: Sendable {
         struct UsageWrap: Decodable { var usage: Usage }
         struct ScreenWrap: Decodable { var screen: ScreenState }
         struct ArtifactWrap: Decodable { var artifact: Artifact }
+        struct NetworkWrap: Decodable { var network: NetworkView }
         let d = decoder
         guard let env = try? d.decode(Envelope.self, from: data) else { return nil }
         switch env.type {
@@ -124,6 +127,9 @@ public struct HostClient: Sendable {
             return (try? d.decode(ArtifactWrap.self, from: data)).map { .artifact($0.artifact) }
         case "call":
             return (try? d.decode(CallCue.self, from: data)).map { .call($0) }
+        case "network":
+            // Not worth a rewind: the next connect asks for the view again.
+            return (try? d.decode(NetworkWrap.self, from: data)).map { .network($0.network) }
         case "resync":
             return .resync
         default:
@@ -136,6 +142,9 @@ public struct HostClient: Sendable {
 
 public extension HostClient {
     func hello() async throws -> Hello { try await call("hello") }
+
+    /// The computer's network, read-only (hosts before it: "unknown method").
+    func networkView() async throws -> NetworkView { try await call("networkView") }
 
     /// Updates a computer that's behind this app to the latest release (`Hello.canUpdate`).
     func installHostUpdate() async throws {

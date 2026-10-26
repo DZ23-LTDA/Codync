@@ -540,6 +540,35 @@ export interface CloudStatus {
   approval?: AccountApproval | null
   /** Whose relay: a `private` one has no account, access requests or relayed screen. Absent from older hosts (always Codync's). */
   relay?: 'codync' | 'private' | null
+  /** The user's cloud assistant may message this computer's bots (`setAssistants`). */
+  assistants?: boolean | null
+}
+
+export type NetworkRole = 'owner' | 'admin' | 'member'
+
+/** A computer in this computer's network (codync-network), as last heard. */
+export interface NetworkComputer {
+  name: string
+  role: NetworkRole
+  /** This computer. */
+  me: boolean
+  online: boolean
+  /** The bots it offers, by name. */
+  agents: { id: string; name: string }[]
+  /** What this computer may do to it; the host decides. */
+  canRemove: boolean
+  canPromote: boolean
+}
+
+/** `networkView` and the `network` event: this computer's network, and whether cloud assistants are on. */
+export interface NetworkView {
+  joined: boolean
+  assistants: boolean
+  computer?: string | null
+  role?: NetworkRole | null
+  /** `public`, `private` or a relay URL. */
+  connector?: string | null
+  computers?: NetworkComputer[]
 }
 
 export interface ClaimSignature {

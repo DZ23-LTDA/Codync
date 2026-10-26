@@ -19,6 +19,10 @@ extension BotStore {
                     try await Task.sleep(for: hostUpdateOffer() == .updating ? Self.updatingRecheck : Self.mismatchRecheck)
                     continue
                 }
+                // Hosts before the network view answer "unknown method": nothing to show.
+                let view = try? await client.networkView()
+                guard !Task.isCancelled, !retired else { return }
+                network = view
                 requestedSince = rev
                 windowFloors = [:]
                 for try await event in client.events(since: requestedSince, client: "ios") {
@@ -124,6 +128,8 @@ extension BotStore {
             setUsage(u)
         case let .screen(s):
             screen = s
+        case let .network(view):
+            network = view
         case let .artifact(artifact):
             artifacts.upsert(artifact)
         case .resync:

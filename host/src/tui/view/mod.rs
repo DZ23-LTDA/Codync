@@ -17,6 +17,7 @@ mod forms;
 mod goto;
 mod help;
 mod lead_agent;
+mod network;
 mod new_bot;
 mod overlay;
 mod pair;
