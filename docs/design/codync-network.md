@@ -146,11 +146,13 @@ A VPS can be a member (the host or the standalone daemon, with its own bots or a
 The build plan, with what each step touches and when it's done: [what's left](../plans/codync-network-next.md).
 
 Done: the network screens and the cloud assistants switch in every client (2.29.0): the desktop app and the
-terminal UI manage the network, phones show it, and a `network` event keeps them current.
+terminal UI manage the network, phones show it, and a `network` event keeps them current. Per-bot offering, the
+cloud assistant scope and inbound rules, checked by the receiving computer. A computer that moves re-signs where it
+is. Cloud assistants and agents that aren't Codync bots (`codync-host mcp network`) reach the bots across the
+network.
 
-1. Per-bot offering and inbound rules (needed before networks shared with other people).
-2. Codync-run iroh relays as the default connector.
-3. A local MCP server for agents that aren't Codync bots.
-4. Hellos that carry only what changed, lifting the roster's per-computer cap.
-5. Account networks; several networks per computer.
-6. A control channel for the standalone daemon on Windows (named pipe).
+1. Codync-run iroh relays as the default connector.
+2. Several networks per computer.
+3. Hellos that carry only what changed, lifting the roster's per-computer cap.
+4. Account networks.
+5. A control channel for the standalone daemon on Windows (named pipe).

@@ -113,7 +113,10 @@ Phones list the computers. The live event updates every client. Analytics: `sett
 switch is already there, and `network_joined` exists; add events for the screens the way
 `docs/features/analytics.md` describes.
 
-## 2. Access rules (ACL)
+## 2. Access rules (ACL) (built)
+
+Built as the recommended model below. What it does now: [feature](../features/codync-network.md#who-reaches-this-computers-bots).
+
 
 **Goal**: choose which bots each computer offers, and which agents may message them, before a network is ever
 shared with other people.

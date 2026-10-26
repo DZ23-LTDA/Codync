@@ -103,12 +103,34 @@ that was off learns of a removal.
   sessions (their inbox socket) and Codex threads (`codex queue`), see the crate README. It keeps its own key in
   `~/.codync-network` (the host's is `~/.codync/network`), so beside a host it is a computer of its own.
 
+## Who reaches this computer's bots
+
+Every check is the **receiving** computer's, like the message budgets: no rule depends on the sender's goodwill,
+and nothing new crosses the wire beyond a refusal's reason.
+
+- **Offered to the network**, per bot (`offeredToNetwork` on the bot, on by default): a bot that's off isn't
+  published (`network::publish` filters it), so other computers don't list it, and a letter to it is refused like
+  one to an unknown agent. It's a bot setting, so any paired device may change it.
+- **Reachable by cloud assistants**, per bot (`reachableByAssistants`, on by default): `list_bots` from the cloud
+  assistant leaves it out and `message_bot` refuses it (`chat/team/assistant.rs`).
+- **Rules**, per computer: an ordered list of `{fromComputer, fromAgent, toAgent, access}` (`allow`/`deny`, `*`
+  for any). The first rule that matches decides; with none, everyone may write (`codync_network::rules`). The crate
+  checks them in `node/inbound.rs` before it takes a letter, so the standalone daemon has them too (`rules.json`
+  beside `agents.json`, `codync-network rules allow|deny <agent@computer> <agent> [--first]`, `rules remove <n>`).
+  A refused letter's sender gets the reason as its tool error, for example "desk refused it: reviewer doesn't take
+  messages from lead@laptop", and its exchange notice ends failed. Answers to this computer's own letters always
+  pass (the crate keeps the ids it sent), so a rule added while a request runs doesn't strand it. The host keeps
+  its rules in kv `network_rules`, applies them when the node starts, and changes them with `setNetworkRules`
+  (loopback only, like membership); `networkView` shows them, so phones list them read-only.
+- The master switches stay at the computer: being in a network, and cloud assistants on or off.
+
 ## Not yet
 
 Planned in order, with what each step touches: [what's left](../plans/codync-network-next.md).
 
 - One network per computer; the `.network` address suffix comes with several.
-- Shared networks (other people's computers) need the per-network list of offered bots and inbound rules first.
+- Shared networks (other people's computers): the offered switch and the rules exist, but per network (with
+  several networks per computer) they don't yet.
 - Bots can't reach Claude Code or Codex sessions on another computer through the host (the standalone daemon can).
 - Each computer's share of the roster is capped (256 entries) and keeps its oldest: an owner or admin that has
   made 256 admissions, promotions and removals can't make more. Hellos sending changes since the last one, instead
