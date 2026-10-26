@@ -197,7 +197,7 @@ mod tests {
     #[tokio::test]
     async fn an_unavailable_model_keeps_other_models_and_their_options() {
         let fixture = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/model_options_agent.py");
-        let command = format!("python3 '{}'", fixture.display());
+        let command = crate::shell::python(&fixture);
         let (acp, _inbox) = crate::agent::acp::Acp::spawn(&command, env!("CARGO_MANIFEST_DIR"), &[]).unwrap();
         let session = json!({"sessionId": "s1", "configOptions": [{"id": "model", "category": "model",
             "type": "select", "currentValue": "first", "options": [
