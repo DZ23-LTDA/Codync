@@ -105,6 +105,7 @@ pub fn spawn(hub: Arc<Hub>, base: BotConfig) -> BotHandle {
         turn_call: None,
         turn_memory_revision: String::new(),
         announce: None,
+        first_prompt: None,
         turn: None,
         queue: VecDeque::new(),
         active_request: None,
@@ -176,6 +177,9 @@ pub(crate) struct Conn {
     /// Sessions already created or loaded in this process, and when each was last used.
     loaded: HashMap<String, Instant>,
     started: Instant,
+    /// A `session/new` or `session/load` is waiting for its answer. Still set when a routine's time limit cut it short:
+    /// the agent may then open that session, tools and all, under an id the host never learns (`drop_unanswered`).
+    opening: bool,
     /// Each live session's Fast mode option, as the agent last listed it.
     fast_options: HashMap<String, Value>,
     /// The agent reports compactions (`compaction_update`); until it does, a fall in usage stands in for them.
@@ -267,6 +271,8 @@ struct Actor {
     turn_memory_revision: String,
     /// A profile update this turn carried, recorded once the agent got it.
     announce: Option<(Snapshot, Identity)>,
+    /// The snapshot of a new session's first prompt, marked delivered once the agent answered it.
+    first_prompt: Option<Snapshot>,
     turn: Option<i64>,
     queue: VecDeque<Queued>,
     active_request: Option<crate::chat::team::BotRequest>,

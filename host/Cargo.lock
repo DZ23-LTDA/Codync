@@ -709,7 +709,7 @@ dependencies = [
 
 [[package]]
 name = "codync-host"
-version = "2.28.0"
+version = "2.29.0"
 dependencies = [
  "anyhow",
  "axum",
@@ -754,6 +754,7 @@ dependencies = [
  "tracing-subscriber",
  "unicode-width",
  "uuid",
+ "windows-sys 0.61.2",
  "x25519-dalek",
  "zeroize",
 ]
@@ -770,12 +771,13 @@ dependencies = [
 
 [[package]]
 name = "codync-network"
-version = "0.1.2"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "base64 0.23.1",
  "getrandom 0.4.3",
  "iroh",
+ "n0-watcher",
  "serde",
  "serde_json",
  "tokio",

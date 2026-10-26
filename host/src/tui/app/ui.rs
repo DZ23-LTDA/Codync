@@ -5,8 +5,8 @@ use std::collections::BTreeMap;
 use std::time::Instant;
 
 use super::super::manage::{
-    AgentSetup, AnalyticsSheet, BotChatSheet, Fields, Library, Market, MemorySheet, RoutineForm, RoutineList,
-    SkillSheet,
+    AgentSetup, AnalyticsSheet, BotChatSheet, Fields, Library, Market, MemorySheet, NetworkSheet, RoutineForm,
+    RoutineList, SkillSheet,
 };
 use super::{Editor, Mark};
 
@@ -55,6 +55,7 @@ pub enum Action {
     Library,
     RefreshAgents,
     Pair,
+    Network,
     Usage,
     CheckUpdate,
     Analytics,
@@ -65,7 +66,7 @@ pub enum Action {
     Appearance(super::super::appearance::Appearance),
 }
 
-pub const ACTIONS: [(&str, &str, Action); 18] = [
+pub const ACTIONS: [(&str, &str, Action); 19] = [
     ("New bot…", "n", Action::NewBot),
     ("New group chat…", "m", Action::NewGroup),
     ("Extensions: agents, connectors, skills…", "A", Action::Market),
@@ -74,6 +75,7 @@ pub const ACTIONS: [(&str, &str, Action); 18] = [
     ("Library of this bot: artifacts and files…", "L", Action::Library),
     ("Refresh agents", "", Action::RefreshAgents),
     ("Pair a phone…", "P", Action::Pair),
+    ("Network: your other computers…", "N", Action::Network),
     ("Usage", "U", Action::Usage),
     ("Check for updates", "", Action::CheckUpdate),
     ("Share usage analytics", "", Action::Analytics),
@@ -169,13 +171,15 @@ pub enum Field {
     Notify,
     Computer,
     Team,
+    Network,
+    Assistants,
     Color,
     Shape,
     Connectors,
     Skills,
 }
 
-pub const FIELDS: [Field; 17] = [
+pub const FIELDS: [Field; 19] = [
     Field::Name,
     Field::Instructions,
     Field::Agent,
@@ -189,6 +193,8 @@ pub const FIELDS: [Field; 17] = [
     Field::Notify,
     Field::Computer,
     Field::Team,
+    Field::Network,
+    Field::Assistants,
     Field::Color,
     Field::Shape,
     Field::Connectors,
@@ -220,6 +226,9 @@ pub struct Form {
     pub computer: bool,
     /// `None`: the host has no Manage the team.
     pub manage_team: Option<bool>,
+    /// `None`: the host has no per-bot network switches.
+    pub offered_to_network: Option<bool>,
+    pub reachable_by_assistants: Option<bool>,
     pub color: usize,
     pub shape: usize,
     pub connectors: Vec<Toggle>,
@@ -316,6 +325,7 @@ pub enum Overlay {
     Fields(Box<Fields>),
     Skill(SkillSheet),
     Analytics(AnalyticsSheet),
+    Network(Box<NetworkSheet>),
 }
 
 pub struct Toast {
