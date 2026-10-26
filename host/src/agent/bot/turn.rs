@@ -38,7 +38,7 @@ impl Actor {
         }
         // A compaction may have dropped the profile the session's first message carried.
         let resend = instructions == Instructions::FirstMessage && self.profile_resend.remove(sid);
-        if self.session_fresh || resend {
+        if snapshot.unprompted || resend {
             // The instructions reaching the agent now hold memory as it was when they were rendered.
             memory::opened(&self.hub.store, &self.cfg.id, sid, &snapshot.memory)?;
         }
@@ -46,7 +46,12 @@ impl Actor {
             prompt = format!("{notice}\n\n{prompt}");
             self.turn_memory_revision = revision;
         }
-        if std::mem::take(&mut self.session_fresh) && instructions == Instructions::FirstMessage {
+        // A prompt that failed may never have reached the agent: the instructions stay owed until one succeeds.
+        self.session_fresh = false;
+        if snapshot.unprompted {
+            self.first_prompt = Some(snapshot.clone());
+        }
+        if snapshot.unprompted && instructions == Instructions::FirstMessage {
             prompt = format!("<bot-profile>\n{}\n</bot-profile>\n\n{prompt}", snapshot.system);
         } else if resend {
             context::mark_announced(&self.hub.store, &self.cfg.id, &snapshot, snapshot.system_identity.clone())?;
@@ -110,6 +115,7 @@ impl Actor {
         self.turn_call = crate::chat::calls::of_turn(&self.hub.store, answered).or(opens);
         self.turn_memory_revision.clear();
         self.announce = None;
+        self.first_prompt = None;
         self.stop_requested = false;
         self.cancel_deadline = None;
         let team_turn = if self.active_request.is_some() {
@@ -358,6 +364,11 @@ impl Actor {
             && let Err(error) = context::mark_announced(&self.hub.store, &self.cfg.id, &snapshot, identity)
         {
             tracing::warn!(bot = %self.cfg.id, error = format!("{error:#}"), "couldn't record the profile update");
+        }
+        if let (Ok(_), Some(sent)) = (&done, self.first_prompt.take())
+            && let Err(error) = context::mark_prompted(&self.hub.store, &self.cfg.id, &sent)
+        {
+            tracing::warn!(bot = %self.cfg.id, error = format!("{error:#}"), "couldn't record the delivered instructions");
         }
         if let (Some(user), Some(agent), "end_turn") = (self.turn_text.take(), &final_text, stop_reason.as_str()) {
             let turn = crate::chat::naming::Turn { user, agent: agent.clone() };
