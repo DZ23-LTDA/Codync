@@ -28,6 +28,8 @@ export interface NetworkRule {
 export interface Network {
   /** What the host calls it in `network` arguments. */
   id: string
+  /** The network's own id, the same on every computer in it; absent on hosts before 2.29.0. */
+  key?: string
   /** What the user calls it (`home`). */
   name: string
   /** This computer's name and role there. */

@@ -226,6 +226,8 @@ async fn the_network_view_says_who_may_do_what_and_changes_reach_the_apps() {
     );
     let home = &theirs["networks"][0];
     assert_eq!((&home["canInvite"], &home["canRecover"]), (&json!(false), &json!(true)));
+    let key = &view["networks"][0]["key"];
+    assert!(key.is_string() && *key == home["key"], "one key on every computer: {key} {}", home["key"]);
 
     // The owner promotes the laptop: both computers' apps hear of it without asking.
     let there =

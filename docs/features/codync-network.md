@@ -30,6 +30,16 @@ offers only what this computer may do to it: the host says so per row (`canRemov
 `Role::removes` and `Role::promotes` in the crate) and for this computer (`canInvite` from `Role::invites`,
 `canRecover`), so the apps never work out the role rules themselves.
 
+The desktop app adds the computers it manages over SSH without a pasted invite: under each network where this
+computer has `canInvite`, it lists every SSH computer whose own view has no network with the same `key`, and
+**Add to the network** makes an invite here (`networkInvite`) and joins with it there (`networkJoin` through the
+tunnel, the network's connector, the default name). Only the computer the app runs on adds; an SSH computer's
+section never offers to add this one (the master → slave direction of Computers). A network both are in shows
+once, in this computer's card, with one rules list per computer in it ("Who may message bots on …", each saved
+on its own host); an SSH computer's own section lists only the networks this one isn't in, without Create or Join.
+Once added, the bots on both computers may message each other (no rules = everyone in the network): adding a
+computer is the permission.
+
 The iPhone and Android apps read the network from the event stream's hello and through `networkView` (allowed for
 paired devices over the encrypted channel): the computers with their roles, presence and offered bots, and whether
 cloud assistants are on (`assistants`) and can reach the computer at all (`assistantsAvailable`: it's in a Codync
@@ -62,7 +72,8 @@ reaches no other, connectors differ per network (a private home network, a work 
 wire changed. The cost is one endpoint per network.
 
 - The view (`networkView`, the `network` event, the hello) lists `networks`, the first being the default, each with
-  its `id`, `name`, this computer's name and role there, `canInvite`/`canRecover`, `connector`, `computers` and
+  its `id` (local to this computer), `key` (the network's own id, its root key: the same on every computer in it),
+  `name`, this computer's name and role there, `canInvite`/`canRecover`, `connector`, `computers` and
   `rules`. Methods take `network` (`networkInvite`, `networkRemove`, `setNetworkRules`, …); `networkLeave` stops
   this computer's node for one and deletes its folder (the others list the computer until they remove it).
 - An invite carries the network's name (`Node::set_network_name`, read with `codync_network::read_invite`), so a
