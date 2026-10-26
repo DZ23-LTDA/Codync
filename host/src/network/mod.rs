@@ -62,7 +62,7 @@ pub struct Network {
     /// The address names of the bots kept off the network (Offered to the network off): they
     /// still message the others and hear back.
     unoffered: Mutex<Vec<String>>,
-    /// One create, join or leave at a time.
+    /// One change to the saved networks at a time: create, join, leave, rules.
     changing: tokio::sync::Mutex<()>,
 }
 

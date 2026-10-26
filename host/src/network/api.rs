@@ -191,9 +191,11 @@ pub fn recover(hub: &Hub, network: Option<&str>, code: &str) -> Result<Value> {
 
 /// `setNetworkRules`: who on a network's other computers may write to this computer's bots, in
 /// order (the first match decides); an empty list lets everyone.
-pub fn set_rules(hub: &Hub, network: Option<&str>, rules: &Value) -> Result<Value> {
+pub async fn set_rules(hub: &Hub, network: Option<&str>, rules: &Value) -> Result<Value> {
     let rules: Vec<Rule> =
         serde_json::from_value(rules.clone()).context("rules are {fromComputer, fromAgent, toAgent, access}")?;
+    // The saved list has one writer at a time: a create or join holds it while its node starts.
+    let _one = hub.network.changing.lock().await;
     let slot = joined(hub, network)?;
     slot.node.set_rules(rules.clone())?;
     let mut all = saved::load(&hub.store);

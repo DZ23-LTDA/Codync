@@ -26,10 +26,10 @@ pub(super) fn rules(buf: &mut Buffer, body: Rect, n: &NetworkSheet, at: usize) -
             t.secondary,
         );
     }
-    for (i, rule) in n.rules().iter().enumerate() {
-        if y >= body.bottom().saturating_sub(4) {
-            break;
-        }
+    // The rows between the title and the footer, scrolled so the selected rule shows.
+    let room = usize::from(body.height).saturating_sub(6).max(1);
+    let off = at.saturating_sub(room - 1);
+    for (i, rule) in n.rules().iter().enumerate().skip(off).take(room) {
         let sel = i == at;
         if sel {
             restyle(buf, Rect::new(body.x - 1, y, body.width + 2, 1), t.sel);

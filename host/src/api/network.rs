@@ -24,7 +24,7 @@ pub(super) async fn call(hub: &Arc<Hub>, method: &str, b: Value) -> Result<Contr
         "networkRemove" => network::remove(hub, which, str_arg(&b, "computer")?, b["cascade"] == true)?,
         "networkPromote" => network::promote(hub, which, str_arg(&b, "computer")?)?,
         "networkRecover" => network::recover(hub, which, str_arg(&b, "code")?)?,
-        "setNetworkRules" => network::set_rules(hub, which, &b["rules"])?,
+        "setNetworkRules" => network::set_rules(hub, which, &b["rules"]).await?,
         _ => return Ok(ControlFlow::Continue(b)),
     }))
 }
