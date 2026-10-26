@@ -56,6 +56,7 @@ impl App {
         match v["type"].as_str() {
             Some("hello") => {
                 self.snapshot_floors();
+                self.network = v["network"].clone();
                 if !v["usage"].is_null() {
                     self.usage = v["usage"].clone();
                 }

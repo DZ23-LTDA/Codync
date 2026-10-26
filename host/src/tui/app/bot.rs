@@ -48,6 +48,9 @@ pub struct Bot {
     pub computer: bool,
     /// It creates bots and changes any bot's setup (`chat::manage`); `None` from a host without it.
     pub manage_team: Option<bool>,
+    /// `None`: the host has no per-bot network switches.
+    pub offered_to_network: Option<bool>,
+    pub reachable_by_assistants: Option<bool>,
     /// The bot that created this one; `None` when the user did.
     pub created_by: Option<String>,
     pub created_at: i64,
@@ -178,6 +181,8 @@ impl Bot {
             notify: v["notify"].as_bool().unwrap_or(true),
             computer: v["computer"].as_bool().unwrap_or(false),
             manage_team: v["manageTeam"].as_bool(),
+            offered_to_network: v["offeredToNetwork"].as_bool(),
+            reachable_by_assistants: v["reachableByAssistants"].as_bool(),
             created_by: v["createdBy"].as_str().map(str::to_owned),
             created_at: v["createdAt"].as_i64().unwrap_or(0),
             harness_memory: v["harnessMemory"]

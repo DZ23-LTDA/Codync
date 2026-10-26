@@ -61,6 +61,8 @@ pub struct App {
     pub entries: HashMap<String, BTreeMap<i64, Entry>>,
     pub usage: Value,
     pub screen: Value,
+    /// This computer's network (`networkView`'s shape); null on hosts without one.
+    pub network: Value,
     pub backends: Vec<Value>,
     pub selected: Option<String>,
     pub focus: Focus,
@@ -150,6 +152,7 @@ impl App {
             entries: HashMap::new(),
             usage: Value::Null,
             screen: Value::Null,
+            network: Value::Null,
             backends: vec![],
             selected: None,
             focus: Focus::Roster,

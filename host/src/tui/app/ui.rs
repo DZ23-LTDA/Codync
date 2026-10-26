@@ -171,13 +171,15 @@ pub enum Field {
     Notify,
     Computer,
     Team,
+    Network,
+    Assistants,
     Color,
     Shape,
     Connectors,
     Skills,
 }
 
-pub const FIELDS: [Field; 17] = [
+pub const FIELDS: [Field; 19] = [
     Field::Name,
     Field::Instructions,
     Field::Agent,
@@ -191,6 +193,8 @@ pub const FIELDS: [Field; 17] = [
     Field::Notify,
     Field::Computer,
     Field::Team,
+    Field::Network,
+    Field::Assistants,
     Field::Color,
     Field::Shape,
     Field::Connectors,
@@ -222,6 +226,9 @@ pub struct Form {
     pub computer: bool,
     /// `None`: the host has no Manage the team.
     pub manage_team: Option<bool>,
+    /// `None`: the host has no per-bot network switches.
+    pub offered_to_network: Option<bool>,
+    pub reachable_by_assistants: Option<bool>,
     pub color: usize,
     pub shape: usize,
     pub connectors: Vec<Toggle>,

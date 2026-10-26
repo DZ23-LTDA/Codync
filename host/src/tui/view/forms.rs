@@ -61,6 +61,8 @@ pub(super) fn form_view(buf: &mut Buffer, area: Rect, app: &App, f: &Form) {
             Field::Notify => "Notify",
             Field::Computer => "Use computer",
             Field::Team => "Manage team",
+            Field::Network => "Network",
+            Field::Assistants => "Assistants",
             Field::Color => "Color",
             Field::Shape => "Shape",
             Field::Connectors => "Connectors",
@@ -213,6 +215,20 @@ pub(super) fn form_view(buf: &mut Buffer, area: Rect, app: &App, f: &Form) {
                 };
                 put(buf, vx, y, vw, s, t.text.patch(base));
             }
+            Field::Network | Field::Assistants => {
+                let (on, applies, off_here) = if *field == Field::Network {
+                    (f.offered_to_network, app.network["joined"] == true, "this computer isn't in a network")
+                } else {
+                    (f.reachable_by_assistants, app.network["assistants"] == true, "cloud assistants are off here")
+                };
+                let s = match on {
+                    Some(true) => "◉ On   ○ Off",
+                    Some(false) => "○ On   ◉ Off",
+                    None => "Needs a newer Codync host",
+                };
+                let s = if on.is_some() && !applies { format!("{s}  · {}", tr(off_here)) } else { s.into() };
+                put(buf, vx, y, vw, &s, t.text.patch(base));
+            }
             Field::Notify => {
                 let s = if f.notify { "◉ Done and needs-you   ○ Off" } else { "○ Done and needs-you   ◉ Off" };
                 put(buf, vx, y, vw, s, t.text.patch(base));
@@ -283,6 +299,13 @@ pub(super) fn form_view(buf: &mut Buffer, area: Rect, app: &App, f: &Form) {
         let line =
             "Let this bot create bots and change any bot's setup, its own included. The bots it creates can too.";
         put(buf, inner.x, by - 1, inner.width, line, t.dim.patch(t.panel));
+    } else if f.current() == Field::Network {
+        let line = tr("Offered to the network: bots on your other computers can see and message this bot.");
+        put(buf, inner.x, by - 1, inner.width, &line, t.dim.patch(t.panel));
+    } else if f.current() == Field::Assistants {
+        let line =
+            tr("Reachable by cloud assistants: ChatGPT or Claude in your Codync account can see and message this bot.");
+        put(buf, inner.x, by - 1, inner.width, &line, t.dim.patch(t.panel));
     }
     let save = if f.saving { " … Saving " } else { " ↵ Save " };
     let x = put(buf, inner.x, by, 14, save, t.btn_primary) + 1;
@@ -302,7 +325,9 @@ pub(super) fn form_view(buf: &mut Buffer, area: Rect, app: &App, f: &Form) {
         | Field::Approvals
         | Field::Notify
         | Field::Computer
-        | Field::Team => "←→ change · tab next field",
+        | Field::Team
+        | Field::Network
+        | Field::Assistants => "←→ change · tab next field",
         Field::Instructions => "⇧↵ new line · tab next field",
         Field::Name => "tab next field · ^s save",
     };

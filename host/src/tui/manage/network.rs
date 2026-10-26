@@ -156,6 +156,7 @@ impl App {
 
     /// The `network` event: what the open sheet shows.
     pub(in crate::tui) fn network_changed(&mut self, view: &Value) {
+        self.network = view.clone();
         for o in &mut self.overlays {
             if let Overlay::Network(n) = o {
                 n.cursor = n.cursor.min(rows(view).len().saturating_sub(1));
