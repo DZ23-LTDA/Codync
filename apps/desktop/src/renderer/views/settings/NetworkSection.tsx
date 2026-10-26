@@ -4,11 +4,12 @@ import { Button } from '../../components/Controls'
 import { Dialog, Sheet } from '../../components/Overlay'
 import { HStack, VStack } from '../../components/Stack'
 import { Text } from '../../components/Text'
-import { useModel } from '../../lib/observable'
+import { useModel, useModels } from '../../lib/observable'
 import { useTr } from '../../lib/use-language'
 import type { BotStore } from '../../store/bot-store'
-import { network, refreshNetwork } from '../../store/network'
-import { NetworkCard } from './NetworkCard'
+import { useApp } from '../../store/context'
+import { copyOf, network, refreshNetwork } from '../../store/network'
+import { NetworkCard, type RulesOf } from './NetworkCard'
 import { InviteSheet, NetworkSetupSheet, RecoverSheet, RecoveryCodeSheet } from './NetworkSheets'
 import { errorText } from './parts'
 import { RuleSheet } from './RuleSheet'
@@ -17,7 +18,8 @@ import './network.css'
 /** A sheet or dialog open for one network. */
 type Open =
   | { kind: 'create' | 'join' }
-  | { kind: 'invite' | 'recover' | 'rule' | 'leave'; net: Network }
+  | { kind: 'invite' | 'recover' | 'leave'; net: Network }
+  | { kind: 'rule'; of: RulesOf }
   | { kind: 'remove'; net: Network; computer: NetworkComputer }
 
 /**
@@ -25,10 +27,20 @@ type Open =
  * network, with who is in it and who may message the bots here, and making or joining another.
  * Empty on hosts without `networkView`. Membership is decided here, at the computer; phones
  * only see it.
+ *
+ * The computer the app runs on is the master of the ones it manages over SSH: its cards add them
+ * and hold their rules, so a network it shares with one shows once, in its card. Their own
+ * sections show only the networks it isn't in, and make or join none.
  */
 export function NetworkSection({ store, heading }: { store: BotStore; /** The computer's name when the page lists several; else the section's own title. */ heading?: string }) {
   const tr = useTr()
+  const app = useApp()
   useModel(store)
+  const isLocal = store === app.local
+  const master = isLocal ? null : app.local
+  const others = isLocal ? app.managedStores.filter((s) => s !== store) : []
+  useModel(master)
+  useModels(others)
   const [open, setOpen] = useState<Open | null>(null)
   const [busy, setBusy] = useState(false)
   const view = store.network
@@ -41,6 +53,8 @@ export function NetworkSection({ store, heading }: { store: BotStore; /** The co
 
   // A host without networks shows its page empty, with what they are for when it is the only computer.
   if (!view) return heading ? null : <Text size="callout" tone="secondary">{tr('Connect your computers so bots on one can message bots on another.')}</Text>
+  const nets = master ? view.networks.filter((net) => !copyOf(net, master)) : view.networks
+  if (master && nets.length === 0) return null
 
   const run = (work: () => Promise<unknown>) => {
     setBusy(true)
@@ -50,10 +64,15 @@ export function NetworkSection({ store, heading }: { store: BotStore; /** The co
   }
   const close = () => setOpen(null)
   const several = view.networks.length > 1
-  const sheetFor = (kind: 'invite' | 'recover' | 'rule') => (open && open.kind === kind ? open.net : null)
+  // The computers this one manages over SSH that are in `net` too, each with its own copy.
+  const inside = (net: Network): RulesOf[] => others.flatMap((o) => {
+    const theirs = copyOf(net, o)
+    return theirs ? [{ store: o, net: theirs }] : []
+  })
+  const sheetFor = (kind: 'invite' | 'recover') => (open && open.kind === kind ? open.net : null)
   const invite = sheetFor('invite')
   const recover = sheetFor('recover')
-  const rule = sheetFor('rule')
+  const rule = open?.kind === 'rule' ? open.of : null
   const removing = open?.kind === 'remove' ? open : null
   const leaving = open?.kind === 'leave' ? open.net : null
 
@@ -63,10 +82,12 @@ export function NetworkSection({ store, heading }: { store: BotStore; /** The co
         <Text as="h3" size="body" weight="semibold" tone="text">{heading ?? tr('Network')}</Text>
         <Text as="span" size="caption" weight="semibold" className="beta-tag">{tr('Beta')}</Text>
       </HStack>
-      {view.networks.map((net) => (
+      {nets.map((net) => (
         <NetworkCard
           key={net.id}
           net={net}
+          outside={net.canInvite ? others.filter((o) => !copyOf(net, o)) : []}
+          rulesOf={[{ store, net }, ...inside(net)]}
           several={several}
           disabled={busy || !manageable}
           act={{
@@ -76,18 +97,21 @@ export function NetworkSection({ store, heading }: { store: BotStore; /** The co
             leave: () => setOpen({ kind: 'leave', net }),
             promote: (c) => run(() => network.promote(store, net.id, c.name)),
             remove: (computer) => setOpen({ kind: 'remove', net, computer }),
-            addRule: () => setOpen({ kind: 'rule', net }),
-            setRules: (rules) => run(() => network.setRules(store, net.id, rules)),
+            add: (other) => run(() => network.add(store, net, other)),
+            addRule: (of) => setOpen({ kind: 'rule', of }),
+            setRules: (of, rules) => run(() => network.setRules(of.store, of.net.id, rules)),
           }}
         />
       ))}
-      <VStack gap={10} className="settings-appear">
-        {view.joined ? null : <Text size="callout" tone="secondary">{tr('Connect your computers so bots on one can message bots on another.')}</Text>}
-        <HStack gap={8}>
-          <Button kind="secondary" disabled={!manageable} onClick={() => setOpen({ kind: 'create' })}>Create network</Button>
-          <Button kind="secondary" disabled={!manageable} onClick={() => setOpen({ kind: 'join' })}>Join with invite</Button>
-        </HStack>
-      </VStack>
+      {master ? null : (
+        <VStack gap={10} className="settings-appear">
+          {view.joined ? null : <Text size="callout" tone="secondary">{tr('Connect your computers so bots on one can message bots on another.')}</Text>}
+          <HStack gap={8}>
+            <Button kind="secondary" disabled={!manageable} onClick={() => setOpen({ kind: 'create' })}>Create network</Button>
+            <Button kind="secondary" disabled={!manageable} onClick={() => setOpen({ kind: 'join' })}>Join with invite</Button>
+          </HStack>
+        </VStack>
+      )}
 
       <Sheet open={open?.kind === 'create' || open?.kind === 'join'} onClose={close}>
         <NetworkSetupSheet key={open?.kind} store={store} joining={open?.kind === 'join'} />
@@ -99,7 +123,7 @@ export function NetworkSection({ store, heading }: { store: BotStore; /** The co
         {recover ? <RecoverSheet key={recover.id} store={store} net={recover} /> : null}
       </Sheet>
       <Sheet open={rule !== null} onClose={close}>
-        {rule ? <RuleSheet key={rule.id} store={store} net={rule} /> : null}
+        {rule ? <RuleSheet key={`${rule.store.computer.id}/${rule.net.id}`} store={rule.store} net={rule.net} /> : null}
       </Sheet>
       {/* Escape and the dim don't close it: only "I saved it" does. */}
       <Sheet open={store.recoveryCode !== null} onClose={() => {}}>
