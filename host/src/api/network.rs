@@ -1,5 +1,5 @@
 //! Methods for this computer's network (codync-network): only this computer's own apps call
-//! them (`devices::LOCAL_ONLY`).
+//! them (`devices::LOCAL_ONLY`), except `networkView`, which paired phones read.
 
 use super::str_arg;
 use crate::hub::Hub;
@@ -13,6 +13,7 @@ pub(super) async fn call(hub: &Arc<Hub>, method: &str, b: Value) -> Result<Contr
     let text = |k: &str| b[k].as_str().filter(|s| !s.trim().is_empty());
     Ok(ControlFlow::Break(match method {
         "networkStatus" => network::status(hub),
+        "networkView" => network::view(hub),
         "networkCreate" => network::create(hub, text("name"), text("connector")).await?,
         "networkJoin" => network::join(hub, str_arg(&b, "invite")?, text("name"), text("connector")).await?,
         "networkInvite" => network::invite(hub)?,

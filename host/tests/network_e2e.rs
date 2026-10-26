@@ -159,3 +159,68 @@ async fn a_stopped_or_failed_request_ends_the_senders_notice() {
     let finals = history["entries"].as_array().unwrap().iter().filter(|e| is_final(e)).count();
     assert_eq!(finals, 3, "two requests and one reply turn: {history}");
 }
+
+/// The first `network` event on the host's stream that `predicate` accepts. The stream is open
+/// once this returns its future's first poll; the caller gives it a moment before changing things.
+async fn network_event(base: String, token: String, predicate: impl Fn(&Value) -> bool) -> Value {
+    use futures::StreamExt as _;
+    let res = reqwest::Client::new()
+        .get(format!("{base}/events?since={}&client=test", i64::MAX))
+        .bearer_auth(token)
+        .send()
+        .await
+        .unwrap();
+    let mut body = res.bytes_stream();
+    let mut buf = String::new();
+    tokio::time::timeout(Duration::from_secs(20), async {
+        while let Some(Ok(chunk)) = body.next().await {
+            buf.push_str(&String::from_utf8_lossy(&chunk));
+            while let Some(i) = buf.find('\n') {
+                let line: String = buf.drain(..=i).collect();
+                let event = line.trim_end().strip_prefix("data:").and_then(|d| serde_json::from_str::<Value>(d).ok());
+                if let Some(event) = event.filter(|e| e["type"] == "network" && predicate(&e["network"])) {
+                    return event["network"].clone();
+                }
+            }
+        }
+        panic!("the event stream ended");
+    })
+    .await
+    .expect("no network event")
+}
+
+fn computer<'a>(view: &'a Value, name: &str) -> &'a Value {
+    view["computers"].as_array().unwrap().iter().find(|c| c["name"] == name).unwrap()
+}
+
+#[tokio::test]
+async fn the_network_view_says_who_may_do_what_and_changes_reach_the_apps() {
+    let (desk, laptop, _reviewer, _lead) = two_computers().await;
+    desk.call("networkPeers", json!({})).await;
+    let view = desk.call("networkView", json!({})).await;
+    assert_eq!((view["joined"].as_bool(), view["assistants"].as_bool()), (Some(true), Some(false)));
+    let row = computer(&view, "laptop");
+    assert_eq!((row["canRemove"].as_bool(), row["canPromote"].as_bool()), (Some(true), Some(true)));
+    assert!(row["agents"].as_array().unwrap().iter().any(|a| a["name"] == "Lead"), "{row}");
+    assert_eq!(computer(&view, "desk")["canRemove"], false, "not itself");
+    let invite = desk.call("networkInvite", json!({})).await;
+    let in_an_hour = chrono::Utc::now().timestamp_millis() + 3_500_000;
+    assert!(invite["expiresAt"].as_i64().unwrap() > in_an_hour, "{invite}");
+    // A member may do nothing to the owner.
+    let theirs = laptop.call("networkView", json!({})).await;
+    assert_eq!(
+        (computer(&theirs, "desk")["canRemove"].as_bool(), theirs["role"].as_str()),
+        (Some(false), Some("member"))
+    );
+
+    // The owner promotes the laptop: both computers' apps hear of it without asking.
+    let there = tokio::spawn(network_event(laptop.base.clone(), laptop.token.clone(), |v| v["role"] == "admin"));
+    let here = tokio::spawn(network_event(desk.base.clone(), desk.token.clone(), |v| {
+        computer(v, "laptop")["role"] == "admin"
+    }));
+    tokio::time::sleep(Duration::from_millis(500)).await;
+    desk.call("networkPromote", json!({"computer": "laptop"})).await;
+    let there = there.await.unwrap();
+    assert_eq!(computer(&there, "desk")["canRemove"], false, "an admin doesn't remove the owner");
+    assert_eq!(computer(&here.await.unwrap(), "laptop")["canPromote"], false, "already an admin");
+}

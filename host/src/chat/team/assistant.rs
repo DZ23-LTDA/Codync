@@ -28,7 +28,7 @@ const MAX_RUNNING: usize = 16;
 const KEEP: usize = 50;
 const SHOW: usize = 20;
 const OFF: &str = "Cloud assistants are off on this computer. To let ChatGPT or Claude message its bots, \
-run `codync-host cloud --assistants on` on it.";
+turn on Cloud assistants in Codync's settings on it (or run `codync-host cloud --assistants on`).";
 
 pub fn enabled(store: &Store) -> bool {
     store.kv_get(KV).as_deref() == Some("on")
@@ -40,6 +40,8 @@ pub fn set_enabled(hub: &Hub, on: bool) -> Result<CloudStatus> {
     hub.store.kv_set(KV, if on { "on" } else { "off" })?;
     tracing::info!(on, "cloud assistants changed");
     cloud::update_status(hub, |s| s.assistants = on);
+    // Phones see the switch through the network view.
+    crate::network::emit(hub);
     Ok(hub.cloud.status())
 }
 

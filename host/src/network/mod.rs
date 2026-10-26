@@ -9,7 +9,7 @@ mod handles;
 use crate::LockExt;
 use crate::hub::Hub;
 use anyhow::{Context, Result, anyhow, bail};
-use codync_network::{Address, Agent, Connector, Node, Peer, Reach};
+use codync_network::{Address, Agent, Connector, Node, Peer, Reach, Role};
 use serde_json::{Value, json};
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -58,22 +58,29 @@ impl Network {
     /// and waited for (briefly) the first time.
     pub async fn directory(&self) -> Vec<Peer> {
         let Some(node) = self.node() else { return Vec::new() };
-        let (first, stale) = {
-            let mut asked = self.asked.locked();
-            let first = asked.is_none();
-            let stale = asked.is_none_or(|at| at.elapsed() >= FRESH_FOR);
-            if stale {
-                *asked = Some(Instant::now());
+        match self.stale() {
+            Some(true) => {
+                let _ = tokio::time::timeout(FIRST_LOOK, node.peers()).await;
             }
-            (first, stale)
-        };
-        if first {
-            let _ = tokio::time::timeout(FIRST_LOOK, node.peers()).await;
-        } else if stale {
-            let refresh = node.clone();
-            tokio::spawn(async move { refresh.peers().await });
+            Some(false) => {
+                let refresh = node.clone();
+                tokio::spawn(async move { refresh.peers().await });
+            }
+            None => {}
         }
         node.directory().into_iter().filter(|p| !p.me).collect()
+    }
+
+    /// Whether what the other computers offer is due to be asked again (now counted as asked), and
+    /// if so whether it is the first time.
+    fn stale(&self) -> Option<bool> {
+        let mut asked = self.asked.locked();
+        let first = asked.is_none();
+        if !asked.is_none_or(|at| at.elapsed() >= FRESH_FOR) {
+            return None;
+        }
+        *asked = Some(Instant::now());
+        Some(first)
     }
 
     /// Where `name` points: a bot id, an address name, `name@` this computer or a bare name none of
@@ -119,10 +126,24 @@ async fn boot(hub: &Arc<Hub>) -> Result<Arc<Node>> {
     let (node, inbox) = Node::start(&dir(), &connector).await.context("couldn't start the network")?;
     let node = Arc::new(node);
     hub.network.node.set(node.clone()).map_err(|_| anyhow!("the network is already starting; try again"))?;
+    tokio::spawn(watch(hub.clone(), node.changes()));
     publish(hub);
     tokio::spawn(crate::chat::team::remote::listen(hub.clone(), inbox));
     tracing::info!(computer = node.name().as_deref().unwrap_or("(none yet)"), "network on");
     Ok(node)
+}
+
+/// Tells this computer's apps and paired phones what the network looks like now, after every
+/// change the node reports.
+async fn watch(hub: Arc<Hub>, mut changes: tokio::sync::watch::Receiver<()>) {
+    while changes.changed().await.is_ok() {
+        emit(&hub);
+    }
+}
+
+/// The `network` event: what `networkView` answers.
+pub fn emit(hub: &Hub) {
+    let _ = hub.events.send(json!({"type": "network", "network": view_of(hub)}));
 }
 
 /// Offers this computer's visible bots to the network, under their address names. Called after
@@ -164,24 +185,49 @@ fn joined(hub: &Hub) -> Result<Arc<Node>> {
         .ok_or_else(|| anyhow!("this computer isn't in a network: create one or join with an invite"))
 }
 
-/// `networkStatus`: this computer and the others, as last heard.
+/// `networkStatus`: this computer and the others, as last heard, with what this computer may do
+/// to each (`canRemove`, `canPromote`).
 pub fn status(hub: &Hub) -> Value {
     let Some(node) = hub.network.node().filter(|n| n.name().is_some()) else {
         return json!({"joined": false});
     };
+    let mine = node.role();
     let computers: Vec<Value> = node
         .directory()
         .into_iter()
         .map(|p| {
             let bots: Vec<&str> = p.agents.iter().map(|a| a.id.as_str()).collect();
-            json!({"name": p.name, "role": p.role, "me": p.me, "online": p.online, "bots": bots})
+            let agents: Vec<Value> = p.agents.iter().map(|a| json!({"id": a.id, "name": a.name})).collect();
+            let may = |rule: fn(Role, Role) -> bool| !p.me && mine.is_some_and(|me| rule(me, p.role));
+            json!({
+                "name": p.name, "role": p.role, "me": p.me, "online": p.online, "bots": bots, "agents": agents,
+                "canRemove": may(Role::removes), "canPromote": may(Role::promotes),
+            })
         })
         .collect();
     json!({
-        "joined": true, "computer": node.name(), "role": node.role(),
+        "joined": true, "computer": node.name(), "role": mine,
         "connector": hub.store.kv_get(KV_CONNECTOR).unwrap_or_else(|| "public".into()),
         "computers": computers,
     })
+}
+
+/// `networkView`: what phones may see of the network (status, never an invite), plus whether
+/// cloud assistants may reach this computer's bots. Asks the others in the background when
+/// stale; the `network` event brings what they answer.
+pub fn view(hub: &Hub) -> Value {
+    if let Some(node) = hub.network.node()
+        && hub.network.stale().is_some()
+    {
+        tokio::spawn(async move { node.peers().await });
+    }
+    view_of(hub)
+}
+
+fn view_of(hub: &Hub) -> Value {
+    let mut v = status(hub);
+    v["assistants"] = crate::chat::team::assistant::enabled(&hub.store).into();
+    v
 }
 
 /// `networkCreate`: a new network with this computer as its owner; returns the recovery code.
@@ -208,8 +254,11 @@ pub async fn join(hub: &Arc<Hub>, invite: &str, name: Option<&str>, connector: O
     Ok(status(hub))
 }
 
+/// `networkInvite`: a one-time invite and when it stops working (Unix ms).
 pub fn invite(hub: &Hub) -> Result<Value> {
-    Ok(json!({"invite": joined(hub)?.invite()?}))
+    let invite = joined(hub)?.invite()?;
+    let until = crate::store::now_ms() + i64::try_from(codync_network::INVITE_FOR.as_millis()).unwrap_or(i64::MAX);
+    Ok(json!({"invite": invite, "expiresAt": until}))
 }
 
 /// `networkPeers`: asks every computer now.

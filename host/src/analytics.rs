@@ -98,6 +98,7 @@ pub enum Event {
     HostUpdateInstalled,
     /// `networkCreate` or `networkJoin`: this computer is in a network of the user's computers.
     NetworkJoined,
+    NetworkChanged,
     /// Error tracking (`errors`): a panic or an uncaught error.
     Exception,
 }
@@ -158,6 +159,7 @@ impl Event {
             Self::SettingChanged => "setting_changed",
             Self::HostUpdateInstalled => "host_update_installed",
             Self::NetworkJoined => "network_joined",
+            Self::NetworkChanged => "network_changed",
             Self::Exception => "$exception",
         }
     }
