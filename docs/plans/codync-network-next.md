@@ -237,3 +237,22 @@ Today the only self-hosted path is running the whole `cloud/` Worker with one's 
 it with `CODYNC_CLOUD_URL`. A lighter path, the host serving MCP itself behind the user's own HTTPS, needs its own
 OAuth server, because ChatGPT and Claude require OAuth for remote connectors. The user is still deciding whether to
 offer this. Until then, document the full-cloud path in `cloud/README.md` if anyone asks.
+
+## 11. Hardening from the 2.29.0 audit
+
+2.29.0 bounds roster entries, letters' ids and addresses, and what another computer offers. Left for later, each
+needing a design decision first:
+
+- A plain (non-cascade) removal of an admin or owner should void what that computer signs afterwards, whatever time
+  it claims: carry the removed signer's counted entries in the Remove, so no trusted clock is needed. Log format
+  change, so before 0.2.0 spreads.
+- Budgets per sending computer as well as per pair of agents (the sending agent's name is the sender's word), and a
+  cap on the pairs the guard remembers.
+- Rules naming a computer by its key, not its name, which can be taken again after a removal.
+- Letters knocked into Claude Code and Codex sessions: the body inside a random boundary, and the daemon offering
+  those sessions only to computers an allow rule names.
+- A reply matched to its waiting request only from the computer the request went to (`chat/team/remote.rs`).
+- An `asked` entry expiring, so meta-less answers stop passing the rules after a while.
+- A smaller first frame for computers that aren't members (only `Join` is theirs to send).
+- Locations accepted only with this computer's own relay URLs; custom connectors https only.
+- The daemon's control socket created inside a private folder; recovery codes read from stdin, not argv.

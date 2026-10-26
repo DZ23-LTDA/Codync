@@ -108,8 +108,9 @@ that was off learns of a removal.
   removed with `--cascade` removes and promotes no one, whatever time it signs with: a stolen owner can't undo its
   replacement with backdated entries.
 - **The log stays small.** Every copy keeps only entries that can count: none by a computer the log never let in,
-  no admissions, promotions or removals by plain members, each computer's newest location only, and at most 256
-  entries per computer. So the whole roster always fits in the one frame (1 MiB) a hello carries it in.
+  no admissions, promotions or removals by plain members, each computer's newest location only (none for a removed
+  one), and at most 256 entries per computer, each within bounds (a name a computer could have, at most 64
+  addresses, 8 KiB in all). So the whole roster always fits in the one frame (1 MiB) a hello carries it in.
 
 ## Bots across computers
 
@@ -141,8 +142,9 @@ that was off learns of a removal.
   reaches its request even when the asking bot was renamed or hidden meanwhile. The chain's hop limit counts
   across computers (replies carry it back, one more handoff each), and the receiving computer enforces its own budgets:
   8 handoffs per chain, a burst of 5 messages per pair of agents then one every 2 minutes, the same words twice in
-  10 minutes refused. A letter that isn't a request (a notice, or a reply nobody waits for after a restart) shows as
-  a "Note from …" notice in the bot's chat.
+  10 minutes refused. A letter's id is at most 64 bytes, its addresses 128, its body 64 KiB; what another computer
+  offers is kept to its first 200 agents, names cut to 80 bytes and descriptions to 1 KiB. A letter that isn't a
+  request (a notice, or a reply nobody waits for after a restart) shows as a "Note from …" notice in the bot's chat.
 - Agents on this computer that aren't Codync bots (a Claude Code or Codex session) get `list_bots`, `message_bot`
   and `read_replies` from `codync-host mcp network --name "Claude Code"` (stdio MCP, local API `agentCall`, loopback
   only): the cloud assistant's tools (`chat/team/assistant.rs`), under the agent's own name ("Message from Claude Code
