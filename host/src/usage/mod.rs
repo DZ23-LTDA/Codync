@@ -31,7 +31,7 @@ use serde::Serialize;
 use std::sync::Arc;
 use std::time::Duration;
 
-const POLL_EVERY: Duration = Duration::from_secs(5 * 60);
+const POLL_EVERY: Duration = Duration::from_mins(5);
 /// Usage of a plan above which background work (dreaming, the lead's check-ins) waits.
 const HEADROOM_PERCENT: f64 = 75.0;
 
