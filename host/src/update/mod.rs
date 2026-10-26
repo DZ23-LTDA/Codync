@@ -6,14 +6,14 @@ mod release;
 #[cfg(test)]
 mod tests;
 
-use crate::{hub::Hub, service};
+use crate::{LockExt as _, hub::Hub, service};
 use anyhow::{Context, Result, ensure};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::{
     path::Path,
     sync::{
-        Arc,
+        Arc, Mutex,
         atomic::{AtomicI64, Ordering},
     },
     time::Duration,
@@ -93,6 +93,30 @@ fn route(executable: &Path) -> Result<Route> {
         "Codync isn't open on this computer. Open it, then try again."
     );
     Ok(Route::App)
+}
+
+/// The latest release `release_watch` found, whatever installed this host.
+static LATEST: Mutex<Option<String>> = Mutex::new(None);
+
+/// The latest release for this platform (`hello.latestVersion`), so a phone can say whether this computer is
+/// current and offer the update; None until a lookup succeeds, and always on development builds.
+pub fn latest_version() -> Option<String> {
+    LATEST.locked().clone()
+}
+
+/// Looks up the latest release at start and every 6 hours, for `latest_version`. Release builds only:
+/// a development host never offers a release.
+pub async fn release_watch() {
+    if crate::environment::Environment::current() != crate::environment::Environment::Main {
+        return;
+    }
+    loop {
+        match release::latest().await {
+            Ok(release) => *LATEST.locked() = Some(release.version),
+            Err(error) => tracing::debug!(error = format!("{error:#}"), "latest release lookup failed"),
+        }
+        tokio::time::sleep(Duration::from_hours(6)).await;
+    }
 }
 
 /// Whether `installHostUpdate` can update this computer (`hello.canUpdate`).

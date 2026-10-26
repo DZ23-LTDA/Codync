@@ -188,7 +188,12 @@ The API operations `hostUpdateStatus`, `checkHostUpdate` and `setHostAutomaticUp
 require a local connection, including an SSH tunnel.
 
 `installHostUpdate` is also open to paired devices: it's what a client's **Update now**
-calls when a computer is too old for it. `hello.canUpdate` says whether it can work there:
+calls when a computer is too old for it, and what **Update** on the computer's Codync row in
+the phones' Computer management calls. That row compares `hello.version` with
+`hello.latestVersion`, the latest release `update::release_watch` looks up at start and every
+6 hours whatever installed the host (release builds only; null until a lookup succeeds, and on
+Windows, which has no host update manifests), so it says *Up to date*, *2.29.0 available*, or
+nothing when the computer doesn't know. `hello.canUpdate` says whether it can work there:
 a release host the installed service runs, or one the desktop app bundles while that app is
 open (it polls `/health?app=true` every 5 seconds; `canUpdate` needs a poll in the last 15).
 Both cases are decided in one place, `update::route`. A standalone host schedules the

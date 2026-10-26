@@ -128,6 +128,9 @@ private fun CardRows.computerRows(state: AppState, store: AppStore, inAccount: B
         }
     }
     row { ConnectionRow(state.computers.first(), store) }
+    if (state.connection is LinkState.Ready) state.hostVersionLine(System.currentTimeMillis())?.let { line ->
+        row { CodyncVersionRow(line, store::requestHostUpdate) }
+    }
     if (state.isStale && !inAccount) row { RowLabel("Remove", "trash", Palette.danger, modifier = Modifier.plainButton(action = actions.remove)) }
 }
 
@@ -164,6 +167,23 @@ private fun CardRows.computerRows(state: AppState, store: AppStore, inAccount: B
 }
 
 /** How this phone reaches the computer: the short name on the row, the whole route in the menu. */
+/** The Codync the computer runs, and its update when one is due (iOS `CodyncVersionRow`). */
+@Composable private fun CodyncVersionRow(line: HostVersionLine, update: () -> Unit) {
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        Box(Modifier.width(26.dp), contentAlignment = Alignment.Center) { Symbol("arrow.down.circle", size = 20.dp, tint = Palette.text) }
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Codync", style = Type.body, color = Palette.text)
+                Text(line.version, style = Type.body, color = Palette.secondary)
+            }
+            if (line.detail.isNotEmpty()) Text(line.detail.map { tr(it) }.joinToString(" "), style = Type.footnote,
+                color = if (line.warns) Palette.warning else Palette.secondary)
+        }
+        if (line.updating) Spinner(16.dp)
+        line.action?.let { PrimaryButton(it, action = update) }
+    }
+}
+
 @Composable private fun ConnectionRow(computer: Computer, store: AppStore) {
     DropdownMenu({ ConnectionRoute.entries.map { route -> MenuItem(routeTitle(route, computer.cloud), icon = route.icon, selected = route == computer.route) { store.setRoute(route) } } },
         Modifier.fillMaxWidth(), label = "Connection") {

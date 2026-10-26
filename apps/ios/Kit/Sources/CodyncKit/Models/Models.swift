@@ -239,6 +239,8 @@ public struct Hello: Codable, Sendable {
     public var cloud: String?
     /// `installHostUpdate` can update this computer from here (missing from older hosts: it can't).
     public var canUpdate: Bool?
+    /// The latest release the computer found; nil while unknown (development builds, older hosts).
+    public var latestVersion: String?
 }
 
 public struct DirListing: Codable, Sendable {

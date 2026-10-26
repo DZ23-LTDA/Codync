@@ -174,6 +174,9 @@ private struct ComputerRows: View {
         }
         .toggleStyle(.codync)
         connection
+        if store.connection == .online, let line = store.hostVersionLine {
+            CodyncVersionRow(line: line, update: store.requestHostUpdate)
+        }
         if accounts.isStale(store.computer.id), inAccount == nil {
             Button(action: remove) { RowLabel("Remove", systemImage: "trash", tint: Palette.danger) }
                 .buttonStyle(.plain)
@@ -270,6 +273,37 @@ private struct ComputerRows: View {
         let count = store.roster.count
         let route = RelayCopy.detailSuffix(route: store.hostRoute, cloud: store.computer.cloud)
         return "\(count) bot\(count == 1 ? "" : "s")\(route)"
+    }
+}
+
+/// The Codync a computer runs, and its update when one is due (`HostVersionLine`).
+private struct CodyncVersionRow: View {
+    let line: HostVersionLine
+    let update: () -> Void
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "arrow.down.circle").font(.system(size: 17)).frame(width: 26)
+            VStack(alignment: .leading, spacing: 3) {
+                HStack(spacing: 8) {
+                    Text(verbatim: "Codync")
+                    Text(verbatim: line.version).foregroundStyle(Palette.secondary).monospacedDigit()
+                }
+                if !line.detail.isEmpty {
+                    Text(line.detail.map { L10n.tr($0) }.joined(separator: " "))
+                        .font(.footnote)
+                        .foregroundStyle(line.warns ? Palette.warning : Palette.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            if line.updating { Spinner(size: 16) }
+            if let action = line.action {
+                Button(L10n.tr(action), action: update).buttonStyle(.primary)
+            }
+        }
+        .foregroundStyle(Palette.text)
+        .animation(Motion.layout, value: line)
     }
 }
 

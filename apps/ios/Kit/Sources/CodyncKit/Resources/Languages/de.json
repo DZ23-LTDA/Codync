@@ -1242,5 +1242,14 @@
   "Rate on the App Store": "Im App Store bewerten",
   "Search agents": "Agenten suchen",
   "Search models": "Modelle suchen",
-  "No results": "Keine Ergebnisse"
+  "No results": "Keine Ergebnisse",
+  "Up to date": "Aktuell",
+  "{version} available": "{version} verfügbar",
+  "This app needs {version} or newer.": "Diese App benötigt {version} oder neuer.",
+  "Update": "Aktualisieren",
+  "Updating Codync on {name}. This takes a few minutes.": "Codync auf {name} wird aktualisiert. Das dauert ein paar Minuten.",
+  "Open Codync on that Mac and choose Check for Updates.": "Öffne Codync auf diesem Mac und wähle Check for Updates.",
+  "Run codync-host update there.": "Führe dort codync-host update aus.",
+  "Update Codync on that computer.": "Aktualisiere Codync auf diesem Computer.",
+  "{name} didn't finish updating. Try again, or update Codync on that computer.": "{name} wurde nicht fertig aktualisiert. Versuche es erneut oder aktualisiere Codync auf diesem Computer."
 }

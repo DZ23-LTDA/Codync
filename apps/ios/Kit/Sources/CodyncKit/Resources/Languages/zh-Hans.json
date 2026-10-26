@@ -1242,5 +1242,14 @@
   "Rate on the App Store": "在 App Store 评分",
   "Search agents": "搜索智能体",
   "Search models": "搜索模型",
-  "No results": "没有结果"
+  "No results": "没有结果",
+  "Up to date": "已是最新版本",
+  "{version} available": "有新版本 {version}",
+  "This app needs {version} or newer.": "这个 App 需要 {version} 或更高版本。",
+  "Update": "更新",
+  "Updating Codync on {name}. This takes a few minutes.": "正在更新 {name} 上的 Codync，需要几分钟。",
+  "Open Codync on that Mac and choose Check for Updates.": "请在那台 Mac 上打开 Codync，选择 Check for Updates。",
+  "Run codync-host update there.": "请在那台电脑上运行 codync-host update。",
+  "Update Codync on that computer.": "请在那台电脑上更新 Codync。",
+  "{name} didn't finish updating. Try again, or update Codync on that computer.": "{name} 没有完成更新。请再试一次，或在那台电脑上更新 Codync。"
 }

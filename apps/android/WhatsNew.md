@@ -12,7 +12,9 @@ else a generic "Bug fixes and improvements" line. Delete old sections.
 ### zh-Hant
 - Agent、模型、推理強度與 Fast mode 整合成可收合的精簡設定；每個 Bot 可獨立保存推理強度，Default 也會顯示預設值。
 - 「設定」現在是「狀態」右邊的獨立分頁，只放這支手機自己的設定。電腦的擴充套件、語音、螢幕、推送通知與連線，都移到「管理電腦」裡那台電腦的卡片上。
+- 電腦卡片最下方的「Codync」會顯示那台電腦的版本；有新版時可以直接點「更新」。
 
 ### en-US
 - Agent, model, reasoning effort and Fast mode now share compact, expandable settings. Each bot keeps its own effort preference, with the default level shown.
 - Settings is now its own tab, next to State, with only this phone's own settings. Your computer's Extensions, Voice chat, Screen, Push notifications and Connection are on its card in Manage computers.
+- Codync at the bottom of the card shows the version your computer runs; when a newer one is out, tap Update.
