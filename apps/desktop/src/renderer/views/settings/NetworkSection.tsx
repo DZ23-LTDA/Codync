@@ -53,7 +53,14 @@ export function NetworkSection({ store }: { store: BotStore }) {
 
   return (
     <>
-      <CardSection title="Network" accessory={accessory} footer={view.joined ? 'Bots message the bots on these computers as bot@computer.' : null}>
+      <CardSection
+        title={
+          <HStack as="span" gap={6}>
+            {tr('Network')}
+            <Text as="span" size="caption" weight="semibold" className="beta-tag">{tr('Beta')}</Text>
+          </HStack>
+        }
+        accessory={accessory} footer={view.joined ? 'Bots message the bots on these computers as bot@computer.' : null}>
         {view.joined
           ? (view.computers ?? []).map((c) => (
               <ComputerRow

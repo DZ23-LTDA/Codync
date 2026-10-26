@@ -1314,5 +1314,6 @@
   "Remove this computer from another one": "請從另一臺電腦移除這臺電腦",
   "Only the owner removes admins; admins remove members": "只有擁有者能移除管理員；管理員能移除成員",
   "Network: your other computers…": "網路：你的其他電腦…",
-  "a switches": "a 切換"
+  "a switches": "a 切換",
+  "Beta": "測試版"
 }

@@ -15,6 +15,13 @@ public struct NetworkSheet: View {
                 HStack(spacing: 8) {
                     Image(systemName: "point.3.connected.trianglepath.dotted").font(.title2).accessibilityHidden(true)
                     Text(L10n.tr("Network"))
+                    // The network is a beta feature.
+                    Text(L10n.tr("Beta"))
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(Palette.secondary)
+                        .padding(.horizontal, 7)
+                        .padding(.vertical, 2)
+                        .background(Palette.bubbleAgent, in: Capsule())
                 }
             }
             CardForm {

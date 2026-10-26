@@ -1314,5 +1314,6 @@
   "Remove this computer from another one": "이 컴퓨터는 다른 컴퓨터에서 제거하세요",
   "Only the owner removes admins; admins remove members": "관리자는 소유자만 제거할 수 있고, 관리자는 멤버를 제거할 수 있습니다",
   "Network: your other computers…": "네트워크: 내 다른 컴퓨터…",
-  "a switches": "a 전환"
+  "a switches": "a 전환",
+  "Beta": "베타"
 }

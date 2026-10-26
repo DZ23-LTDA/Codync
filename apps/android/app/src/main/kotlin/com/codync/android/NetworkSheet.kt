@@ -36,6 +36,10 @@ import com.kyant.shapes.Capsule
             Symbol("point.3.connected.trianglepath.dotted", size = 24.dp, tint = Palette.text)
             Spacer(Modifier.width(8.dp))
             Text(tr("Network"), style = Type.body.semibold, color = Palette.text, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Spacer(Modifier.width(8.dp))
+            // The network is a beta feature.
+            Text(tr("Beta"), style = Type.caption.semibold, color = Palette.secondary,
+                modifier = Modifier.clip(Capsule()).background(Palette.bubbleAgent).padding(horizontal = 7.dp, vertical = 2.dp))
         })
         CardForm {
             if (view.joined) CardSection("Computers", "Changes are made on a computer: in Codync's settings there, or with codync-host network.") {

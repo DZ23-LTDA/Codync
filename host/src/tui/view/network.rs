@@ -18,7 +18,8 @@ use super::time::clock;
 pub(super) fn network(buf: &mut Buffer, area: Rect, n: &NetworkSheet) {
     let t = theme();
     let r = centered(area, 84, area.height.saturating_sub(4).min(26));
-    let inner = frame_box(buf, r, t.text, t.panel, Some((tr("Network").as_ref(), t.text)));
+    let title = format!("{} · {}", tr("Network"), tr("Beta"));
+    let inner = frame_box(buf, r, t.text, t.panel, Some((title.as_str(), t.text)));
     if inner.height < 8 {
         return;
     }

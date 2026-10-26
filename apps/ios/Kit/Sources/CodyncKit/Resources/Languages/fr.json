@@ -1314,5 +1314,6 @@
   "Remove this computer from another one": "Retirez cet ordinateur depuis un autre",
   "Only the owner removes admins; admins remove members": "Seul le propriétaire retire des admins ; les admins retirent des membres",
   "Network: your other computers…": "Réseau : vos autres ordinateurs…",
-  "a switches": "a basculer"
+  "a switches": "a basculer",
+  "Beta": "Bêta"
 }
