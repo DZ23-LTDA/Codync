@@ -8,7 +8,7 @@ use crate::chat::memory;
 use crate::hub::BotStatus;
 use crate::remote::push::{self, AlertKind};
 use crate::store::{EntryKind, Lane, now_ms};
-use anyhow::{Context, Result, anyhow};
+use anyhow::{Result, anyhow};
 use serde_json::json;
 use std::time::{Duration, Instant};
 use tokio::sync::mpsc;
@@ -167,13 +167,7 @@ impl Actor {
         let (hub, cfg) = (self.hub.clone(), self.cfg.clone());
         let _ = tokio::task::spawn_blocking(move || memory::files::scan(&hub, &cfg)).await;
         let slot = self.slot();
-        if let Some(deadline) = self.routine_deadline {
-            tokio::time::timeout_at(tokio::time::Instant::from_std(deadline), self.ensure_session(slot.as_deref()))
-                .await
-                .context("routine session setup timed out")??;
-        } else {
-            self.ensure_session(slot.as_deref()).await?;
-        }
+        self.ensure_turn_session(slot.as_deref()).await?;
         if !hidden {
             self.carry_in();
         }
