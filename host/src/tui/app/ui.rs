@@ -296,12 +296,14 @@ pub enum PairCode {
 pub enum Overlay {
     Goto(Goto),
     Help(Editor),
+    LeadAgent(usize),
     Confirm(Confirm),
     NewBot(NewBot),
     Folder(FolderPicker),
     Form(Box<Form>),
     Group(GroupForm),
-    Usage,
+    /// How far its list is scrolled.
+    Usage(usize),
     Pair(PairCode),
     Memory(MemorySheet),
     /// A read-only conversation between two bots.
@@ -324,6 +326,7 @@ pub struct Toast {
 
 #[derive(Clone)]
 pub enum Click {
+    LeadAgent,
     Bot(String),
     Option {
         entry: String,

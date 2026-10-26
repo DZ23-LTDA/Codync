@@ -80,8 +80,9 @@ fn dated_usage(path: &Path, start: i64, end: i64) -> Option<(f64, f64)> {
         }
         let Ok(value) = serde_json::from_str::<Value>(line) else { continue };
         let Some(record) = usage_record(&value) else { continue };
-        saw = true;
+        // An undated line can't be placed in a day: it leaves the session total to `meta.json`.
         let Some(at) = record.at else { continue };
+        saw = true;
         if !(start..=end).contains(&at) {
             continue;
         }
@@ -134,8 +135,9 @@ fn json_f64(value: &Value) -> Option<f64> {
 }
 
 fn notes(tokens: f64, cost: f64, stamp_only: bool) -> Vec<Window> {
+    // Parentheses, not " · ": the apps read the part after " · " as Claude's model name.
     let (token_label, cost_label) =
-        if stamp_only { ("Tokens · started today", "Cost · started today") } else { ("Tokens today", "Cost today") };
+        if stamp_only { ("Tokens (started today)", "Cost (started today)") } else { ("Tokens today", "Cost today") };
     let mut windows = Vec::new();
     if tokens > 0.0 {
         windows.push(Window::note("tokens", token_label, token_text(tokens)));
@@ -208,7 +210,7 @@ mod tests {
         assert_eq!(rows[0].label, "Tokens today");
         assert_eq!(rows[0].text.as_deref(), Some("1.5M tokens"));
         assert_eq!(rows[1].text.as_deref(), Some("$1.50"));
-        assert_eq!(notes(1.0, 0.0, true)[0].label, "Tokens · started today");
+        assert_eq!(notes(1.0, 0.0, true)[0].label, "Tokens (started today)");
     }
 
     #[test]
@@ -240,6 +242,25 @@ mod tests {
         assert_eq!(windows[0].label, "Tokens today");
         assert_eq!(windows[0].text.as_deref(), Some("15 tokens"));
         assert_eq!(windows[1].text.as_deref(), Some("$0.25"));
+    }
+
+    #[test]
+    fn undated_usage_lines_leave_the_session_total() {
+        let now = chrono::Utc::now().timestamp_millis();
+        let start = local_midnight(now).unwrap();
+        let root = std::env::temp_dir().join(format!("codync-vibe-undated-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        let dir = root
+            .join(chrono::DateTime::from_timestamp_millis(now).unwrap().format("session_%Y%m%d_%H%M%S").to_string());
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("meta.json"), r#"{"stats":{"session_total_llm_tokens":40,"session_cost":2}}"#).unwrap();
+        std::fs::write(dir.join("messages.jsonl"), "{\"prompt_tokens\":10,\"completion_tokens\":5,\"cost\":0.25}\n")
+            .unwrap();
+        let windows = windows_in(&root, start, now);
+        let _ = std::fs::remove_dir_all(&root);
+        assert_eq!(windows[0].label, "Tokens (started today)");
+        assert_eq!(windows[0].text.as_deref(), Some("40 tokens"));
+        assert_eq!(windows[1].text.as_deref(), Some("$2.00"));
     }
 
     #[test]

@@ -10,6 +10,8 @@ use std::time::{Duration, Instant};
 use super::Window;
 
 const WAIT: Duration = Duration::from_secs(20);
+/// How long the screen stays unchanged after the first plan row before it is read.
+const SETTLE: Duration = Duration::from_millis(600);
 
 pub(super) fn collect() -> Option<Vec<Window>> {
     let bin = super::command::program("kimi")?;
@@ -64,9 +66,13 @@ fn capture(bin: &Path, dir: &Path) -> Option<String> {
     let mut typed = 0_u8;
     let mut trusted = false;
     let mut answered = false;
+    let mut changed = Instant::now();
+    // Writes to the terminal are best effort: one that fails leaves the screen without a usage
+    // panel, so the loop runs out at `WAIT` and the screen reads as no plan lines.
     while started.elapsed() < WAIT {
         while let Ok(chunk) = rx.try_recv() {
             raw.extend_from_slice(&chunk);
+            changed = Instant::now();
         }
         if !answered && raw.windows(b"\x1b[6n".len()).any(|window| window == b"\x1b[6n") {
             let _ = writer.write_all(b"\x1b[2;1R");
@@ -90,7 +96,8 @@ fn capture(bin: &Path, dir: &Path) -> Option<String> {
             let _ = writer.flush();
             typed = 2;
         }
-        if typed > 0 && done(&screen) {
+        // The plan rows can come over several writes: stop once the screen has stayed still a moment.
+        if typed > 0 && done(&screen) && changed.elapsed() >= SETTLE {
             break;
         }
         std::thread::sleep(Duration::from_millis(100));

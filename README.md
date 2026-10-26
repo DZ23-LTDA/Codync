@@ -117,7 +117,7 @@ Open Codync: it sets up the host on first launch. **Open Codync** opens the full
 
 **Windows** — [download codync-windows-x64.exe](https://github.com/leepokai/Codync/releases/latest/download/codync-windows-x64.exe) and run it. It installs for your user and starts the host at sign-in. The installer isn't code-signed yet, so SmartScreen asks you to confirm it once (**More info → Run anyway**). Not on Windows yet: remote screen, on-device speech and the Claude Code status line hook. Details: [desktop app](docs/architecture/desktop-app.md#platform-notes).
 
-**iPhone** — [get Codync on the App Store](https://apps.apple.com/app/codync/id6760984418) (iOS 18+, free), then scan the QR code from **Pair iPhone…** on the Mac, the Windows or Linux app, or `codync-host pair`.
+**iPhone** — [get Codync on the App Store](https://apps.apple.com/app/codync/id6760984418) (iOS 26+, free), then scan the QR code from **Pair iPhone…** on the Mac, the Windows or Linux app, or `codync-host pair`.
 
 > **Why the iPhone app can be a version behind:** every iPhone release goes through Apple's App Review first, which usually takes a day or more, so the App Store version can trail the Mac, Windows, Linux and host releases. Your computer accounts for that: an update that needs a newer iPhone app waits until that version is in the App Store, then installs, and the iPhone app shows a reminder when a newer version is available.
 
@@ -163,7 +163,8 @@ and computer identity; do not use **Reset all data**, a cleanup utility, or Home
 | `codync-host serve [--port 19222]` | run in the foreground |
 | `codync-host statusline [-- <your command>]` | Claude Code status line command (wraps yours) |
 | `codync-host reset-token` | rotate the local loopback bearer token |
-| `codync-host cloud` | cloud enablement, URL and status |
+| `codync-host cloud [--assistants on\|off]` | cloud enablement, URL and status; whether ChatGPT, Claude and other connected assistants may message this computer's bots |
+| `codync-host network` | codync-network, your computers' network: create, invite, join, status, promote, remove, recover |
 | `codync-host devices` | list/revoke authorized remote devices |
 | `codync-host access` | review device access requests |
 

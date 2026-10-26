@@ -66,10 +66,12 @@ fn one_limit(
     let amount = &limit["amount"];
     let window_id = limit["scope"]["windowId"].as_str().or_else(|| limit["window"]["id"].as_str()).unwrap_or("limit");
     let raw_label = limit["label"].as_str().map(str::trim).filter(|s| !s.is_empty());
+    // The account goes in parentheses: the apps read the part after " · " as Claude's model name
+    // and would show "5h · ada" and "Weekly · ada" both as "ada".
     let label = match (raw_label, suffix) {
-        (Some(label), Some(suffix)) => format!("{label} · {suffix}"),
+        (Some(label), Some(suffix)) => format!("{label} ({suffix})"),
         (Some(label), None) => label.to_owned(),
-        (None, Some(suffix)) => format!("{name} · {suffix}"),
+        (None, Some(suffix)) => format!("{name} ({suffix})"),
         (None, None) => name.to_owned(),
     };
     let id = format!("{provider}:{account}:{window_id}:{n}");
@@ -187,8 +189,8 @@ mod tests {
         let w = parse(text);
         assert_eq!(w[0].id, "anthropic:acct_ada:5h:0");
         assert_eq!(w[1].id, "anthropic:acct_grace:5h:0");
-        assert_eq!(w[0].label, "5h · ada");
-        assert_eq!(w[1].label, "5h · grace");
+        assert_eq!(w[0].label, "5h (ada)");
+        assert_eq!(w[1].label, "5h (grace)");
     }
 
     #[test]
