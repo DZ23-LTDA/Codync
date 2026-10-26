@@ -179,9 +179,9 @@ export class AppModel extends Observable {
     return this.selection ? this.store(this.selection.computerId) : null
   }
 
-  /** Computers this app manages over loopback (itself and SSH tunnels): they take approvals and pairing. */
+  /** Computers this app manages over loopback (itself and SSH tunnels), this one first: they take approvals and pairing. */
   get managedStores() {
-    return [...this.stores.values()].filter((s) => s.isLoopback)
+    return [...this.stores.values()].filter((s) => s.isLoopback).sort((a, b) => Number(b === this.local) - Number(a === this.local))
   }
 
   get approvals(): Approval[] {

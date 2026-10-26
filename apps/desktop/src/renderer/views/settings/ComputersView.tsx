@@ -14,7 +14,6 @@ import { StoreContext, useApp } from '../../store/context'
 import { ComputerBadge } from '../ComputerBadge'
 import { PairingCode } from '../PairingCode'
 import { AuthorizedDevicesSection } from './AuthorizedDevicesSection'
-import { NetworkSection } from './NetworkSection'
 import { cloudStatusLine } from '../../lib/relay-copy'
 import { useTr } from '../../lib/use-language'
 import { errorText, liveClient, relativeDay, SectionHeader, statusText, thisMac } from './parts'
@@ -239,8 +238,6 @@ function ManagedComputerCard({ store, ssh: overSSH }: { store: BotStore; ssh: bo
             : null,
         ]}
       </CardSection>
-
-      <NetworkSection store={store} />
 
       <AuthorizedDevicesSection store={store} />
 
