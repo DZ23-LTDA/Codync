@@ -108,15 +108,14 @@ host answers and sends it once the host is up.
 |---|---|---|---|
 | `bots` | Bots tab | — (always shown) | — |
 | `state` | State tab | — | — |
-| `more` | Settings tab | — | — |
 | `chat` | a conversation opened | a conversation opened | a conversation opened |
 | `trace` | full conversation | full conversation | full trace |
 | `bot_details` | bot details | details panel | settings page |
 | `memory` | bot memory (Android: the card in bot details, once it scrolls into sight) | memory tab | memory overlay |
 | `routines` | routines (iPhone: a routine's editor, the list being part of bot details) | a routine's editor | routines overlay |
 | `marketplace` | extensions | extensions | marketplace overlay |
-| `settings` | — | settings | — |
-| `computers` | Computers sheet, from Manage computers or a link | computers & devices | — |
+| `settings` | Settings tab | settings | — |
+| `computers` | Computer management, from Manage computers or a link | computers & devices | — |
 | `usage` | usage | usage | usage overlay |
 | `account` | account sheet | account panel | — |
 | `pairing` | pair a computer after setup (first run: `onboarding_step_viewed`) | pair a phone | pair overlay |

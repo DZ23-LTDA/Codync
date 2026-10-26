@@ -216,12 +216,13 @@ extension BotStore {
         Task { [weak self] in
             for await computer in updates {
                 guard let self, !self.retired else { return }
-                // The color and route are picked on this device; the transport's copy may be older.
+                // The color, route and notifications are picked on this device; the transport's copy may be older.
                 self.updateComputer { current in
-                    let (color, route) = (current.color, current.route)
+                    let (color, route, notifications) = (current.color, current.route, current.notifications)
                     current = computer
                     current.color = color
                     current.route = route
+                    current.notifications = notifications
                 }
             }
         }

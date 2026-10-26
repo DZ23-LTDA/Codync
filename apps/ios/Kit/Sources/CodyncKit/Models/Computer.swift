@@ -21,6 +21,8 @@ public struct Computer: Codable, Hashable, Sendable, Identifiable {
     public var color: String?
     /// How this device reaches the computer, picked per computer; nil = `.automatic`.
     public var route: ConnectionRoute?
+    /// Whether the computer sends push alerts to this device, picked per computer; nil = on.
+    public var notifications: Bool?
 
     public init(id: ComputerID, name: String, signKey: String, boxKey: String? = nil, urls: [String] = [],
                 cloud: URL? = nil, device: String? = nil, color: String? = nil) {

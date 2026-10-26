@@ -84,7 +84,6 @@ struct AccountSwitcherView: View {
         .animation(Motion.fade, value: account.errorMessage)
         .tracked(.screenViewed(.account))
         .onChange(of: account.userID) { _, _ in withAnimation(Motion.layout) { addingAccount = false } }
-        .hidesSystemNavigationBar()
         .codyncSheet(isPresented: $pairing) { PairingView(inModal: true) }
         .codyncDialog("Sign out of \(account.email ?? "this account")?", isPresented: $confirmSignOut,
                       message: "This iPhone forgets the account's computers. Your bots stay on them.") {

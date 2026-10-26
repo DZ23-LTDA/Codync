@@ -106,6 +106,7 @@ public final class AccountStore {
         if let previous = saved.first(where: { $0.id == computer.id }) {
             computer.color = previous.color
             computer.route = previous.route
+            computer.notifications = previous.notifications
         }
         save(computer)
         open(computer)
@@ -140,6 +141,17 @@ public final class AccountStore {
             persist()
         }
         stores[id]?.updateComputer { $0.color = color }
+        refreshList()
+    }
+
+    /// Saved with the computer on this device; the caller then registers or unregisters this device's push.
+    public func setNotifications(_ id: ComputerID, _ on: Bool) {
+        let value: Bool? = on ? nil : false
+        if let i = saved.firstIndex(where: { $0.id == id }) {
+            saved[i].notifications = value
+            persist()
+        }
+        stores[id]?.updateComputer { $0.notifications = value }
         refreshList()
     }
 
@@ -304,6 +316,7 @@ public final class AccountStore {
                     computer.boxKey = previous.boxKey
                     computer.color = previous.color
                     computer.route = previous.route
+                    computer.notifications = previous.notifications
                 }
                 save(computer)
                 open(computer)

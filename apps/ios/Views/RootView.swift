@@ -51,10 +51,7 @@ struct RootView: View {
                     .id(target.id)
             }
         }
-        .codyncSheet(isPresented: Bindable(app).showComputers) {
-            // Holds the pushes inside the sheet (Widgets, Live Activity); no bar shows.
-            NavigationStack { SettingsView() }
-        }
+        .codyncSheet(isPresented: Bindable(app).showComputers) { ComputersView() }
         .codyncSheet(item: Binding(get: { app.marketplace.map(MarketplaceTarget.init) }, set: { app.marketplace = $0?.computerId })) { target in
             // Each computer has its own; it's opened from that computer's heading or row.
             if let store = accounts.store(for: target.computerId) {
@@ -64,8 +61,8 @@ struct RootView: View {
         }
     }
 
-    /// The system tab bar. Bots, State and Settings stay in one bar (scroll position and the open thread
-    /// stay alive). The bar hides while a thread is open.
+    /// The system tab bar; every tab stays alive (scroll position, open thread) and the bar hides while a
+    /// thread is open.
     private var tabs: some View {
         TabView(selection: Bindable(app).tab) {
             Tab(L10n.tr("Bots"), systemImage: "bubble.left.and.bubble.right.fill", value: AppTab.bots) {
@@ -81,8 +78,8 @@ struct RootView: View {
                 StateTab()
                     .safeAreaInset(edge: .bottom, spacing: 0) { AccessBanners() }
             }
-            Tab(L10n.tr("Settings"), systemImage: "gearshape", value: AppTab.more) {
-                SettingsView(embedded: true)
+            Tab(L10n.tr("Settings"), systemImage: "gearshape", value: AppTab.settings) {
+                SettingsView()
                     .safeAreaInset(edge: .bottom, spacing: 0) { AccessBanners() }
             }
         }
@@ -96,7 +93,7 @@ struct RootView: View {
         switch app.tab {
         case .bots: .bots
         case .state: .state
-        case .more: .more
+        case .settings: .settings
         }
     }
 

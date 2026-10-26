@@ -3,7 +3,6 @@ package com.codync.android.design
 import androidx.activity.compose.PredictiveBackHandler
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -19,12 +18,12 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
@@ -97,13 +96,10 @@ class TabItem<T>(val value: T, val title: String, val systemImage: String, val i
 
 /** The iOS 26 tab bar: a floating glass capsule whose selection pill slides between tabs. */
 @Composable fun <T> GlassTabBar(selection: T, tabs: List<TabItem<T>>, select: (T) -> Unit, modifier: Modifier = Modifier) {
-    val match = tabs.indexOfFirst { it.value == selection }
-    var resting by remember { mutableIntStateOf(0) }
-    if (match >= 0) resting = match
-    val pill by animateDpAsState(TAB_WIDTH * resting, Motion.layout(), label = "Tab selection")
-    val shown by animateFloatAsState(if (match >= 0) 1f else 0f, Motion.fade(), label = "Tab selection visibility")
+    val index = tabs.indexOfFirst { it.value == selection }.coerceAtLeast(0)
+    val pill by animateDpAsState(TAB_WIDTH * index, Motion.layout(), label = "Tab selection")
     Box(modifier.glass(Capsule()).padding(4.dp)) {
-        Box(Modifier.offset(x = pill).graphicsLayer { alpha = shown }.size(TAB_WIDTH, 54.dp).clip(Capsule()).background(Palette.text.copy(alpha = 0.07f)))
+        Box(Modifier.offset(x = pill).size(TAB_WIDTH, 54.dp).clip(Capsule()).background(Palette.text.copy(alpha = 0.07f)))
         Row {
             for (tab in tabs) {
                 val on = tab.value == selection

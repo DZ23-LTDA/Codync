@@ -25,17 +25,15 @@ import androidx.compose.ui.zIndex
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.unit.dp
 import com.codync.android.core.Bot
-import com.codync.android.core.CloudComputer
 import com.codync.android.design.*
 
-private enum class AppTab { Bots, State, More }
+private enum class AppTab { Bots, State, Settings }
 
 /**
- * The system tab bar over Bots, State and More, as iOS `RootView.tabs`: the three tabs stay in one bar,
- * the bar floats as glass over their content and hides while a conversation is open.
+ * The system tab bar over Bots, State and Settings, as iOS `RootView.tabs`: every tab stays alive, the bar
+ * floats as glass over their content and hides while a conversation is open.
  */
 @Composable internal fun MainTabs(state: AppState, store: AppStore, account: () -> Unit, manage: () -> Unit, usage: () -> Unit,
-    pair: () -> Unit, ask: (CloudComputer) -> Unit, extensions: () -> Unit,
     newBot: () -> Unit, newGroup: () -> Unit, edit: (Bot) -> Unit, chat: @Composable () -> Unit) {
     var tab by rememberSaveable { mutableStateOf(AppTab.Bots) }
     // Opening a bot (notification, widget, link) always lands on the Bots tab.
@@ -43,7 +41,7 @@ private enum class AppTab { Bots, State, More }
     AnalyticsOnAppear(AnalyticsEvent.ScreenViewed(when (tab) {
         AppTab.Bots -> AnalyticsScreen.Bots
         AppTab.State -> AnalyticsScreen.State
-        AppTab.More -> AnalyticsScreen.More
+        AppTab.Settings -> AnalyticsScreen.Settings
     }))
     val bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
     val barSpace = bottom + 62.dp + 24.dp
@@ -61,7 +59,7 @@ private enum class AppTab { Bots, State, More }
             Box(contentAlignment = Alignment.BottomCenter) {
                 ScrollEdge(Edge.Bottom, barSpace)
                 GlassTabBar(tab, listOf(TabItem(AppTab.Bots, "Bots", "bubble.left.and.bubble.right.fill", 33.dp),
-                    TabItem(AppTab.State, "State", "rectangle.stack.fill"), TabItem(AppTab.More, "Settings", "gearshape")),
+                    TabItem(AppTab.State, "State", "rectangle.stack.fill"), TabItem(AppTab.Settings, "Settings", "gearshape")),
                     { tab = it }, Modifier.padding(bottom = maxOf(bottom - 4.dp, 12.dp)))
             }
         }
@@ -73,9 +71,7 @@ private enum class AppTab { Bots, State, More }
             }
         }
         Box(Modifier.fillMaxSize().tabLayer(tab == AppTab.State)) { StateScreen(state, store, usage, barSpace, active = tab == AppTab.State) }
-        Box(Modifier.fillMaxSize().tabLayer(tab == AppTab.More)) {
-            SettingsView(state, store, null, pair, ask, extensions, embedded = true, bottomInset = barSpace)
-        }
+        Box(Modifier.fillMaxSize().tabLayer(tab == AppTab.Settings)) { SettingsView(state, store, barSpace) }
     }
 }
 

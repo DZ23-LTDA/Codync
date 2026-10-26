@@ -7,6 +7,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.test.platform.app.InstrumentationRegistry
 import com.codync.android.core.*
@@ -22,7 +23,7 @@ import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
 
-/** The account sheet and Computers & settings. Read-only: no test confirms a sign-out, route, removal or reset. */
+/** The account sheet, Computer management and the Settings tab. Read-only: no test confirms a sign-out, route, removal or reset. */
 class AccountScreenTest {
     @get:Rule val compose = createComposeRule()
     private val first = SavedAccount("first", "first-session", "alex@example.test", null)
@@ -46,7 +47,6 @@ class AccountScreenTest {
         val signOut = compose.onNodeWithText("Sign out").assertIsDisplayed().fetchSemanticsNode().boundsInRoot
         assertTrue(scan.bottom < identity.top)
         assertTrue(identity.bottom < signOut.top)
-        compose.onNodeWithText("Computers & settings").assertDoesNotExist()
         compose.onNodeWithContentDescription(first.email).assertIsSelected().assertIsNotEnabled()
         compose.onNodeWithContentDescription(second.email).assertIsNotSelected().assertIsEnabled()
         compose.onNodeWithContentDescription("Add account").assertIsDisplayed()
@@ -94,7 +94,6 @@ class AccountScreenTest {
         compose.onNodeWithText("QR pairing only in this build").assertIsDisplayed()
         compose.onNodeWithText("Continue with Apple").assertDoesNotExist()
         compose.onNodeWithText("Scan a computer's code").assertIsDisplayed()
-        compose.onNodeWithText("Computers & settings").assertDoesNotExist()
         snapshot("pairing-only")
     }
 
@@ -108,20 +107,23 @@ class AccountScreenTest {
         compose.onNodeWithText(first.email).assertIsDisplayed()
     }
 
-    @Test fun computerSettingsKeepRoutesNotificationsAndResetBehindConfirmations() {
+    @Test fun computerManagementHoldsTheComputersSettingsAndKeepsRemovalBehindAConfirmation() {
         val state = fixture().copy(computers = listOf(computer), connection = LinkState.Ready(HostRoute.Direct),
             bots = listOf(Bot("hidden", "Hidden scout", hidden = true)))
-        var paired = 0; var popped = 0; var extensions = 0
-        compose.setContent { Hosted { SettingsView(state, viewModel(), { popped++ }, { paired++ }, {}, { extensions++ }) } }
+        var paired = 0; var extensions = 0
+        compose.setContent { Hosted { ComputersView(state, viewModel(), { paired++ }, {}, { extensions++ }) } }
         compose.onNodeWithText("Computer management").assertIsDisplayed()
         compose.onNode(hasText(computer.name) and hasClickAction()).assertIsDisplayed()
         compose.onNodeWithText("1 bot · Wi-Fi/Tailscale").assertIsDisplayed()
         snapshot("computer-card")
         compose.onNodeWithText("Extensions").performClick()
         assertEquals(1, extensions)
-        compose.onNodeWithText("Pair a computer").performClick()
+        compose.onNodeWithText("Voice chat").assertIsDisplayed()
+        if (BuildConfig.PUSH_CONFIGURED) compose.onNode(hasText("Push notifications") and isToggleable()).assertIsDisplayed()
+        compose.onNodeWithText("Hidden scout").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithContentDescription("Unhide").assertIsDisplayed()
+        compose.onNodeWithText("Pair a computer").performScrollTo().performClick()
         assertEquals(1, paired)
-        compose.onNodeWithText("Hidden scout").assertDoesNotExist()
         compose.onNodeWithText("Start over").assertDoesNotExist()
         compose.onNodeWithText("App version").assertDoesNotExist()
         snapshot("computers")
@@ -129,18 +131,19 @@ class AccountScreenTest {
         compose.onNodeWithText("Remove").performClick()
         compose.onNodeWithText("Remove ${computer.name}?").assertIsDisplayed()
         compose.onNodeWithText("Cancel").performClick()
-        compose.onNodeWithText("Auto: Wi-Fi or Tailscale, then Cloudflare").assertIsDisplayed()
+        compose.onNodeWithText("Auto").assertIsDisplayed()
         compose.onNodeWithContentDescription("Connection").performClick()
         compose.onNodeWithText("Wi-Fi or Tailscale only, never Cloudflare").assertIsDisplayed()
         compose.onNode(hasText("Auto: Wi-Fi or Tailscale, then Cloudflare") and isSelected()).assertIsDisplayed()
-        compose.setContent { Hosted { SettingsView(state, viewModel(), null, {}, {}, {}, embedded = true) } }
+    }
+
+    @Test fun theSettingsTabHoldsOnlyThisPhonesSettingsAndKeepsResetBehindAConfirmation() {
+        val state = fixture().copy(computers = listOf(computer), connection = LinkState.Ready(HostRoute.Direct),
+            bots = listOf(Bot("hidden", "Hidden scout", hidden = true)))
+        compose.setContent { Hosted { SettingsView(state, viewModel(), 0.dp) } }
         compose.onNodeWithText("Settings").assertIsDisplayed()
-        compose.onNodeWithText("Pair a computer").assertDoesNotExist()
-        compose.onNodeWithText(computer.name).assertDoesNotExist()
-        compose.onNodeWithText("Hidden scout").performScrollTo().assertIsDisplayed()
-        compose.onNodeWithContentDescription("Unhide").assertIsDisplayed()
-        if (BuildConfig.PUSH_CONFIGURED) compose.onNode(hasText("Push notifications") and isToggleable()).performScrollTo().assertIsDisplayed()
-        else compose.onNodeWithText("Push isn't set up in this build. Bots and chats still update while Codync is open.").performScrollTo().assertIsDisplayed()
+        listOf("Pair a computer", "Hidden scout", "Push notifications", "Voice chat").forEach { compose.onNodeWithText(it).assertDoesNotExist() }
+        if (!BuildConfig.PUSH_CONFIGURED) compose.onNodeWithText("Push isn't set up in this build. Bots and chats still update while Codync is open.").performScrollTo().assertIsDisplayed()
         compose.onNodeWithText("App version").performScrollTo().assertIsDisplayed()
         compose.onNodeWithText("Start over").performScrollTo().performClick()
         compose.onNodeWithText("Start over?").assertIsDisplayed()
@@ -152,7 +155,7 @@ class AccountScreenTest {
         val cloud = CloudComputer("account-computer", "Account computer", "account-key", online = true)
         val asked = mutableListOf<CloudComputer>()
         val state = mutableStateOf(fixture().copy(cloudComputers = listOf(cloud)))
-        compose.setContent { Hosted { SettingsView(state.value, viewModel(), null, {}, { asked.add(it) }, {}) } }
+        compose.setContent { Hosted { ComputersView(state.value, viewModel(), {}, { asked.add(it) }, {}) } }
         compose.onNodeWithText("Online · In your account").assertIsDisplayed()
         compose.onNodeWithText("Ask for access").performClick()
         assertEquals(listOf(cloud), asked)
@@ -166,7 +169,7 @@ class AccountScreenTest {
         val asked = CloudComputer("asked-computer", "Asked computer", "asked-key", online = true)
         val other = CloudComputer("other-computer", "Other computer", "other-key", online = true)
         val state = fixture().copy(cloudComputers = listOf(asked, other), askingAccess = asked.computerId)
-        compose.setContent { Hosted { SettingsView(state, viewModel(), null, {}, {}, {}) } }
+        compose.setContent { Hosted { ComputersView(state, viewModel(), {}, {}, {}) } }
         val buttons = compose.onAllNodesWithText("Ask for access")
         buttons[0].assertIsEnabled()
         buttons[1].assertIsNotEnabled()
@@ -186,11 +189,11 @@ class AccountScreenTest {
         val state = fixture().copy(computers = listOf(computer), cloudComputers = listOf(cloud),
             connection = LinkState.Failed("This phone cannot reach the computer.", 403))
         var asked: CloudComputer? = null
-        compose.setContent { Hosted { SettingsView(state, viewModel(), null, {}, { asked = it }, {}) } }
+        compose.setContent { Hosted { ComputersView(state, viewModel(), {}, { asked = it }, {}) } }
         compose.onNodeWithText("This phone cannot reach the computer.").assertIsDisplayed()
         compose.onNodeWithText("Ask for access").performClick()
         assertEquals(cloud, asked)
-        compose.onNodeWithContentDescription("Remove").assertDoesNotExist()
+        compose.onNodeWithText("Remove").assertDoesNotExist()
         compose.onNodeWithText(computer.name).performTouchInput { longClick() }
         compose.onNodeWithText("Remove").assertDoesNotExist()
         compose.onNodeWithText("Revoke this phone's access").assertIsDisplayed()
@@ -202,7 +205,7 @@ class AccountScreenTest {
         val state = fixture().copy(computers = listOf(computer), cloudComputers = listOf(old, replacement),
             connection = LinkState.Failed("Access revoked.", 403))
         var asked: CloudComputer? = null
-        compose.setContent { Hosted { SettingsView(state, viewModel(), null, {}, { asked = it }, {}) } }
+        compose.setContent { Hosted { ComputersView(state, viewModel(), {}, { asked = it }, {}) } }
         compose.onAllNodesWithText("Ask for access")[1].assertIsEnabled().performClick()
         assertEquals(replacement, asked)
         compose.onNodeWithText("Remove this phone's computer to use this one", substring = true).assertDoesNotExist()

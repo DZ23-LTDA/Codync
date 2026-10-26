@@ -105,7 +105,7 @@ struct CodyncApp: App {
     }
 }
 
-enum AppTab: Hashable { case bots, state, more }
+enum AppTab: Hashable { case bots, state, settings }
 
 /// One `AccountStore` per account context: switching accounts retires the old one so
 /// in-flight work can't land on another user's screen or storage.

@@ -26,7 +26,7 @@ internal fun ComposeTestRule.onRowButton(label: String, text: String): Semantics
     return buttons[index]
 }
 
-/** Extensions opens from the paired computer's row in Manage computers. */
+/** Extensions opens from the paired computer's row in Computer management. */
 internal fun ComposeTestRule.openExtensions() {
     computerAction("Manage computers")
     waitUntil(10_000) { onAllNodesWithText("Extensions").fetchSemanticsNodes().size == 1 }

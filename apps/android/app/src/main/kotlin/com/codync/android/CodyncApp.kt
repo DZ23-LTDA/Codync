@@ -91,7 +91,6 @@ private enum class Root { Loading, Welcome, Pairing, Tabs }
                     }
                 }
                 Root.Tabs -> MainTabs(state, store, account = { showAccount = true }, manage = { showComputers = true }, usage = { showUsage = true },
-                    pair = { showPairing = true }, ask = { access = it }, extensions = openMarketplace,
                     newBot = { creatingBot = true }, newGroup = { creatingGroup = true },
                     edit = edit) {
                     ChatScreen(state, store, edit)
@@ -105,7 +104,7 @@ private enum class Root { Loading, Welcome, Pairing, Tabs }
     }
     CodyncSheet(showComputers && !state.loading, { showComputers = false }) {
         AnalyticsOnAppear(AnalyticsEvent.ScreenViewed(AnalyticsScreen.Computers))
-        SettingsView(state, store, null, { showPairing = true }, { access = it }, openMarketplace)
+        ComputersView(state, store, { showPairing = true }, { access = it }, openMarketplace)
     }
     CodyncSheet(access, { access = null }) { AccessRequestView(state, store, it) }
     CodyncSheet(showPairing && !state.loading, { showPairing = false }) {

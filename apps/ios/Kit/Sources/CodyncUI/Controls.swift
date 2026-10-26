@@ -206,25 +206,13 @@ private struct ContextActions: ViewModifier {
 }
 
 @ViewBuilder private func menuLabel(_ item: MenuItem) -> some View {
-    let title = menuTitle(item.title)
     if let image = item.image {
-        SwiftUI.Label { title } icon: { image }
+        SwiftUI.Label { Text(L10n.tr(item.title)) } icon: { image }
     } else if let icon = item.icon {
-        SwiftUI.Label { title } icon: { Image(systemName: icon) }
+        SwiftUI.Label(L10n.tr(item.title), systemImage: icon)
     } else {
-        title
+        Text(L10n.tr(item.title))
     }
-}
-
-/// A menu title wraps instead of ending in an ellipsis. A long choice, such as a connection route,
-/// asks for enough width to show the host at the end.
-private func menuTitle(_ title: String) -> some View {
-    let text = L10n.tr(title)
-    return Text(text)
-        .lineLimit(6)
-        .multilineTextAlignment(.leading)
-        .fixedSize(horizontal: false, vertical: true)
-        .frame(minWidth: text.count > 36 ? 280 : 0, alignment: .leading)
 }
 
 /// A button that opens the system menu.

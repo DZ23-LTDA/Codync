@@ -32,11 +32,10 @@ class ScreenPresentationTest {
 
     @Before fun isolatedEmulatorOnly() { assumeTrue(Build.PRODUCT.startsWith("sdk")) }
 
-    @Test fun moreOpensComputersAndBackReturnsOneLayerAtATime() {
+    @Test fun settingsIsATabAndBackClosesComputerManagementOneLayerAtATime() {
         compose.setContent { Hosted { CodyncApp(fixture(), viewModel()) } }
         compose.onNodeWithContentDescription("Switch account").performClick()
         compose.onNodeWithText("Account").assertIsDisplayed()
-        compose.onNodeWithText("Computers & settings").assertDoesNotExist()
         snapshot("account-sheet")
         back()
         compose.onNodeWithText("Account").assertDoesNotExist()
@@ -52,23 +51,24 @@ class ScreenPresentationTest {
         back()
         compose.onNodeWithText("Install Codync", substring = true).assertDoesNotExist()
         compose.onNodeWithText("Pair a computer").assertIsDisplayed()
-        compose.onNodeWithText(bot.name).assertDoesNotExist()
+        back()
+        compose.onNodeWithText("Computer management").assertDoesNotExist()
+        compose.onNodeWithText(bot.name).assertIsDisplayed()
     }
 
     @Test fun closingTheEditorDropsItsDraftAndANewGenerationRetiresIt() {
         val state = mutableStateOf(fixture())
         compose.setContent { Hosted { CodyncApp(state.value, viewModel()) } }
         compose.rosterAction(bot.name, "Edit profile")
-        compose.onNodeWithText("Settings").assertIsDisplayed()
         compose.onNodeWithContentDescription("Save").assertIsNotEnabled()
         compose.onNode(hasSetTextAction() and hasText(bot.name)).performTextReplacement("Discard this draft")
         snapshot("bot-settings-sheet")
         compose.onNodeWithContentDescription("Close").performClick()
-        compose.onNodeWithText("Settings").assertDoesNotExist()
+        compose.onNodeWithContentDescription("Save").assertDoesNotExist()
         compose.rosterAction(bot.name, "Edit profile")
         compose.onNode(hasSetTextAction() and hasText(bot.name)).assertIsDisplayed()
         compose.runOnUiThread { state.value = state.value.copy(generation = state.value.generation + 1) }
-        compose.onNodeWithText("Settings").assertDoesNotExist()
+        compose.onNodeWithContentDescription("Save").assertDoesNotExist()
     }
 
     @Test fun onlyABotsTouchAndHoldMenuStartsANewSession() {
