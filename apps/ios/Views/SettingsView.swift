@@ -117,6 +117,22 @@ struct SettingsView: View {
             }
 
             CardSection {
+                Button {
+                    Analytics.shared.capture(.reviewLinkOpened)
+                    openURL(AppStoreRelease.reviewPage)
+                } label: {
+                    Text(L10n.tr("Rate on the App Store"))
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(Palette.text)
+                Button {
+                    Analytics.shared.capture(.linkOpened(.issues))
+                    openURL(URL(string: "https://github.com/leepokai/Codync/issues")!)
+                } label: {
+                    Text(L10n.tr("Report an issue"))
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(Palette.text)
                 ValueRow("App version", value: Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "")
                 Button {
                     Analytics.shared.capture(.linkOpened(.github))

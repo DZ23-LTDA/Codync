@@ -1237,5 +1237,6 @@
   "Codync {version} is currently the newest version available.": "Codync {version} 是目前最新的版本。",
   "Install it first.": "请先安装。",
   "Not set up on {name} yet.": "还没在 {name} 上设置。",
-  "Downloads {name} on {host} if it needs to, then checks its sign-in.": "需要的话会在 {host} 上下载 {name}，再检查登录状态。"
+  "Downloads {name} on {host} if it needs to, then checks its sign-in.": "需要的话会在 {host} 上下载 {name}，再检查登录状态。",
+  "Rate on the App Store": "在 App Store 评分"
 }

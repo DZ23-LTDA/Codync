@@ -1237,5 +1237,6 @@
   "Codync {version} is currently the newest version available.": "Codync {version} est la version la plus récente disponible.",
   "Install it first.": "Installez-le d'abord.",
   "Not set up on {name} yet.": "Pas encore configuré sur {name}.",
-  "Downloads {name} on {host} if it needs to, then checks its sign-in.": "Télécharge {name} sur {host} si besoin, puis vérifie sa connexion."
+  "Downloads {name} on {host} if it needs to, then checks its sign-in.": "Télécharge {name} sur {host} si besoin, puis vérifie sa connexion.",
+  "Rate on the App Store": "Noter sur l’App Store"
 }
