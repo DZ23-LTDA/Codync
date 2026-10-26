@@ -42,7 +42,7 @@ export function ComputersView() {
 
   return (
     <div className="settings-computers">
-      <VStack gap={26} className="settings-computers-content">
+      <VStack gap={44} className="settings-computers-content">
         {managed.map((store) => (
           <ManagedComputerCard key={store.computer.id} store={store} ssh={sshState.isSSH(store.computer.id)} />
         ))}
@@ -72,7 +72,9 @@ export function ComputersView() {
           {!account.isSignedIn ? (
             <Text as="div" size="callout" tone="secondary">{tr(`Sign in to see the other computers in your account.`)}</Text>
           ) : others.length === 0 ? (
-            <Text as="div" size="callout" tone="secondary">{tr(`No other computers in your account yet.`)}</Text>
+            <Text as="div" size="callout" tone="secondary">
+              {managed.length > 1 ? tr(`Your other computers are listed above.`) : tr(`No other computers in your account yet.`)}
+            </Text>
           ) : null}
           {others.map((computer) => (
             <AccountComputerRow key={computer.computerId} computer={computer} olderCopy={cloud.isOlderCopy(computer)} onRemove={() => setRemovingCopy(computer)} />
@@ -159,7 +161,7 @@ function ManagedComputerCard({ store, ssh: overSSH }: { store: BotStore; ssh: bo
   )
 
   return (
-    <VStack gap={28}>
+    <VStack gap={16}>
       <CardSection>
         {[
           <div key="header" className="settings-row">
@@ -239,7 +241,7 @@ function ManagedComputerCard({ store, ssh: overSSH }: { store: BotStore; ssh: bo
         ]}
       </CardSection>
 
-      <AuthorizedDevicesSection store={store} />
+      <AuthorizedDevicesSection store={store} viaSSH={overSSH} />
 
       <Sheet open={showVoice} onClose={() => setShowVoice(false)}>
         <StoreContext.Provider value={store}>
