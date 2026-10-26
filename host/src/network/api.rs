@@ -55,11 +55,11 @@ fn network(slot: &Slot) -> Value {
 }
 
 /// `networkView`: `status`, asking the others in the background when what they offer is stale;
-/// the `network` event brings what they answer. The first look since the host started is left to
-/// bot listings, which wait for it (`Network::directory`).
+/// the `network` event brings what they answer. Before the first bot listing it asks without
+/// counting as asked, so that listing still waits for the answers (`Network::directory`).
 pub fn view(hub: &Hub) -> Value {
-    let looked = hub.network.asked.locked().is_some();
-    if looked && hub.network.due().is_some() {
+    let never = hub.network.asked.locked().is_none();
+    if never || hub.network.due().is_some() {
         for slot in hub.network.slots() {
             tokio::spawn(async move { slot.node.peers().await });
         }
