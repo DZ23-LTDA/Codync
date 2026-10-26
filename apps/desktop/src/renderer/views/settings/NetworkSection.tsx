@@ -23,10 +23,10 @@ type Open =
 /**
  * A managed computer's networks of the user's computers (codync-network): one card per
  * network, with who is in it and who may message the bots here, and making or joining another.
- * Hidden on hosts without `networkView`. Membership is decided here, at the computer; phones
+ * Empty on hosts without `networkView`. Membership is decided here, at the computer; phones
  * only see it.
  */
-export function NetworkSection({ store }: { store: BotStore }) {
+export function NetworkSection({ store, heading }: { store: BotStore; /** The computer's name when the page lists several; else the section's own title. */ heading?: string }) {
   const tr = useTr()
   useModel(store)
   const [open, setOpen] = useState<Open | null>(null)
@@ -39,7 +39,8 @@ export function NetworkSection({ store }: { store: BotStore }) {
     if (manageable) void refreshNetwork(store)
   }, [store, manageable])
 
-  if (!view) return null
+  // A host without networks shows its page empty, with what they are for when it is the only computer.
+  if (!view) return heading ? null : <Text size="callout" tone="secondary">{tr('Connect your computers so bots on one can message bots on another.')}</Text>
 
   const run = (work: () => Promise<unknown>) => {
     setBusy(true)
@@ -59,7 +60,7 @@ export function NetworkSection({ store }: { store: BotStore }) {
   return (
     <VStack gap={14}>
       <HStack gap={6} className="settings-section-header">
-        <Text as="h3" size="body" weight="semibold" tone="text">{tr('Network')}</Text>
+        <Text as="h3" size="body" weight="semibold" tone="text">{heading ?? tr('Network')}</Text>
         <Text as="span" size="caption" weight="semibold" className="beta-tag">{tr('Beta')}</Text>
       </HStack>
       {view.networks.map((net) => (
