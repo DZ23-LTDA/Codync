@@ -3,6 +3,7 @@
 
 use super::visible_bots;
 use crate::hub::Hub;
+use crate::store::BotConfig;
 use anyhow::Result;
 use codync_network::Peer;
 use serde_json::{Value, json};
@@ -21,19 +22,27 @@ struct Row {
     online: bool,
 }
 
-pub(super) fn list(hub: &Hub, from: &str, args: &Value, remote: &[Peer]) -> Result<Value> {
+/// `keep` picks which of this computer's bots the caller may see.
+pub(super) fn list(
+    hub: &Hub,
+    from: &str,
+    args: &Value,
+    remote: &[Peer],
+    keep: fn(&BotConfig) -> bool,
+) -> Result<Value> {
     let filter = Filter::of(args);
     let here = hub.network.node().and_then(|n| n.name());
-    let rows: Vec<Row> = rows(hub, from, remote)?.into_iter().filter(|r| filter.keeps(r, here.as_deref())).collect();
+    let rows: Vec<Row> =
+        rows(hub, from, remote, keep)?.into_iter().filter(|r| filter.keeps(r, here.as_deref())).collect();
     Ok(page(&rows, args, !filter.narrows()))
 }
 
 /// Everyone `from` can message, nearest first: this computer's bots, then the ones on computers
 /// that can take a message now.
-fn rows(hub: &Hub, from: &str, remote: &[Peer]) -> Result<Vec<Row>> {
+fn rows(hub: &Hub, from: &str, remote: &[Peer], keep: fn(&BotConfig) -> bool) -> Result<Vec<Row>> {
     let mut rows: Vec<Row> = visible_bots(&hub.store)?
         .into_iter()
-        .filter(|c| c.id != from)
+        .filter(|c| c.id != from && keep(c))
         .map(|c| Row {
             words: format!("{} {}", c.name, c.description).to_lowercase(),
             value: json!({

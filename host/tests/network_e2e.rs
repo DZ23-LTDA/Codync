@@ -226,3 +226,30 @@ async fn the_network_view_says_who_may_do_what_and_changes_reach_the_apps() {
     assert_eq!(computer(&there, "desk")["canRemove"], false, "an admin doesn't remove the owner");
     assert_eq!(computer(&here.await.unwrap(), "laptop")["canPromote"], false, "already an admin");
 }
+
+#[tokio::test]
+async fn a_bot_kept_off_the_network_and_a_deny_rule_keep_letters_out() {
+    let (desk, laptop, reviewer, lead) = two_computers().await;
+    let secret = desk.bot("Secret").await;
+    desk.call("updateBot", json!({"id": secret, "offeredToNetwork": false})).await;
+    let peers = laptop.call("networkPeers", json!({})).await;
+    let offered: Vec<&Value> = computer(&peers, "desk")["agents"].as_array().unwrap().iter().map(|a| &a["id"]).collect();
+    assert!(offered.contains(&&json!("reviewer")), "{offered:?}");
+    assert!(!offered.contains(&&json!("secret")), "kept off the network: {offered:?}");
+
+    // The desk takes nothing from the laptop's bots; the lead's message_bot says why.
+    let rules = json!([{"fromComputer": "laptop", "fromAgent": "*", "toAgent": "*", "access": "deny"}]);
+    let view = desk.call("setNetworkRules", json!({"rules": rules})).await;
+    assert_eq!(view["rules"][0]["access"], "deny");
+    laptop.call("send", json!({"botId": lead, "text": "TRY reviewer@desk review this"})).await;
+    let refused = laptop.wait_for(&lead, is_final).await;
+    let text = refused["data"]["text"].as_str().unwrap();
+    assert!(
+        text.starts_with("Refused: ") && text.contains("reviewer doesn't take messages from lead@laptop"),
+        "{text}"
+    );
+    let failed = laptop.wait_for(&lead, exchange("failed")).await;
+    assert!(failed["data"]["botMessage"]["detail"].as_str().unwrap().contains("doesn't take messages"), "{failed}");
+    let history = desk.call("history", json!({"botId": reviewer})).await;
+    assert!(!history.to_string().contains("review this"), "nothing reached the reviewer");
+}

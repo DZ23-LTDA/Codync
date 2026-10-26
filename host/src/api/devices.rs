@@ -74,6 +74,8 @@ const LOCAL_ONLY: &[&str] = &[
     "networkRemove",
     "networkPromote",
     "networkRecover",
+    // Who may write to this computer's bots is decided at the computer, like who is in.
+    "setNetworkRules",
 ];
 const SCREEN: &[&str] = &["screenPrepare", "screenOffer", "screenClose", "screenTakeover"];
 

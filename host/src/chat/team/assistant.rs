@@ -73,7 +73,7 @@ fn run(hub: &Arc<Hub>, user: &str, tool: &str, args: &Value) -> Result<Value> {
         bail!("This computer isn't in your Codync account.");
     }
     match tool {
-        "list_bots" => directory::list(hub, ID, args, &[]),
+        "list_bots" => directory::list(hub, ID, args, &[], |bot| bot.reachable_by_assistants),
         "message_bot" => message(hub, args),
         "read_replies" => Ok(hub.assistant.read(args["requestId"].as_str())),
         _ => bail!("unknown tool: {tool}"),
@@ -84,6 +84,9 @@ fn message(hub: &Arc<Hub>, args: &Value) -> Result<Value> {
     let (to, message) = message_args(args)?;
     check_message(message)?;
     let target = visible_bot(hub, to)?;
+    if !target.reachable_by_assistants {
+        bail!("{} isn't open to cloud assistants: Reachable by cloud assistants is off in its settings", target.name);
+    }
     if hub.assistant.running() >= MAX_RUNNING {
         bail!("{MAX_RUNNING} requests are still running: read_replies first, then try again");
     }

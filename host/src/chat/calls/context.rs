@@ -373,6 +373,8 @@ pub(super) mod tests {
             skills: vec![],
             computer: false,
             manage_team: false,
+            offered_to_network: true,
+            reachable_by_assistants: true,
             created_by: None,
             shared_memory: Some(true),
             harness_memory: false,

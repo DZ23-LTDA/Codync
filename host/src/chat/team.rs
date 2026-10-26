@@ -349,7 +349,7 @@ pub async fn call_async(hub: &Arc<Hub>, from: &str, name: &str, args: &Value) ->
         "list_bots" => {
             visible_bot(hub, from)?;
             let remote = hub.network.directory().await;
-            directory::list(hub, from, args, &remote)
+            directory::list(hub, from, args, &remote, |_| true)
         }
         "message_bot" => {
             let (to, message) = message_args(args)?;
@@ -366,7 +366,7 @@ pub async fn call_async(hub: &Arc<Hub>, from: &str, name: &str, args: &Value) ->
 fn call(hub: &Arc<Hub>, from: &str, name: &str, args: &Value) -> Result<Value> {
     let source = visible_bot(hub, from)?;
     match name {
-        "list_bots" => directory::list(hub, from, args, &[]),
+        "list_bots" => directory::list(hub, from, args, &[], |_| true),
         "message_bot" => {
             let (to, message) = message_args(args)?;
             match hub.network.recipient(to)? {

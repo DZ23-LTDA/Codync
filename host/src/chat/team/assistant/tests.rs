@@ -81,3 +81,20 @@ async fn phones_hear_the_switch_through_the_network_view() {
     assert_eq!((&view["assistants"], &view["assistantsAvailable"]), (&json!(false), &json!(true)));
     f.shutdown().await;
 }
+
+#[tokio::test]
+async fn a_bot_closed_to_cloud_assistants_is_neither_listed_nor_reached() {
+    let f = Fixture::new();
+    let hub = &f.hub;
+    set_enabled(hub, true).unwrap();
+    cloud::update_status(hub, |s| s.owner = Some(Owner { user_id: "user_1".into(), email: None }));
+    hub.update_bot(&json!({"id": "b", "reachableByAssistants": false})).unwrap();
+    let listed = call(hub, "user_1", "list_bots", &json!({}));
+    let ids: Vec<&Value> = listed["result"]["bots"].as_array().unwrap().iter().map(|b| &b["id"]).collect();
+    assert!(!ids.contains(&&json!("b")), "{listed}");
+    refused(
+        &call(hub, "user_1", "message_bot", &json!({"botId": "b", "message": "hi"})),
+        "isn't open to cloud assistants",
+    );
+    f.shutdown().await;
+}

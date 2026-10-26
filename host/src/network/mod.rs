@@ -9,7 +9,7 @@ mod handles;
 use crate::LockExt;
 use crate::hub::Hub;
 use anyhow::{Context, Result, anyhow, bail};
-use codync_network::{Address, Agent, Connector, Node, Peer, Reach, Role};
+use codync_network::{Address, Agent, Connector, Node, Peer, Reach, Role, Rule};
 use serde_json::{Value, json};
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -21,6 +21,8 @@ pub use handles::handle;
 const KV_CONNECTOR: &str = "network_connector";
 /// Every address name ever given to one of this computer's bots (name → bot id).
 const KV_HANDLES: &str = "network_handles";
+/// Who on the other computers may write to this computer's bots (`codync_network::Rule`s).
+const KV_RULES: &str = "network_rules";
 /// How long what the other computers offer is good for before a listing asks them again.
 const FRESH_FOR: Duration = Duration::from_mins(1);
 /// How long a listing waits for computers it has never heard from.
@@ -132,6 +134,10 @@ async fn boot(hub: &Arc<Hub>) -> Result<Arc<Node>> {
     }
     let connector: Connector = hub.store.kv_get(KV_CONNECTOR).as_deref().unwrap_or("public").parse()?;
     let (node, inbox) = Node::start(&dir(), &connector).await.context("couldn't start the network")?;
+    let rules: Vec<Rule> = hub.store.kv_get(KV_RULES).and_then(|v| serde_json::from_str(&v).ok()).unwrap_or_default();
+    if let Err(error) = node.set_rules(rules) {
+        tracing::warn!(error = format!("{error:#}"), "couldn't apply the network's rules; none apply");
+    }
     let node = Arc::new(node);
     hub.network.node.set(node.clone()).map_err(|_| anyhow!("the network is already starting; try again"))?;
     tokio::spawn(watch(hub.clone(), node.changes()));
@@ -177,6 +183,7 @@ pub fn publish(hub: &Hub) {
     }
     let agents: Vec<(Agent, Reach)> = bots
         .iter()
+        .filter(|b| b.offered_to_network)
         .filter_map(|b| {
             let id = handles.handle(&b.id)?;
             Some((Agent { id, name: b.name.clone(), about: b.description.clone() }, Reach::App))
@@ -221,6 +228,7 @@ pub fn status(hub: &Hub) -> Value {
         "canInvite": mine.is_some_and(Role::invites), "canRecover": mine.is_some_and(|r| r != Role::Owner),
         "connector": hub.store.kv_get(KV_CONNECTOR).unwrap_or_else(|| "public".into()),
         "computers": computers, "assistants": assistants, "assistantsAvailable": available,
+        "rules": node.rules(),
     })
 }
 
@@ -280,6 +288,17 @@ pub async fn peers(hub: &Arc<Hub>) -> Result<Value> {
 pub fn remove(hub: &Hub, computer: &str, cascade: bool) -> Result<Value> {
     joined(hub)?.remove(computer, cascade)?;
     Ok(json!({}))
+}
+
+/// `setNetworkRules`: who on the other computers may write to this computer's bots, in order
+/// (the first match decides); an empty list lets everyone.
+pub fn set_rules(hub: &Hub, rules: &Value) -> Result<Value> {
+    let rules: Vec<Rule> =
+        serde_json::from_value(rules.clone()).context("rules are {fromComputer, fromAgent, toAgent, access}")?;
+    joined(hub)?.set_rules(rules.clone())?;
+    hub.store.kv_set(KV_RULES, &json!(rules).to_string())?;
+    emit(hub);
+    Ok(status(hub))
 }
 
 pub fn promote(hub: &Hub, computer: &str) -> Result<Value> {
