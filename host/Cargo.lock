@@ -777,6 +777,7 @@ dependencies = [
  "base64 0.23.1",
  "getrandom 0.4.3",
  "iroh",
+ "n0-watcher",
  "serde",
  "serde_json",
  "tokio",

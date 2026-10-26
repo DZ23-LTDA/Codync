@@ -59,9 +59,11 @@ The connector picks the relay (`codync-host network create|join --connector …`
 
 Codync's Cloudflare relay isn't on this path: it carries the phone ↔ computer channel and the cloud assistant.
 
-Each computer signs where it is into the roster (`Locate`) when the host starts; the roster keeps only each
-computer's newest location. With a relay, a computer that moved is still found through its relay and iroh's
-address lookup.
+Each computer signs where it is into the roster (`Locate`) when the host starts and again whenever its addresses
+change (iroh's address watcher, 2 s after a burst settles), then says hello to everyone, so a laptop that moved to
+another network is found without a restart, even with the `private` connector. The roster keeps only each
+computer's newest location, so moving doesn't grow the log. With a relay, a computer that moved is also found
+through its relay and iroh's address lookup.
 
 The host builds iroh on aws-lc-rs, the TLS library reqwest and tokio-tungstenite use: with ring built in as well,
 rustls has no default provider and the relay connection panicked (found in end-to-end testing, 2026-10-26). `main`
@@ -148,10 +150,8 @@ terminal UI manage the network, phones show it, and a `network` event keeps them
 
 1. Per-bot offering and inbound rules (needed before networks shared with other people).
 2. Codync-run iroh relays as the default connector.
-3. Re-sign a computer's location when its address changes: today a `private` network without Tailscale loses a
-   computer that changes networks until its host restarts.
-4. The cloud assistant reaching bots on the connected computer's network.
-5. A local MCP server for agents that aren't Codync bots.
-6. Hellos that carry only what changed, lifting the roster's per-computer cap.
-7. Account networks; several networks per computer.
-8. A control channel for the standalone daemon on Windows (named pipe).
+3. The cloud assistant reaching bots on the connected computer's network.
+4. A local MCP server for agents that aren't Codync bots.
+5. Hellos that carry only what changed, lifting the roster's per-computer cap.
+6. Account networks; several networks per computer.
+7. A control channel for the standalone daemon on Windows (named pipe).

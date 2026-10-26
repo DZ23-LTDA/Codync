@@ -162,9 +162,13 @@ default connector points at them instead of n0's public relays, which are rate-l
 default connector, the privacy policy's third-party list, and the design doc's relay table. Ask the user before
 renting servers.
 
-## 4. A computer's address after it moves
+## 4. A computer's address after it moves (built)
 
-A computer signs where it is into the roster only when the host starts (`refresh_my_addr`). With the `private`
+Built as below: `follow_addr` in `node/mod.rs` watches `Endpoint::watch_addr`, waits 2 s for a burst to settle,
+re-signs `Locate` when the address differs from the roster's and hellos everyone; the unit test moves a computer with
+a watched address and checks the other computer's roster.
+
+Before: a computer signs where it is into the roster only when the host starts (`refresh_my_addr`). With the `private`
 connector and no Tailscale, a laptop that changes networks can't be found until its host restarts. Watch the
 endpoint's addresses (iroh exposes changes), re-sign `Locate` when they change, and hello everyone. The roster keeps
 only each computer's newest location, so this doesn't grow the log. Test: change addresses in a two-node test.
