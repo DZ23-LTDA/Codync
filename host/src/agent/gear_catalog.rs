@@ -176,10 +176,10 @@ fn rule_file(path: &Path, base: &Path) -> Option<Rule> {
 
 /// The rule's identity: the path inside a rules directory, otherwise the path from `base`.
 fn rule_key(path: &Path, base: &Path) -> String {
-    let rel = path.strip_prefix(base).unwrap_or(path);
-    let text = rel.components().map(|c| c.as_os_str().to_string_lossy()).collect::<Vec<_>>().join("/");
     const ROOTS: &[&str] =
         &[".cursor/rules/", ".claude/rules/", ".codebuddy/rules/", ".gemini/rules/", ".grok/rules/", ".agents/rules/"];
+    let rel = path.strip_prefix(base).unwrap_or(path);
+    let text = rel.components().map(|c| c.as_os_str().to_string_lossy()).collect::<Vec<_>>().join("/");
     for root in ROOTS {
         if let Some(rest) = text.strip_prefix(root)
             && !rest.is_empty()
