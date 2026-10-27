@@ -31,7 +31,8 @@ struct AgentBrings: View {
                 }
             }
         }
-        .task(id: backendId) { await load() }
+        // Loaded again when the computer comes back online, so a failed load doesn't stay.
+        .task(id: [backendId, model.connection == .online ? "online" : "waiting"]) { await load() }
     }
 
     @ViewBuilder private func row(_ title: String, _ items: [AgentGearItem], _ open: Binding<Bool>) -> some View {
@@ -88,6 +89,7 @@ struct AgentBrings: View {
     }
 
     private func load() async {
+        guard model.connection == .online else { return }
         failed = false
         gear = nil
         do {

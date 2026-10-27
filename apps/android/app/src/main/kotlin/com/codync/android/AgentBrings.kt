@@ -58,11 +58,13 @@ private fun JsonObject.gearItems(key: String): List<GearItem> {
 }
 
 /** Skills, connectors, rules and plugins the agent already has, under Sign in on its sheet. */
-@Composable internal fun AgentBrings(backendId: String, store: AppStore) {
+@Composable internal fun AgentBrings(backendId: String, store: AppStore, online: Boolean) {
     var gear by remember(backendId) { mutableStateOf<AgentGear?>(null) }
     var failed by remember(backendId) { mutableStateOf(false) }
     var open by remember(backendId) { mutableStateOf<String?>(null) }
-    LaunchedEffect(backendId) {
+    // Loaded again when the computer comes back online, so a failed load doesn't stay.
+    LaunchedEffect(backendId, online) {
+        if (!online) return@LaunchedEffect
         try {
             gear = store.agentGear(backendId)
             failed = false

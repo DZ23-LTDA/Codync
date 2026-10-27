@@ -35,6 +35,7 @@ import androidx.compose.ui.unit.dp
 import com.codync.android.core.AgentAuth
 import com.codync.android.core.AgentAuthMethod
 import com.codync.android.core.AgentBackend
+import com.codync.android.core.LinkState
 import com.codync.android.core.WireJson
 import com.codync.android.design.*
 import com.kyant.shapes.Capsule
@@ -176,7 +177,7 @@ internal fun agentRegistry(state: AppState, agent: String) = agentBackends(state
                 }
             }
         }
-        AgentBrings(backend.id, store)
+        AgentBrings(backend.id, store, state.connection is LinkState.Ready)
         error?.let { CardSection { row { SelectionContainer { ErrorRow(it) } } } }
     }
 }

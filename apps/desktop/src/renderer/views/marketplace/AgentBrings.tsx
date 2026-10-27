@@ -19,8 +19,11 @@ export function AgentBrings({ backendId }: { backendId: string }) {
   const [gear, setGear] = useState<Gear | null>(null)
   const [failed, setFailed] = useState(false)
   const [open, setOpen] = useState<string | null>(null)
+  // Loaded again when the computer comes back online, so a failed load doesn't stay.
+  const online = store.connection.kind === 'online'
 
   useEffect(() => {
+    if (!online) return
     let cancel = false
     setGear(null)
     setFailed(false)
@@ -30,7 +33,7 @@ export function AgentBrings({ backendId }: { backendId: string }) {
       if (!cancel) setFailed(true)
     })
     return () => { cancel = true }
-  }, [store, backendId])
+  }, [store, backendId, online])
 
   if (failed) {
     return <CardSection><Text size="footnote" tone="danger">{tr("Couldn't load what this agent brings.")}</Text></CardSection>
