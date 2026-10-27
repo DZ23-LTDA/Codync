@@ -39,7 +39,9 @@ import kotlinx.coroutines.delay
  * The details sheet's pages, as on the desktop inspector; no Memory until the read-only memory screen is ported
  * (docs/plans/android-app.md).
  */
-internal enum class DetailsTab(val title: String) { Details("Details"), Library("Library"), Settings("Settings") }
+internal enum class DetailsTab(val title: String) {
+    Details("Details"), Library("Library"), Settings("Settings"), Skills("Skills"), Connectors("Connectors"),
+}
 
 /**
  * What to open the details sheet on (iOS `DetailsRequest`): a page, a routine's editor on the Details page, or another bot's
@@ -48,7 +50,8 @@ internal enum class DetailsTab(val title: String) { Details("Details"), Library(
 internal data class DetailsRequest(val tab: DetailsTab = DetailsTab.Details, val routineId: String? = null, val botId: String? = null)
 
 /**
- * A bot's details (iOS `BotDetailsView`): who it is, then its details, library and settings. Settings save as you edit.
+ * A bot's details (iOS `BotDetailsView`): who it is, then its details, library, settings, skills and connectors.
+ * Settings save as you edit.
  * `openArtifact`: an artifact picked in the Library, for the chat's viewer.
  */
 @Composable internal fun BotDetailsView(bot: Bot, request: DetailsRequest, state: AppState, store: AppStore, openArtifact: (OpenArtifact) -> Unit) {
@@ -68,7 +71,8 @@ internal data class DetailsRequest(val tab: DetailsTab = DetailsTab.Details, val
         delay(600)
         store.saveSettings(draft)
     }
-    val tabs = listOfNotNull(DetailsTab.Details, DetailsTab.Library.takeIf { hasLibrary(state.hello?.text("version")) }, DetailsTab.Settings)
+    val tabs = listOfNotNull(DetailsTab.Details, DetailsTab.Library.takeIf { hasLibrary(state.hello?.text("version")) },
+        DetailsTab.Settings, DetailsTab.Skills, DetailsTab.Connectors)
     Box(Modifier.fillMaxSize().background(Palette.background)) {
         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(start = 20.dp, end = 20.dp, bottom = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally) {
@@ -85,6 +89,8 @@ internal data class DetailsRequest(val tab: DetailsTab = DetailsTab.Details, val
                         }
                         DetailsTab.Library -> LibraryView(bot, state, store, openArtifact)
                         DetailsTab.Settings -> BotSettingsForm(state, store, draft, { draft = it }, FormPart.Rarely)
+                        DetailsTab.Skills -> BotGearPage(bot, state, store, draft, { draft = it }, skills = true)
+                        DetailsTab.Connectors -> BotGearPage(bot, state, store, draft, { draft = it }, skills = false)
                     }
                 }
             }

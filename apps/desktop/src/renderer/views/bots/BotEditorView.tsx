@@ -281,21 +281,25 @@ function BotSettingsForm({ draft, onChange, error, plugins, part = 'all' }: {
           <NetworkSwitches draft={draft} set={set} />
         </CardSection>
 
-        <PluginToggles
-          title="Connectors"
-          empty="No connectors yet. Add GitHub, Linear, Notion and more from Extensions."
-          items={connectors.map((c) => ({ id: c.id, name: c.name, detail: c.command ?? c.url ?? '' }))}
-          selection={draft.connectors ?? []}
-          onChange={(ids) => set('connectors', ids)}
-        />
-        <PluginToggles
-          title="Skills"
-          empty="No skills yet. Get some from Extensions, or write your own."
-          items={skills.map((s) => ({ id: s.id, name: s.name, detail: s.description }))}
-          selection={draft.skills ?? []}
-          onChange={(ids) => set('skills', ids)}
-          onInfo={(s) => setViewingSkill({ id: s.id, name: s.name, description: s.detail })}
-        />
+        {part === 'all' ? (
+          <>
+            <PluginToggles
+              title="Connectors"
+              empty="No connectors yet. Add GitHub, Linear, Notion and more from Extensions."
+              items={connectors.map((c) => ({ id: c.id, name: c.name, detail: c.command ?? c.url ?? '' }))}
+              selection={draft.connectors ?? []}
+              onChange={(ids) => set('connectors', ids)}
+            />
+            <PluginToggles
+              title="Skills"
+              empty="No skills yet. Get some from Extensions, or write your own."
+              items={skills.map((s) => ({ id: s.id, name: s.name, detail: s.description }))}
+              selection={draft.skills ?? []}
+              onChange={(ids) => set('skills', ids)}
+              onInfo={(s) => setViewingSkill({ id: s.id, name: s.name, description: s.detail })}
+            />
+          </>
+        ) : null}
         {error ? <Text size="footnote" tone="danger" className="fade-in">{error}</Text> : null}
       </div>
       <FormSheet open={viewingSkill !== null} onClose={() => setViewingSkill(null)}>
@@ -315,7 +319,7 @@ function BotSettingsForm({ draft, onChange, error, plugins, part = 'all' }: {
 }
 
 /** A card of on/off switches for the connectors or skills installed on the computer. */
-function PluginToggles({ title, empty, items, selection, onChange, onInfo }: {
+export function PluginToggles({ title, empty, items, selection, onChange, onInfo }: {
   title: string
   empty: string
   items: { id: string; name: string; detail: string }[]

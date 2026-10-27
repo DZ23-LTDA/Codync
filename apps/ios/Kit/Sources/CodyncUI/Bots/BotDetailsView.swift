@@ -3,7 +3,7 @@ import SwiftUI
 
 /// The details sheet's pages, as on the desktop inspector.
 enum DetailsTab: Hashable {
-    case details, library, memory, settings
+    case details, library, memory, settings, skills, connectors
 }
 
 /// What to open the details sheet on.
@@ -16,8 +16,8 @@ struct DetailsRequest: Identifiable {
     var botId: String?
 }
 
-/// A bot's details (Grok Bot's): who it is, then its details, library, memory and settings. Settings save
-/// as you edit.
+/// A bot's details (Grok Bot's): who it is, then its details, library, memory, settings, skills and
+/// connectors. Settings save as you edit.
 struct BotDetailsView: View {
     let botId: String
     let routineId: String?
@@ -45,7 +45,7 @@ struct BotDetailsView: View {
             VStack(spacing: 0) {
                 if let bot { identity(bot) }
                 TabChoice(selection: $tab, options: [(.details, "Details")] + (model.hasLibrary ? [(.library, "Library")] : [])
-                    + [(.memory, "Memory"), (.settings, "Settings")])
+                    + [(.memory, "Memory"), (.settings, "Settings"), (.skills, "Skills"), (.connectors, "Connectors")])
                     .padding(.top, 18)
                 page.padding(.top, 20)
                     .environment(\.cardStyle, .outlined)
@@ -144,6 +144,10 @@ struct BotDetailsView: View {
             if let draft = Binding($draft) {
                 BotSettingsForm(draft: draft, error: saveError, scrolls: false, part: .rarely)
             }
+        case .skills:
+            if let draft = Binding($draft) { BotGearPage(draft: draft, kind: .skills) }
+        case .connectors:
+            if let draft = Binding($draft) { BotGearPage(draft: draft, kind: .connectors) }
         }
     }
 

@@ -10,6 +10,7 @@ import { Text } from '../../components/Text'
 import { useStore } from '../../store/context'
 import { useScreenViewed } from '../../store/analytics'
 import { BotSettingsPanel } from '../bots/BotEditorView'
+import { GearPage } from '../bots/GearPage'
 import { MemoryCard } from '../bots/MemoryView'
 import { RoutinesView } from '../routines/RoutinesView'
 import { LibraryView } from '../library/LibraryView'
@@ -19,16 +20,18 @@ import './details-panel.css'
 import { useTr } from '../../lib/use-language'
 
 
-export type DetailsTab = 'details' | 'library' | 'memory' | 'settings'
+export type DetailsTab = 'details' | 'library' | 'memory' | 'settings' | 'skills' | 'connectors'
 
 const TABS: { id: DetailsTab; label: string }[] = [
   { id: 'details', label: 'Details' },
   { id: 'library', label: 'Library' },
   { id: 'memory', label: 'Memory' },
   { id: 'settings', label: 'Settings' },
+  { id: 'skills', label: 'Skills' },
+  { id: 'connectors', label: 'Connectors' },
 ]
 
-/** The inspector beside a conversation (Grok Bot's): who the bot is, then its details, library, memory and settings. */
+/** The inspector beside a conversation (Grok Bot's): who the bot is, then its details, library, memory, settings, skills and connectors. */
 export function DetailsPanel({ botId, routineId, tab, setTab, editGroup, openArtifact, share, close }: {
   botId: string
   routineId: string | null
@@ -68,6 +71,8 @@ export function DetailsPanel({ botId, routineId, tab, setTab, editGroup, openArt
                 <LibraryView botId={botId} openArtifact={openArtifact} />
               ) : tab === 'memory' ? (
                 <MemoryCard botId={botId} />
+              ) : tab === 'skills' || tab === 'connectors' ? (
+                <GearPage botId={botId} kind={tab} />
               ) : (
                 <BotSettingsPanel botId={botId} part="rarely" />
               )}

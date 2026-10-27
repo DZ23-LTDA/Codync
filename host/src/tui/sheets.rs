@@ -10,9 +10,11 @@ use ratatui::style::{Modifier, Style};
 use crate::tui::l10n::tr;
 use serde_json::Value;
 
+mod gear_view;
 mod library_view;
 mod market_view;
 mod memory_view;
+pub use gear_view::draw as gear;
 pub use library_view::draw as library;
 pub use market_view::draw as market;
 pub use memory_view::draw as memory;

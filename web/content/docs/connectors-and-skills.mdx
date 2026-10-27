@@ -76,11 +76,11 @@ The cards themselves hold no credentials. You can answer them in the iPhone app,
 
 ## Turn connectors and skills on or off per bot
 
-A connector or skill you add is turned on for every bot, and new bots start with all of them on (without a credential store, as on a [headless Linux server](/docs/linux-servers#limits-on-a-headless-server), new bots start with no connectors). To turn one off for a bot, open the bot's **Settings** tab:
+A connector or skill you add is turned on for every bot, and new bots start with all of them on (without a credential store, as on a [headless Linux server](/docs/linux-servers#limits-on-a-headless-server), new bots start with no connectors). To turn one off for a bot, open the bot and choose **Skills** or **Connectors**. The top group is what that agent already brings. The **From Codync** group is what Codync passes on; each switch there is one you added.
 
-- **Desktop app:** click the bot's name at the top of the chat, then **Settings**.
-- **iPhone:** tap the bot's name at the top of the chat, then the **Settings** tab.
-- **Terminal UI:** press `e` on the bot, then use the **Connectors** and **Skills** fields (space toggles).
+- **Desktop app:** click the bot's name at the top of the chat, then **Skills** or **Connectors**.
+- **iPhone and Android:** tap the bot's name at the top of the chat, then the **Skills** or **Connectors** tab.
+- **Terminal UI:** Shift+Right from settings opens **Skills**, then **Connectors**. Space toggles a Codync row. The settings form (`e`) still has the same fields.
 
 The bot picks up the change on its next turn, in the same conversation.
 

@@ -9,6 +9,7 @@ mod agent;
 mod analytics;
 mod bot_chat;
 mod fields;
+mod gear;
 mod library;
 mod market;
 mod memory;
@@ -23,6 +24,7 @@ mod when;
 
 pub use analytics::AnalyticsSheet;
 pub use fields::handoff_fields;
+pub use gear::{Gear, GearKind};
 pub use library::{ArtifactTitles, LibraryItem};
 pub use memory::{MemoryMode, MemorySheet, Scroll, Section};
 pub use network::{NetReply, NetworkSheet, Recovery, Step};
@@ -53,6 +55,8 @@ pub enum Reply {
     RoutineSaved,
     /// A bot's Library (`library {botId}`).
     Library(String),
+    /// What an agent brings on its own (`agentGear`), for the bot's Skills or Connectors page.
+    Gear(String),
     /// A routine's webhook URL and key: copied as a ready-to-run curl.
     Webhook,
     /// A bot conversation's fetched history.

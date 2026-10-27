@@ -88,6 +88,19 @@ impl App {
                 }
             }
             Reply::Library(bot) => self.library_loaded(&bot, v["items"].as_array().map_or(&[], Vec::as_slice)),
+            Reply::Gear(bot) => {
+                let skills = super::gear::items(&v["skills"]);
+                let connectors = super::gear::items(&v["connectors"]);
+                for overlay in &mut self.overlays {
+                    if let Overlay::Gear(gear) = overlay
+                        && gear.bot == bot
+                    {
+                        gear.agent_skills = Some(skills.clone());
+                        gear.agent_connectors = Some(connectors.clone());
+                        gear.failed = false;
+                    }
+                }
+            }
             Reply::RoutineSaved => {
                 if let Some(i) = self.overlays.iter().rposition(|o| matches!(o, Overlay::Routine(_))) {
                     self.overlays.truncate(i);
@@ -294,6 +307,18 @@ impl App {
                 }
                 self.flash(&e);
             }
+            Reply::Gear(bot) => {
+                for o in &mut self.overlays {
+                    if let Overlay::Gear(gear) = o
+                        && gear.bot == *bot
+                    {
+                        gear.agent_skills.get_or_insert_with(Vec::new);
+                        gear.agent_connectors.get_or_insert_with(Vec::new);
+                        gear.failed = true;
+                    }
+                }
+                self.flash(&e);
+            }
             Reply::Memory(_) | Reply::MemorySaved(_) | Reply::MemoryFile(_) | Reply::Routines(_) => {
                 for o in &mut self.overlays {
                     match o {
@@ -329,6 +354,7 @@ impl App {
     /// Loads what every open sheet shows again, after a change.
     pub(in crate::tui) fn refresh_sheets(&mut self) {
         let mut calls: Vec<(&'static str, Value, After)> = vec![];
+        let mut gear_ids = Vec::new();
         for o in &self.overlays {
             match o {
                 Overlay::Memory(m) => {
@@ -343,11 +369,25 @@ impl App {
                 Overlay::Library(l) => {
                     calls.push(("library", json!({"botId": l.bot}), After::Sheet(Reply::Library(l.bot.clone()))));
                 }
+                Overlay::Gear(gear) => {
+                    gear_ids.push(gear.bot.clone());
+                    calls.push(("connectors", json!({}), After::Connectors));
+                    calls.push(("skills", json!({}), After::Skills));
+                }
                 Overlay::Market(_) | Overlay::Form(_) => {
                     calls.push(("connectors", json!({}), After::Connectors));
                     calls.push(("skills", json!({}), After::Skills));
                 }
                 _ => {}
+            }
+        }
+        for id in gear_ids {
+            if let Some(bot) = self.bots.get(&id) {
+                calls.push((
+                    "agentGear",
+                    json!({"backend": bot.backend, "cwd": bot.cwd}),
+                    After::Sheet(Reply::Gear(id)),
+                ));
             }
         }
         calls.dedup_by(|a, b| a.0 == b.0 && a.1 == b.1);
