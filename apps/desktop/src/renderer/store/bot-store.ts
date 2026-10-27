@@ -381,11 +381,11 @@ export class BotStore extends BotSync {
   }
 
   /** Skills and connectors `backend` already has in `cwd`, not the Codync ones this bot passes on. */
-  async agentGear(backend: string, cwd: string): Promise<{ skills: AgentGearItem[]; connectors: AgentGearItem[] }> {
+  async agentGear(backend: string, cwd: string): Promise<{ skills: AgentGearItem[]; connectors: AgentGearItem[]; rules: AgentGearItem[]; plugins: AgentGearItem[] }> {
     const client = this.client
     if (!client) throw new Error("Couldn't load what this agent brings.")
-    const value = await client.call<{ skills?: AgentGearItem[]; connectors?: AgentGearItem[] }>('agentGear', { backend, cwd })
-    return { skills: value.skills ?? [], connectors: value.connectors ?? [] }
+    const value = await client.call<{ skills?: AgentGearItem[]; connectors?: AgentGearItem[]; rules?: AgentGearItem[]; plugins?: AgentGearItem[] }>('agentGear', { backend, cwd })
+    return { skills: value.skills ?? [], connectors: value.connectors ?? [], rules: value.rules ?? [], plugins: value.plugins ?? [] }
   }
 
   async save(draft: BotDraft) {

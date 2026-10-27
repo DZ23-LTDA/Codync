@@ -55,7 +55,7 @@ pub enum Reply {
     RoutineSaved,
     /// A bot's Library (`library {botId}`).
     Library(String),
-    /// What an agent brings on its own (`agentGear`), for the bot's Skills or Connectors page.
+    /// What an agent brings on its own (`agentGear`), for the bot's Skills, Connectors, Rules or Plugins page.
     Gear(String),
     /// A routine's webhook URL and key: copied as a ready-to-run curl.
     Webhook,

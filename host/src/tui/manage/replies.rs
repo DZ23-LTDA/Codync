@@ -97,6 +97,8 @@ impl App {
                     {
                         gear.agent_skills = Some(skills.clone());
                         gear.agent_connectors = Some(connectors.clone());
+                        gear.agent_rules = Some(super::gear::items(&v["rules"]));
+                        gear.agent_plugins = Some(super::gear::items(&v["plugins"]));
                         gear.failed = false;
                     }
                 }
@@ -314,6 +316,8 @@ impl App {
                     {
                         gear.agent_skills.get_or_insert_with(Vec::new);
                         gear.agent_connectors.get_or_insert_with(Vec::new);
+                        gear.agent_rules.get_or_insert_with(Vec::new);
+                        gear.agent_plugins.get_or_insert_with(Vec::new);
                         gear.failed = true;
                     }
                 }

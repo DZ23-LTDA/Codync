@@ -18,6 +18,14 @@
   background: linear-gradient(var(--background) 70%, transparent);
   -webkit-app-region: drag;
 }
+/* The bot's pages, then what its agent brings. One row of eight labels does not fit this panel. */
+.details-tabs {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
 .details-actions {
   position: absolute;
   top: 11px;

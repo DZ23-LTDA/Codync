@@ -108,23 +108,29 @@ public struct MarketConnector: Codable, Hashable, Sendable, Identifiable {
     }
 }
 
-/// Skills and MCP connectors an agent keeps for itself (`agentGear`). Codync's own are separate.
+/// Skills, connectors, rules and plugins an agent keeps for itself (`agentGear`). Codync's own skills and connectors are separate.
 public struct AgentGear: Decodable, Sendable, Equatable {
     public var skills: [AgentGearItem]
     public var connectors: [AgentGearItem]
+    public var rules: [AgentGearItem]
+    public var plugins: [AgentGearItem]
 
-    public init(skills: [AgentGearItem] = [], connectors: [AgentGearItem] = []) {
+    public init(skills: [AgentGearItem] = [], connectors: [AgentGearItem] = [], rules: [AgentGearItem] = [], plugins: [AgentGearItem] = []) {
         self.skills = skills
         self.connectors = connectors
+        self.rules = rules
+        self.plugins = plugins
     }
 
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         skills = try c.decodeIfPresent([AgentGearItem].self, forKey: .skills) ?? []
         connectors = try c.decodeIfPresent([AgentGearItem].self, forKey: .connectors) ?? []
+        rules = try c.decodeIfPresent([AgentGearItem].self, forKey: .rules) ?? []
+        plugins = try c.decodeIfPresent([AgentGearItem].self, forKey: .plugins) ?? []
     }
 
-    private enum CodingKeys: String, CodingKey { case skills, connectors }
+    private enum CodingKeys: String, CodingKey { case skills, connectors, rules, plugins }
 }
 
 public struct AgentGearItem: Decodable, Sendable, Equatable, Identifiable {

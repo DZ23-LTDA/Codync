@@ -20,15 +20,19 @@ import './details-panel.css'
 import { useTr } from '../../lib/use-language'
 
 
-export type DetailsTab = 'details' | 'library' | 'memory' | 'settings' | 'skills' | 'connectors'
+export type DetailsTab = 'details' | 'library' | 'memory' | 'settings' | 'skills' | 'connectors' | 'rules' | 'plugins'
 
-const TABS: { id: DetailsTab; label: string }[] = [
+const BOT_TABS: { id: DetailsTab; label: string }[] = [
   { id: 'details', label: 'Details' },
   { id: 'library', label: 'Library' },
   { id: 'memory', label: 'Memory' },
   { id: 'settings', label: 'Settings' },
+]
+const GEAR_TABS: { id: DetailsTab; label: string }[] = [
   { id: 'skills', label: 'Skills' },
   { id: 'connectors', label: 'Connectors' },
+  { id: 'rules', label: 'Rules' },
+  { id: 'plugins', label: 'Plugins' },
 ]
 
 /** The inspector beside a conversation (Grok Bot's): who the bot is, then its details, library, memory, settings, skills and connectors. */
@@ -59,7 +63,10 @@ export function DetailsPanel({ botId, routineId, tab, setTab, editGroup, openArt
           <GroupMembersList group={bot} editGroup={editGroup} />
         ) : (
           <>
-            <TabChoice label="Conversation details" selection={tab} options={hasLibrary(store.hostVersion?.version) ? TABS : TABS.filter((t) => t.id !== 'library')} onChange={setTab} />
+            <div className="details-tabs">
+              <TabChoice label="Conversation details" selection={tab} options={hasLibrary(store.hostVersion?.version) ? BOT_TABS : BOT_TABS.filter((t) => t.id !== 'library')} onChange={setTab} />
+              <TabChoice label="What the agent brings" selection={tab} options={GEAR_TABS} onChange={setTab} />
+            </div>
             <div key={tab} className="details-tab fade-in">
               {tab === 'details' ? (
                 <>
@@ -71,7 +78,7 @@ export function DetailsPanel({ botId, routineId, tab, setTab, editGroup, openArt
                 <LibraryView botId={botId} openArtifact={openArtifact} />
               ) : tab === 'memory' ? (
                 <MemoryCard botId={botId} />
-              ) : tab === 'skills' || tab === 'connectors' ? (
+              ) : tab === 'skills' || tab === 'connectors' || tab === 'rules' || tab === 'plugins' ? (
                 <GearPage botId={botId} kind={tab} />
               ) : (
                 <BotSettingsPanel botId={botId} part="rarely" />

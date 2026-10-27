@@ -1,7 +1,8 @@
-//! An agent's own skills and MCP connectors, read from the config it keeps on disk.
+//! An agent's own skills, MCP connectors, rules and plugins, read from the config it keeps on disk.
 //!
 //! Codync's skills and connectors are a separate list: clients show them beside these
-//! and pass along the ones the bot has switched on. This never starts the agent.
+//! and pass along the ones the bot has switched on. Rules and plugins are the agent's own;
+//! Codync does not add either. This never starts the agent.
 //! MCP environment variables, headers and tokens stay in the files.
 
 use serde_json::{Map, Value, json};
@@ -21,8 +22,9 @@ struct Item {
     detail: String,
 }
 
-/// `{ skills: [{name, description}], connectors: [{name, detail}] }` for `backend` working in `cwd`.
+/// `{ skills, connectors, rules, plugins }` for `backend` working in `cwd`.
 /// An empty `cwd` lists only what the agent keeps for the user, not a project.
+/// Each entry is `{name, description}` except connectors, which use `{name, detail}`.
 pub async fn list(backend: &str, cwd: &str) -> Value {
     let backend = backend.to_owned();
     let cwd = cwd.to_owned();
@@ -30,7 +32,7 @@ pub async fn list(backend: &str, cwd: &str) -> Value {
         Ok(value) => value,
         Err(e) => {
             tracing::warn!(error = format!("{e:#}"), "listing an agent's skills and connectors");
-            json!({"skills": [], "connectors": []})
+            json!({"skills": [], "connectors": [], "rules": [], "plugins": []})
         }
     }
 }
@@ -39,9 +41,12 @@ fn scan(backend: &str, cwd: &str) -> Value {
     let home = dirs::home_dir().unwrap_or_default();
     let project = (!cwd.is_empty()).then(|| Path::new(cwd));
     let (skills, connectors) = collect(backend, &home, project);
+    let (rules, plugins) = super::gear_catalog::list(backend, &home, project);
     json!({
         "skills": skills.iter().map(|s| json!({"name": s.name, "description": s.description})).collect::<Vec<_>>(),
         "connectors": connectors.iter().map(|c| json!({"name": c.name, "detail": c.detail})).collect::<Vec<_>>(),
+        "rules": rules.iter().map(|s| json!({"name": s.name, "description": s.description})).collect::<Vec<_>>(),
+        "plugins": plugins.iter().map(|s| json!({"name": s.name, "description": s.description})).collect::<Vec<_>>(),
     })
 }
 

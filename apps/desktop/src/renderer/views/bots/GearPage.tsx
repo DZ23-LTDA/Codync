@@ -13,12 +13,12 @@ import { errorText, isValid, normalized, useFollowSaved, usePlugins } from './dr
 import './bots.css'
 
 /** The agent's own skills or connectors, then the Codync ones this bot passes on. */
-export function GearPage({ botId, kind }: { botId: string; kind: 'skills' | 'connectors' }) {
+export function GearPage({ botId, kind }: { botId: string; kind: 'skills' | 'connectors' | 'rules' | 'plugins' }) {
   const tr = useTr()
   const store = useStore()
   const plugins = usePlugins(store)
   const [draft, setDraft] = useState<BotDraft | null>(null)
-  const [gear, setGear] = useState<{ skills: AgentGearItem[]; connectors: AgentGearItem[] } | null>(null)
+  const [gear, setGear] = useState<{ skills: AgentGearItem[]; connectors: AgentGearItem[]; rules: AgentGearItem[]; plugins: AgentGearItem[] } | null>(null)
   const [failed, setFailed] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [viewingSkill, setViewingSkill] = useState<SkillRef | null>(null)
@@ -67,13 +67,17 @@ export function GearPage({ botId, kind }: { botId: string; kind: 'skills' | 'con
   }
 
   if (!draft) return null
-  const items = (kind === 'skills' ? gear?.skills : gear?.connectors) ?? []
+  const passesOn = kind === 'skills' || kind === 'connectors'
+  const items = gear?.[kind] ?? []
   const fromAgent = tr('From {agent}').replace('{agent}', agent)
+  const intro = passesOn
+    ? '{agent} brings these. Codync adds its own on top, and those are what get passed to the agent.'
+    : '{agent} brings these.'
   return (
     <div className="bot-form">
       <div className="bot-form-content">
         <Text size="footnote" tone="secondary">
-          {tr('{agent} brings these. Codync adds its own on top, and those are what get passed to the agent.').replace('{agent}', agent)}
+          {tr(intro).replace('{agent}', agent)}
         </Text>
         <CardSection title={fromAgent}>
           {failed ? (
@@ -84,7 +88,7 @@ export function GearPage({ botId, kind }: { botId: string; kind: 'skills' | 'con
             <Text tone="secondary">{tr('None from this agent.')}</Text>
           ) : (
             items.map((item) => {
-              const note = kind === 'skills' ? item.description : item.detail
+              const note = kind === 'connectors' ? item.detail : item.description
               return (
                 <VStack key={item.name} gap={2}>
                   <Text>{item.name}</Text>
@@ -94,7 +98,7 @@ export function GearPage({ botId, kind }: { botId: string; kind: 'skills' | 'con
             })
           )}
         </CardSection>
-        {kind === 'skills' ? (
+        {kind === 'rules' || kind === 'plugins' ? null : kind === 'skills' ? (
           <PluginToggles
             title="From Codync"
             empty="No skills yet. Get some from Extensions, or write your own."

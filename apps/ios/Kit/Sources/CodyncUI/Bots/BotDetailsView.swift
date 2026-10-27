@@ -3,7 +3,7 @@ import SwiftUI
 
 /// The details sheet's pages, as on the desktop inspector.
 enum DetailsTab: Hashable {
-    case details, library, memory, settings, skills, connectors
+    case details, library, memory, settings, skills, connectors, rules, plugins
 }
 
 /// What to open the details sheet on.
@@ -16,8 +16,8 @@ struct DetailsRequest: Identifiable {
     var botId: String?
 }
 
-/// A bot's details (Grok Bot's): who it is, then its details, library, memory, settings, skills and
-/// connectors. Settings save as you edit.
+/// A bot's details (Grok Bot's): who it is, then its details, library, memory, settings, skills,
+/// connectors, rules and plugins. Settings save as you edit.
 struct BotDetailsView: View {
     let botId: String
     let routineId: String?
@@ -44,9 +44,12 @@ struct BotDetailsView: View {
         ScrollView {
             VStack(spacing: 0) {
                 if let bot { identity(bot) }
-                TabChoice(selection: $tab, options: [(.details, "Details")] + (model.hasLibrary ? [(.library, "Library")] : [])
-                    + [(.memory, "Memory"), (.settings, "Settings"), (.skills, "Skills"), (.connectors, "Connectors")])
-                    .padding(.top, 18)
+                VStack(spacing: 2) {
+                    TabChoice(selection: $tab, options: [(.details, "Details")] + (model.hasLibrary ? [(.library, "Library")] : [])
+                        + [(.memory, "Memory"), (.settings, "Settings")])
+                    TabChoice(selection: $tab, options: [(.skills, "Skills"), (.connectors, "Connectors"), (.rules, "Rules"), (.plugins, "Plugins")])
+                }
+                .padding(.top, 18)
                 page.padding(.top, 20)
                     .environment(\.cardStyle, .outlined)
                     .environment(\.noteLines, 2)
@@ -148,6 +151,10 @@ struct BotDetailsView: View {
             if let draft = Binding($draft) { BotGearPage(draft: draft, kind: .skills, saveError: saveError) }
         case .connectors:
             if let draft = Binding($draft) { BotGearPage(draft: draft, kind: .connectors, saveError: saveError) }
+        case .rules:
+            if let draft = Binding($draft) { BotGearPage(draft: draft, kind: .rules, saveError: saveError) }
+        case .plugins:
+            if let draft = Binding($draft) { BotGearPage(draft: draft, kind: .plugins, saveError: saveError) }
         }
     }
 

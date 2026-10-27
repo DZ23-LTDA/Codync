@@ -40,7 +40,7 @@ import kotlinx.coroutines.delay
  * (docs/plans/android-app.md).
  */
 internal enum class DetailsTab(val title: String) {
-    Details("Details"), Library("Library"), Settings("Settings"), Skills("Skills"), Connectors("Connectors"),
+    Details("Details"), Library("Library"), Settings("Settings"), Skills("Skills"), Connectors("Connectors"), Rules("Rules"), Plugins("Plugins"),
 }
 
 /**
@@ -50,7 +50,7 @@ internal enum class DetailsTab(val title: String) {
 internal data class DetailsRequest(val tab: DetailsTab = DetailsTab.Details, val routineId: String? = null, val botId: String? = null)
 
 /**
- * A bot's details (iOS `BotDetailsView`): who it is, then its details, library, settings, skills and connectors.
+ * A bot's details (iOS `BotDetailsView`): who it is, then its details, library, settings, skills, connectors, rules and plugins.
  * Settings save as you edit.
  * `openArtifact`: an artifact picked in the Library, for the chat's viewer.
  */
@@ -71,13 +71,16 @@ internal data class DetailsRequest(val tab: DetailsTab = DetailsTab.Details, val
         delay(600)
         store.saveSettings(draft)
     }
-    val tabs = listOfNotNull(DetailsTab.Details, DetailsTab.Library.takeIf { hasLibrary(state.hello?.text("version")) },
-        DetailsTab.Settings, DetailsTab.Skills, DetailsTab.Connectors)
+    val botTabs = listOfNotNull(DetailsTab.Details, DetailsTab.Library.takeIf { hasLibrary(state.hello?.text("version")) }, DetailsTab.Settings)
+    val gearTabs = listOf(DetailsTab.Skills, DetailsTab.Connectors, DetailsTab.Rules, DetailsTab.Plugins)
     Box(Modifier.fillMaxSize().background(Palette.background)) {
         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(start = 20.dp, end = 20.dp, bottom = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally) {
             Identity(bot, state)
-            TabChoice(tab, tabs.map { it to it.title }, { tab = it }, Modifier.padding(top = 18.dp))
+            Column(Modifier.padding(top = 18.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                TabChoice(tab, botTabs.map { it to it.title }, { tab = it })
+                TabChoice(tab, gearTabs.map { it to it.title }, { tab = it })
+            }
             CompositionLocalProvider(LocalCardStyle provides CardStyle.Outlined) {
                 Box(Modifier.fillMaxWidth().padding(top = 20.dp)) {
                     when (tab) {
@@ -89,8 +92,10 @@ internal data class DetailsRequest(val tab: DetailsTab = DetailsTab.Details, val
                         }
                         DetailsTab.Library -> LibraryView(bot, state, store, openArtifact)
                         DetailsTab.Settings -> BotSettingsForm(state, store, draft, { draft = it }, FormPart.Rarely)
-                        DetailsTab.Skills -> BotGearPage(bot, state, store, draft, { draft = it }, skills = true)
-                        DetailsTab.Connectors -> BotGearPage(bot, state, store, draft, { draft = it }, skills = false)
+                        DetailsTab.Skills -> BotGearPage(bot, state, store, draft, { draft = it }, GearKind.Skills)
+                        DetailsTab.Connectors -> BotGearPage(bot, state, store, draft, { draft = it }, GearKind.Connectors)
+                        DetailsTab.Rules -> BotGearPage(bot, state, store, draft, { draft = it }, GearKind.Rules)
+                        DetailsTab.Plugins -> BotGearPage(bot, state, store, draft, { draft = it }, GearKind.Plugins)
                     }
                 }
             }

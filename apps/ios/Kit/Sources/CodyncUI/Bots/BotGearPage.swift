@@ -9,7 +9,15 @@ struct BotGearPage: View {
     @Environment(BotStore.self) private var model
     @State private var viewingSkill: SkillRef?
 
-    enum Kind { case skills, connectors }
+    enum Kind { case skills, connectors, rules, plugins
+
+        var passesOn: Bool {
+            switch self {
+            case .skills, .connectors: true
+            case .rules, .plugins: false
+            }
+        }
+    }
 
     private var bot: Bot? { draft.id.flatMap { model.bots[$0] } }
 
@@ -22,17 +30,27 @@ struct BotGearPage: View {
         switch kind {
         case .skills: model.agentGear?.skills ?? []
         case .connectors: model.agentGear?.connectors ?? []
+        case .rules: model.agentGear?.rules ?? []
+        case .plugins: model.agentGear?.plugins ?? []
         }
+    }
+
+    private var intro: String {
+        let key = kind.passesOn
+            ? "{agent} brings these. Codync adds its own on top, and those are what get passed to the agent."
+            : "{agent} brings these."
+        return L10n.tr(key).replacingOccurrences(of: "{agent}", with: agent)
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 28) {
-            Text(L10n.tr("{agent} brings these. Codync adds its own on top, and those are what get passed to the agent.")
-                .replacingOccurrences(of: "{agent}", with: agent))
+            Text(intro)
                 .font(.footnote)
                 .foregroundStyle(Palette.secondary)
             agentSection
-            codyncSection.disabled(model.isOffline)
+            if kind.passesOn {
+                codyncSection.disabled(model.isOffline)
+            }
             if let saveError {
                 Text(saveError).font(.footnote).foregroundStyle(Palette.danger)
             }
@@ -53,7 +71,7 @@ struct BotGearPage: View {
                 ForEach(agentItems) { item in
                     VStack(alignment: .leading, spacing: 2) {
                         Text(item.name).foregroundStyle(Palette.text)
-                        let note = kind == .skills ? item.description : item.detail
+                        let note = kind == .connectors ? item.detail : item.description
                         if !note.isEmpty {
                             Text(note).font(.caption).foregroundStyle(Palette.secondary)
                         }
@@ -80,6 +98,8 @@ struct BotGearPage: View {
                 items: model.installedConnectors.map { ($0.id, $0.name, $0.command ?? $0.url ?? "") },
                 selection: Binding(get: { draft.connectors ?? [] }, set: { draft.connectors = $0 })
             )
+        case .rules, .plugins:
+            EmptyView()
         }
     }
 

@@ -69,18 +69,27 @@ fn name_of(app: &App, bot: &str) -> String {
     app.bots.get(bot).map_or_else(String::new, |b| b.name.clone())
 }
 
-/// A bot's pages on the top line (Details, Memory, Settings) with this one marked; returns the
-/// area under it.
+/// A bot's pages on two lines: the bot (Details, Library, Memory, Settings), then what its agent
+/// brings (Skills, Connectors, Rules, Plugins). Returns the area under them.
 pub fn page_tabs(buf: &mut Buffer, inner: Rect, current: Page) -> Rect {
     let t = theme();
-    let mut x = inner.x;
-    for page in Page::ALL {
-        let style = if page == current { t.text.patch(t.sel) } else { t.secondary.patch(t.panel) };
-        let tab = tr(page.label());
-        x = put(buf, x, inner.y, inner.right().saturating_sub(x), &format!(" {tab} "), style) + 1;
+    let rows: [&[Page]; 2] = [
+        &[Page::Details, Page::Library, Page::Memory, Page::Settings],
+        &[Page::Skills, Page::Connectors, Page::Rules, Page::Plugins],
+    ];
+    for (row, pages) in rows.iter().enumerate() {
+        let mut x = inner.x;
+        let y = inner.y.saturating_add(u16::try_from(row).unwrap_or(0));
+        for page in *pages {
+            let style = if *page == current { t.text.patch(t.sel) } else { t.secondary.patch(t.panel) };
+            let tab = tr(page.label());
+            x = put(buf, x, y, inner.right().saturating_sub(x), &format!(" {tab} "), style) + 1;
+        }
+        if row == 0 {
+            rput(buf, inner.right(), y, "⇧←→ page", t.dim.patch(t.panel));
+        }
     }
-    rput(buf, inner.right(), inner.y, "⇧←→ page", t.dim.patch(t.panel));
-    Rect::new(inner.x, inner.y + 2, inner.width, inner.height.saturating_sub(2))
+    Rect::new(inner.x, inner.y.saturating_add(3), inner.width, inner.height.saturating_sub(3))
 }
 
 pub fn routines(buf: &mut Buffer, area: Rect, app: &App, l: &RoutineList) {

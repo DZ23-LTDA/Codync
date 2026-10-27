@@ -24,7 +24,14 @@ import kotlinx.serialization.json.put
 /** One skill or connector the agent keeps for itself (`agentGear`). */
 internal data class GearItem(val name: String, val description: String, val detail: String)
 
-internal data class AgentGear(val skills: List<GearItem>, val connectors: List<GearItem>)
+internal enum class GearKind { Skills, Connectors, Rules, Plugins }
+
+internal data class AgentGear(
+    val skills: List<GearItem>,
+    val connectors: List<GearItem>,
+    val rules: List<GearItem> = emptyList(),
+    val plugins: List<GearItem> = emptyList(),
+)
 
 /** What `backend` already has in `cwd`. Codync's own skills and connectors are not in this list. */
 internal suspend fun AppStore.agentGear(backend: String, cwd: String): AgentGear {
@@ -33,7 +40,7 @@ internal suspend fun AppStore.agentGear(backend: String, cwd: String): AgentGear
         put("cwd", cwd)
     })
     val obj = body as? JsonObject ?: return AgentGear(emptyList(), emptyList())
-    return AgentGear(obj.gearItems("skills"), obj.gearItems("connectors"))
+    return AgentGear(obj.gearItems("skills"), obj.gearItems("connectors"), obj.gearItems("rules"), obj.gearItems("plugins"))
 }
 
 private fun JsonObject.gearItems(key: String): List<GearItem> {
@@ -50,7 +57,7 @@ private fun JsonObject.gearItems(key: String): List<GearItem> {
  * The Skills or Connectors page: what the bot's agent already brings, then the Codync ones passed on top.
  * `skills` picks the skills page; otherwise the page is connectors.
  */
-@Composable internal fun BotGearPage(bot: Bot, state: AppState, store: AppStore, draft: BotDraft, change: (BotDraft) -> Unit, skills: Boolean) {
+@Composable internal fun BotGearPage(bot: Bot, state: AppState, store: AppStore, draft: BotDraft, change: (BotDraft) -> Unit, kind: GearKind) {
     val online = state.actualConnection is LinkState.Ready
     val cwd = draft.cwd.ifEmpty { bot.cwd }
     val agent = backendName(state, draft.backend)
@@ -72,17 +79,23 @@ private fun JsonObject.gearItems(key: String): List<GearItem> {
         }
     }
     LaunchedEffect(online) { if (online) store.refreshPlugins() }
-    val items = if (skills) gear?.skills.orEmpty() else gear?.connectors.orEmpty()
+    val passesOn = kind == GearKind.Skills || kind == GearKind.Connectors
+    val items = when (kind) {
+        GearKind.Skills -> gear?.skills.orEmpty()
+        GearKind.Connectors -> gear?.connectors.orEmpty()
+        GearKind.Rules -> gear?.rules.orEmpty()
+        GearKind.Plugins -> gear?.plugins.orEmpty()
+    }
+    val intro = if (passesOn) "{agent} brings these. Codync adds its own on top, and those are what get passed to the agent." else "{agent} brings these."
     Column(verticalArrangement = Arrangement.spacedBy(28.dp)) {
-        Text(tr("{agent} brings these. Codync adds its own on top, and those are what get passed to the agent.").replace("{agent}", agent),
-            style = Type.footnote, color = Palette.secondary)
+        Text(tr(intro).replace("{agent}", agent), style = Type.footnote, color = Palette.secondary)
         CardSection(tr("From {agent}").replace("{agent}", agent)) {
             when {
                 gear == null && !failed -> row { Text(tr("Loading…"), style = Type.body, color = Palette.secondary) }
                 failed -> row { Text(tr("Couldn't load what this agent brings."), style = Type.body, color = Palette.danger) }
                 items.isEmpty() -> row { Text(tr("None from this agent."), style = Type.body, color = Palette.secondary) }
                 else -> for (item in items) row {
-                    val note = if (skills) item.description else item.detail
+                    val note = if (kind == GearKind.Connectors) item.detail else item.description
                     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                         Text(item.name, style = Type.body, color = Palette.text)
                         if (note.isNotEmpty()) Text(note, style = Type.caption, color = Palette.secondary)
@@ -90,17 +103,19 @@ private fun JsonObject.gearItems(key: String): List<GearItem> {
                 }
             }
         }
-        val plugins = state.plugins
-        if (skills) {
-            PluginToggles("From Codync", "No skills yet. Get some from Extensions, or write your own.",
-                plugins?.skills.orEmpty().map { Triple(it.id, it.name, it.description) }, draft.skills.orEmpty(),
-                { change(draft.copy(skills = it)) }, enabled = online) { id ->
-                plugins?.skills?.firstOrNull { it.id == id }?.let { viewingSkill = SkillRef(it.id, it.name, it.description) }
+        if (passesOn) {
+            val plugins = state.plugins
+            if (kind == GearKind.Skills) {
+                PluginToggles("From Codync", "No skills yet. Get some from Extensions, or write your own.",
+                    plugins?.skills.orEmpty().map { Triple(it.id, it.name, it.description) }, draft.skills.orEmpty(),
+                    { change(draft.copy(skills = it)) }, enabled = online) { id ->
+                    plugins?.skills?.firstOrNull { it.id == id }?.let { viewingSkill = SkillRef(it.id, it.name, it.description) }
+                }
+            } else {
+                PluginToggles("From Codync", "No connectors yet. Add GitHub, Linear, Notion and more from Extensions.",
+                    plugins?.connectors.orEmpty().map { Triple(it.id, it.name, it.command ?: it.url.orEmpty()) },
+                    draft.connectors ?: plugins?.connectors.orEmpty().map { it.id }, { change(draft.copy(connectors = it)) }, enabled = online)
             }
-        } else {
-            PluginToggles("From Codync", "No connectors yet. Add GitHub, Linear, Notion and more from Extensions.",
-                plugins?.connectors.orEmpty().map { Triple(it.id, it.name, it.command ?: it.url.orEmpty()) },
-                draft.connectors ?: plugins?.connectors.orEmpty().map { it.id }, { change(draft.copy(connectors = it)) }, enabled = online)
         }
     }
     CodyncSheet(viewingSkill, { viewingSkill = null }) { SkillSheet(it, state, store) }

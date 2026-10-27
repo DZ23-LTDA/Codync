@@ -1,6 +1,7 @@
 //! A bot's pages of details, as in the desktop inspector and the iPhone's details: Details (whether it
 //! may use the computer, and its routines), Library (the artifacts it made and the files shared in its
-//! chat), Memory, Settings, Skills and Connectors. Shift+←→ moves between them.
+//! chat), Memory and Settings, then what the agent brings: Skills, Connectors, Rules and Plugins.
+//! Shift+←→ moves between them.
 
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
@@ -14,11 +15,21 @@ pub enum Page {
     Settings,
     Skills,
     Connectors,
+    Rules,
+    Plugins,
 }
 
 impl Page {
-    pub const ALL: [Self; 6] =
-        [Self::Details, Self::Library, Self::Memory, Self::Settings, Self::Skills, Self::Connectors];
+    pub const ALL: [Self; 8] = [
+        Self::Details,
+        Self::Library,
+        Self::Memory,
+        Self::Settings,
+        Self::Skills,
+        Self::Connectors,
+        Self::Rules,
+        Self::Plugins,
+    ];
 
     pub fn label(self) -> &'static str {
         match self {
@@ -28,6 +39,8 @@ impl Page {
             Self::Settings => "Settings",
             Self::Skills => "Skills",
             Self::Connectors => "Connectors",
+            Self::Rules => "Rules",
+            Self::Plugins => "Plugins",
         }
     }
 
@@ -56,6 +69,8 @@ impl App {
             Page::Settings => self.edit_bot(),
             Page::Skills => self.open_gear(super::GearKind::Skills),
             Page::Connectors => self.open_gear(super::GearKind::Connectors),
+            Page::Rules => self.open_gear(super::GearKind::Rules),
+            Page::Plugins => self.open_gear(super::GearKind::Plugins),
         }
     }
 }
@@ -72,8 +87,10 @@ mod tests {
         assert_eq!(Page::Library.step(key(KeyCode::Left)), Some(Page::Details));
         assert_eq!(Page::Settings.step(key(KeyCode::Right)), Some(Page::Skills));
         assert_eq!(Page::Skills.step(key(KeyCode::Right)), Some(Page::Connectors));
-        assert_eq!(Page::Connectors.step(key(KeyCode::Left)), Some(Page::Skills));
-        assert_eq!(Page::Connectors.step(key(KeyCode::Right)), None);
+        assert_eq!(Page::Connectors.step(key(KeyCode::Right)), Some(Page::Rules));
+        assert_eq!(Page::Rules.step(key(KeyCode::Right)), Some(Page::Plugins));
+        assert_eq!(Page::Plugins.step(key(KeyCode::Left)), Some(Page::Rules));
+        assert_eq!(Page::Plugins.step(key(KeyCode::Right)), None);
         assert_eq!(Page::Details.step(key(KeyCode::Left)), None);
         assert_eq!(
             Page::Memory.step(KeyEvent::new(KeyCode::Right, KeyModifiers::NONE)),
