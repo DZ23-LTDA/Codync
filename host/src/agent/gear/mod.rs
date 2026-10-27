@@ -99,3 +99,40 @@ pub(super) fn skipped_name(name: &str) -> bool {
 pub(super) fn is_dir(path: &Path) -> bool {
     std::fs::metadata(path).is_ok_and(|meta| meta.is_dir())
 }
+
+/// `key = value` on one TOML line. A `#` comment after the value is not part of it.
+pub(super) fn toml_scalar(line: &str, key: &str) -> Option<String> {
+    let code = strip_toml_comment(line.trim());
+    let rest = code.strip_prefix(key)?.trim_start();
+    let rest = rest.strip_prefix('=')?.trim();
+    let value = rest.trim().trim_matches(['"', '\'']).trim();
+    (!value.is_empty()).then(|| value.to_owned())
+}
+
+/// Drops a trailing `#` comment. A `#` inside quotes stays.
+fn strip_toml_comment(line: &str) -> &str {
+    let mut quote = None;
+    let mut escaped = false;
+    for (i, c) in line.char_indices() {
+        if escaped {
+            escaped = false;
+            continue;
+        }
+        if c == '\\' && quote == Some('"') {
+            escaped = true;
+            continue;
+        }
+        if c == '"' || c == '\'' {
+            quote = match quote {
+                Some(open) if open == c => None,
+                None => Some(c),
+                other => other,
+            };
+            continue;
+        }
+        if c == '#' && quote.is_none() {
+            return line[..i].trim_end();
+        }
+    }
+    line
+}

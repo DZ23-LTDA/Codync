@@ -173,12 +173,12 @@ fn mcp_toml(text: &str) -> Vec<Named> {
         if name.is_none() {
             continue;
         }
-        if toml_value(trimmed, "enabled").as_deref() == Some("false") {
+        if super::toml_scalar(trimmed, "enabled").as_deref() == Some("false") {
             disabled = true;
-        } else if let Some(url) = toml_value(trimmed, "url") {
+        } else if let Some(url) = super::toml_scalar(trimmed, "url") {
             detail = visible_url(&url);
         } else if detail.is_empty()
-            && let Some(command) = toml_value(trimmed, "command")
+            && let Some(command) = super::toml_scalar(trimmed, "command")
         {
             detail = keep_public(&split_command(&command));
         }
@@ -205,13 +205,6 @@ fn toml_header(line: &str) -> Option<TomlTable> {
         return Some(TomlTable::Other);
     }
     Some(TomlTable::Server(rest.to_owned()))
-}
-
-fn toml_value(line: &str, key: &str) -> Option<String> {
-    let rest = line.strip_prefix(key)?.trim_start();
-    let rest = rest.strip_prefix('=')?.trim();
-    let value = rest.trim().trim_matches(['"', '\'']).trim();
-    (!value.is_empty()).then(|| value.to_owned())
 }
 
 #[cfg(test)]
@@ -250,7 +243,7 @@ mod tests {
         std::fs::create_dir_all(home.join(".codex")).expect("codex");
         std::fs::write(
             home.join(".codex/config.toml"),
-            "[mcp_servers.github]\ncommand = \"github-mcp\"\nenabled = false\n\n[mcp_servers.docs]\nurl = \"https://alice:abc123@example.test/mcp?key=xyz\"\n\n[mcp_servers.docs.env]\nTOKEN = \"secret-token\"\n",
+            "[mcp_servers.github]\ncommand = \"github-mcp\"\nenabled = false # temporarily off\n\n[mcp_servers.docs]\nurl = \"https://alice:abc123@example.test/mcp?key=xyz\" # kept\n\n[mcp_servers.docs.env]\nTOKEN = \"secret-token\"\n",
         )
         .expect("toml");
         let connectors = list("codex", &home);

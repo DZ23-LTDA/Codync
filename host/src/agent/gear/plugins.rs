@@ -141,11 +141,7 @@ fn read_codex(home: &Path, out: &mut Vec<Named>) {
             current = Some((name, market));
             continue;
         }
-        if current.is_some()
-            && trimmed
-                .strip_prefix("enabled")
-                .is_some_and(|rest| rest.trim().trim_start_matches('=').trim().trim_matches('"') == "false")
-        {
+        if current.is_some() && super::toml_scalar(trimmed, "enabled").as_deref() == Some("false") {
             disabled = true;
         }
     }
@@ -240,13 +236,15 @@ mod tests {
             r#"{"name":"browser","description":"Drive a browser","token":"secret-token"}"#,
         )
         .expect("manifest");
-        let index = format!(
-            r#"{{"plugins":{{"browser@local":[{{"scope":"user","installPath":"{}"}}],"local-only@local":[{{"scope":"project","installPath":"{}"}}],"off@local":[{{"scope":"user","installPath":"{}"}}]}}}}"#,
-            plug.display(),
-            plug.display(),
-            plug.display()
-        );
-        std::fs::write(home.join(".claude/plugins/installed_plugins.json"), index).expect("index");
+        let path = plug.to_string_lossy();
+        let index = serde_json::json!({
+            "plugins": {
+                "browser@local": [{ "scope": "user", "installPath": path }],
+                "local-only@local": [{ "scope": "project", "installPath": path }],
+                "off@local": [{ "scope": "user", "installPath": path }],
+            }
+        });
+        std::fs::write(home.join(".claude/plugins/installed_plugins.json"), index.to_string()).expect("index");
         std::fs::write(
             home.join(".claude/settings.json"),
             r#"{"enabledPlugins":{"off@local":false,"browser@local":true}}"#,
@@ -269,7 +267,7 @@ mod tests {
         std::fs::write(plug.join("plugin.json"), r#"{"name":"docs","description":"Write docs"}"#).expect("manifest");
         std::fs::write(
             home.join(".codex/config.toml"),
-            "[plugins.\"docs@openai-bundled\"]\n\n[plugins.\"browser@openai-bundled\"]\nenabled = false\n\n[plugins.\"docs@openai-bundled\".env]\nTOKEN = \"secret-token\"\n",
+            "[plugins.\"docs@openai-bundled\"]\n\n[plugins.\"browser@openai-bundled\"]\nenabled = false # temporarily off\n\n[plugins.\"docs@openai-bundled\".env]\nTOKEN = \"secret-token\"\n",
         )
         .expect("config");
         let plugins = list("codex", &home);
