@@ -94,13 +94,13 @@ private fun JsonObject.gearItems(key: String): List<GearItem> {
         if (skills) {
             PluginToggles("From Codync", "No skills yet. Get some from Extensions, or write your own.",
                 plugins?.skills.orEmpty().map { Triple(it.id, it.name, it.description) }, draft.skills.orEmpty(),
-                { change(draft.copy(skills = it)) }) { id ->
+                { change(draft.copy(skills = it)) }, enabled = online) { id ->
                 plugins?.skills?.firstOrNull { it.id == id }?.let { viewingSkill = SkillRef(it.id, it.name, it.description) }
             }
         } else {
             PluginToggles("From Codync", "No connectors yet. Add GitHub, Linear, Notion and more from Extensions.",
                 plugins?.connectors.orEmpty().map { Triple(it.id, it.name, it.command ?: it.url.orEmpty()) },
-                draft.connectors ?: plugins?.connectors.orEmpty().map { it.id }, { change(draft.copy(connectors = it)) })
+                draft.connectors ?: plugins?.connectors.orEmpty().map { it.id }, { change(draft.copy(connectors = it)) }, enabled = online)
         }
     }
     CodyncSheet(viewingSkill, { viewingSkill = null }) { SkillSheet(it, state, store) }

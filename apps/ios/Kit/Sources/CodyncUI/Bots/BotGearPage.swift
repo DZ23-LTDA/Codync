@@ -5,9 +5,8 @@ import SwiftUI
 struct BotGearPage: View {
     @Binding var draft: BotDraft
     var kind: Kind
+    var saveError: String?
     @Environment(BotStore.self) private var model
-    @State private var gear: AgentGear?
-    @State private var failed = false
     @State private var viewingSkill: SkillRef?
 
     enum Kind { case skills, connectors }
@@ -21,8 +20,8 @@ struct BotGearPage: View {
 
     private var agentItems: [AgentGearItem] {
         switch kind {
-        case .skills: gear?.skills ?? []
-        case .connectors: gear?.connectors ?? []
+        case .skills: model.agentGear?.skills ?? []
+        case .connectors: model.agentGear?.connectors ?? []
         }
     }
 
@@ -33,17 +32,20 @@ struct BotGearPage: View {
                 .font(.footnote)
                 .foregroundStyle(Palette.secondary)
             agentSection
-            codyncSection
+            codyncSection.disabled(model.isOffline)
+            if let saveError {
+                Text(saveError).font(.footnote).foregroundStyle(Palette.danger)
+            }
         }
-        .task(id: "\(draft.backend)|\(cwd)") { await load() }
+        .task(id: "\(draft.backend)|\(cwd)|\(model.connection == .online)") { await load() }
         .codyncSheet(item: $viewingSkill) { SkillSheet(skill: $0) }
     }
 
     private var agentSection: some View {
         CardSection(L10n.tr("From {agent}").replacingOccurrences(of: "{agent}", with: agent)) {
-            if gear == nil, !failed {
+            if model.agentGear == nil, !model.agentGearFailed {
                 Text(L10n.tr("Loading…")).foregroundStyle(Palette.secondary)
-            } else if failed {
+            } else if model.agentGearFailed {
                 Text(L10n.tr("Couldn't load what this agent brings.")).foregroundStyle(Palette.danger)
             } else if agentItems.isEmpty {
                 Text(L10n.tr("None from this agent.")).foregroundStyle(Palette.secondary)
@@ -83,16 +85,6 @@ struct BotGearPage: View {
 
     private func load() async {
         await model.refreshPlugins()
-        failed = false
-        guard let client = model.client else {
-            failed = true
-            return
-        }
-        do {
-            let loaded = try await client.agentGear(backend: draft.backend, cwd: cwd)
-            if !Task.isCancelled { gear = loaded }
-        } catch {
-            if !Task.isCancelled { failed = true }
-        }
+        await model.loadAgentGear(backend: draft.backend, cwd: cwd)
     }
 }

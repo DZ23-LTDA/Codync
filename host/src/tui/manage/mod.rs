@@ -24,7 +24,7 @@ mod when;
 
 pub use analytics::AnalyticsSheet;
 pub use fields::handoff_fields;
-pub use gear::{Gear, GearKind};
+pub use gear::{Gear, GearKind, GearRow};
 pub use library::{ArtifactTitles, LibraryItem};
 pub use memory::{MemoryMode, MemorySheet, Scroll, Section};
 pub use network::{NetReply, NetworkSheet, Recovery, Step};

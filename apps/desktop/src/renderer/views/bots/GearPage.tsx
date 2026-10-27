@@ -4,6 +4,7 @@ import { CardSection } from '../../components/Controls'
 import { VStack } from '../../components/Stack'
 import { Text } from '../../components/Text'
 import { useTr } from '../../lib/use-language'
+import type { AgentGearItem } from '../../store/bot-store'
 import { useStore } from '../../store/context'
 import { FormSheet } from '../marketplace/pieces'
 import { SkillSheet, type SkillRef } from '../marketplace/SkillSheet'
@@ -11,19 +12,13 @@ import { PluginToggles } from './BotEditorView'
 import { errorText, isValid, normalized, useFollowSaved, usePlugins } from './drafts'
 import './bots.css'
 
-interface GearItem {
-  name: string
-  description?: string
-  detail?: string
-}
-
 /** The agent's own skills or connectors, then the Codync ones this bot passes on. */
 export function GearPage({ botId, kind }: { botId: string; kind: 'skills' | 'connectors' }) {
   const tr = useTr()
   const store = useStore()
   const plugins = usePlugins(store)
   const [draft, setDraft] = useState<BotDraft | null>(null)
-  const [gear, setGear] = useState<{ skills: GearItem[]; connectors: GearItem[] } | null>(null)
+  const [gear, setGear] = useState<{ skills: AgentGearItem[]; connectors: AgentGearItem[] } | null>(null)
   const [failed, setFailed] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [viewingSkill, setViewingSkill] = useState<SkillRef | null>(null)
@@ -42,18 +37,17 @@ export function GearPage({ botId, kind }: { botId: string; kind: 'skills' | 'con
   const online = store.connection.kind === 'online'
 
   useEffect(() => {
-    const client = store.client
-    if (!client || !backend || !online) {
+    if (!backend || !online) {
       setFailed(!online)
       return
     }
     let live = true
     setFailed(false)
     setGear(null)
-    void client
-      .call<{ skills?: GearItem[]; connectors?: GearItem[] }>('agentGear', { backend, cwd })
+    void store
+      .agentGear(backend, cwd)
       .then((value) => {
-        if (live) setGear({ skills: value.skills ?? [], connectors: value.connectors ?? [] })
+        if (live) setGear(value)
       })
       .catch(() => {
         if (live) setFailed(true)
@@ -106,6 +100,7 @@ export function GearPage({ botId, kind }: { botId: string; kind: 'skills' | 'con
             empty="No skills yet. Get some from Extensions, or write your own."
             items={(plugins?.skills ?? []).map((s) => ({ id: s.id, name: s.name, detail: s.description }))}
             selection={draft.skills ?? []}
+            disabled={!online}
             onChange={(ids) => apply({ ...draft, skills: ids })}
             onInfo={(s) => setViewingSkill({ id: s.id, name: s.name, description: s.detail })}
           />
@@ -115,6 +110,7 @@ export function GearPage({ botId, kind }: { botId: string; kind: 'skills' | 'con
             empty="No connectors yet. Add GitHub, Linear, Notion and more from Extensions."
             items={(plugins?.connectors ?? []).map((c) => ({ id: c.id, name: c.name, detail: c.command ?? c.url ?? '' }))}
             selection={draft.connectors ?? []}
+            disabled={!online}
             onChange={(ids) => apply({ ...draft, connectors: ids })}
           />
         )}

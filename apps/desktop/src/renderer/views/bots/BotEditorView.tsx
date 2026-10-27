@@ -319,7 +319,7 @@ function BotSettingsForm({ draft, onChange, error, plugins, part = 'all' }: {
 }
 
 /** A card of on/off switches for the connectors or skills installed on the computer. */
-export function PluginToggles({ title, empty, items, selection, onChange, onInfo }: {
+export function PluginToggles({ title, empty, items, selection, onChange, onInfo, disabled }: {
   title: string
   empty: string
   items: { id: string; name: string; detail: string }[]
@@ -327,6 +327,7 @@ export function PluginToggles({ title, empty, items, selection, onChange, onInfo
   onChange: (ids: string[]) => void
   /** Shows an item's details from an info button beside its switch. */
   onInfo?: (item: { id: string; name: string; detail: string }) => void
+  disabled?: boolean
 }) {
   const tr = useTr()
   return (
@@ -339,6 +340,7 @@ export function PluginToggles({ title, empty, items, selection, onChange, onInfo
             title={item.name}
             detail={item.detail || null}
             on={selection.includes(item.id)}
+            disabled={disabled}
             onChange={(on) => onChange([...selection.filter((id) => id !== item.id), ...(on ? [item.id] : [])])}
           />
         )

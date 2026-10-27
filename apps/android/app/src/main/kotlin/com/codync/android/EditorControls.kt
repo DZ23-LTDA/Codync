@@ -98,15 +98,16 @@ import com.kyant.shapes.RoundedRectangle
 
 /** A card of on/off switches for the connectors or skills installed on the computer. */
 @Composable internal fun PluginToggles(title: String, empty: String, items: List<Triple<String, String, String>>, selection: List<String>,
-    change: (List<String>) -> Unit, info: ((String) -> Unit)? = null) {
+    change: (List<String>) -> Unit, enabled: Boolean = true, info: ((String) -> Unit)? = null) {
     CardSection(title) {
         if (items.isEmpty()) row { Text(tr(empty), style = Type.body, color = Palette.secondary) }
         for ((id, name, detail) in items) row {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                 Box(Modifier.weight(1f)) {
-                    SwitchRow(name, detail.ifEmpty { null }, id in selection, { on -> change(selection.filter { it != id } + if (on) listOf(id) else emptyList()) })
+                    SwitchRow(name, detail.ifEmpty { null }, id in selection,
+                        { on -> change(selection.filter { it != id } + if (on) listOf(id) else emptyList()) }, enabled)
                 }
-                if (info != null) IconButton("About $name", "info.circle") { info(id) }
+                if (info != null) IconButton("About $name", "info.circle", enabled = enabled) { info(id) }
             }
         }
     }

@@ -380,6 +380,14 @@ export class BotStore extends BotSync {
     return (await this.ready()).botConversation(botId, peerId)
   }
 
+  /** Skills and connectors `backend` already has in `cwd`, not the Codync ones this bot passes on. */
+  async agentGear(backend: string, cwd: string): Promise<{ skills: AgentGearItem[]; connectors: AgentGearItem[] }> {
+    const client = this.client
+    if (!client) throw new Error("Couldn't load what this agent brings.")
+    const value = await client.call<{ skills?: AgentGearItem[]; connectors?: AgentGearItem[] }>('agentGear', { backend, cwd })
+    return { skills: value.skills ?? [], connectors: value.connectors ?? [] }
+  }
+
   async save(draft: BotDraft) {
     const client = await this.ready()
     const res = draft.id
@@ -461,3 +469,10 @@ function cacheAttachment(id: string, data: Uint8Array) {
 }
 
 export { isWorking, needsInput }
+
+/** One skill or connector an agent keeps for itself (`agentGear`). */
+export interface AgentGearItem {
+  name: string
+  description?: string
+  detail?: string
+}

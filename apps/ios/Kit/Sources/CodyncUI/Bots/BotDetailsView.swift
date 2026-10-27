@@ -145,9 +145,9 @@ struct BotDetailsView: View {
                 BotSettingsForm(draft: draft, error: saveError, scrolls: false, part: .rarely)
             }
         case .skills:
-            if let draft = Binding($draft) { BotGearPage(draft: draft, kind: .skills) }
+            if let draft = Binding($draft) { BotGearPage(draft: draft, kind: .skills, saveError: saveError) }
         case .connectors:
-            if let draft = Binding($draft) { BotGearPage(draft: draft, kind: .connectors) }
+            if let draft = Binding($draft) { BotGearPage(draft: draft, kind: .connectors, saveError: saveError) }
         }
     }
 

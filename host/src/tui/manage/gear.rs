@@ -54,6 +54,33 @@ impl Gear {
             GearKind::Connectors => self.agent_connectors.as_deref(),
         }
     }
+
+    /// One scrollable list: the agent's rows, then Codync's switches. Headings scroll with them.
+    pub fn rows(&self, toggles: usize) -> Vec<GearRow> {
+        let mut rows = vec![GearRow::AgentHeading];
+        match self.agent() {
+            Some(items) if !self.failed && !items.is_empty() => rows.extend((0..items.len()).map(GearRow::Agent)),
+            _ => rows.push(GearRow::AgentNote),
+        }
+        rows.push(GearRow::CodyncHeading);
+        if toggles == 0 {
+            rows.push(GearRow::CodyncNote);
+        } else {
+            rows.extend((0..toggles).map(GearRow::Toggle));
+        }
+        rows
+    }
+}
+
+/// A line on the Skills or Connectors page. `Toggle` is an index into the installed Codync list.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum GearRow {
+    AgentHeading,
+    AgentNote,
+    Agent(usize),
+    CodyncHeading,
+    CodyncNote,
+    Toggle(usize),
 }
 
 pub(super) fn items(value: &Value) -> Vec<GearItem> {
@@ -97,7 +124,7 @@ impl App {
             agent_skills: None,
             agent_connectors: None,
             failed: false,
-            cursor: 0,
+            cursor: 1,
         }));
     }
 
@@ -106,13 +133,18 @@ impl App {
             self.open_page(page);
             return None;
         }
-        let count = self.gear_toggles(&gear).len();
-        gear.cursor = gear.cursor.min(count.saturating_sub(1));
+        let rows = gear.rows(self.gear_toggles(&gear).len());
+        let last = rows.len().saturating_sub(1);
+        gear.cursor = gear.cursor.min(last);
         match key.code {
             KeyCode::Esc | KeyCode::Char('q') => return None,
-            KeyCode::Down | KeyCode::Char('j') => gear.cursor = (gear.cursor + 1).min(count.saturating_sub(1)),
+            KeyCode::Down | KeyCode::Char('j') => gear.cursor = (gear.cursor + 1).min(last),
             KeyCode::Up | KeyCode::Char('k') => gear.cursor = gear.cursor.saturating_sub(1),
-            KeyCode::Char(' ') | KeyCode::Enter => self.toggle_gear(&gear),
+            KeyCode::Char(' ') | KeyCode::Enter => {
+                if let Some(GearRow::Toggle(index)) = rows.get(gear.cursor) {
+                    self.toggle_gear(&gear, *index);
+                }
+            }
             _ => {}
         }
         Some(Overlay::Gear(gear))
@@ -131,14 +163,14 @@ impl App {
             .collect()
     }
 
-    fn toggle_gear(&mut self, gear: &Gear) {
+    fn toggle_gear(&mut self, gear: &Gear, index: usize) {
         let (bot_id, field, ids) = {
             let Some(bot) = self.bots.get(&gear.bot) else { return };
             let installed = match gear.kind {
                 GearKind::Skills => &self.market.1,
                 GearKind::Connectors => &self.market.0,
             };
-            let Some(item) = installed.get(gear.cursor) else { return };
+            let Some(item) = installed.get(index) else { return };
             let id = item.id.clone();
             let mut ids = match gear.kind {
                 GearKind::Skills => bot.skills.clone(),

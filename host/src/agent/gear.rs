@@ -256,15 +256,12 @@ fn servers_object<'a>(path: &Path, value: &'a Value) -> Option<&'a Map<String, V
     value.get("servers").and_then(Value::as_object).or_else(|| value.as_object())
 }
 
-/// The command or URL a person can recognize. Arguments that look like a token are left out,
-/// and a URL loses its user, query and fragment. A URL whose path still looks like a token is omitted.
+/// The command or URL a person can recognize. A flag that looks like a token is left out
+/// together with the value after it, and a URL loses its user, query and fragment. A URL
+/// whose path still looks like a token is omitted.
 fn server_detail(server: &Map<String, Value>) -> String {
     if let Some(url) = server.get("url").and_then(Value::as_str).filter(|url| !url.is_empty()) {
-        let url = public_url(url);
-        if looks_secret(&url) {
-            return String::new();
-        }
-        return clip(&url, DETAIL_CHARS);
+        return clip(&visible_url(url), DETAIL_CHARS);
     }
     clip(&command_text(server), DETAIL_CHARS)
 }
@@ -279,8 +276,26 @@ fn command_text(server: &Map<String, Value>) -> String {
     if let Some(args) = server.get("args").and_then(Value::as_array) {
         parts.extend(args.iter().filter_map(|v| v.as_str().map(str::to_owned)));
     }
-    parts.retain(|part| !looks_secret(part));
-    parts.join(" ")
+    let mut kept = Vec::new();
+    let mut skip_value = false;
+    for part in parts {
+        if skip_value {
+            skip_value = false;
+            continue;
+        }
+        if looks_secret(&part) {
+            skip_value = true;
+            continue;
+        }
+        kept.push(part);
+    }
+    kept.join(" ")
+}
+
+/// A URL with its user, query and fragment removed. Empty when the rest still looks like a token.
+fn visible_url(url: &str) -> String {
+    let url = public_url(url);
+    if looks_secret(&url) { String::new() } else { url }
 }
 
 fn public_url(url: &str) -> String {
@@ -328,9 +343,10 @@ fn mcp_toml(text: &str) -> Vec<Item> {
             continue;
         }
         if let Some(url) = toml_value(trimmed, "url") {
-            detail = url;
+            detail = visible_url(&url);
         } else if detail.is_empty()
             && let Some(command) = toml_value(trimmed, "command")
+            && !looks_secret(&command)
         {
             detail = command;
         }
@@ -360,7 +376,7 @@ fn toml_value(line: &str, key: &str) -> Option<String> {
     let rest = line.strip_prefix(key)?.trim_start();
     let rest = rest.strip_prefix('=')?.trim();
     let value = bare(rest);
-    (!value.is_empty() && !looks_secret(value)).then(|| value.to_owned())
+    (!value.is_empty()).then(|| value.to_owned())
 }
 
 fn dedupe(items: &mut Vec<Item>) {
@@ -459,6 +475,31 @@ mod tests {
         let (generic_skills, generic_connectors) = collect("codebuddy", &home, Some(&cwd));
         assert!(generic_skills.iter().any(|s| s.name == "ship"));
         assert!(generic_connectors.iter().any(|c| c.name == "docs" && c.detail == "docs-mcp"));
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn a_token_flag_and_a_toml_url_leave_the_credential_out() {
+        let root = scratch();
+        let home = root.join("home");
+        std::fs::create_dir_all(home.join(".cursor")).expect("cursor");
+        std::fs::create_dir_all(home.join(".codex")).expect("codex");
+        std::fs::write(
+            home.join(".cursor/mcp.json"),
+            r#"{"mcpServers":{"github":{"command":"npx","args":["--token","abc123","-y","server"]}}}"#,
+        )
+        .expect("mcp");
+        let (_, connectors) = collect("cursor", &home, None);
+        assert_eq!(connectors[0].detail, "npx -y server");
+        assert!(!connectors[0].detail.contains("abc123"));
+        std::fs::write(
+            home.join(".codex/config.toml"),
+            "[mcp_servers.github]\nurl = \"https://alice:abc123@example.test/mcp?key=xyz\"\n",
+        )
+        .expect("toml");
+        let (_, connectors) = collect("codex", &home, None);
+        assert_eq!(connectors[0].detail, "https://example.test/mcp");
+        assert!(!connectors[0].detail.contains("abc123") && !connectors[0].detail.contains("alice"));
         let _ = std::fs::remove_dir_all(root);
     }
 
