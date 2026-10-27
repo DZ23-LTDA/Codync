@@ -23,7 +23,12 @@ pub(super) fn list(backend: &str, home: &Path) -> Vec<Named> {
     let mut out = Vec::new();
     match backend {
         "claude" => {
-            read_installed(&home.join(".claude/plugins/installed_plugins.json"), &mut out, true, &disabled_claude(home));
+            read_installed(
+                &home.join(".claude/plugins/installed_plugins.json"),
+                &mut out,
+                true,
+                &disabled_claude(home),
+            );
         }
         "copilot" => read_copilot(home, &mut out),
         "codex" => read_codex(home, &mut out),
