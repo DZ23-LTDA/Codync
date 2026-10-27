@@ -750,6 +750,7 @@ dependencies = [
  "tokio",
  "tokio-stream",
  "tokio-tungstenite",
+ "toml_edit",
  "tracing",
  "tracing-subscriber",
  "unicode-width",

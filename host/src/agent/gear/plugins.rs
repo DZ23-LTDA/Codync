@@ -5,6 +5,7 @@
 use serde_json::Value;
 use std::collections::HashSet;
 use std::path::Path;
+use toml_edit::{DocumentMut, Item};
 
 use super::{MAX_DEPTH, MAX_ITEMS, MCP_BYTES, NAME_CHARS, TEXT_CHARS, clip, homes, is_dir, read_limited, skipped_name};
 
@@ -112,50 +113,33 @@ fn read_copilot(home: &Path, out: &mut Vec<Named>) {
     walk_plugins(&path, 0, out);
 }
 
+/// `[plugins."<name>@<marketplace>"]` tables in Codex's `config.toml`, each named by its cached
+/// manifest. `enabled = false` leaves the plugin out.
 fn read_codex(home: &Path, out: &mut Vec<Named>) {
     let Some(text) = read_limited(&home.join(".codex/config.toml"), MCP_BYTES) else { return };
+    let Ok(doc) = text.parse::<DocumentMut>() else { return };
+    let Some(plugins) = doc.get("plugins").and_then(Item::as_table_like) else { return };
     let cache = home.join(".codex/plugins/cache");
-    let mut current: Option<(String, String)> = None;
-    let mut disabled = false;
-    let flush = |current: &mut Option<(String, String)>, disabled: &mut bool, out: &mut Vec<Named>| {
-        if let Some((name, market)) = current.take()
-            && !*disabled
-            && out.len() < MAX_ITEMS
-        {
-            let dir = cache.join(&market).join(&name);
-            let item = manifest_under(&dir).unwrap_or(Named {
-                name: clip(&name, NAME_CHARS),
-                description: String::new(),
-                detail: String::new(),
-            });
-            if !item.name.is_empty() {
-                out.push(item);
-            }
+    for (key, plugin) in plugins.iter() {
+        if out.len() >= MAX_ITEMS {
+            return;
         }
-        *disabled = false;
-    };
-    for line in text.lines() {
-        let trimmed = line.trim();
-        if let Some((name, market)) = codex_header(trimmed) {
-            flush(&mut current, &mut disabled, out);
-            current = Some((name, market));
+        if plugin.get("enabled").and_then(Item::as_bool) == Some(false) {
             continue;
         }
-        if current.is_some() && super::toml_scalar(trimmed, "enabled").as_deref() == Some("false") {
-            disabled = true;
+        let Some((name, market)) = key.split_once('@').filter(|(name, market)| !name.is_empty() && !market.is_empty())
+        else {
+            continue;
+        };
+        let item = manifest_under(&cache.join(market).join(name)).unwrap_or(Named {
+            name: clip(name, NAME_CHARS),
+            description: String::new(),
+            detail: String::new(),
+        });
+        if !item.name.is_empty() {
+            out.push(item);
         }
     }
-    flush(&mut current, &mut disabled, out);
-}
-
-fn codex_header(line: &str) -> Option<(String, String)> {
-    let inner = line.strip_prefix('[')?.strip_suffix(']')?.trim();
-    let rest = inner.strip_prefix("plugins.")?.trim_matches('"');
-    if rest.is_empty() || rest.contains('.') {
-        return None;
-    }
-    let (name, market) = rest.split_once('@')?;
-    (!name.is_empty() && !market.is_empty()).then(|| (name.to_owned(), market.to_owned()))
 }
 
 fn walk_plugins(dir: &Path, depth: usize, out: &mut Vec<Named>) {
@@ -267,7 +251,7 @@ mod tests {
         std::fs::write(plug.join("plugin.json"), r#"{"name":"docs","description":"Write docs"}"#).expect("manifest");
         std::fs::write(
             home.join(".codex/config.toml"),
-            "[plugins.\"docs@openai-bundled\"]\n\n[plugins.\"browser@openai-bundled\"]\nenabled = false # temporarily off\n\n[plugins.\"docs@openai-bundled\".env]\nTOKEN = \"secret-token\"\n",
+            "[plugins.\"docs@openai-bundled\"] # pinned\n\n[mcp_servers.off]\nenabled = false\n\n[plugins.\"browser@openai-bundled\"]\nenabled = false # temporarily off\n\n[plugins.\"docs@openai-bundled\".env]\nTOKEN = \"secret-token\"\n",
         )
         .expect("config");
         let plugins = list("codex", &home);

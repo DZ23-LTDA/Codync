@@ -3,6 +3,7 @@
 
 use serde_json::{Map, Value};
 use std::path::Path;
+use toml_edit::{DocumentMut, Item};
 
 use super::{MAX_ITEMS, MCP_BYTES, NAME_CHARS, TEXT_CHARS, clip, homes, read_limited};
 
@@ -86,33 +87,45 @@ fn command_text(server: &Map<String, Value>) -> String {
     keep_public(&parts)
 }
 
-/// Drops a flag or `NAME=value` named like a credential (and the value after such a flag) and a
-/// long letter-and-digit run; a URL keeps only its origin, since a path can carry a key.
+/// A command without its credentials. Each argument is split into words, so a `sh -c "…"` script
+/// is filtered too. Dropped: a header (`Authorization: Bearer …`), a flag or `NAME=value` named like
+/// a credential and the value after such a flag (`-H`, `-u` too), and a long letter-and-digit run.
+/// A URL keeps only its origin, since a path can carry a key.
 fn keep_public(parts: &[String]) -> String {
     let mut kept = Vec::new();
     let mut skip_value = false;
     for part in parts {
-        if std::mem::take(&mut skip_value) {
+        if header(part) {
+            skip_value = false;
             continue;
         }
-        let raw = part.trim().trim_matches(['"', '\'']);
-        let (name, value) = raw.split_once('=').map_or((raw, None), |(name, value)| (name, Some(value)));
-        // `--token=…`, `API_KEY=…`, a header (`-H`, `Authorization: Bearer …`).
-        let key = raw.split(['=', ':']).next().unwrap_or(raw);
-        if credential_name(key) || raw == "-H" || raw.to_ascii_lowercase().contains("bearer ") {
-            skip_value = raw.starts_with('-') && value.is_none();
-            continue;
-        }
-        if let Some(url) = value.filter(|v| v.contains("://")) {
-            kept.push(format!("{name}={}", visible_url(url)));
-        } else if raw.contains("://") {
-            kept.push(visible_url(raw));
-        } else if !token_run(raw) {
-            kept.push(part.clone());
+        for word in part.split_whitespace() {
+            if std::mem::take(&mut skip_value) {
+                continue;
+            }
+            let raw = word.trim_matches(['"', '\'']);
+            let (name, value) = raw.split_once('=').map_or((raw, None), |(name, value)| (name, Some(value)));
+            if credential_name(name) || matches!(raw, "-H" | "-u") {
+                skip_value = raw.starts_with('-') && value.is_none();
+            } else if let Some(url) = value.filter(|v| v.contains("://")) {
+                kept.push(format!("{name}={}", visible_url(url)));
+            } else if raw.contains("://") {
+                kept.push(visible_url(raw));
+            } else if !token_run(raw) {
+                kept.push(raw.to_owned());
+            }
         }
     }
-    kept.retain(|part| !part.is_empty());
+    kept.retain(|word| !word.is_empty());
     kept.join(" ")
+}
+
+/// `Authorization: Bearer …`, `X-Api-Key: …`: a whole header, dropped before it splits into words.
+fn header(part: &str) -> bool {
+    let lower = part.to_ascii_lowercase();
+    lower.contains("bearer ")
+        || lower.contains("basic ")
+        || part.split_once(':').is_some_and(|(name, _)| !name.contains(char::is_whitespace) && credential_name(name))
 }
 
 fn credential_name(name: &str) -> bool {
@@ -122,15 +135,26 @@ fn credential_name(name: &str) -> bool {
             matches!(
                 seg,
                 "token"
+                    | "tokens"
                     | "secret"
+                    | "secrets"
                     | "password"
+                    | "passwd"
+                    | "pass"
+                    | "pwd"
                     | "authorization"
                     | "apikey"
                     | "auth"
                     | "key"
+                    | "keys"
                     | "header"
                     | "headers"
                     | "cookie"
+                    | "cookies"
+                    | "credential"
+                    | "credentials"
+                    | "user"
+                    | "bearer"
             )
         })
 }
@@ -155,117 +179,33 @@ fn visible_url(raw: &str) -> String {
     }
 }
 
-/// `[mcp_servers.name]` tables. `enabled = false` leaves the server out. Nested tables are skipped.
+/// `[mcp_servers.<name>]` tables in Codex's `config.toml`. `enabled = false` leaves the server out.
 fn mcp_toml(text: &str) -> Vec<Named> {
-    let mut out = Vec::new();
-    let mut name: Option<String> = None;
-    let mut server = TomlServer::default();
-    let flush = |name: &mut Option<String>, server: &mut TomlServer, out: &mut Vec<Named>| {
-        if let Some(name) = name.take()
-            && !server.disabled
-        {
-            let name = clip(&name, NAME_CHARS);
-            if !name.is_empty() {
-                out.push(Named { name, description: String::new(), detail: clip(&server.detail(), TEXT_CHARS) });
-            }
-        }
-        *server = TomlServer::default();
-    };
-    for line in text.lines() {
-        let trimmed = line.trim();
-        if trimmed.is_empty() || trimmed.starts_with('#') {
-            continue;
-        }
-        if let Some(next) = toml_header(trimmed) {
-            flush(&mut name, &mut server, &mut out);
-            name = match next {
-                TomlTable::Server(server) => Some(server),
-                TomlTable::Other => None,
-            };
-            continue;
-        }
-        if name.is_none() {
-            continue;
-        }
-        if super::toml_scalar(trimmed, "enabled").as_deref() == Some("false") {
-            server.disabled = true;
-        } else if let Some(url) = super::toml_scalar(trimmed, "url") {
-            server.url = Some(url);
-        } else if let Some(command) = super::toml_scalar(trimmed, "command") {
-            server.command = split_command(&command);
-        } else if let Some(args) = super::toml_scalar(trimmed, "args") {
-            server.args = toml_strings(&args);
-        }
+    let Ok(doc) = text.parse::<DocumentMut>() else { return Vec::new() };
+    let Some(servers) = doc.get("mcp_servers").and_then(Item::as_table_like) else { return Vec::new() };
+    servers
+        .iter()
+        .filter(|(_, server)| server.get("enabled").and_then(Item::as_bool) != Some(false))
+        .filter_map(|(name, server)| {
+            let name = clip(name, NAME_CHARS);
+            (!name.is_empty()).then(|| Named {
+                name,
+                description: String::new(),
+                detail: clip(&toml_detail(server), TEXT_CHARS),
+            })
+        })
+        .collect()
+}
+
+fn toml_detail(server: &Item) -> String {
+    if let Some(url) = server.get("url").and_then(Item::as_str) {
+        return visible_url(url);
     }
-    flush(&mut name, &mut server, &mut out);
-    out
-}
-
-/// One `[mcp_servers.name]` table as it is read, line by line.
-#[derive(Default)]
-struct TomlServer {
-    disabled: bool,
-    url: Option<String>,
-    command: Vec<String>,
-    args: Vec<String>,
-}
-
-impl TomlServer {
-    fn detail(&self) -> String {
-        if let Some(url) = &self.url {
-            return visible_url(url);
-        }
-        keep_public(&[self.command.as_slice(), self.args.as_slice()].concat())
+    let mut parts: Vec<String> = server.get("command").and_then(Item::as_str).map(str::to_owned).into_iter().collect();
+    if let Some(args) = server.get("args").and_then(Item::as_array) {
+        parts.extend(args.iter().filter_map(|arg| arg.as_str().map(str::to_owned)));
     }
-}
-
-/// The strings in a one-line TOML array (`["-y", 'pkg']`). An array split over several
-/// lines reads as empty, so the detail is the command alone.
-fn toml_strings(value: &str) -> Vec<String> {
-    let Some(inner) = value.trim().strip_prefix('[').and_then(|v| v.strip_suffix(']')) else { return Vec::new() };
-    let mut out = Vec::new();
-    let mut current: Option<(char, String)> = None;
-    let mut escaped = false;
-    for c in inner.chars() {
-        match &mut current {
-            Some((quote, text)) => {
-                if escaped {
-                    text.push(c);
-                    escaped = false;
-                } else if c == '\\' && *quote == '"' {
-                    escaped = true;
-                } else if c == *quote {
-                    out.push(std::mem::take(text));
-                    current = None;
-                } else {
-                    text.push(c);
-                }
-            }
-            None if c == '"' || c == '\'' => current = Some((c, String::new())),
-            None => {}
-        }
-    }
-    out
-}
-
-fn split_command(command: &str) -> Vec<String> {
-    command.split_whitespace().map(str::to_owned).collect()
-}
-
-enum TomlTable {
-    Server(String),
-    Other,
-}
-
-fn toml_header(line: &str) -> Option<TomlTable> {
-    let inner = line.strip_prefix('[')?.strip_suffix(']')?.trim().trim_matches('"');
-    let Some(rest) = inner.strip_prefix("mcp_servers.") else {
-        return Some(TomlTable::Other);
-    };
-    if rest.is_empty() || rest.contains('.') {
-        return Some(TomlTable::Other);
-    }
-    Some(TomlTable::Server(rest.to_owned()))
+    keep_public(&parts)
 }
 
 #[cfg(test)]
@@ -285,30 +225,55 @@ mod tests {
         std::fs::create_dir_all(home.join(".claude")).expect("claude");
         let pad = "x".repeat(300 * 1024);
         let body = format!(
-            r#"{{"history":"{pad}","mcpServers":{{"github":{{"command":"npx","args":["--api-key","abc123","-y","server","sk-abc123def456ghij78","--token=abc123","API_KEY=abc123","--header","Authorization: Bearer abc123","https://hooks.zapier.com/api/mcp/s/abc123/mcp"]}},"off":{{"command":"nope","enabled":false}},"zap":{{"url":"https://user:secret@hooks.zapier.com/api/mcp/s/secret-token/mcp?token=1"}}}}}}"#
+            r#"{{"history":"{pad}","mcpServers":{{"github":{{"command":"npx","args":["--api-key","abc123","-y","server","sk-abc123def456ghij78","--token=abc123","API_KEY=abc123","--header","Authorization: Bearer abc123","https://hooks.zapier.com/api/mcp/s/abc123/mcp"]}},"off":{{"command":"nope","enabled":false}},"shell":{{"command":"sh","args":["-c","mcp-server --token abc123 --port 3000"]}},"basic":{{"command":"curl","args":["-u","alice:abc123","https://example.test/mcp","--user=alice:abc123"]}},"zap":{{"url":"https://user:secret@hooks.zapier.com/api/mcp/s/secret-token/mcp?token=1"}}}}}}"#
         );
         std::fs::write(home.join(".claude.json"), body).expect("claude.json");
         let connectors = list("claude", &home);
-        assert_eq!(connectors.iter().map(|c| c.name.as_str()).collect::<Vec<_>>(), ["github", "zap"]);
-        assert_eq!(connectors[0].detail, "npx -y server https://hooks.zapier.com");
-        assert_eq!(connectors[1].detail, "https://hooks.zapier.com");
-        let dumped = format!("{} {}", connectors[0].detail, connectors[1].detail);
-        assert!(!dumped.contains("abc123") && !dumped.contains("secret"), "{dumped}");
+        let mut names = connectors.iter().map(|c| c.name.as_str()).collect::<Vec<_>>();
+        names.sort_unstable();
+        assert_eq!(names, ["basic", "github", "shell", "zap"]);
+        assert_eq!(detail(&connectors, "github"), "npx -y server https://hooks.zapier.com");
+        assert_eq!(detail(&connectors, "shell"), "sh -c mcp-server --port 3000");
+        assert_eq!(detail(&connectors, "basic"), "curl https://example.test");
+        assert_eq!(detail(&connectors, "zap"), "https://hooks.zapier.com");
+        let dumped = connectors.iter().map(|c| c.detail.as_str()).collect::<Vec<_>>().join(" ");
+        assert!(!dumped.contains("abc123") && !dumped.contains("secret") && !dumped.contains("alice"), "{dumped}");
         let _ = std::fs::remove_dir_all(root);
     }
 
+    fn detail<'a>(connectors: &'a [Named], name: &str) -> &'a str {
+        connectors.iter().find(|c| c.name == name).map_or("<missing>", |c| c.detail.as_str())
+    }
+
     #[test]
-    fn a_disabled_codex_server_is_left_out() {
+    fn codex_servers_read_as_toml() {
         let root = scratch();
         let home = root.join("home");
         std::fs::create_dir_all(home.join(".codex")).expect("codex");
         std::fs::write(
             home.join(".codex/config.toml"),
-            "[mcp_servers.github]\ncommand = \"github-mcp\"\nenabled = false # temporarily off\n\n[mcp_servers.play]\ncommand = \"npx\"\nargs = [\"-y\", '@playwright/mcp', \"--api-key\", \"abc123\", \"-H\", \"X-Api-Key: abc123\"]\n\n[mcp_servers.docs]\nurl = \"https://alice:abc123@example.test/mcp?key=xyz\" # kept\n\n[mcp_servers.docs.env]\nTOKEN = \"secret-token\"\n",
+            r#"[mcp_servers.github]
+command = "github-mcp"
+enabled = false # temporarily off
+
+[mcp_servers.play] # personal
+command = "npx"
+args = [
+  "-y", '@playwright/mcp',
+  "--api-key", "abc123",
+  "-H", "X-Api-Key: abc123",
+]
+
+[mcp_servers."docs.v2"]
+url = "https://alice:abc123@example.test/mcp?key=xyz" # kept
+
+[mcp_servers."docs.v2".env]
+TOKEN = "secret-token"
+"#,
         )
         .expect("toml");
         let connectors = list("codex", &home);
-        assert_eq!(connectors.iter().map(|c| c.name.as_str()).collect::<Vec<_>>(), ["play", "docs"]);
+        assert_eq!(connectors.iter().map(|c| c.name.as_str()).collect::<Vec<_>>(), ["play", "docs.v2"]);
         assert_eq!(connectors[0].detail, "npx -y @playwright/mcp");
         assert_eq!(connectors[1].detail, "https://example.test");
         let dumped = format!("{} {}", connectors[0].detail, connectors[1].detail);
