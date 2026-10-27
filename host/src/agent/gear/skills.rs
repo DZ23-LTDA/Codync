@@ -84,6 +84,14 @@ fn skill_item(path: &Path, folder: &str) -> Option<Named> {
 mod tests {
     use super::*;
 
+    /// A directory link. Windows has no `std::os::unix`.
+    fn link_dir(target: &Path, link: &Path) {
+        #[cfg(unix)]
+        std::os::unix::fs::symlink(target, link).expect("symlink");
+        #[cfg(windows)]
+        std::os::windows::fs::symlink_dir(target, link).expect("symlink");
+    }
+
     fn scratch() -> std::path::PathBuf {
         let dir = std::env::temp_dir().join(format!("codync-gear-skills-{}", uuid::Uuid::new_v4()));
         std::fs::create_dir_all(&dir).expect("temp dir");
@@ -102,7 +110,7 @@ mod tests {
             .expect("imported");
         std::fs::write(real.join("SKILL.md"), "---\nname: linked\ndescription: >\n  Review\n  a diff\n---\n# 说明\n")
             .expect("linked");
-        std::os::unix::fs::symlink(&real, home.join(".claude/skills/linked")).expect("symlink");
+        link_dir(&real, &home.join(".claude/skills/linked"));
         let skills = list("claude", &home);
         assert_eq!(skills.iter().map(|s| s.name.as_str()).collect::<Vec<_>>(), ["linked"]);
         assert_eq!(skills[0].description, "Review a diff");
