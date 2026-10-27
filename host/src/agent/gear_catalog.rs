@@ -22,26 +22,26 @@ pub(super) fn list(backend: &str, home: &Path, cwd: Option<&Path>) -> (Vec<Named
     if let Some(cwd) = cwd {
         gather(backend, cwd, true, &mut rules, &mut plugins);
     }
-    dedupe(&mut rules);
     dedupe(&mut plugins);
-    (rules, plugins)
+    (present(rules), plugins)
 }
 
-/// `project` is set when `base` is the bot's folder. Home is scanned first, so a project entry replaces it.
-fn gather(backend: &str, base: &Path, project: bool, rules: &mut Vec<Named>, plugins: &mut Vec<Named>) {
+/// `project` is set when `base` is the bot's folder. Home is scanned first, so the same rule path
+/// in the project replaces the home one. A different path stays, even when the title matches.
+fn gather(backend: &str, base: &Path, project: bool, rules: &mut Vec<Rule>, plugins: &mut Vec<Named>) {
     if base.as_os_str().is_empty() {
         return;
     }
     let (dirs, files) = if project {
         (project_rule_dirs(backend), project_rule_files(backend))
     } else {
-        (home_rule_dirs(backend), &[][..])
+        (home_rule_dirs(backend), home_rule_files(backend))
     };
     for rel in dirs {
-        walk_rules(&base.join(rel), 0, rules);
+        walk_rules(&base.join(rel), base, 0, rules);
     }
     for rel in files {
-        if let Some(item) = rule_file(&base.join(rel)) {
+        if let Some(item) = rule_file(&base.join(rel), base) {
             rules.push(item);
         }
     }
@@ -80,6 +80,18 @@ fn project_rule_dirs(backend: &str) -> &'static [&'static str] {
     }
 }
 
+/// Instruction files the agent reads from the home directory, outside its rules folder.
+fn home_rule_files(backend: &str) -> &'static [&'static str] {
+    match backend {
+        "claude" | "copilot" => &[".claude/CLAUDE.md"],
+        "codex" => &[".codex/AGENTS.md"],
+        "grok" => &[".grok/AGENTS.md"],
+        "codebuddy" | "workbuddy" => &[".codebuddy/CODEBUDDY.md", ".codebuddy/AGENTS.md"],
+        "gemini" | "antigravity" => &[".gemini/GEMINI.md"],
+        _ => &[],
+    }
+}
+
 fn project_rule_files(backend: &str) -> &'static [&'static str] {
     match backend {
         "cursor" => &[".cursorrules", "AGENTS.md", "CLAUDE.md", "CLAUDE.local.md"],
@@ -110,7 +122,7 @@ fn project_plugin_dirs(backend: &str) -> &'static [&'static str] {
     }
 }
 
-fn walk_rules(dir: &Path, depth: usize, out: &mut Vec<Named>) {
+fn walk_rules(dir: &Path, base: &Path, depth: usize, out: &mut Vec<Rule>) {
     if depth > MAX_DEPTH || out.len() >= MAX_ITEMS || skipped(dir) {
         return;
     }
@@ -126,9 +138,9 @@ fn walk_rules(dir: &Path, depth: usize, out: &mut Vec<Named>) {
         }
         let path = entry.path();
         if path.is_dir() {
-            walk_rules(&path, depth + 1, out);
+            walk_rules(&path, base, depth + 1, out);
         } else if is_rule_file(&path)
-            && let Some(item) = rule_file(&path)
+            && let Some(item) = rule_file(&path, base)
         {
             out.push(item);
         }
@@ -139,18 +151,43 @@ fn is_rule_file(path: &Path) -> bool {
     matches!(path.extension().and_then(|ext| ext.to_str()), Some("md" | "mdc" | "markdown"))
 }
 
-fn rule_file(path: &Path) -> Option<Named> {
+struct Rule {
+    name: String,
+    description: String,
+    /// Path under the rules folder, or under home/project for a standalone file. Home and project
+    /// copies of this path are one rule; `frontend/style.mdc` and `backend/style.mdc` are not.
+    key: String,
+}
+
+fn rule_file(path: &Path, base: &Path) -> Option<Rule> {
     if !path.is_file() {
         return None;
     }
     let text = read_limited(path, FILE_BYTES)?;
     let (name, description) = front_matter(&text);
+    let key = rule_key(path, base);
     let fallback = path.file_name().and_then(|n| n.to_str()).unwrap_or("rule");
     let name = clip(&name.unwrap_or_else(|| fallback.to_owned()), 80);
     if name.is_empty() {
         return None;
     }
-    Some(Named { name, description: clip(&description.unwrap_or_default(), TEXT_CHARS) })
+    Some(Rule { name, description: clip(&description.unwrap_or_default(), TEXT_CHARS), key })
+}
+
+/// The rule's identity: the path inside a rules directory, otherwise the path from `base`.
+fn rule_key(path: &Path, base: &Path) -> String {
+    let rel = path.strip_prefix(base).unwrap_or(path);
+    let text = rel.components().map(|c| c.as_os_str().to_string_lossy()).collect::<Vec<_>>().join("/");
+    const ROOTS: &[&str] =
+        &[".cursor/rules/", ".claude/rules/", ".codebuddy/rules/", ".gemini/rules/", ".grok/rules/", ".agents/rules/"];
+    for root in ROOTS {
+        if let Some(rest) = text.strip_prefix(root)
+            && !rest.is_empty()
+        {
+            return rest.to_owned();
+        }
+    }
+    if text.is_empty() { "rule".to_owned() } else { text }
 }
 
 fn front_matter(md: &str) -> (Option<String>, Option<String>) {
@@ -300,6 +337,31 @@ fn skipped(path: &Path) -> bool {
     std::fs::symlink_metadata(path).is_ok_and(|meta| meta.file_type().is_symlink())
 }
 
+/// One row per rule path. A repeated title keeps the path, so two `style.mdc` files both show.
+fn present(mut rules: Vec<Rule>) -> Vec<Named> {
+    let mut index = std::collections::HashMap::<String, usize>::new();
+    let mut kept = Vec::new();
+    for rule in rules.drain(..) {
+        if let Some(at) = index.get(&rule.key).copied() {
+            kept[at] = rule;
+        } else {
+            index.insert(rule.key.clone(), kept.len());
+            kept.push(rule);
+        }
+    }
+    let mut counts = std::collections::HashMap::<String, usize>::new();
+    for rule in &kept {
+        *counts.entry(rule.name.clone()).or_insert(0) += 1;
+    }
+    kept.into_iter()
+        .map(|rule| {
+            let shared = counts[&rule.name] > 1;
+            let name = if shared { clip(&rule.key, 80) } else { rule.name };
+            Named { name, description: rule.description }
+        })
+        .collect()
+}
+
 fn dedupe(items: &mut Vec<Named>) {
     let mut index = std::collections::HashMap::<String, usize>::new();
     let mut kept = Vec::new();
@@ -360,9 +422,12 @@ mod tests {
         )
         .expect("manifest");
         std::fs::create_dir_all(home.join(".cursor/plugins")).expect("index dir");
+        let index = serde_json::json!({
+            "plugins": { "browser@local": [{ "installPath": plug.display().to_string() }] }
+        });
         std::fs::write(
             home.join(".cursor/plugins/installed_plugins.json"),
-            format!(r#"{{"plugins":{{"browser@local":[{{"installPath":"{}"}}]}}}}"#, plug.display()),
+            serde_json::to_string(&index).expect("index"),
         )
         .expect("index");
         let (rules, plugins) = list("cursor", &home, Some(&cwd));
@@ -373,6 +438,30 @@ mod tests {
         assert_eq!(plugins[0].description, "Drive a browser");
         let dumped = format!("{} {}", plugins[0].name, plugins[0].description);
         assert!(!dumped.contains("secret-token"), "{dumped}");
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn a_home_instruction_is_listed_and_nested_rules_stay_separate() {
+        let root = scratch();
+        let home = root.join("home");
+        let cwd = root.join("proj");
+        std::fs::create_dir_all(home.join(".claude")).expect("claude home");
+        std::fs::create_dir_all(&cwd).expect("project");
+        std::fs::write(home.join(".claude/CLAUDE.md"), "# Global\n").expect("home claude");
+        std::fs::write(cwd.join("CLAUDE.md"), "# Project\n").expect("project claude");
+        let (rules, _) = list("claude", &home, Some(&cwd));
+        let names: Vec<_> = rules.iter().map(|r| r.name.as_str()).collect();
+        assert!(names.contains(&".claude/CLAUDE.md"), "{names:?}");
+        assert!(names.contains(&"CLAUDE.md"), "{names:?}");
+        std::fs::create_dir_all(cwd.join(".cursor/rules/frontend")).expect("front");
+        std::fs::create_dir_all(cwd.join(".cursor/rules/backend")).expect("back");
+        std::fs::write(cwd.join(".cursor/rules/frontend/style.mdc"), "# Front\n").expect("front rule");
+        std::fs::write(cwd.join(".cursor/rules/backend/style.mdc"), "# Back\n").expect("back rule");
+        let (rules, _) = list("cursor", &home, Some(&cwd));
+        let names: Vec<_> = rules.iter().map(|r| r.name.as_str()).collect();
+        assert!(names.contains(&"frontend/style.mdc"), "{names:?}");
+        assert!(names.contains(&"backend/style.mdc"), "{names:?}");
         let _ = std::fs::remove_dir_all(root);
     }
 
