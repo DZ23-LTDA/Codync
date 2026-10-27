@@ -11,6 +11,7 @@ import { useStore } from '../../store/context'
 import { useTr } from '../../lib/use-language'
 import { errorText, market, type AgentAuth, type AuthMethod } from './market-models'
 import { ErrorText, Field, ScreenHeader, SlideStack, WebLink, filled } from './pieces'
+import { AgentBrings } from './AgentBrings'
 import { SetupTerminalView } from './SetupTerminal'
 
 type SetupRoute = { kind: 'install' } | { kind: 'node' } | { kind: 'terminal'; method: AuthMethod | null } | { kind: 'keys'; method: AuthMethod }
@@ -247,6 +248,7 @@ export function AgentSheet({ initial, recheck = false }: { initial: Backend; rec
           {signedIn !== true && auth?.detail ? <Text size="footnote" tone="secondary" className="selectable agent-auth-detail">{auth.detail}</Text> : null}
           {options}
         </CardSection>
+        <AgentBrings backendId={backend.id} />
         {error ? <CardSection><ErrorText text={error} /></CardSection> : null}
       </CardForm>
     </SheetPage>

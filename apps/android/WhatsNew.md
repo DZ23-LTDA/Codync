@@ -7,12 +7,12 @@ released version's section; a version without one gets the PRs' "What's New: And
 else a generic "Bug fixes and improvements" line. Delete old sections.
 -->
 
-## 2.30.0
+## 2.31.0
 
 ### zh-Hant
-- 新增 DeepSeek Harness（dsh）：電腦上裝好 dsh 並存好 DeepSeek API 金鑰後，Bot 就能使用 DeepSeek 的模型。
-- Cortex Code 與 Factory Droid 的圖示不再顯示錯誤。
+- 在「擴充套件」裡打開一個 Agent，登入下方會列出它自己的技能、聯結器、規則和外掛。
+- Codex 的用量改成讀取目前登入帳號的額度，不會再停在舊的百分比。
 
 ### en-US
-- New agent: DeepSeek Harness (dsh). With dsh installed and a DeepSeek API key saved on your computer, a bot can run on DeepSeek's models.
-- The Cortex Code and Factory Droid logos no longer draw wrong.
+- Open an agent in Extensions. Under Sign in, see the skills, connectors, rules and plugins it already has.
+- Codex usage now shows your signed-in account's current allowance instead of an old percentage.
