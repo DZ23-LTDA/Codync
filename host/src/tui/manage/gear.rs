@@ -1,214 +1,119 @@
-//! A bot's Skills, Connectors, Rules and Plugins pages. Skills and connectors also list what Codync passes on.
+//! A read-only sheet of what one agent already brings: skills, connectors, rules and plugins.
 
 use crossterm::event::{KeyCode, KeyEvent};
 use serde_json::{Value, json};
 
-use super::super::app::{After, App, Overlay};
-use super::{Page, Reply};
+use super::super::app::{App, Overlay};
+use super::Reply;
 
-/// Which gear page is open. Skills and connectors also list what Codync passes on.
-/// Rules and plugins are only what the agent already has.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub enum GearKind {
-    Skills,
-    Connectors,
-    Rules,
-    Plugins,
-}
-
-impl GearKind {
-    pub fn page(self) -> Page {
-        match self {
-            Self::Skills => Page::Skills,
-            Self::Connectors => Page::Connectors,
-            Self::Rules => Page::Rules,
-            Self::Plugins => Page::Plugins,
-        }
-    }
-
-    /// Codync can pass skills and connectors on. Rules and plugins stay the agent's.
-    pub fn passes_on(self) -> bool {
-        matches!(self, Self::Skills | Self::Connectors)
-    }
-
-    fn field(self) -> Option<&'static str> {
-        match self {
-            Self::Skills => Some("skills"),
-            Self::Connectors => Some("connectors"),
-            Self::Rules | Self::Plugins => None,
-        }
-    }
-}
-
-/// One skill or connector the agent keeps for itself.
+/// One skill, connector, rule or plugin the agent keeps for itself.
 #[derive(Clone, Debug)]
 pub struct GearItem {
     pub name: String,
     pub detail: String,
 }
 
-/// The Skills or Connectors page of one bot.
+/// The four lists, once `agentGear` has answered.
+#[derive(Clone, Debug)]
+pub struct GearLists {
+    pub skills: Vec<GearItem>,
+    pub connectors: Vec<GearItem>,
+    pub rules: Vec<GearItem>,
+    pub plugins: Vec<GearItem>,
+}
+
+/// What one agent brings, opened from its sign-in sheet.
 pub struct Gear {
-    pub bot: String,
-    pub kind: GearKind,
+    pub backend: String,
     /// `None` until `agentGear` answers.
-    pub agent_skills: Option<Vec<GearItem>>,
-    pub agent_connectors: Option<Vec<GearItem>>,
-    pub agent_rules: Option<Vec<GearItem>>,
-    pub agent_plugins: Option<Vec<GearItem>>,
+    pub lists: Option<GearLists>,
     pub failed: bool,
     pub cursor: usize,
 }
 
-impl Gear {
-    pub fn agent(&self) -> Option<&[GearItem]> {
-        match self.kind {
-            GearKind::Skills => self.agent_skills.as_deref(),
-            GearKind::Connectors => self.agent_connectors.as_deref(),
-            GearKind::Rules => self.agent_rules.as_deref(),
-            GearKind::Plugins => self.agent_plugins.as_deref(),
-        }
-    }
-
-    /// One scrollable list: the agent's rows, then Codync's switches when this page has them.
-    pub fn rows(&self, toggles: usize) -> Vec<GearRow> {
-        let mut rows = vec![GearRow::AgentHeading];
-        match self.agent() {
-            Some(items) if !self.failed && !items.is_empty() => rows.extend((0..items.len()).map(GearRow::Agent)),
-            _ => rows.push(GearRow::AgentNote),
-        }
-        if !self.kind.passes_on() {
-            return rows;
-        }
-        rows.push(GearRow::CodyncHeading);
-        if toggles == 0 {
-            rows.push(GearRow::CodyncNote);
-        } else {
-            rows.extend((0..toggles).map(GearRow::Toggle));
-        }
-        rows
-    }
+pub enum GearRow {
+    Heading(&'static str),
+    Note,
+    Item(usize, usize),
 }
 
-/// A line on the Skills or Connectors page. `Toggle` is an index into the installed Codync list.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum GearRow {
-    AgentHeading,
-    AgentNote,
-    Agent(usize),
-    CodyncHeading,
-    CodyncNote,
-    Toggle(usize),
+impl Gear {
+    fn sections(&self) -> [(&'static str, &[GearItem]); 4] {
+        let empty: &[GearItem] = &[];
+        let lists = self.lists.as_ref();
+        [
+            ("Skills", lists.map_or(empty, |l| l.skills.as_slice())),
+            ("Connectors", lists.map_or(empty, |l| l.connectors.as_slice())),
+            ("Rules", lists.map_or(empty, |l| l.rules.as_slice())),
+            ("Plugins", lists.map_or(empty, |l| l.plugins.as_slice())),
+        ]
+    }
+
+    pub fn rows(&self) -> Vec<GearRow> {
+        if self.lists.is_none() || self.failed {
+            return vec![GearRow::Note];
+        }
+        let mut rows = Vec::new();
+        for (section, (label, items)) in self.sections().into_iter().enumerate() {
+            if items.is_empty() {
+                continue;
+            }
+            rows.push(GearRow::Heading(label));
+            rows.extend((0..items.len()).map(|index| GearRow::Item(section, index)));
+        }
+        if rows.is_empty() { vec![GearRow::Note] } else { rows }
+    }
+
+    pub fn count_of(&self, label: &str) -> usize {
+        let Some(lists) = &self.lists else { return 0 };
+        match label {
+            "Skills" => lists.skills.len(),
+            "Connectors" => lists.connectors.len(),
+            "Rules" => lists.rules.len(),
+            "Plugins" => lists.plugins.len(),
+            _ => 0,
+        }
+    }
+
+    pub fn item(&self, section: usize, index: usize) -> Option<&GearItem> {
+        self.sections().get(section).and_then(|(_, items)| items.get(index))
+    }
 }
 
 pub(super) fn items(value: &Value) -> Vec<GearItem> {
-    value
-        .as_array()
-        .map(|rows| {
-            rows.iter()
-                .filter_map(|row| {
-                    let name = row["name"].as_str()?.trim();
-                    if name.is_empty() {
-                        return None;
-                    }
-                    let detail = row["description"]
-                        .as_str()
-                        .filter(|s| !s.is_empty())
-                        .or_else(|| row["detail"].as_str())
-                        .unwrap_or("")
-                        .to_owned();
-                    Some(GearItem { name: name.to_owned(), detail })
-                })
-                .collect()
-        })
-        .unwrap_or_default()
+    value.as_array().map_or(Vec::new(), |rows| {
+        rows.iter()
+            .filter_map(|row| {
+                let name = row["name"].as_str()?.trim();
+                if name.is_empty() {
+                    return None;
+                }
+                let detail = row["description"]
+                    .as_str()
+                    .filter(|s| !s.is_empty())
+                    .or_else(|| row["detail"].as_str())
+                    .unwrap_or("")
+                    .to_owned();
+                Some(GearItem { name: name.to_owned(), detail })
+            })
+            .collect()
+    })
 }
 
 impl App {
-    pub(in crate::tui) fn open_gear(&mut self, kind: GearKind) {
-        let Some(bot) = self.bot().filter(|bot| !bot.group) else {
-            self.flash("Skills, connectors, rules and plugins belong to a bot, not a group");
-            return;
-        };
-        let id = bot.id.clone();
-        let backend = bot.backend.clone();
-        let cwd = bot.cwd.clone();
-        self.sheet("agentGear", json!({"backend": backend, "cwd": cwd}), Reply::Gear(id.clone()));
-        self.call("connectors", json!({}), After::Connectors);
-        self.call("skills", json!({}), After::Skills);
-        self.overlays.push(Overlay::Gear(Gear {
-            bot: id,
-            kind,
-            agent_skills: None,
-            agent_connectors: None,
-            agent_rules: None,
-            agent_plugins: None,
-            failed: false,
-            cursor: 1,
-        }));
+    pub(in crate::tui) fn open_agent_gear(&mut self, backend: &str) {
+        self.overlays.push(Overlay::Gear(Gear { backend: backend.to_owned(), lists: None, failed: false, cursor: 0 }));
+        self.sheet("agentGear", json!({"backend": backend}), Reply::Gear(backend.to_owned()));
     }
 
-    pub(in crate::tui) fn gear_key(&mut self, mut gear: Gear, key: KeyEvent) -> Option<Overlay> {
-        if let Some(page) = gear.kind.page().step(key) {
-            self.open_page(page);
-            return None;
-        }
-        let rows = gear.rows(self.gear_toggles(&gear).len());
-        let last = rows.len().saturating_sub(1);
-        gear.cursor = gear.cursor.min(last);
-        match key.code {
+    pub(in crate::tui) fn gear_key(mut gear: Gear, k: KeyEvent) -> Option<Overlay> {
+        let rows = gear.rows();
+        match k.code {
             KeyCode::Esc | KeyCode::Char('q') => return None,
-            KeyCode::Down | KeyCode::Char('j') => gear.cursor = (gear.cursor + 1).min(last),
+            KeyCode::Down | KeyCode::Char('j') => gear.cursor = (gear.cursor + 1).min(rows.len().saturating_sub(1)),
             KeyCode::Up | KeyCode::Char('k') => gear.cursor = gear.cursor.saturating_sub(1),
-            KeyCode::Char(' ') | KeyCode::Enter => {
-                if let Some(GearRow::Toggle(index)) = rows.get(gear.cursor) {
-                    self.toggle_gear(&gear, *index);
-                }
-            }
             _ => {}
         }
         Some(Overlay::Gear(gear))
-    }
-
-    /// Installed Codync connectors or skills, and whether this bot passes each one on.
-    pub(in crate::tui) fn gear_toggles(&self, gear: &Gear) -> Vec<(String, String, bool)> {
-        let Some(bot) = self.bots.get(&gear.bot) else { return Vec::new() };
-        let (installed, enabled) = match gear.kind {
-            GearKind::Skills => (&self.market.1, &bot.skills),
-            GearKind::Connectors => (&self.market.0, &bot.connectors),
-            GearKind::Rules | GearKind::Plugins => return Vec::new(),
-        };
-        installed
-            .iter()
-            .map(|item| (item.id.clone(), item.name.clone(), enabled.iter().any(|id| id == &item.id)))
-            .collect()
-    }
-
-    fn toggle_gear(&mut self, gear: &Gear, index: usize) {
-        let (bot_id, field, ids) = {
-            let Some(bot) = self.bots.get(&gear.bot) else { return };
-            let installed = match gear.kind {
-                GearKind::Skills => &self.market.1,
-                GearKind::Connectors => &self.market.0,
-                GearKind::Rules | GearKind::Plugins => return,
-            };
-            let Some(item) = installed.get(index) else { return };
-            let id = item.id.clone();
-            let mut ids = match gear.kind {
-                GearKind::Skills => bot.skills.clone(),
-                GearKind::Connectors => bot.connectors.clone(),
-                GearKind::Rules | GearKind::Plugins => return,
-            };
-            if ids.iter().any(|have| have == &id) {
-                ids.retain(|have| have != &id);
-            } else {
-                ids.push(id);
-            }
-            let Some(field) = gear.kind.field() else { return };
-            (gear.bot.clone(), field, ids)
-        };
-        let mut body = json!({"id": bot_id});
-        body[field] = json!(ids);
-        self.call("updateBot", body, After::Nothing);
     }
 }

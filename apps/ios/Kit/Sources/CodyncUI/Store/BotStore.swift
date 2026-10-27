@@ -70,10 +70,6 @@ public final class BotStore {
     /// Installed on the computer, for the Plugins screen and bot settings.
     public internal(set) var installedConnectors: [InstalledConnector] = []
     public internal(set) var installedSkills: [InstalledSkill] = []
-    /// What the open bot's agent already has on disk. `nil` while that read is in flight.
-    public internal(set) var agentGear: AgentGear?
-    public internal(set) var agentGearFailed = false
-    var agentGearRequest: String?
     /// Bots whose older history has been fully paged in.
     public internal(set) var historyComplete: Set<String> = []
     var composerDrafts: [String: String] = [:]

@@ -169,10 +169,8 @@ pub(super) async fn call(hub: &Arc<Hub>, caller: &Caller, method: &str, b: Value
             json!({})
         }
         "skills" => market::list_skills(&hub.store),
-        // What this agent already has on disk. Codync's own skills and connectors stay on the bot.
-        "agentGear" => {
-            crate::agent::gear::list(b["backend"].as_str().unwrap_or(""), b["cwd"].as_str().unwrap_or("")).await
-        }
+        // What this agent already has in the user's home. Codync's own skills and connectors stay on the bot.
+        "agentGear" => crate::agent::gear::list(b["backend"].as_str().unwrap_or("")).await,
         "skillDetails" => market::skill_details(&hub.store, &b).await?,
         "installSkill" => {
             let before = Installed::Skills.ids(&hub.store)?;

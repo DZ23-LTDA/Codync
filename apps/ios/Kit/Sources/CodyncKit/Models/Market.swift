@@ -244,9 +244,9 @@ public extension HostClient {
         try await call("composioConnection", ["id": id], timeout: 30)
     }
 
-    /// What `backend` already has in `cwd`: its own skills and MCP connectors, not Codync's.
-    func agentGear(backend: String, cwd: String) async throws -> AgentGear {
-        try await call("agentGear", ["backend": backend, "cwd": cwd])
+    /// What `backend` already has in the user's home: skills, connectors, rules and plugins, not Codync's.
+    func agentGear(backend: String) async throws -> AgentGear {
+        try await call("agentGear", ["backend": backend])
     }
 
     func skills() async throws -> [InstalledSkill] {

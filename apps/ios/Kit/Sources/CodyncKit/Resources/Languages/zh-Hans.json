@@ -443,7 +443,7 @@
   "Rules": "规则",
   "Plugins": "插件",
   "Skills, connectors, rules and plugins belong to a bot, not a group": "技能、连接器、规则和插件属于 Bot，不属于群聊",
-  "between details, library, memory, settings, skills, connectors, rules and plugins": "在详情、资料库、记忆、设置、技能、连接器、规则和插件之间切换",
+  "between details, library, memory and settings": "在详情、资料库、记忆和设置之间切换",
   "space on / off · ⇧←→ page · esc": "空格 开/关 · ⇧←→ 翻页 · esc",
   "⇧←→ page · esc": "⇧←→ 翻页 · esc",
   "No skills yet. Get some from Extensions, or write your own.": "还没有技能。到「扩展」里找，或自己写。",

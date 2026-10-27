@@ -88,17 +88,18 @@ impl App {
                 }
             }
             Reply::Library(bot) => self.library_loaded(&bot, v["items"].as_array().map_or(&[], Vec::as_slice)),
-            Reply::Gear(bot) => {
-                let skills = super::gear::items(&v["skills"]);
-                let connectors = super::gear::items(&v["connectors"]);
+            Reply::Gear(backend) => {
+                let lists = super::gear::GearLists {
+                    skills: super::gear::items(&v["skills"]),
+                    connectors: super::gear::items(&v["connectors"]),
+                    rules: super::gear::items(&v["rules"]),
+                    plugins: super::gear::items(&v["plugins"]),
+                };
                 for overlay in &mut self.overlays {
                     if let Overlay::Gear(gear) = overlay
-                        && gear.bot == bot
+                        && gear.backend == backend
                     {
-                        gear.agent_skills = Some(skills.clone());
-                        gear.agent_connectors = Some(connectors.clone());
-                        gear.agent_rules = Some(super::gear::items(&v["rules"]));
-                        gear.agent_plugins = Some(super::gear::items(&v["plugins"]));
+                        gear.lists = Some(lists.clone());
                         gear.failed = false;
                     }
                 }
@@ -309,15 +310,17 @@ impl App {
                 }
                 self.flash(&e);
             }
-            Reply::Gear(bot) => {
+            Reply::Gear(backend) => {
                 for o in &mut self.overlays {
                     if let Overlay::Gear(gear) = o
-                        && gear.bot == *bot
+                        && gear.backend == *backend
                     {
-                        gear.agent_skills.get_or_insert_with(Vec::new);
-                        gear.agent_connectors.get_or_insert_with(Vec::new);
-                        gear.agent_rules.get_or_insert_with(Vec::new);
-                        gear.agent_plugins.get_or_insert_with(Vec::new);
+                        gear.lists.get_or_insert_with(|| super::gear::GearLists {
+                            skills: Vec::new(),
+                            connectors: Vec::new(),
+                            rules: Vec::new(),
+                            plugins: Vec::new(),
+                        });
                         gear.failed = true;
                     }
                 }
@@ -373,11 +376,7 @@ impl App {
                 Overlay::Library(l) => {
                     calls.push(("library", json!({"botId": l.bot}), After::Sheet(Reply::Library(l.bot.clone()))));
                 }
-                Overlay::Gear(gear) => {
-                    gear_ids.push(gear.bot.clone());
-                    calls.push(("connectors", json!({}), After::Connectors));
-                    calls.push(("skills", json!({}), After::Skills));
-                }
+                Overlay::Gear(gear) => gear_ids.push(gear.backend.clone()),
                 Overlay::Market(_) | Overlay::Form(_) => {
                     calls.push(("connectors", json!({}), After::Connectors));
                     calls.push(("skills", json!({}), After::Skills));
@@ -385,14 +384,8 @@ impl App {
                 _ => {}
             }
         }
-        for id in gear_ids {
-            if let Some(bot) = self.bots.get(&id) {
-                calls.push((
-                    "agentGear",
-                    json!({"backend": bot.backend, "cwd": bot.cwd}),
-                    After::Sheet(Reply::Gear(id)),
-                ));
-            }
+        for backend in gear_ids {
+            calls.push(("agentGear", json!({"backend": backend}), After::Sheet(Reply::Gear(backend))));
         }
         calls.dedup_by(|a, b| a.0 == b.0 && a.1 == b.1);
         for (m, body, after) in calls {

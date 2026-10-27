@@ -443,7 +443,7 @@
   "Rules": "규칙",
   "Plugins": "플러그인",
   "Skills, connectors, rules and plugins belong to a bot, not a group": "기술, 커넥터, 규칙, 플러그인은 그룹이 아닌 봇에 속합니다",
-  "between details, library, memory, settings, skills, connectors, rules and plugins": "상세, 라이브러리, 메모리, 설정, 기술, 커넥터, 규칙, 플러그인 사이",
+  "between details, library, memory and settings": "상세, 라이브러리, 메모리, 설정 사이",
   "space on / off · ⇧←→ page · esc": "space 켜기/끄기 · ⇧←→ 페이지 · esc",
   "⇧←→ page · esc": "⇧←→ 페이지 · esc",
   "No skills yet. Get some from Extensions, or write your own.": "아직 스킬이 없습니다. Extensions에서 일부를 가져오거나 직접 작성해 보세요.",

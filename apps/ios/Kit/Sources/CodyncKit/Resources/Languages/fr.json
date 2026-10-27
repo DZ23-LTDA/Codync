@@ -443,7 +443,7 @@
   "Rules": "Règles",
   "Plugins": "Plugins",
   "Skills, connectors, rules and plugins belong to a bot, not a group": "Les compétences, connecteurs, règles et plugins appartiennent à un bot, pas à un groupe",
-  "between details, library, memory, settings, skills, connectors, rules and plugins": "entre détails, bibliothèque, mémoire, réglages, compétences, connecteurs, règles et plugins",
+  "between details, library, memory and settings": "entre détails, bibliothèque, mémoire et réglages",
   "space on / off · ⇧←→ page · esc": "espace on / off · ⇧←→ page · esc",
   "⇧←→ page · esc": "⇧←→ page · esc",
   "No skills yet. Get some from Extensions, or write your own.": "Aucune compétence pour le moment. Ajoutez-en depuis Extensions ou écrivez les vôtres.",

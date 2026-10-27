@@ -246,8 +246,8 @@ struct BotSettingsForm: View {
                 }
             }
 
-            // The details sheet shows these on their own tabs. The full editor keeps the switches here.
-            if part == .all {
+            // Settings and the full editor. The details page (often) stops before this.
+            if part != .often {
                 PluginToggles(
                     title: "Connectors",
                     empty: "No connectors yet. Add GitHub, Linear, Notion and more from Extensions.",

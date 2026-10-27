@@ -12,7 +12,9 @@ else a generic "Bug fixes and improvements" line. Delete old sections.
 ### zh-Hant
 - 新增 DeepSeek Harness（dsh）：電腦上裝好 dsh 並存好 DeepSeek API 金鑰後，Bot 就能使用 DeepSeek 的模型。
 - Cortex Code 與 Factory Droid 的圖示不再顯示錯誤。
+- 在「擴充套件」裡打開一個 Agent，登入下方會列出它自己的技能、連接器、規則和外掛。
 
 ### en-US
 - New agent: DeepSeek Harness (dsh). With dsh installed and a DeepSeek API key saved on your computer, a bot can run on DeepSeek's models.
 - The Cortex Code and Factory Droid logos no longer draw wrong.
+- Open an agent in Extensions to see its skills, connectors, rules and plugins.

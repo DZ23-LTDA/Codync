@@ -753,6 +753,7 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "unicode-width",
+ "url",
  "uuid",
  "windows-sys 0.61.2",
  "x25519-dalek",

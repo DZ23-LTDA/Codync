@@ -69,27 +69,18 @@ fn name_of(app: &App, bot: &str) -> String {
     app.bots.get(bot).map_or_else(String::new, |b| b.name.clone())
 }
 
-/// A bot's pages on two lines: the bot (Details, Library, Memory, Settings), then what its agent
-/// brings (Skills, Connectors, Rules, Plugins). Returns the area under them.
+/// A bot's pages on the top line (Details, Library, Memory, Settings) with this one marked.
+/// Returns the area under it.
 pub fn page_tabs(buf: &mut Buffer, inner: Rect, current: Page) -> Rect {
     let t = theme();
-    let rows: [&[Page]; 2] = [
-        &[Page::Details, Page::Library, Page::Memory, Page::Settings],
-        &[Page::Skills, Page::Connectors, Page::Rules, Page::Plugins],
-    ];
-    for (row, pages) in rows.iter().enumerate() {
-        let mut x = inner.x;
-        let y = inner.y.saturating_add(u16::try_from(row).unwrap_or(0));
-        for page in *pages {
-            let style = if *page == current { t.text.patch(t.sel) } else { t.secondary.patch(t.panel) };
-            let tab = tr(page.label());
-            x = put(buf, x, y, inner.right().saturating_sub(x), &format!(" {tab} "), style) + 1;
-        }
-        if row == 0 {
-            rput(buf, inner.right(), y, "⇧←→ page", t.dim.patch(t.panel));
-        }
+    let mut x = inner.x;
+    for page in Page::ALL {
+        let style = if page == current { t.text.patch(t.sel) } else { t.secondary.patch(t.panel) };
+        let tab = tr(page.label());
+        x = put(buf, x, inner.y, inner.right().saturating_sub(x), &format!(" {tab} "), style) + 1;
     }
-    Rect::new(inner.x, inner.y.saturating_add(3), inner.width, inner.height.saturating_sub(3))
+    rput(buf, inner.right(), inner.y, "⇧←→ page", t.dim.patch(t.panel));
+    Rect::new(inner.x, inner.y + 2, inner.width, inner.height.saturating_sub(2))
 }
 
 pub fn routines(buf: &mut Buffer, area: Rect, app: &App, l: &RoutineList) {
@@ -335,6 +326,7 @@ pub fn agent(buf: &mut Buffer, area: Rect, app: &App, a: &AgentSetup) {
                 format!("Downloads {name} on {} if it needs to, then checks its sign-in.", app.host),
             ),
             SetupRow::Check => ("↻", "Check again".to_owned(), String::new()),
+            SetupRow::Brings => ("≡", "What the agent brings".to_owned(), String::new()),
         };
         let title = tr(&title);
         let detail = tr(&detail);

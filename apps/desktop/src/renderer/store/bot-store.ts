@@ -380,11 +380,11 @@ export class BotStore extends BotSync {
     return (await this.ready()).botConversation(botId, peerId)
   }
 
-  /** Skills and connectors `backend` already has in `cwd`, not the Codync ones this bot passes on. */
-  async agentGear(backend: string, cwd: string): Promise<{ skills: AgentGearItem[]; connectors: AgentGearItem[]; rules: AgentGearItem[]; plugins: AgentGearItem[] }> {
+  /** What `backend` already has in the user's home, not the Codync skills and connectors a bot passes on. */
+  async agentGear(backend: string): Promise<{ skills: AgentGearItem[]; connectors: AgentGearItem[]; rules: AgentGearItem[]; plugins: AgentGearItem[] }> {
     const client = this.client
     if (!client) throw new Error("Couldn't load what this agent brings.")
-    const value = await client.call<{ skills?: AgentGearItem[]; connectors?: AgentGearItem[]; rules?: AgentGearItem[]; plugins?: AgentGearItem[] }>('agentGear', { backend, cwd })
+    const value = await client.call<{ skills?: AgentGearItem[]; connectors?: AgentGearItem[]; rules?: AgentGearItem[]; plugins?: AgentGearItem[] }>('agentGear', { backend })
     return { skills: value.skills ?? [], connectors: value.connectors ?? [], rules: value.rules ?? [], plugins: value.plugins ?? [] }
   }
 

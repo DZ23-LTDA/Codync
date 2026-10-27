@@ -281,8 +281,7 @@ function BotSettingsForm({ draft, onChange, error, plugins, part = 'all' }: {
           <NetworkSwitches draft={draft} set={set} />
         </CardSection>
 
-        {part === 'all' ? (
-          <>
+        <>
             <PluginToggles
               title="Connectors"
               empty="No connectors yet. Add GitHub, Linear, Notion and more from Extensions."
@@ -298,8 +297,7 @@ function BotSettingsForm({ draft, onChange, error, plugins, part = 'all' }: {
               onChange={(ids) => set('skills', ids)}
               onInfo={(s) => setViewingSkill({ id: s.id, name: s.name, description: s.detail })}
             />
-          </>
-        ) : null}
+        </>
         {error ? <Text size="footnote" tone="danger" className="fade-in">{error}</Text> : null}
       </div>
       <FormSheet open={viewingSkill !== null} onClose={() => setViewingSkill(null)}>

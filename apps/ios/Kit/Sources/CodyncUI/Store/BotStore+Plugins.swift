@@ -80,26 +80,9 @@ extension BotStore {
         try await ready().skillDetails(skill.request)
     }
 
-    /// Reads the skills and connectors `backend` already has in `cwd`. A newer request wins.
-    public func loadAgentGear(backend: String, cwd: String) async {
-        let key = "\(backend)\n\(cwd)"
-        agentGearRequest = key
-        agentGear = nil
-        agentGearFailed = false
-        guard let client else {
-            agentGearFailed = true
-            return
-        }
-        do {
-            let loaded = try await client.agentGear(backend: backend, cwd: cwd)
-            guard !Task.isCancelled, agentGearRequest == key else { return }
-            agentGear = loaded
-        } catch is CancellationError {
-            return
-        } catch {
-            guard !Task.isCancelled, agentGearRequest == key else { return }
-            agentGearFailed = true
-        }
+    /// What `backend` already has in the user's home.
+    public func agentBrings(_ backend: String) async throws -> AgentGear {
+        try await ready().agentGear(backend: backend)
     }
 
     /// Re-detects agents on the computer (after an install or sign-in).

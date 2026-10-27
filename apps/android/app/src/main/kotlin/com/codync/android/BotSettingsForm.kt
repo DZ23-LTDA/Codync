@@ -80,6 +80,7 @@ internal enum class FormPart { All, Often, Rarely }
                 // The agent and its model are on the Details page; what's left is where it works.
                 CardSection("Workspace") { computerRow(state, online); placeRows(draft, change) { folders = true } }
                 CardSection("Activity") { notifyRow(draft, change); manageTeamRow(state, draft, change); reachRows(state, draft, change) }
+                Plugins(state, draft, change) { viewingSkill = it }
             }
         }
     }
