@@ -16,8 +16,8 @@ struct DetailsRequest: Identifiable {
     var botId: String?
 }
 
-/// A bot's details (Grok Bot's): who it is, then its details, library, memory and settings.
-/// Settings save as you edit. What the agent brings is on the agent's own sheet.
+/// A bot's details (Grok Bot's): who it is, then its details, library, memory and settings. Settings save
+/// as you edit.
 struct BotDetailsView: View {
     let botId: String
     let routineId: String?
@@ -46,7 +46,7 @@ struct BotDetailsView: View {
                 if let bot { identity(bot) }
                 TabChoice(selection: $tab, options: [(.details, "Details")] + (model.hasLibrary ? [(.library, "Library")] : [])
                     + [(.memory, "Memory"), (.settings, "Settings")])
-                .padding(.top, 18)
+                    .padding(.top, 18)
                 page.padding(.top, 20)
                     .environment(\.cardStyle, .outlined)
                     .environment(\.noteLines, 2)

@@ -246,22 +246,19 @@ struct BotSettingsForm: View {
                 }
             }
 
-            // Settings and the full editor. The details page (often) stops before this.
-            if part != .often {
-                PluginToggles(
-                    title: "Connectors",
-                    empty: "No connectors yet. Add GitHub, Linear, Notion and more from Extensions.",
-                    items: model.installedConnectors.map { ($0.id, $0.name, $0.command ?? $0.url ?? "") },
-                    selection: Binding(get: { draft.connectors ?? [] }, set: { draft.connectors = $0 })
-                )
-                PluginToggles(
-                    title: "Skills",
-                    empty: "No skills yet. Get some from Extensions, or write your own.",
-                    items: model.installedSkills.map { ($0.id, $0.name, $0.description) },
-                    selection: Binding(get: { draft.skills ?? [] }, set: { draft.skills = $0 }),
-                    info: { id in viewingSkill = model.installedSkills.first { $0.id == id }.map(SkillRef.init) }
-                )
-            }
+            PluginToggles(
+                title: "Connectors",
+                empty: "No connectors yet. Add GitHub, Linear, Notion and more from Extensions.",
+                items: model.installedConnectors.map { ($0.id, $0.name, $0.command ?? $0.url ?? "") },
+                selection: Binding(get: { draft.connectors ?? [] }, set: { draft.connectors = $0 })
+            )
+            PluginToggles(
+                title: "Skills",
+                empty: "No skills yet. Get some from Extensions, or write your own.",
+                items: model.installedSkills.map { ($0.id, $0.name, $0.description) },
+                selection: Binding(get: { draft.skills ?? [] }, set: { draft.skills = $0 }),
+                info: { id in viewingSkill = model.installedSkills.first { $0.id == id }.map(SkillRef.init) }
+            )
             if let error {
                 Text(L10n.tr(error)).font(.footnote).foregroundStyle(Palette.danger)
             }

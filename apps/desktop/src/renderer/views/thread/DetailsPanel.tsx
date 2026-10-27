@@ -21,7 +21,7 @@ import { useTr } from '../../lib/use-language'
 
 export type DetailsTab = 'details' | 'library' | 'memory' | 'settings'
 
-const BOT_TABS: { id: DetailsTab; label: string }[] = [
+const TABS: { id: DetailsTab; label: string }[] = [
   { id: 'details', label: 'Details' },
   { id: 'library', label: 'Library' },
   { id: 'memory', label: 'Memory' },
@@ -56,7 +56,7 @@ export function DetailsPanel({ botId, routineId, tab, setTab, editGroup, openArt
           <GroupMembersList group={bot} editGroup={editGroup} />
         ) : (
           <>
-            <TabChoice label="Conversation details" selection={tab} options={hasLibrary(store.hostVersion?.version) ? BOT_TABS : BOT_TABS.filter((t) => t.id !== 'library')} onChange={setTab} />
+            <TabChoice label="Conversation details" selection={tab} options={hasLibrary(store.hostVersion?.version) ? TABS : TABS.filter((t) => t.id !== 'library')} onChange={setTab} />
             <div key={tab} className="details-tab fade-in">
               {tab === 'details' ? (
                 <>
