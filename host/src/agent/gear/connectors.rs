@@ -97,7 +97,9 @@ fn keep_public(parts: &[String]) -> String {
         }
         let raw = part.trim().trim_matches(['"', '\'']);
         let (name, value) = raw.split_once('=').map_or((raw, None), |(name, value)| (name, Some(value)));
-        if credential_name(name) {
+        // `--token=…`, `API_KEY=…`, a header (`-H`, `Authorization: Bearer …`).
+        let key = raw.split(['=', ':']).next().unwrap_or(raw);
+        if credential_name(key) || raw == "-H" || raw.to_ascii_lowercase().contains("bearer ") {
             skip_value = raw.starts_with('-') && value.is_none();
             continue;
         }
@@ -116,9 +118,21 @@ fn keep_public(parts: &[String]) -> String {
 fn credential_name(name: &str) -> bool {
     let name = name.trim_start_matches('-').to_ascii_lowercase().replace('-', "_");
     name.contains("api_key")
-        || name
-            .split('_')
-            .any(|seg| matches!(seg, "token" | "secret" | "password" | "authorization" | "apikey" | "auth" | "key"))
+        || name.split('_').any(|seg| {
+            matches!(
+                seg,
+                "token"
+                    | "secret"
+                    | "password"
+                    | "authorization"
+                    | "apikey"
+                    | "auth"
+                    | "key"
+                    | "header"
+                    | "headers"
+                    | "cookie"
+            )
+        })
 }
 
 /// A bare argument that is a long mix of letters and digits, such as an API key.
@@ -271,7 +285,7 @@ mod tests {
         std::fs::create_dir_all(home.join(".claude")).expect("claude");
         let pad = "x".repeat(300 * 1024);
         let body = format!(
-            r#"{{"history":"{pad}","mcpServers":{{"github":{{"command":"npx","args":["--api-key","abc123","-y","server","sk-abc123def456ghij78","--token=abc123","API_KEY=abc123","https://hooks.zapier.com/api/mcp/s/abc123/mcp"]}},"off":{{"command":"nope","enabled":false}},"zap":{{"url":"https://user:secret@hooks.zapier.com/api/mcp/s/secret-token/mcp?token=1"}}}}}}"#
+            r#"{{"history":"{pad}","mcpServers":{{"github":{{"command":"npx","args":["--api-key","abc123","-y","server","sk-abc123def456ghij78","--token=abc123","API_KEY=abc123","--header","Authorization: Bearer abc123","https://hooks.zapier.com/api/mcp/s/abc123/mcp"]}},"off":{{"command":"nope","enabled":false}},"zap":{{"url":"https://user:secret@hooks.zapier.com/api/mcp/s/secret-token/mcp?token=1"}}}}}}"#
         );
         std::fs::write(home.join(".claude.json"), body).expect("claude.json");
         let connectors = list("claude", &home);
@@ -290,7 +304,7 @@ mod tests {
         std::fs::create_dir_all(home.join(".codex")).expect("codex");
         std::fs::write(
             home.join(".codex/config.toml"),
-            "[mcp_servers.github]\ncommand = \"github-mcp\"\nenabled = false # temporarily off\n\n[mcp_servers.play]\ncommand = \"npx\"\nargs = [\"-y\", '@playwright/mcp', \"--api-key\", \"abc123\"]\n\n[mcp_servers.docs]\nurl = \"https://alice:abc123@example.test/mcp?key=xyz\" # kept\n\n[mcp_servers.docs.env]\nTOKEN = \"secret-token\"\n",
+            "[mcp_servers.github]\ncommand = \"github-mcp\"\nenabled = false # temporarily off\n\n[mcp_servers.play]\ncommand = \"npx\"\nargs = [\"-y\", '@playwright/mcp', \"--api-key\", \"abc123\", \"-H\", \"X-Api-Key: abc123\"]\n\n[mcp_servers.docs]\nurl = \"https://alice:abc123@example.test/mcp?key=xyz\" # kept\n\n[mcp_servers.docs.env]\nTOKEN = \"secret-token\"\n",
         )
         .expect("toml");
         let connectors = list("codex", &home);
