@@ -57,8 +57,9 @@ async fn a_routine_result_and_a_followup_each_become_read_without_hidden_unreads
     host.call("markRead", json!({"botId": bot})).await;
     assert_eq!(unread(&host, &bot).await, 0);
 
+    // `reply` returns once the reply is final; that a streaming one isn't unread yet is
+    // `store::bots`' `rev_sync_and_unread`.
     host.reply(&bot, "FOLLOWUP").await;
-    // Streaming the text does not make it unread until the host finalizes the reply.
     assert_eq!(unread(&host, &bot).await, 1);
     host.call("markRead", json!({"botId": bot})).await;
     assert_eq!(unread(&host, &bot).await, 0);
