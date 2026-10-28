@@ -49,6 +49,7 @@
   "Connects on Wi-Fi, over Tailscale, or from anywhere through Cloudflare, on its own. End-to-end encrypted.": "Wi-Fi、Tailscale経由、またはCloudflare経由でどこからでも単独で接続します。エンドツーエンドで暗号化されます。",
   "Connecting": "接続中",
   "Connecting…": "接続中…",
+  "Updating…": "アップデート中…",
   "Connection": "接続",
   "Continue": "続ける",
   "Continue with Apple": "Appleで続ける",

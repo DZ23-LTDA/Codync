@@ -13,7 +13,8 @@ struct AgentBrings: View {
     @State private var plugins = false
 
     var body: some View {
-        Group {
+        // A stack, not a Group: `.task` on a Group with nothing in it never runs, so nothing would load.
+        VStack(alignment: .leading, spacing: 0) {
             if failed {
                 CardSection {
                     Text(L10n.tr("Couldn't load what this agent brings."))
