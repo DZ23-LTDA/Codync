@@ -3,12 +3,12 @@
 //! named like one of the user's Codex servers (`notion`) then never reaches the bot (#217), so it gets a free name.
 
 use serde_json::Value;
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, HashSet};
 use std::path::{Path, PathBuf};
 use toml_edit::{DocumentMut, Item};
 
 /// Codync's servers that got another name for this agent: requested name -> the name the agent knows.
-pub(super) type Renamed = HashMap<String, String>;
+pub(super) type Renamed = BTreeMap<String, String>;
 
 /// What the agent calls Codync's server `name`.
 pub(super) fn name_of<'a>(renamed: &'a Renamed, name: &'a str) -> &'a str {

@@ -125,7 +125,6 @@ pub fn spawn(hub: Arc<Hub>, base: BotConfig) -> BotHandle {
         cancel_deadline: None,
         exit_tail: None,
         tools_changed: false,
-        renamed: codex_names::Renamed::new(),
         restart_after_turn: false,
         fast_support,
         idle_checked: Instant::now(),
@@ -188,6 +187,8 @@ pub(crate) struct Conn {
     reports_compaction: bool,
     /// Each session's context use and window size at its last `usage_update`.
     usage: HashMap<String, (u64, u64)>,
+    /// Codync's MCP servers each session knows by another name (`codex_names`), as it was created or loaded with.
+    renamed: HashMap<String, codex_names::Renamed>,
 }
 
 impl Conn {
@@ -303,8 +304,6 @@ struct Actor {
     /// Connectors changed: restart the agent before the next turn so the
     /// session is resumed with the new MCP servers.
     tools_changed: bool,
-    /// Codync's MCP servers the agent knows by another name (`codex_names`), so their calls are still recognized.
-    renamed: codex_names::Renamed,
     /// A change that restarts the agent (`restart_agent`) came during a turn: it restarts once the turn ends.
     restart_after_turn: bool,
     /// What the agent says about Fast mode; clients see it in the bot's runtime.
