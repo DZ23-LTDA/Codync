@@ -183,9 +183,17 @@ impl Actor {
             }
         }
         let mut servers = self.mcp_servers()?;
-        if self.conn.as_ref().is_some_and(|c| c.adapter == Adapter::Codex) {
-            codex_names::avoid_clashes(&mut servers, &self.cfg.cwd).await;
-        }
+        self.renamed = if self.conn.as_ref().is_some_and(|c| c.adapter == Adapter::Codex) {
+            // A `CODEX_HOME` saved for Codex (`setAgentEnv`) is where its own config is.
+            let saved = crate::agent::auth::env(&self.hub.store, &self.cfg.backend).unwrap_or_else(|e| {
+                tracing::warn!(error = format!("{e:#}"), "couldn't read Codex's saved environment");
+                Vec::new()
+            });
+            let home = saved.into_iter().find(|(k, _)| k == "CODEX_HOME").map(|(_, v)| v.into());
+            codex_names::avoid_clashes(&mut servers, &self.cfg.cwd, home).await
+        } else {
+            codex_names::Renamed::new()
+        };
         let instructions = self.conn.as_ref().map_or(Instructions::FirstMessage, Conn::instructions);
         // Claude gets the frozen instructions as its system prompt. When a compaction
         // re-rendered them, loading the session again swaps the prompt in (the adapter
