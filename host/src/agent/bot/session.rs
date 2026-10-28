@@ -2,7 +2,7 @@
 
 use super::fast_mode::Listing;
 use super::launch::{claude_meta, launch_commands, select_model, start_agent, system_prompt};
-use super::{Actor, Conn, Instructions};
+use super::{Actor, Adapter, Conn, Instructions, codex_names};
 use crate::agent::acp::{self, Incoming};
 use crate::agent::own_memory;
 use crate::agent::registry::Candidate;
@@ -182,7 +182,10 @@ impl Actor {
                 return Err(last_err.unwrap_or_else(|| anyhow!("agent failed to start")));
             }
         }
-        let servers = self.mcp_servers()?;
+        let mut servers = self.mcp_servers()?;
+        if self.conn.as_ref().is_some_and(|c| c.adapter == Adapter::Codex) {
+            codex_names::avoid_clashes(&mut servers, &self.cfg.cwd).await;
+        }
         let instructions = self.conn.as_ref().map_or(Instructions::FirstMessage, Conn::instructions);
         // Claude gets the frozen instructions as its system prompt. When a compaction
         // re-rendered them, loading the session again swaps the prompt in (the adapter

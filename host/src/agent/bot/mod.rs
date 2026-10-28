@@ -17,6 +17,7 @@
 //! from a session of its own (see `session`).
 
 mod cmd;
+mod codex_names;
 mod compaction;
 mod fallback;
 mod fast_mode;
