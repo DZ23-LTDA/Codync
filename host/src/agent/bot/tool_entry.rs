@@ -66,19 +66,23 @@ fn diff_summary(path: &str, old: &str, new: &str) -> Value {
     })
 }
 
-/// Composing the bot's message: the `chat` MCP server's `send_message`, by the name the agent titles the call with
-/// (`codync-chat` where the user's Codex config already has a `chat` server, see `codex_names`).
+/// A Codex call's `server.tool`: codex-acp titles it `mcp.chat.send_message` (older ones `chat.send_message`),
+/// and the server is `codync-chat` where the user's Codex config already has a `chat` (see `codex_names`).
+fn codex_call(title: &str) -> &str {
+    let call = title.strip_prefix("mcp.").unwrap_or(title);
+    call.strip_prefix("codync-").unwrap_or(call)
+}
+
+/// Composing the bot's message: the `chat` MCP server's `send_message`, by the name the agent titles the call with.
 fn sends_message(title: &str) -> bool {
-    ["mcp__chat__send_message", "chat.send_message", "codync-chat.send_message"]
-        .iter()
-        .any(|name| title.starts_with(name))
+    title.starts_with("mcp__chat__send_message") || codex_call(title).starts_with("chat.send_message")
 }
 
 /// Keeping the bot's memory: a call of the `memory` MCP server, or one that names a file in a memory folder the
 /// bot sees (in its `locations` or diffs, as `chat::memory::turns::touched` reads them).
 fn keeps_memory(cfg: &BotConfig, data: &Value) -> bool {
     let title = data["title"].as_str().unwrap_or_default();
-    if ["mcp__memory__", "memory.", "codync-memory."].iter().any(|server| title.starts_with(server)) {
+    if title.starts_with("mcp__memory__") || codex_call(title).starts_with("memory.") {
         return true;
     }
     let folders: Vec<PathBuf> = files::layers(cfg).iter().map(|layer| files::folder(layer.as_deref())).collect();
@@ -131,8 +135,8 @@ mod tests {
             json!({"title": "chat.send_message"}),
             json!({"title": "mcp__memory__edit_memory"}),
             json!({"title": "memory.search_memory"}),
-            json!({"title": "codync-chat.send_message"}),
-            json!({"title": "codync-memory.edit_memory"}),
+            json!({"title": "mcp.chat.send_message"}),
+            json!({"title": "mcp.codync-memory.edit_memory"}),
             json!({"title": "Write", "locations": [{"path": note}]}),
             json!({"title": "Edit", "diffs": [{"path": note}]}),
         ] {
