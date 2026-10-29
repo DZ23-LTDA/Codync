@@ -1,8 +1,9 @@
 import { useEffect } from 'react'
-import type { TrayImage, TraySummary } from '@shared/ipc'
+import { TRAY_SYMBOLS, type TrayImage, type TraySummary } from '@shared/ipc'
 import { isGroup, isWorking, needsInput, folderName, type Bot, type UsageWindow } from '@shared/models'
 import type { NetworkView } from '@shared/network'
 import { drawCharacter, moodOf } from '../components/Avatar'
+import { fallbackPath } from '../components/icon-fallbacks'
 import { botsTemplate, presenceTitle, roleTitle } from '../lib/network-copy'
 import { useModels } from '../lib/observable'
 import { resetLine, resolvedLanguage, translate } from '../lib/l10n'
@@ -95,6 +96,24 @@ function dotIcon(online: boolean) {
   })
 }
 
+/** The actions' icons for Windows and Linux menus, from the same fallbacks the app's icons use there. */
+function symbolIcons(): TraySummary['symbols'] {
+  if (isMac) return null
+  const icons: NonNullable<TraySummary['symbols']> = {}
+  for (const name of TRAY_SYMBOLS) {
+    const icon = canvasImage(`symbol|${name}`, 16, 16, (ctx) => {
+      ctx.scale(16 / 24, 16 / 24)
+      ctx.strokeStyle = isDark() ? '#FFFFFF' : '#000000'
+      ctx.lineWidth = 2
+      ctx.lineCap = 'round'
+      ctx.lineJoin = 'round'
+      ctx.stroke(fallbackPath(name))
+    })
+    if (icon) icons[name] = icon
+  }
+  return icons
+}
+
 /** "home · Owner" and "desk · Online · 3 bots" per network; null on hosts without networks. */
 function networkLines(view: NetworkView | null | undefined): TraySummary['networks'] {
   if (!view) return null
@@ -161,6 +180,7 @@ export function useTraySummary(app: AppModel) {
             }
           : null,
         networks: networkLines(local?.network),
+        symbols: symbolIcons(),
         needsAttention: app.needsAttention,
         textSize,
         usageIconStyle: iconStyle,
