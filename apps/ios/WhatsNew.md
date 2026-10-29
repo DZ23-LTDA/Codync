@@ -6,12 +6,12 @@ any left). tools/asc-submit.py reads the released version's section;
 a version without one gets a generic "Bug fixes and improvements" line. Delete old sections.
 -->
 
-## 2.32.0
+## 2.33.0
 
 ### zh-Hant
-- Bot 清單可以分成自己的分組，例如「工作」和「個人」：長按 Bot 選「移到分組」，點分組標題即可收合，收合時會顯示裡面的未讀數。
-- 遠端畫面連線更快，網路短暫中斷時也不會斷掉。
+- 任何 Bot 都能當主助理：長按 Bot 選「設為主助理」，Siri、動作按鈕和沒有指定 Bot 的「Open Live Mode」捷徑就會改找它。
+- 不需要的主助理也可以直接刪除。
 
 ### en-US
-- Sort the bot list into your own sections, like Work and Personal: touch and hold a bot and choose Move to section, then tap a section's heading to fold it, with its unread count showing while it's folded.
-- The remote screen connects faster and stays up through a brief connection drop.
+- Any bot can be your lead: touch and hold it and choose Make lead agent. Siri, the Action button and Open Live Mode without a bot then call it.
+- You can delete the lead bot if you don't need one.
