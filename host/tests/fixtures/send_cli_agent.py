@@ -11,6 +11,7 @@ sys.stdout.reconfigure(encoding="utf-8")
 lock = threading.Lock()
 permissions = {}
 prompts = {}
+finishers = set()
 sessions = 0
 
 
@@ -35,7 +36,9 @@ def turn(message):
     mode = modes[-1] if modes else "normal"
     event = threading.Event()
     prompts[rid] = (session, event)
-    if mode == "hang":
+    if mode in {"hang", "finish_on_cancel"}:
+        if mode == "finish_on_cancel":
+            finishers.add(rid)
         update(session, "agent_thought_chunk", "Waiting indefinitely")
         event.wait(120)
         return
@@ -93,5 +96,8 @@ for line in sys.stdin:
         for rid, (session, event) in list(prompts.items()):
             if session == message["params"]["sessionId"]:
                 prompts.pop(rid, None)
-                send({"id": rid, "result": {"stopReason": "cancelled"}})
+                # Some agents finish the turn normally when asked to cancel.
+                if rid in finishers:
+                    update(session, "agent_message_chunk", "Finished anyway")
+                send({"id": rid, "result": {"stopReason": "end_turn" if rid in finishers else "cancelled"}})
                 event.set()

@@ -298,7 +298,9 @@ impl Actor {
                     self.failure_notice(e, &format!("The agent failed: {e}{detail}"), "error");
                 }
             }
+            // A stopped turn says so even when its agent still ended it normally: its reply is withheld above.
             (_, "cancelled") | (Err(_), _) => self.stop_notice("Stopped.", "cancelled"),
+            (Ok(_), _) if self.stop_requested => self.stop_notice("Stopped.", "cancelled"),
             (_, "max_tokens") => self.stop_notice("The agent hit its output limit.", "max_tokens"),
             (_, "max_turn_requests") => {
                 self.stop_notice("The agent hit its step limit for this turn.", "max_turn_requests");

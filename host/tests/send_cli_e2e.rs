@@ -82,6 +82,16 @@ async fn returns_failure_for_limits_refusals_agent_errors_and_a_stopped_turn() {
     let result = json_output(&output, 1);
     assert_eq!(result["status"], "failed");
     assert_eq!(result["stopReason"], "cancelled");
+    // An agent that ends the stopped turn normally: still a stop, and its late reply isn't the answer.
+    let earlier = host.entry(&bot, |e| e["data"]["text"] == "Waiting indefinitely").await["seq"].as_i64();
+    let child = host.command(&["--bot", &bot, "--wait", "--json", "CLI_MODE=finish_on_cancel"]).spawn().unwrap();
+    host.entry(&bot, |e| e["data"]["text"] == "Waiting indefinitely" && e["seq"].as_i64() > earlier).await;
+    host.call("stop", json!({"botId":bot})).await;
+    let output = tokio::time::timeout(Duration::from_secs(30), child.wait_with_output()).await.unwrap().unwrap();
+    let result = json_output(&output, 1);
+    assert_eq!(result["status"], "failed");
+    assert_eq!(result["stopReason"], "cancelled");
+    assert!(result.get("reply").is_none());
 }
 
 #[tokio::test]
