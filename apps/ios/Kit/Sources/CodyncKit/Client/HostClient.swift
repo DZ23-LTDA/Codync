@@ -333,10 +333,6 @@ public extension HostClient {
         let _: Empty = try await call("stop", ["botId": botId])
     }
 
-    func newSession(_ botId: String) async throws {
-        let _: Empty = try await call("newSession", ["botId": botId])
-    }
-
     func respondPermission(entryId: String, optionId: String?) async throws {
         struct Body: Encodable { var entryId: String; var optionId: String? }
         let _: Empty = try await call("respondPermission", Body(entryId: entryId, optionId: optionId))

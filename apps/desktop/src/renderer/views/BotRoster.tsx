@@ -202,8 +202,7 @@ export function BotRoster({ roster, compact, onContext, onSectionContext, openEx
         onClick={() => app.select(item.ref)}
         onContext={(x, y) => onContext(item.bot, item.store, x, y)}
         lifted={held && lift !== null}
-        // The lead stays on top.
-        drag={item.bot.lead ? undefined : pointerDrag({ start: (from) => liftRow(item, siblings, from), over: dragOver, drop, cancel: endDrag })}
+        drag={pointerDrag({ start: (from) => liftRow(item, siblings, from), over: dragOver, drop, cancel: endDrag })}
       >
         <RosterBotRow item={item} compact={compact} />
       </RosterRow>

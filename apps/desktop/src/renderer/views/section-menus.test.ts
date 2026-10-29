@@ -56,9 +56,9 @@ test('a header renames its section from its name, or removes it', () => {
   assert.deepEqual(calls, [['rename', 'Jobs'], ['rename', null]])
 })
 
-test('the lead gets no Move to section: it stays on top, outside sections', () => {
+test('the lead moves to a section like any bot', () => {
   const { store, bot } = computer()
-  assert.deepEqual(moveToSectionItems({ ...bot('work'), lead: true }, store, () => {}), [])
+  assert.equal(moveToSectionItems({ ...bot('work'), lead: true }, store, () => {}).length, 1)
 })
 
 test('a host without sections gets no section menus', () => {

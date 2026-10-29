@@ -73,7 +73,6 @@ import kotlinx.serialization.json.putJsonArray
             folded = foldsAfterRefusal(FoldedSections.load(context), renamed, before).also { FoldedSections.save(context, it) }
         }
     }
-    var confirmNewSession by remember { mutableStateOf<Bot?>(null) }
     val roster = roster(state.bots)
     val sections = menuSections(state.bots)
     val reorder = remember { RosterReorder() }
@@ -117,7 +116,7 @@ import kotlinx.serialization.json.putJsonArray
                             .then(if (lifted) Modifier.zIndex(1f).graphicsLayer { translationY = reorder.offset; scaleX = 1.02f; scaleY = 1.02f }
                                 else Modifier.animateItem())) {
                             BotRowItem(bot, state, store, reorder.handle(bot.id) { store.reorder(it) }, sections, edit = { edit(bot) },
-                                newSession = { confirmNewSession = bot }, delete = { confirmDelete = bot },
+                                delete = { confirmDelete = bot },
                                 newSection = { naming = SectionNaming("New section", "") { store.setSection(bot.id, it) } })
                         }
                     }
@@ -125,11 +124,6 @@ import kotlinx.serialization.json.putJsonArray
             }
         }
         }
-    }
-    val restarting = confirmNewSession
-    CodyncDialog("Start a new session?", restarting != null, { confirmNewSession = null },
-        message = "The conversation stays here, but the agent starts with a fresh context.") {
-        listOf(DialogAction("New session") { restarting?.let { store.command("newSession", body("botId" to it.id)) } })
     }
     val deleting = confirmDelete
     CodyncDialog("Delete ${deleting?.name ?: "bot"}?", deleting != null, { confirmDelete = null },
@@ -181,13 +175,13 @@ private class RosterReorder {
     }
 }
 
-/** Roster order: the lead, then pinned bots, then where the user dragged them, then most recent activity. */
+/** Roster order: pinned bots, then where the user dragged them, then most recent activity. */
 internal fun roster(bots: List<Bot>): List<Bot> = bots.filter { !it.deleted && !it.hidden }
     .sortedWith(compareBy<Bot> { it.band }.thenBy { it.position }.thenByDescending { it.lastAt })
 
 /**
  * The roster order with a bot swapped with the next bot up (-1) or down (+1) that shows beside it, or null when there's none:
- * a bot stays in its band (`Bot.band`: the lead, pinned bots, the rest); pinned bots move among all the pinned, the others
+ * a bot stays in its band (`Bot.band`: pinned bots, the rest); pinned bots move among all the pinned, the others
  * among bots of their section (or of none), skipping the bots between.
  */
 internal fun moved(roster: List<Bot>, id: String, offset: Int): List<String>? {
@@ -198,34 +192,32 @@ internal fun moved(roster: List<Bot>, id: String, offset: Int): List<String>? {
     return roster.map(Bot::id).toMutableList().apply { this[at] = roster[next].id; this[next] = id }
 }
 
-private fun Bot.movesWith(other: Bot) = band == other.band && (staysOnTop || section == other.section)
+private fun Bot.movesWith(other: Bot) = band == other.band && (pinned || section == other.section)
 
 @Composable private fun BotRowItem(bot: Bot, state: AppState, store: AppStore, drag: ContextDrag, sections: List<String>, edit: () -> Unit,
-    newSession: () -> Unit, delete: () -> Unit, newSection: () -> Unit) {
-    // The lead stays on top and in the list: no drag, pin, section or hide.
-    Box(Modifier.fillMaxWidth().contextActions(onClick = { store.openBot(bot.id) }, reorder = drag.takeUnless { bot.lead }, preview = {
+    delete: () -> Unit, newSection: () -> Unit) {
+    Box(Modifier.fillMaxWidth().contextActions(onClick = { store.openBot(bot.id) }, reorder = drag, preview = {
         Box(Modifier.padding(horizontal = 8.dp)) { BotRow(bot, state) }
     }) {
         listOfNotNull(
             MenuItem(if (bot.pinned) "Unpin" else "Pin", icon = if (bot.pinned) "pin.slash" else "pin") {
                 store.command("updateBot", buildJsonObject { put("id", bot.id); put("pinned", !bot.pinned) }, "roster:" + bot.id)
-            }.takeUnless { bot.lead },
-            if (state.supportsSections && !bot.lead) sectionMenu(bot, sections, { store.setSection(bot.id, it) }, newSection) else null,
+            },
+            if (state.supportsSections) sectionMenu(bot, sections, { store.setSection(bot.id, it) }, newSection) else null,
             if (bot.kind == "group") MenuItem("Edit group", icon = "person.2", action = edit)
             else MenuItem("Edit profile", icon = "pencil", action = edit),
             MenuItem("Mark as read", icon = "checkmark.message") {
                 store.command("markRead", buildJsonObject { put("botId", bot.id) }, "roster:" + bot.id)
             },
-            // A group has no agent session of its own.
-            MenuItem("New session", icon = "arrow.counterclockwise", action = newSession).takeIf { bot.kind != "group" },
             MenuItem("Make lead agent", icon = "star") {
                 store.command("setLead", buildJsonObject { put("botId", bot.id) }, "roster:" + bot.id)
             }.takeIf { !bot.lead && bot.kind != "group" && state.supportsLeadChoice },
+            // The lead stays in the list.
             MenuItem("Hide from list", icon = "eye.slash") {
                 store.command("updateBot", buildJsonObject { put("id", bot.id); put("hidden", true) }, "roster:" + bot.id)
             }.takeUnless { bot.lead },
             // An older computer keeps its lead.
-            MenuItem("Delete", icon = "trash", destructive = true, divider = true, action = delete).takeIf { !bot.lead || state.supportsLeadChoice },
+            MenuItem("Delete", icon = "trash", destructive = true, action = delete).takeIf { !bot.lead || state.supportsLeadChoice },
         )
     }.semantics {
         contentDescription = bot.name
@@ -246,7 +238,7 @@ private fun Bot.movesWith(other: Bot) = band == other.band && (staysOnTop || sec
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    if (bot.pinned && !bot.lead) Symbol("pin.fill", size = 13.dp, tint = Palette.tertiary)
+                    if (bot.pinned) Symbol("pin.fill", size = 13.dp, tint = Palette.tertiary)
                     Text(bot.name, Modifier.weight(1f, fill = false), style = Type.body.semibold, color = Palette.text, maxLines = 1,
                         overflow = TextOverflow.Ellipsis)
                 }

@@ -40,7 +40,7 @@ export interface Bot {
   /** Agents of its chain (its own included) resting now; one whose `until` passed isn't. */
   resting: Resting[]
   pinned: boolean
-  /** The computer's lead bot: the host makes the first, and the user may pick another (`setLead`) or delete it. First in the roster, never hidden or pinned. */
+  /** The computer's lead bot: the host makes the first, and the user may pick another (`setLead`) or delete it. Placed in the roster like any bot, never hidden. */
   lead: boolean
   /** Where the user dragged it, lowest first within its band (`rosterBand`); ties sort by recent activity. */
   position: number

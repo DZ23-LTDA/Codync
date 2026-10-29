@@ -10,7 +10,7 @@ use super::buffer::{centered, frame_box, put, u};
 use super::overlay::field_line;
 use super::style::theme;
 
-const HELP: [(&str, &str, &str); 73] = [
+const HELP: [(&str, &str, &str); 72] = [
     ("MOVE", "j k  ↑ ↓", "next / previous bot"),
     ("MOVE", "[ ]", "previous / next bot"),
     ("MOVE", "1…9", "jump to bot 1–9"),
@@ -62,7 +62,6 @@ const HELP: [(&str, &str, &str); 73] = [
     ("BOTS", "w", "move to section"),
     ("BOTS", "W", "rename / remove section"),
     ("BOTS", "z", "fold / unfold section"),
-    ("BOTS", "S", "new session"),
     ("BOTS", "M", "memory"),
     ("BOTS", "R", "details: routines, computer"),
     ("BOTS", "B", "details: switch back to the bot's own agent"),

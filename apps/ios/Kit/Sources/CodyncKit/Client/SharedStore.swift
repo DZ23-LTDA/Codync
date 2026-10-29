@@ -32,7 +32,7 @@ public enum SharedStore {
             self.suite = suite
         }
 
-        private static let names = ["computers", "bots", "usage", "lastComputerId", "composerDrafts", "computerOrder"]
+        private static let names = ["computers", "bots", "usage", "lastComputerId", "composerDrafts", "computerOrder", "shortcutLeadComputer"]
         private func key(_ name: String) -> String { accountID == nil ? name : "account.\(id).\(name)" }
         public static func digest(_ value: String) -> String {
             SHA256.hash(data: Data(value.utf8)).map { String(format: "%02x", $0) }.joined()
@@ -67,6 +67,12 @@ public enum SharedStore {
         public var composerDrafts: [ComputerID: [String: String]] {
             get { read([ComputerID: [String: String]].self, "composerDrafts") ?? [:] }
             nonmutating set { write(newValue, "composerDrafts") }
+        }
+
+        /// The computer whose lead a shortcut that names no bot calls (Settings); nil: the first computer with one.
+        public var shortcutLeadComputer: ComputerID? {
+            get { defaults.string(forKey: key("shortcutLeadComputer")) }
+            nonmutating set { defaults.set(newValue, forKey: key("shortcutLeadComputer")) }
         }
 
         /// The most recently active computer; the Usage widget shows only this one.

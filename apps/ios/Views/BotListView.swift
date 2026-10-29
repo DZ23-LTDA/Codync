@@ -16,8 +16,6 @@ struct BotListView: View {
     @State private var confirmDelete: RosterItem?
     /// What the section name dialog names while it's open.
     @State private var naming: SectionNaming?
-    /// A bot whose agent starts over with a fresh context, once confirmed.
-    @State private var confirmNewSession: RosterItem?
     /// The row that's lifted (a `RosterLine` id): a bot to drag or for its menu, or a computer's heading.
     @State private var lifted: String?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -155,7 +153,7 @@ struct BotListView: View {
             .listRowBackground(Color.clear)
         }
         .reviewInvitation(blocked: creating != nil || editing != nil || editingGroup != nil
-                          || confirmDelete != nil || confirmNewSession != nil || lifted != nil)
+                          || confirmDelete != nil || lifted != nil)
         .listStyle(.plain)
         .scrollContentBackground(.hidden)
         .environment(\.defaultMinListRowHeight, 0)
@@ -233,14 +231,6 @@ struct BotListView: View {
             }]
         }
         .sectionNameDialog($naming)
-        .codyncDialog("Start a new session?",
-                      isPresented: Binding(get: { confirmNewSession != nil }, set: { if !$0 { confirmNewSession = nil } }),
-                      message: "The conversation stays here, but the agent starts with a fresh context.") {
-            let item = confirmNewSession
-            return [DialogAction("New session") {
-                if let item { accounts.store(for: item.ref.computerId)?.newSession(item.bot.id) }
-            }]
-        }
     }
 
     /// A row the system's reordering dropped. A heading moves its computer and its bots (an order
@@ -330,16 +320,10 @@ struct BotListView: View {
             Button(L10n.tr("Move up")) { withAnimation(Motion.reduced(Motion.layout, reduceMotion)) { store.move(bot.id, by: -1) } }
             Button(L10n.tr("Move down")) { withAnimation(Motion.reduced(Motion.layout, reduceMotion)) { store.move(bot.id, by: 1) } }
         }
-        // The lead stays on top.
-        .moveDisabled(bot.lead)
         .contextActions {
-            // The lead is always on top and in sight: no pin, section or hide.
-            var items = bot.lead ? [] : [MenuItem(bot.pinned ? "Unpin" : "Pin", icon: bot.pinned ? "pin.slash" : "pin") { store.setPinned(bot, !bot.pinned) }]
+            var items = [MenuItem(bot.pinned ? "Unpin" : "Pin", icon: bot.pinned ? "pin.slash" : "pin") { store.setPinned(bot, !bot.pinned) }]
             // Below Pin, like the desktop; an older computer has no sections.
-            if !bot.lead && store.supportsSections { items.append(sectionMenu(bot, store: store)) }
-            if !bot.isGroup {
-                items.append(MenuItem("New session", icon: "arrow.counterclockwise") { confirmNewSession = item })
-            }
+            if store.supportsSections { items.append(sectionMenu(bot, store: store)) }
             items += [
                 bot.isGroup
                     ? MenuItem("Edit group", icon: "person.2") { editingGroup = GroupTarget(computerId: item.ref.computerId, group: bot) }
@@ -349,12 +333,13 @@ struct BotListView: View {
             if !bot.lead && !bot.isGroup && store.supportsLeadChoice {
                 items.append(MenuItem("Make lead agent", icon: "star") { store.setLead(bot) })
             }
+            // The lead stays in sight.
             if !bot.lead {
                 items.append(MenuItem("Hide from list", icon: "eye.slash") { store.setHidden(bot, true) })
             }
             // An older computer keeps its lead.
             if !bot.lead || store.supportsLeadChoice {
-                items.append(MenuItem("Delete", icon: "trash", destructive: true, divider: true) { confirmDelete = item })
+                items.append(MenuItem("Delete", icon: "trash", destructive: true) { confirmDelete = item })
             }
             return items
         }
