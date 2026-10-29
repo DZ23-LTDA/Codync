@@ -5,13 +5,16 @@ use std::cmp::Reverse;
 use std::collections::HashSet;
 
 use icu_normalizer::DecomposingNormalizerBorrowed;
+use serde_json::json;
 
 use super::super::l10n::tr;
 use super::super::manage::{Submit, section_fields};
-use super::{App, Bot, Click, Overlay};
+use super::{After, App, Bot, Click, Overlay};
 
 /// The first host with roster sections (`section`, `renameSection`).
 const SECTIONS_SINCE: &str = "2.32.0";
+/// The first host where the user picks the lead (`setLead`) and may delete it.
+const LEAD_CHOICE_SINCE: &str = "2.33.0";
 
 /// One line of the roster.
 pub enum RosterLine<'a> {
@@ -209,6 +212,16 @@ impl App {
         }
     }
 
+    /// `*`: makes the selected bot the lead, in place of the one before. A group can't lead.
+    pub(super) fn make_lead(&mut self) {
+        if !self.bot().is_some_and(|b| !b.lead && !b.group) || !self.lead_choice_supported() {
+            return;
+        }
+        if let Some(b) = self.bot() {
+            self.call("setLead", json!({"botId": b.id}), After::Nothing);
+        }
+    }
+
     /// `w`: "Move to section" for the selected bot: one of the sections, a new name, or empty for none.
     /// The lead stays on top, outside sections.
     pub(super) fn ask_section(&mut self) {
@@ -247,15 +260,23 @@ impl App {
 
     /// Whether the host has sections; says what to update when it doesn't.
     fn sections_supported(&mut self) -> bool {
+        self.host_supports(SECTIONS_SINCE, "Update Codync on {host}: sections need {version} or newer.")
+    }
+
+    /// Whether the user may pick the lead and delete it; says what to update when the host is older.
+    pub(super) fn lead_choice_supported(&mut self) -> bool {
+        self.host_supports(LEAD_CHOICE_SINCE, "Update Codync on {host}: changing the lead needs {version} or newer.")
+    }
+
+    /// Whether the host is `since` or newer; says what to update when it isn't (`why`, with `{host}` and `{version}`).
+    fn host_supports(&mut self, since: &str, why: &str) -> bool {
         if self.host_version.is_empty() {
             self.flash("Still connecting: try again in a moment.");
             return false;
         }
-        let supported = crate::compat::at_least(&self.host_version, SECTIONS_SINCE);
+        let supported = crate::compat::at_least(&self.host_version, since);
         if !supported {
-            let why = tr("Update Codync on {host}: sections need {version} or newer.")
-                .replace("{host}", &self.host)
-                .replace("{version}", SECTIONS_SINCE);
+            let why = tr(why).replace("{host}", &self.host).replace("{version}", since);
             self.flash(&why);
         }
         supported

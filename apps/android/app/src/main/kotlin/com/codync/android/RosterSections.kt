@@ -65,6 +65,13 @@ private const val SECTIONS_HOST = "2.32.0"
 internal val AppState.supportsSections: Boolean
     get() = hello?.text("version")?.let { !AppVersion.isBelow(it, SECTIONS_HOST) } == true
 
+/** The first host version where the user picks the lead (`setLead`) and may delete it. */
+private const val LEAD_CHOICE_HOST = "2.33.0"
+
+/** An older host refuses both, so "Make lead agent" and the lead's Delete wait for its `hello`. */
+internal val AppState.supportsLeadChoice: Boolean
+    get() = hello?.text("version")?.let { !AppVersion.isBelow(it, LEAD_CHOICE_HOST) } == true
+
 /** `updateBot`'s section patch: null goes as JSON null, which clears it (a missing key keeps it). */
 internal fun sectionUpdate(id: String, section: String?): JsonObject = buildJsonObject { put("id", id); put("section", section) }
 

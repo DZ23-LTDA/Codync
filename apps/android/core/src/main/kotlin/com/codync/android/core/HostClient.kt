@@ -51,7 +51,7 @@ data class Bot(
     val activity: String = "",
     val backend: String = "",
     val pinned: Boolean = false,
-    /** The computer's lead bot, which the host makes: first in the roster, never deleted, hidden or pinned. */
+    /** The computer's lead bot: the host makes the first, and the user may pick another (`setLead`) or delete it. First in the roster, never hidden or pinned. */
     val lead: Boolean = false,
     /** The roster section the user put it in; null for none (or a host without sections). Kept while pinned or hidden. */
     val section: String? = null,

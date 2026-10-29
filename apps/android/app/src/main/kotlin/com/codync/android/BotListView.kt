@@ -202,7 +202,7 @@ private fun Bot.movesWith(other: Bot) = band == other.band && (staysOnTop || sec
 
 @Composable private fun BotRowItem(bot: Bot, state: AppState, store: AppStore, drag: ContextDrag, sections: List<String>, edit: () -> Unit,
     newSession: () -> Unit, delete: () -> Unit, newSection: () -> Unit) {
-    // The lead stays on top and in the list: no drag, pin, section, hide or delete.
+    // The lead stays on top and in the list: no drag, pin, section or hide.
     Box(Modifier.fillMaxWidth().contextActions(onClick = { store.openBot(bot.id) }, reorder = drag.takeUnless { bot.lead }, preview = {
         Box(Modifier.padding(horizontal = 8.dp)) { BotRow(bot, state) }
     }) {
@@ -218,10 +218,14 @@ private fun Bot.movesWith(other: Bot) = band == other.band && (staysOnTop || sec
             },
             // A group has no agent session of its own.
             MenuItem("New session", icon = "arrow.counterclockwise", action = newSession).takeIf { bot.kind != "group" },
+            MenuItem("Make lead agent", icon = "star") {
+                store.command("setLead", buildJsonObject { put("botId", bot.id) }, "roster:" + bot.id)
+            }.takeIf { !bot.lead && bot.kind != "group" && state.supportsLeadChoice },
             MenuItem("Hide from list", icon = "eye.slash") {
                 store.command("updateBot", buildJsonObject { put("id", bot.id); put("hidden", true) }, "roster:" + bot.id)
             }.takeUnless { bot.lead },
-            MenuItem("Delete", icon = "trash", destructive = true, divider = true, action = delete).takeUnless { bot.lead },
+            // An older computer keeps its lead.
+            MenuItem("Delete", icon = "trash", destructive = true, divider = true, action = delete).takeIf { !bot.lead || state.supportsLeadChoice },
         )
     }.semantics {
         contentDescription = bot.name

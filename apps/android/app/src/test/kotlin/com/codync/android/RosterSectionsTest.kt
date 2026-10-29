@@ -142,4 +142,11 @@ class RosterSectionsTest {
         assertTrue(host("2.32.1-dev").supportsSections)
         assertFalse(host(null).supportsSections)
     }
+
+    @Test fun leadChoiceWaitsForAHostThatLetsTheLeadChange() {
+        fun host(version: String?) = AppState(hello = version?.let { buildJsonObject { put("version", it) } })
+        assertFalse(host("2.32.9").supportsLeadChoice)
+        assertTrue(host("2.33.0").supportsLeadChoice)
+        assertFalse(host(null).supportsLeadChoice)
+    }
 }

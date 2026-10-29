@@ -109,6 +109,11 @@ pub(super) async fn call(hub: &Arc<Hub>, caller: &Caller, method: &str, b: Value
             hub.delete_bot(str_arg(&b, "botId")?)?;
             json!({})
         }
+        // The user makes this bot the lead, in place of the one before.
+        "setLead" => {
+            crate::chat::lead::set(hub, str_arg(&b, "botId")?)?;
+            json!({})
+        }
         "markRead" => {
             hub.mark_read(str_arg(&b, "botId")?)?;
             json!({})

@@ -39,7 +39,7 @@ pub struct Bot {
     /// Why the agent refused it.
     pub fast_issue: Option<String>,
     pub pinned: bool,
-    /// The computer's lead bot (`chat::lead`): first in the roster, never deleted or hidden.
+    /// The computer's lead bot (`chat::lead`): first in the roster, outside sections; `*` makes another bot the lead.
     pub lead: bool,
     /// Where the user dragged it (see `App::roster`).
     pub position: i64,

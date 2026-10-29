@@ -333,7 +333,7 @@ struct BotListView: View {
         // The lead stays on top.
         .moveDisabled(bot.lead)
         .contextActions {
-            // The lead is always on top and always there: no pin, section, hide or delete.
+            // The lead is always on top and in sight: no pin, section or hide.
             var items = bot.lead ? [] : [MenuItem(bot.pinned ? "Unpin" : "Pin", icon: bot.pinned ? "pin.slash" : "pin") { store.setPinned(bot, !bot.pinned) }]
             // Below Pin, like the desktop; an older computer has no sections.
             if !bot.lead && store.supportsSections { items.append(sectionMenu(bot, store: store)) }
@@ -346,11 +346,15 @@ struct BotListView: View {
                     : MenuItem("Edit profile", icon: "pencil") { editing = EditTarget(computerId: item.ref.computerId, draft: BotDraft(bot)) },
                 MenuItem("Mark as read", icon: "checkmark.message") { store.markAllRead(bot.id) },
             ]
+            if !bot.lead && !bot.isGroup && store.supportsLeadChoice {
+                items.append(MenuItem("Make lead agent", icon: "star") { store.setLead(bot) })
+            }
             if !bot.lead {
-                items += [
-                    MenuItem("Hide from list", icon: "eye.slash") { store.setHidden(bot, true) },
-                    MenuItem("Delete", icon: "trash", destructive: true, divider: true) { confirmDelete = item },
-                ]
+                items.append(MenuItem("Hide from list", icon: "eye.slash") { store.setHidden(bot, true) })
+            }
+            // An older computer keeps its lead.
+            if !bot.lead || store.supportsLeadChoice {
+                items.append(MenuItem("Delete", icon: "trash", destructive: true, divider: true) { confirmDelete = item })
             }
             return items
         }

@@ -316,6 +316,17 @@ export class BotStore extends BotSync {
     this.patchBot(bot, { harnessMemory })
   }
 
+  /** Makes `bot` the lead, in place of the one before; a refusal gives the star back. */
+  setLead(bot: Bot) {
+    const before = [...this.bots.values()].find((b) => b.lead)?.id
+    const show = (lead: string | undefined) => {
+      for (const [id, b] of this.bots) this.bots.set(id, { ...b, lead: id === lead })
+      this.changed()
+    }
+    show(bot.id)
+    this.perform((c) => c.call('setLead', { botId: bot.id }), true, () => show(before))
+  }
+
   setHidden(bot: Bot, hidden: boolean) {
     this.patchBot(bot, { hidden })
   }

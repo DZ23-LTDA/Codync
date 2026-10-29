@@ -35,7 +35,7 @@ its own context and compacts it itself.
   never sent one, so does its `usage_update.used` falling below half of a previous value of at least 20k. The
   next turn re-renders the snapshot, and Claude's session is loaded again with the new system prompt. The adapter
   rebuilds its query and resumes the same conversation.
-- **Profile edits mid-session** (name, description, skills) are sent once as an `<agent_profile_update>` block
+- **Profile edits mid-session** (name, description, skills, the lead role) are sent once as an `<agent_profile_update>` block
   appended to the next message. After that turn reaches the agent, the change is recorded in
   `snapshot.announced`. The next compaction folds it into the snapshot.
 

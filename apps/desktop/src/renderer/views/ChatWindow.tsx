@@ -38,6 +38,7 @@ import { StarPrompt } from './StarPrompt'
 import { OpenVoiceSettings } from './call/CallView'
 import { AccountPanelLayer, DesktopActionMenu, ProfileAvatar, type ActionItem } from './PanelMenus'
 import { moveToSectionItems, sectionHeaderItems, type SectionNaming } from './section-menus'
+import { makeLeadItems, offersDelete, voiceTarget } from './lead-menus'
 import { SectionNameDialog } from './SectionNameDialog'
 import { useTraySummary } from './tray-summary'
 import { useIslandSummary } from './island-summary'
@@ -251,8 +252,7 @@ function ChatSplitView() {
         if (c.kind === 'networkSettings') setSettings('network')
         if (c.kind === 'toggleSidebar') setCompact(!prefs.sidebarCompact.get())
         if (c.kind === 'voiceKey') {
-          // No chat open: talk to the top bot in the sidebar.
-          if (c.key === 'double' && !app.selection) app.select((roster.navigable[0] ?? roster.items[0])?.ref ?? null)
+          if (c.key === 'double' && !app.selection) app.select(voiceTarget(roster)?.ref ?? null)
           queueVoiceKey(c.key)
         }
       }),
@@ -289,7 +289,7 @@ function ChatSplitView() {
 
   const openMarketplace = () => setMarketplace((selectedStore ?? app.local ?? onlineStores[0])?.computer.id ?? null)
 
-  // The lead stays on top and can't go: no pin, section, hide or delete.
+  // The lead stays on top and in sight: no pin, section or hide.
   const botActions = (bot: Bot, store: BotStore): ActionItem[] => [
     ...(bot.lead ? [] : [{ title: bot.pinned ? 'Unpin' : 'Pin', icon: 'pin', action: () => store.setPinned(bot, !bot.pinned) }]),
     ...moveToSectionItems(bot, store, setNaming),
@@ -297,10 +297,9 @@ function ChatSplitView() {
     { title: 'Edit Profile…', icon: 'square.and.pencil', divider: true, action: () => setEditing({ id: crypto.randomUUID(), draft: draftOf(bot), store }) },
     { title: 'Copy conversation ID', icon: 'square.on.square', divider: true, action: () => window.codync.app.copy(bot.id) },
     { title: 'New session', icon: 'arrow.counterclockwise', action: () => setNewSessionBot({ bot, store }) },
-    ...(bot.lead ? [] : [
-      { title: 'Hide from sidebar', icon: 'eye.slash', divider: true, action: () => store.setHidden(bot, true) },
-      { title: 'Delete', icon: 'trash', destructive: true, action: () => setConfirmDelete({ bot, store }) },
-    ]),
+    ...makeLeadItems(bot, store),
+    ...(bot.lead ? [] : [{ title: 'Hide from sidebar', icon: 'eye.slash', divider: true, action: () => store.setHidden(bot, true) }]),
+    ...(offersDelete(bot, store) ? [{ title: 'Delete', icon: 'trash', destructive: true, divider: bot.lead, action: () => setConfirmDelete({ bot, store }) }] : []),
   ]
 
   // ↑/↓ in the roster move the selection; Alt+↑/↓ moves the selected bot itself.

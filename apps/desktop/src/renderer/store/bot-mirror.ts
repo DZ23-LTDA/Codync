@@ -18,6 +18,9 @@ import { hostHasSections } from '../lib/roster-sections'
 import { ComposerDrafts } from '@shared/composer-drafts'
 import { canLoadHistory } from '@shared/mirror-window'
 
+/** The first host where the user picks the lead and may delete it. */
+const LEAD_CHOICE_HOST = '2.33.0'
+
 export type Connection =
   | { kind: 'unpaired' }
   | { kind: 'connecting' }
@@ -115,6 +118,11 @@ export class BotMirror extends Observable {
   /** The host keeps roster sections (an older one leaves them out): the menus offer them only then. */
   get hasRosterSections() {
     return this.hostVersion !== null && hostHasSections(this.hostVersion.version)
+  }
+
+  /** The user picks the lead (`setLead`) and may delete it: an older host refuses both. */
+  get hasLeadChoice() {
+    return this.hostVersion !== null && !isBelow(this.hostVersion.version, LEAD_CHOICE_HOST)
   }
 
   /** What the update notice offers while this computer is behind this app. */

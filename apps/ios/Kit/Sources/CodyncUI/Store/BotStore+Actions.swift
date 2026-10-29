@@ -181,6 +181,14 @@ extension BotStore {
         perform(replay: true) { _ = try await $0.updateBot(d) }
     }
 
+    /// Makes `bot` the lead, in place of the one before; a refusal gives the star back.
+    public func setLead(_ bot: Bot) {
+        let before = bots.values.first(where: \.lead)?.id
+        let show = { (lead: String?) in for id in self.bots.keys { self.bots[id]?.lead = id == lead } }
+        show(bot.id)
+        Task { await attempt(replay: true, undo: { show(before) }) { try await $0.setLead(bot.id) } }
+    }
+
     public func setHidden(_ bot: Bot, _ hidden: Bool) {
         var d = BotDraft(bot)
         d.hidden = hidden

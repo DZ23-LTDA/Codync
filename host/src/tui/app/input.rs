@@ -342,10 +342,11 @@ impl App {
                     self.overlays.push(Overlay::Confirm(c));
                 }
             }
+            KeyCode::Char('*') => self.make_lead(),
             KeyCode::Char('x') => {
-                if self.bot().is_some_and(|b| b.lead) {
-                    self.flash("The lead bot can't be deleted");
-                } else if let Some(b) = self.bot() {
+                // An older host keeps its lead.
+                let kept = self.bot().is_some_and(|b| b.lead) && !self.lead_choice_supported();
+                if let Some(b) = self.bot().filter(|_| !kept) {
                     let (detail, note) = if b.group {
                         ("Its conversation goes away.".into(), "Its bots stay.".into())
                     } else {

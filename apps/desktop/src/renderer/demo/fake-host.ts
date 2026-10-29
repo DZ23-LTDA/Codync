@@ -232,6 +232,11 @@ export class FakeHost {
         for (const bot of this.bots.values()) if (bot.section === str('from')) this.emitBot(Object.assign(bot, { section: to }))
         return {}
       }
+      case 'setLead': {
+        const lead = str('botId')
+        for (const bot of this.bots.values()) if (bot.lead !== (bot.id === lead)) this.emitBot(Object.assign(bot, { lead: bot.id === lead }))
+        return {}
+      }
       case 'deleteBot': {
         const id = str('botId')
         this.bots.delete(id)

@@ -33,8 +33,8 @@ public struct Bot: Codable, Identifiable, Hashable, Sendable {
     /// The bot may set its own fallbacks. Nil from an older host.
     public var selfFallbacks: Bool?
     public var pinned: Bool
-    /// The computer's lead bot, which the host makes: first in the list, never deleted or hidden, and the one a
-    /// call or shortcut that names no bot talks to.
+    /// The computer's lead bot: the host makes the first, and the user may pick another (`setLead`) or delete it.
+    /// First in the list, never hidden, and the one a call or shortcut that names no bot talks to.
     public var lead: Bool = false
     /// Where the user dragged it, lowest first within its `band`; ties sort by recent activity.
     public var position: Int = 0
