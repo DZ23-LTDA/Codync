@@ -199,6 +199,12 @@ public extension HostClient {
         return res.bot
     }
 
+    /// Puts the bot in `section`, or takes it out of its own (nil, sent as null); nothing else changes.
+    func setSection(_ botId: String, to section: String?) async throws {
+        let body: [String: String?] = ["id": botId, "section": section]
+        let _: Empty = try await call("updateBot", body)
+    }
+
     func deleteBot(_ id: String) async throws {
         let _: Empty = try await call("deleteBot", ["botId": id])
     }
@@ -206,6 +212,13 @@ public extension HostClient {
     /// The roster as the user dragged it, top first.
     func reorderBots(_ ids: [String]) async throws {
         let _: Empty = try await call("reorderBots", ["ids": ids])
+    }
+
+    /// Moves every bot of the computer in section `from` to `to` (a name already in use merges the
+    /// two); nil removes the section, its bots staying without one.
+    func renameSection(from: String, to: String?) async throws {
+        let body: [String: String?] = ["from": from, "to": to]
+        let _: Empty = try await call("renameSection", body)
     }
 
     /// The chat read; a no-op when nothing there is unread.
@@ -354,11 +367,11 @@ public extension HostClient {
 
     func screenPrepare() async throws -> ScreenConnection {
         let relay = if let channel = transport as? ChannelTransport { try await channel.screenRelayRequired() } else { false }
-        return try await call("screenPrepare", ["relay": relay])
+        return try await call("screenPrepare", ["relay": relay, "trickle": true])
     }
 
-    /// Sends a WebRTC offer (with all its ICE candidates); returns the session id and the answer.
-    /// Passing `session` restarts ICE on an existing session.
+    /// Sends the offer using the prepared session’s negotiated ICE mode.
+    /// Trickle negotiations use a fresh session for every connection attempt.
     func screenOffer(sdp: String, session: String?, display: UInt32?) async throws -> ScreenAnswer {
         struct Body: Encodable { var sdp: String; var session: String?; var display: UInt32? }
         return try await call("screenOffer", Body(sdp: sdp, session: session, display: display), timeout: 30)
