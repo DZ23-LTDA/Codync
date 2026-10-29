@@ -76,6 +76,12 @@ current pairing in Computer management before pairing another. Multiple-computer
 support is tracked in the checklist. Accounts have separate device keys, mirrors,
 files, image caches and composer drafts.
 
+Remote screen negotiates incremental ICE with hosts and helpers that advertise
+support. It exchanges offers and answers while candidates are still gathering,
+buffers candidates until the answer is installed, and keeps established media
+running through a brief signaling disconnect. Older hosts and helpers continue
+using complete SDP.
+
 The roster shows activity, previews, unread counts, groups, pin/hide actions and sections
 (Move to section in a bot's menu; tap a section's header to fold it on this phone, touch and hold it to rename or remove it; bots in none sit under a "Bots" label);
 touch and hold a bot, then move it, to reorder within its section (the order syncs through the host). Cached bots remain readable offline and are labeled as saved. An
