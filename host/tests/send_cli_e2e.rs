@@ -282,3 +282,14 @@ async fn an_approval_from_before_the_send_is_reported_and_pauses_the_clock() {
         1
     );
 }
+
+#[tokio::test]
+async fn an_approval_card_older_than_the_catch_up_still_pauses_the_clock() {
+    let host = Host::start().await;
+    let mock = MockHost::start(Mode::ApprovalOutsideCatchUp, &host.token).await;
+    let output =
+        host.run(&["--port", &mock.port, "--bot", "Transport", "--wait", "--json", "--timeout", "2", "test"]).await;
+    let result = json_output(&output, 0);
+    assert_eq!(result["status"], "completed");
+    assert!(result["waitedForApprovalSeconds"].as_f64().unwrap() >= 2.5);
+}

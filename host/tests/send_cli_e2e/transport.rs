@@ -21,6 +21,8 @@ pub enum Mode {
     Rejected,
     Resync,
     PriorApproval,
+    /// Waiting for an approval whose card is older than the catch-up.
+    ApprovalOutsideCatchUp,
 }
 
 #[derive(Clone)]
@@ -84,6 +86,8 @@ async fn events_stream(State(state): State<Shared>) -> Sse<impl Stream<Item = Re
     // `rev` is ahead of the catch-up, as after a write no event carries (a memory file, say).
     let head = if state.mode == Mode::PriorApproval {
         vec![json!({"type":"hello","rev":9,"catchUp":2}), bot("needsInput", 1), permission("pending", 2)]
+    } else if state.mode == Mode::ApprovalOutsideCatchUp {
+        vec![json!({"type":"hello","rev":9,"catchUp":1}), bot("needsInput", 1)]
     } else {
         vec![json!({"type":"hello","rev":9,"catchUp":1}), bot("idle", 1)]
     };
@@ -109,10 +113,12 @@ async fn send(State(state): State<Shared>, Json(body): Json<Value>) -> Response 
     if state.mode == Mode::Resync {
         let _ = state.events.send(json!({"type":"resync"}));
     }
-    if matches!(state.mode, Mode::EarlyFinal | Mode::PriorApproval) {
+    if matches!(state.mode, Mode::EarlyFinal | Mode::PriorApproval | Mode::ApprovalOutsideCatchUp) {
         tokio::spawn(async move {
-            if state.mode == Mode::PriorApproval {
+            if matches!(state.mode, Mode::PriorApproval | Mode::ApprovalOutsideCatchUp) {
                 tokio::time::sleep(Duration::from_secs(3)).await;
+            }
+            if state.mode == Mode::PriorApproval {
                 let _ = state.events.send(permission("approved", 3));
             }
             let _ = state.events.send(json!({"type":"entry","rev":3,"entry":entry("queued", 3)}));

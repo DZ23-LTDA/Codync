@@ -254,8 +254,9 @@ impl State {
 
     fn update_pause(&mut self) {
         let Some(t) = self.tracking.as_mut() else { return };
-        let pending = self.bots.get(&t.bot).is_some_and(|b| b["status"] == "needsInput")
-            && self.permissions.values().any(|p| p["botId"] == t.bot && p["data"]["status"] == "pending");
+        // The host sets `needsInput` only while an approval card waits, and that card can be older than the
+        // catch-up's newest 200 entries: the status alone says the bot is waiting for the user.
+        let pending = self.bots.get(&t.bot).is_some_and(|b| b["status"] == "needsInput");
         if pending {
             t.pause_started.get_or_insert_with(Instant::now);
         } else if let Some(start) = t.pause_started.take() {
