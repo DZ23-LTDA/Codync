@@ -70,6 +70,7 @@ keyring = { version = "3.6.3", features = ["apple-native"] }
 
 [target.'cfg(target_os = "linux")'.dependencies]
 keyring = { version = "3.6.3", features = ["sync-secret-service", "crypto-rust", "vendored"] }
+dbus-secret-service = { version = "4.1.0", features = ["vendored"] }
 
 [target.'cfg(windows)'.dependencies]
 keyring = { version = "3.6.3", features = ["windows-native"] }

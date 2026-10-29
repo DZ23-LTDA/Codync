@@ -722,6 +722,7 @@ dependencies = [
  "codync-network",
  "croner",
  "crossterm",
+ "dbus-secret-service",
  "dirs",
  "ed25519-dalek",
  "flate2",

@@ -158,7 +158,12 @@ impl Store {
         } else {
             None
         };
-        Ok(Self { db: Mutex::new(c), connector_lock: Mutex::new(()), secret_key: Mutex::new(secret_key) })
+        Ok(Self {
+            db: Mutex::new(c),
+            connector_lock: Mutex::new(()),
+            secret_key: Mutex::new(secret_key),
+            vault_unlock: std::sync::Arc::default(),
+        })
     }
 }
 
