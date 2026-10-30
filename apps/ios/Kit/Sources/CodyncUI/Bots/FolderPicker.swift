@@ -8,6 +8,8 @@ struct FolderPicker: View {
     /// The folders opened so far; the last one is shown.
     @State private var stack: [String?]
     @State private var forward = true
+    /// Where the first folder sits, so Back can climb above the starting folder ("" lists the drives).
+    @State private var parent: String?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     init(start: String?, onPick: @escaping (String) -> Void) {
@@ -20,20 +22,22 @@ struct FolderPicker: View {
         let current = stack.last ?? nil
         VStack(spacing: 0) {
             HStack(spacing: 0) {
-                if stack.count > 1 {
-                    BackButton { go(forward: false) { stack.removeLast() } }
+                if stack.count > 1 || parent != nil {
+                    BackButton { go(forward: false) { stack = stack.count > 1 ? Array(stack.dropLast()) : [parent] } }
                         .padding(.leading, 12)
                         .transition(.opacity)
                 }
-                ModalHeader(current.map { ($0 as NSString).lastPathComponent } ?? "Folders")
+                ModalHeader(current.flatMap(folderName) ?? "Folders")
             }
             ZStack {
-                FolderLevel(path: current, onPick: onPick) { path in go(forward: true) { stack.append(path) } }
-                    .id(stack.count)
-                    .transition(.asymmetric(
-                        insertion: .move(edge: forward ? .trailing : .leading),
-                        removal: .move(edge: forward ? .leading : .trailing)
-                    ).combined(with: .opacity))
+                FolderLevel(path: current, onPick: onPick, onParent: stack.count > 1 ? nil : { parent = $0 }) { path in
+                    go(forward: true) { stack.append(path) }
+                }
+                .id("\(stack.count):\(current ?? "")")
+                .transition(.asymmetric(
+                    insertion: .move(edge: forward ? .trailing : .leading),
+                    removal: .move(edge: forward ? .leading : .trailing)
+                ).combined(with: .opacity))
             }
             .frame(maxHeight: .infinity, alignment: .top)
             .clipped()
@@ -54,6 +58,8 @@ struct FolderPicker: View {
 private struct FolderLevel: View {
     let path: String?
     let onPick: (String) -> Void
+    /// Hears where this folder sits; only the first level reports it.
+    let onParent: ((String?) -> Void)?
     let open: (String) -> Void
     @Environment(BotStore.self) private var model
     @State private var listing: DirListing?
@@ -65,17 +71,20 @@ private struct FolderLevel: View {
             LazyVStack(alignment: .leading, spacing: 22) {
                 SearchField(text: $filter)
                 if let listing {
-                    CardSection(footer: listing.path) {
-                        Button {
-                            onPick(listing.path)
-                        } label: {
-                            Label("Use “\((listing.path as NSString).lastPathComponent)”", systemImage: "checkmark.circle.fill")
-                                .font(.headline)
-                                .foregroundStyle(Palette.accent)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .contentShape(Rectangle())
+                    // The drive list (Windows) has no folder of its own to use.
+                    if !listing.path.isEmpty {
+                        CardSection(footer: listing.path) {
+                            Button {
+                                onPick(listing.path)
+                            } label: {
+                                Label("Use “\(folderName(listing.path) ?? listing.path)”", systemImage: "checkmark.circle.fill")
+                                    .font(.headline)
+                                    .foregroundStyle(Palette.accent)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .contentShape(Rectangle())
+                            }
+                            .buttonStyle(PressScale())
                         }
-                        .buttonStyle(PressScale())
                     }
                     let dirs = listing.dirs.filter { filter.isEmpty || $0.name.localizedCaseInsensitiveContains(filter) }
                     if !dirs.isEmpty {
@@ -112,7 +121,16 @@ private struct FolderLevel: View {
         .scrollDismissesKeyboard(.interactively)
         .background(Palette.background)
         .task {
-            do { listing = try await model.listDirs(path) } catch { self.error = error.localizedDescription }
+            do {
+                let listing = try await model.listDirs(path)
+                self.listing = listing
+                onParent?(listing.parent)
+            } catch { self.error = error.localizedDescription }
         }
     }
+}
+
+/// A path's last folder, for `/` and Windows `\` paths alike.
+private func folderName(_ path: String) -> String? {
+    path.split(whereSeparator: { $0 == "/" || $0 == "\\" }).last.map(String.init)
 }

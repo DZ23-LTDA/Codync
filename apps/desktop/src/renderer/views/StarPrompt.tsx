@@ -7,9 +7,9 @@ import { HStack, VStack } from '../components/Stack'
 import { Text } from '../components/Text'
 import { useModel } from '../lib/observable'
 import { prefs, usePref } from '../lib/prefs'
-import { afterStarAsk, dueStarAsk } from '../lib/star-ask'
+import { dueStarAsk } from '../lib/star-ask'
+import { useStarAsk } from '../lib/use-star-ask'
 import { useApp } from '../store/context'
-import { analytics } from '../store/analytics'
 import { useTr } from '../lib/use-language'
 
 
@@ -28,7 +28,8 @@ const copy = {
 }
 
 /**
- * Asks for a GitHub star twice at most: once after setup, and once more a week later.
+ * Reminds once a week after the setup invitation; also covers older installations
+ * that have not seen the setup invitation.
  * Starring ends it.
  */
 export function StarPrompt() {
@@ -36,7 +37,7 @@ export function StarPrompt() {
   const app = useApp()
   const local = useModel(app.local)
   const [onboarded] = usePref(prefs.onboardingDone)
-  const [state, setState] = usePref(prefs.starAsk)
+  const { state, answer } = useStarAsk()
   const [closed, setClosed] = useState(false)
   const due = dueStarAsk(state, Date.now())
   const open = due !== null && onboarded && !closed && local?.connection.kind === 'online'
@@ -44,10 +45,7 @@ export function StarPrompt() {
   const finish = (starred: boolean) => {
     if (closed || !due) return
     setClosed(true)
-    setState(afterStarAsk(state, starred, Date.now()))
-    // Covers the GitHub link too: it opens only on a star.
-    analytics.track({ event: 'star_prompt_answered', ask: due, starred })
-    if (starred) window.codync.app.openExternal(REPO)
+    answer(starred)
   }
 
   const text = copy[due ?? 'first']

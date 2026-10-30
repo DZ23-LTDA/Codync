@@ -49,7 +49,7 @@ Changing the agent or the model starts a new agent session. The chat history sta
 The **Workspace** setting is the folder the bot starts in.
 
 - **Personal workspace** (the default): a folder of its own inside Codync's data folder, `~/.codync/bots/`. It stays when you rename the bot, change its model, restart the computer or start a new session.
-- **Choose project folder…**: an existing folder on the computer, such as a Git repository. The folder picker browses the computer's folders, wherever you are.
+- **Choose project folder…**: an existing folder on the computer, such as a Git repository. The folder picker browses the computer's folders, wherever you are. It starts at your home folder; Back climbs to the folders above it and, on Windows, to the list of drives. Linked folders (symlinks, junctions, mounted drives) show up like any other folder.
 
 Either way, the bot can work in other folders when you ask it to. A workspace isn't a sandbox: the bot can reach whatever its agent's own permissions allow. Several bots working in the same project folder can get in each other's way, and Codync doesn't create separate Git worktrees for them.
 

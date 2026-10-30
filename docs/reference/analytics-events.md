@@ -55,7 +55,7 @@ host answers and sends it once the host is up.
 | `phone_connected` | host | A paired phone connects, at most once per phone per UTC day | `platform` |
 | `notifications_answered` | iOS, Android | The system notification prompt was answered | `granted`, `source` (`settings`/`widgets`/`automatic`) |
 | `notification_opened` | iOS, Android | A Codync notification was tapped | `kind` (`done`/`needs_input`/`failed`) |
-| `star_prompt_answered` | host `track` (desktop) | The GitHub star sheet was answered or closed | `ask` (`first`/`second`), `starred` |
+| `star_prompt_answered` | host `track` (desktop) | The GitHub star setup invitation or reminder was answered or closed | `ask` (`first`/`second`), `starred` |
 | `link_opened` | host `track` (desktop), iOS, Android | An outbound link was opened (`install_command`: an install command copied) | `link` (`github`/`docs`/`issues`/`discord`/`app_store`/`demo`/`tailscale`/`privacy`/`support`/`install_command`/`product_hunt`) |
 
 ## Using Codync

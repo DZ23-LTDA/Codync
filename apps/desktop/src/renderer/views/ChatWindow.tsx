@@ -30,6 +30,7 @@ import { ApprovalSheet } from './settings/ApprovalSheet'
 import { SearchPalette } from './SearchPalette'
 import { AccountWelcomeView } from './AccountWelcomeView'
 import { ComputerAccessView } from './computer-access/ComputerAccessView'
+import { AccessOnboarding } from './computer-access/AccessOnboarding'
 import { HostStateView } from './HostStateView'
 import { StartupRecovery } from './StartupRecovery'
 export { EmptyState } from './HostStateView'
@@ -122,7 +123,7 @@ export function ChatWindow() {
       <RefreshIndicator />
       {onboarded ? (
         accessSetup === null ? (
-          <ComputerAccessView onContinue={(ready) => finishAccess(ready, true)} />
+          <AccessOnboarding onContinue={(ready) => finishAccess(ready, true)} />
         ) : showsChat ? (
           <ChatSplitView />
         ) : (

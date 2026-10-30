@@ -355,17 +355,19 @@ function FolderPicker({ start, onPick }: { start: string | null; onPick: (path: 
   const [stack, setStack] = useState<(string | null)[]>([start])
   const [forward, setForward] = useState(true)
   const current = stack[stack.length - 1] ?? null
+  // Where the first folder sits, so Back can climb above the starting folder ('' lists the drives).
+  const [parent, setParent] = useState<string | null>(null)
   return (
     <SheetPage>
       <HStack>
-        {stack.length > 1 ? (
+        {stack.length > 1 || parent !== null ? (
           <HStack align="stretch" className="fade-in folder-back">
             <IconButton
               title="Back"
               icon="chevron.left"
               onClick={() => {
                 setForward(false)
-                setStack((s) => s.slice(0, -1))
+                setStack((s) => (s.length > 1 ? s.slice(0, -1) : [parent]))
               }}
             />
           </HStack>
@@ -376,10 +378,11 @@ function FolderPicker({ start, onPick }: { start: string | null; onPick: (path: 
       </HStack>
       <div className="folder-levels">
         <FolderLevel
-          key={stack.length}
+          key={`${stack.length}:${current}`}
           path={current}
           forward={forward}
           onPick={onPick}
+          onParent={stack.length > 1 ? undefined : setParent}
           onOpen={(path) => {
             setForward(true)
             setStack((s) => [...s, path])
@@ -391,7 +394,13 @@ function FolderPicker({ start, onPick }: { start: string | null; onPick: (path: 
 }
 
 /** One folder's subfolders. */
-function FolderLevel({ path, forward, onPick, onOpen }: { path: string | null; forward: boolean; onPick: (path: string) => void; onOpen: (path: string) => void }) {
+function FolderLevel({ path, forward, onPick, onOpen, onParent }: {
+  path: string | null
+  forward: boolean
+  onPick: (path: string) => void
+  onOpen: (path: string) => void
+  onParent?: (parent: string | null) => void
+}) {
   const store = useStore()
   const [listing, setListing] = useState<DirListing | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -401,12 +410,16 @@ function FolderLevel({ path, forward, onPick, onOpen }: { path: string | null; f
     let live = true
     store
       .listDirs(path)
-      .then((l) => live && setListing(l))
+      .then((l) => {
+        if (!live) return
+        setListing(l)
+        onParent?.(l.parent ?? null)
+      })
       .catch((e: unknown) => live && setError(errorText(e)))
     return () => {
       live = false
     }
-  }, [store, path])
+  }, [store, path, onParent])
 
   const dirs = listing?.dirs.filter((d) => !filter || d.name.toLowerCase().includes(filter.toLowerCase())) ?? []
 
@@ -416,12 +429,14 @@ function FolderLevel({ path, forward, onPick, onOpen }: { path: string | null; f
         <SearchField value={filter} onChange={setFilter} />
         {listing ? (
           <>
-            <CardSection footer={listing.path}>
-              <button className="press folder-use" onClick={() => onPick(listing.path)}>
-                <Icon name="checkmark.circle.fill" size={13} />
-                <Text truncate>{`Use “${lastPathComponent(listing.path)}”`}</Text>
-              </button>
-            </CardSection>
+            {listing.path ? (
+              <CardSection footer={listing.path}>
+                <button className="press folder-use" onClick={() => onPick(listing.path)}>
+                  <Icon name="checkmark.circle.fill" size={13} />
+                  <Text truncate>{`Use “${lastPathComponent(listing.path)}”`}</Text>
+                </button>
+              </CardSection>
+            ) : null}
             {dirs.length ? (
               <CardSection>
                 {dirs.map((dir) => (
