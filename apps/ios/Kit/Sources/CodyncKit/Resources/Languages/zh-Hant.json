@@ -744,7 +744,6 @@
   "Lock Screen": "鎖定螢幕",
   "Compact": "緊湊",
   "Minimal": "最小",
-  "The Dynamic Island shows the same Live Activity as the Lock Screen, so this switch turns off both.": "靈動島和鎖定螢幕用的是同一個實時活動，所以這個開關會同時關掉兩邊。",
   "Starts when you send a task or call a bot from this iPhone. Follow its progress, then open the conversation when your bot needs you.": "從這臺 iPhone 發出任務或和 Bot 通話時開始。可以看進度，Bot 需要你時再開啟對話。",
   "The bot in its mood, its current step in the state's color, the running time, a thinking orb and its progress. When the bot needs you, Review opens the request.": "顯示 Bot 的狀態、當前步驟（顏色跟著狀態走）、已執行時間、一個思考球和進度。需要你時，點「檢視」開啟請求。",
   "The bot and a thinking orb beside the camera, outlined in the state's color. The orb becomes a check or warning when the task ends.": "攝像頭旁邊是 Bot 和一個思考球，描邊顏色跟著狀態走。任務結束時，球會變成對勾或警告。",
@@ -1409,5 +1408,6 @@
   "this computer isn't in a network": "這臺電腦不在任何網路裡",
   "cloud assistants are off here": "這裡的雲端助理已關閉",
   "Offered to the network: bots on your other computers can see and message this bot.": "提供給網路：你其他電腦上的 Bot 能看到這個 Bot 並傳訊息給它。",
-  "Reachable by cloud assistants: ChatGPT or Claude in your Codync account can see and message this bot.": "雲端助理可聯繫：你 Codync 賬戶裡的 ChatGPT 或 Claude 能看到這個 Bot 並傳訊息給它。"
+  "Reachable by cloud assistants: ChatGPT or Claude in your Codync account can see and message this bot.": "雲端助理可聯繫：你 Codync 賬戶裡的 ChatGPT 或 Claude 能看到這個 Bot 並傳訊息給它。",
+  "Live Activities on the Lock Screen and in the Dynamic Island turn on and off together.": "鎖定畫面的即時動態與動態島會同步開啟或關閉。"
 }

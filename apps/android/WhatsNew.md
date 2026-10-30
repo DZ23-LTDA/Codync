@@ -7,6 +7,14 @@ released version's section; a version without one gets the PRs' "What's New: And
 else a generic "Bug fixes and improvements" line. Delete old sections.
 -->
 
+## 2.33.2
+
+### zh-Hant
+- 電腦的推送通知設定會顯示系統權限狀態；未允許通知時，可直接前往開啟權限。
+
+### en-US
+- Computer push settings show when notification permission is missing and help you enable it.
+
 ## 2.33.1
 
 ### zh-Hant

@@ -126,9 +126,7 @@ private fun CardRows.computerRows(state: AppState, store: AppStore, inAccount: B
         if (state.network?.shown == true) row { RowLabel("Network", NETWORK_ICON, chevron = true, modifier = Modifier.plainButton(action = actions.network)) }
     }
     if (BuildConfig.PUSH_CONFIGURED) row {
-        CodyncSwitch(state.computers.first().notifications, store::notifications, Modifier.fillMaxWidth()) {
-            RowLabel("Push notifications", "bell", modifier = Modifier.weight(1f))
-        }
+        ComputerNotificationsRow(state.computers.first().notifications, store::notifications)
     }
     row { ConnectionRow(state.computers.first(), store) }
     // Kept while an update asked from here restarts the computer: its spinner says it's updating.
