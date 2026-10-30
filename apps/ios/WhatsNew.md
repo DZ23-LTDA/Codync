@@ -6,6 +6,14 @@ any left). tools/asc-submit.py reads the released version's section;
 a version without one gets a generic "Bug fixes and improvements" line. Delete old sections.
 -->
 
+## 2.33.2
+
+### zh-Hant
+- 語音輸入尚未設定 API key 時，會直接開啟語音設定。
+
+### en-US
+- Dictation opens voice settings when your provider API key is missing.
+
 ## 2.33.1
 
 ### zh-Hant

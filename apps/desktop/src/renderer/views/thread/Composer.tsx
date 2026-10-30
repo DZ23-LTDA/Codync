@@ -6,7 +6,8 @@ import { BotAvatar } from '../../components/Avatar'
 import { Icon } from '../../components/Icon'
 import { IconButton } from '../../components/Controls'
 import { RecordingPill } from '../../components/RecordingPill'
-import { usePresence } from '../../components/Overlay'
+import { Sheet, usePresence } from '../../components/Overlay'
+import { VoiceChatSettingsView } from '../settings/VoiceChatSettingsView'
 import { HStack, VStack } from '../../components/Stack'
 import { Text } from '../../components/Text'
 import { useModel } from '../../lib/observable'
@@ -59,7 +60,8 @@ function DestinationComposer({ botId, reply, about, cancelReply, onCall, onInter
   const draft = useSyncExternalStore(drafts.subscribe, () => drafts.get(draftKey))
   const setDraft = (text: string) => drafts.set(draftKey, text)
   const [files, setFiles] = useState<OutgoingFile[]>([])
-  const dictation = useDictation((change) => drafts.set(draftKey, change(drafts.get(draftKey))))
+  const [voiceSettings, setVoiceSettings] = useState(false)
+  const dictation = useDictation((change) => drafts.set(draftKey, change(drafts.get(draftKey))), () => setVoiceSettings(true))
   const field = useRef<HTMLTextAreaElement>(null)
   const measure = useRef<HTMLDivElement>(null)
   const composing = useRef(false)
@@ -329,6 +331,9 @@ function DestinationComposer({ botId, reply, about, cancelReply, onCall, onInter
           </div>
         </div>
       </div>
+      <Sheet open={voiceSettings} onClose={() => setVoiceSettings(false)}>
+        <VoiceChatSettingsView />
+      </Sheet>
     </VStack>
   )
 }

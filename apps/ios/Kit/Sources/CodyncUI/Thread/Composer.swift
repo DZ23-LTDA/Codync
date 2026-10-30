@@ -250,6 +250,7 @@ struct Composer: View {
             }
         }
         .animation(Motion.reduced(Motion.morph, reduceMotion), value: dictation.listening || dictation.transcribing)
+        .codyncSheet(isPresented: $dictation.needsKey) { VoiceChatSettingsView() }
         .codyncDialog("Couldn't dictate", isPresented: Binding(get: { dictation.failure != nil }, set: { if !$0 { dictation.failure = nil } }),
                       message: dictation.failure, cancel: "OK") { [] }
     }
