@@ -363,6 +363,10 @@ extension BotStore {
         return bot
     }
 
+    public func selectWorkspace(_ path: String) async throws -> String {
+        try await ready().selectWorkspace(path)
+    }
+
     public func listDirs(_ path: String?) async throws -> DirListing {
         try await ready().listDirs(path)
     }

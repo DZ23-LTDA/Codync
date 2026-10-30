@@ -132,3 +132,7 @@ See [Connector setup and credentials](connector-credentials.md) for the shared
 macOS/Linux vault, optional 1Password references, in-chat connection requests and
 MCP readiness checks. Single-option connectors without setup fields start adding
 immediately; setup failures remain visible for retry.
+
+## Custom icons
+
+Agents and bots support per-computer image overrides. See [custom icons](custom-icons.md) for the API, storage limits, cache behavior and deployment.

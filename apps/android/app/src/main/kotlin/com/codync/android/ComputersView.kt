@@ -257,13 +257,7 @@ private const val NETWORK_ICON = "point.3.connected.trianglepath.dotted"
     val tint = color?.let(AvatarPalette::tint) ?: Palette.text
     Box(Modifier.size(size), contentAlignment = Alignment.Center) {
         if (device == "linux") Symbol("computer.linux", size = size * 0.55f, tint = tint)
-        else Symbol(when (device) {
-            "laptop" -> "laptopcomputer"
-            "macmini" -> "macmini"
-            "macstudio" -> "macstudio"
-            "macpro" -> "macpro.gen3"
-            else -> "desktopcomputer"
-        }, size = size * 0.6f, tint = tint)
+        else Symbol(computerSymbol(device), size = size * 0.6f, tint = tint)
     }
 }
 
@@ -299,4 +293,13 @@ private val ConnectionRoute.icon get() = when (this) {
     ConnectionRoute.Automatic -> "arrow.triangle.branch"
     ConnectionRoute.CloudflareFirst -> "cloud"
     ConnectionRoute.DirectOnly -> "wifi"
+}
+
+internal fun computerSymbol(device: String?): String = when (device) {
+    "laptop" -> "laptopcomputer"
+    "macmini" -> "macmini"
+    "macstudio" -> "macstudio"
+    "macpro" -> "macpro.gen3"
+    "linux" -> "computer.linux"
+    else -> "desktopcomputer"
 }
