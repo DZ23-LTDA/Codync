@@ -10,11 +10,7 @@ import { prefs, usePref } from '../lib/prefs'
 import { dueStarAsk } from '../lib/star-ask'
 import { useStarAsk } from '../lib/use-star-ask'
 import { useApp } from '../store/context'
-import { useTr } from '../lib/use-language'
-
-
-const [OWNER, NAME] = ['leepokai', 'Codync']
-const REPO = `https://github.com/${OWNER}/${NAME}`
+import './star-prompt.css'
 
 const copy = {
   first: {
@@ -33,7 +29,6 @@ const copy = {
  * Starring ends it.
  */
 export function StarPrompt() {
-  const tr = useTr()
   const app = useApp()
   const local = useModel(app.local)
   const [onboarded] = usePref(prefs.onboardingDone)
@@ -50,27 +45,24 @@ export function StarPrompt() {
 
   const text = copy[due ?? 'first']
   return (
-    <Sheet open={open} onClose={() => finish(false)}>
+    <Sheet open={open} onClose={() => finish(false)} width={400} dismissOnDim>
       <VStack className="star-prompt">
-        <ModalHeader icon="star" title={text.title} />
+        <ModalHeader
+          icon={<Icon name="star.fill" size={22} className="star-prompt-symbol" />}
+          title={text.title}
+          onClose={null}
+        />
         <VStack gap={16} className="star-prompt-body">
           <Text as="div" size="body" tone="secondary" className="star-prompt-message">{text.message}</Text>
-          <button className="star-prompt-repo" title={REPO} onClick={() => finish(true)}>
-            <img src={appIcon} alt="" className="star-prompt-icon" draggable={false} />
-            <VStack gap={2} grow>
-              <Text size="body" weight="semibold" tone="text" truncate>
-                <Text weight="regular" tone="secondary">{OWNER} /</Text> {NAME}
-              </Text>
-              <Text size="callout" tone="secondary" truncate>{REPO.replace(tr(`https://`), '')}</Text>
-            </VStack>
-            <Icon name="arrow.up.right.square" size={13} color="var(--secondary)" />
-          </button>
-          <HStack gap={8} justify="flex-end">
+          <HStack gap={10}>
+            <img src={appIcon} alt="" className="star-prompt-app-icon" draggable={false} />
+            <Text size="callout" tone="secondary">github.com/leepokai/Codync</Text>
+          </HStack>
+          <HStack gap={8} justify="flex-end" wrap>
             <Button kind="secondary" onClick={() => finish(false)}>
               Not now
             </Button>
-            <Button className="star-prompt-star" onClick={() => finish(true)}>
-              <Icon name="star" size={12} weight="semibold" />
+            <Button onClick={() => finish(true)}>
               Star on GitHub
             </Button>
           </HStack>
