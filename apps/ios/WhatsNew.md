@@ -9,9 +9,13 @@ a version without one gets a generic "Bug fixes and improvements" line. Delete o
 ## 2.33.2
 
 ### zh-Hant
+- 即時動態與動態島的設定頁會說明兩者同步開啟或關閉。
+- 電腦的推送通知設定會顯示系統權限狀態；未允許通知時，可直接前往開啟權限。
 - 語音輸入尚未設定 API key 時，會直接開啟語音設定。
 
 ### en-US
+- Live Activity and Dynamic Island settings explain that both turn on and off together.
+- Computer push settings show when notification permission is missing and help you enable it.
 - Dictation opens voice settings when your provider API key is missing.
 
 ## 2.33.1
