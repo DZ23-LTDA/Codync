@@ -273,6 +273,10 @@ impl App {
     }
 
     fn folder_chosen(&mut self, path: String) {
+        // The drive list (Windows) has no path of its own to use.
+        if path.is_empty() {
+            return;
+        }
         if let Some(Overlay::Form(f)) = self.overlays.last_mut() {
             f.cwd = path;
         }

@@ -34,29 +34,35 @@ import kotlinx.coroutines.CancellationException
 @Composable internal fun FolderPicker(start: String?, online: Boolean, load: suspend (String?) -> DirListing, pick: (String) -> Unit) {
     var stack by remember { mutableStateOf(listOf(start)) }
     var forward by remember { mutableStateOf(true) }
-    BackHandler(stack.size > 1) { forward = false; stack = stack.dropLast(1) }
+    // Where the first folder sits, so Back can climb above the starting folder ("" lists the drives).
+    var parent by remember { mutableStateOf<String?>(null) }
+    val canGoBack = stack.size > 1 || parent != null
+    val back = { forward = false; stack = if (stack.size > 1) stack.dropLast(1) else listOf(parent) }
+    BackHandler(canGoBack) { back() }
     Column(Modifier.fillMaxSize()) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            if (stack.size > 1) Box(Modifier.padding(start = 12.dp)) { BackButton { forward = false; stack = stack.dropLast(1) } }
-            Box(Modifier.weight(1f)) { ModalHeader(stack.last()?.trimEnd('/')?.substringAfterLast('/')?.ifEmpty { "/" } ?: "Folders") }
+            if (canGoBack) Box(Modifier.padding(start = 12.dp)) { BackButton { back() } }
+            Box(Modifier.weight(1f)) { ModalHeader(stack.last()?.let(::folderName) ?: "Folders") }
         }
         AnimatedContent(stack, transitionSpec = {
             val sign = if (forward) 1 else -1
             slideInHorizontally(Motion.layoutOffset) { it * sign } togetherWith slideOutHorizontally(Motion.layoutOffset) { -it * sign }
         }, label = "Folder") { shown ->
-            FolderLevel(shown.last(), online, load, pick) { forward = true; stack = stack + it }
+            val onParent: ((String?) -> Unit)? = if (shown.size > 1) null else { found -> parent = found }
+            FolderLevel(shown.last(), online, load, pick, onParent) { forward = true; stack = stack + it }
         }
     }
 }
 
 /** One folder's subfolders, filterable, with "Use" on top. */
-@Composable private fun FolderLevel(path: String?, online: Boolean, load: suspend (String?) -> DirListing, pick: (String) -> Unit, open: (String) -> Unit) {
+@Composable private fun FolderLevel(path: String?, online: Boolean, load: suspend (String?) -> DirListing, pick: (String) -> Unit,
+                                     onParent: ((String?) -> Unit)?, open: (String) -> Unit) {
     var listing by remember { mutableStateOf<DirListing?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
     var filter by remember { mutableStateOf("") }
     LaunchedEffect(path, online) {
         if (!online) { error = "Connect to this computer to browse its folders."; return@LaunchedEffect }
-        try { listing = load(path); error = null }
+        try { listing = load(path).also { onParent?.invoke(it.parent) }; error = null }
         catch (cancelled: CancellationException) { throw cancelled }
         catch (failure: Exception) { error = failure.message ?: "Couldn't open this folder." }
     }
@@ -65,12 +71,13 @@ import kotlinx.coroutines.CancellationException
         val current = listing
         when {
             current != null -> {
-                CardSection(footer = current.path) {
+                // The drive list (Windows) has no folder of its own to use.
+                if (current.path.isNotEmpty()) CardSection(footer = current.path) {
                     row {
                         Row(Modifier.fillMaxWidth().plainButton { pick(current.path) }, verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             Symbol("checkmark.circle.fill", size = 20.dp, tint = Palette.accent)
-                            Text("Use “${current.path.trimEnd('/').substringAfterLast('/').ifEmpty { "/" }}”", style = Type.headline, color = Palette.accent)
+                            Text("Use “${folderName(current.path)}”", style = Type.headline, color = Palette.accent)
                         }
                     }
                 }
@@ -93,3 +100,6 @@ import kotlinx.coroutines.CancellationException
         }
     }
 }
+
+/** A path's last folder, for `/` and Windows `\` paths alike; null for the drive list (""). */
+private fun folderName(path: String): String? = path.split('/', '\\').lastOrNull { it.isNotEmpty() } ?: path.ifEmpty { null }

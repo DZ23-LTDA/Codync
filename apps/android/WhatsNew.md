@@ -13,8 +13,10 @@ else a generic "Bug fixes and improvements" line. Delete old sections.
 - 任何 Bot 都能當主助理：長按 Bot 選「設為主助理」，通話時它會先開口。
 - 主助理可以像其他 Bot 一樣拖曳排序、釘選或移到分組，不需要時也可以直接刪除。
 - Bot 選單更簡潔：不再需要手動開新的工作階段，Codync 會在需要時自動接續。
+- 選專案資料夾時，返回鍵可以往上走到家目錄以外的資料夾，Windows 電腦還能切換磁碟；連結（symlink）的資料夾也會出現在清單中。
 
 ### en-US
 - Any bot can be your lead: touch and hold it and choose Make lead agent. It speaks first on calls.
 - Drag, pin or move the lead into a section like any bot, or delete it if you don't need one.
 - A simpler bot menu: no more New session, since Codync starts a fresh one on its own when a conversation needs it.
+- When you choose a project folder, Back climbs above your home folder and, on a Windows computer, to its other drives; linked folders now show up too.
