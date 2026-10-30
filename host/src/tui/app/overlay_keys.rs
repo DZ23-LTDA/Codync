@@ -95,7 +95,6 @@ impl App {
                     let changed = After::Sheet(Reply::Changed);
                     match &c.act {
                         ConfirmAct::Delete(id) => self.call("deleteBot", json!({"botId": id}), After::Nothing),
-                        ConfirmAct::NewSession(id) => self.call("newSession", json!({"botId": id}), After::Nothing),
                         ConfirmAct::KeepHarnessMemory(id) => {
                             self.call("updateBot", json!({"id": id, "harnessMemory": true}), changed);
                         }

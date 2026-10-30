@@ -38,6 +38,7 @@ import { StarPrompt } from './StarPrompt'
 import { OpenVoiceSettings } from './call/CallView'
 import { AccountPanelLayer, DesktopActionMenu, ProfileAvatar, type ActionItem } from './PanelMenus'
 import { moveToSectionItems, sectionHeaderItems, type SectionNaming } from './section-menus'
+import { makeLeadItems, offersDelete, voiceTarget } from './lead-menus'
 import { SectionNameDialog } from './SectionNameDialog'
 import { useTraySummary } from './tray-summary'
 import { useIslandSummary } from './island-summary'
@@ -205,7 +206,6 @@ function ChatSplitView() {
   const [naming, setNaming] = useState<SectionNaming | null>(null)
   const [editing, setEditing] = useState<EditTarget | null>(null)
   const [confirmDelete, setConfirmDelete] = useState<BotTarget | null>(null)
-  const [newSessionBot, setNewSessionBot] = useState<BotTarget | null>(null)
   const [marketplace, setMarketplace] = useState<string | null>(null)
   const [settings, setSettings] = useState<SettingsPage | null>(null)
   const openVoiceSettings = useCallback(() => setSettings('voice'), [])
@@ -251,8 +251,7 @@ function ChatSplitView() {
         if (c.kind === 'networkSettings') setSettings('network')
         if (c.kind === 'toggleSidebar') setCompact(!prefs.sidebarCompact.get())
         if (c.kind === 'voiceKey') {
-          // No chat open: talk to the top bot in the sidebar.
-          if (c.key === 'double' && !app.selection) app.select((roster.navigable[0] ?? roster.items[0])?.ref ?? null)
+          if (c.key === 'double' && !app.selection) app.select(voiceTarget(roster)?.ref ?? null)
           queueVoiceKey(c.key)
         }
       }),
@@ -289,18 +288,16 @@ function ChatSplitView() {
 
   const openMarketplace = () => setMarketplace((selectedStore ?? app.local ?? onlineStores[0])?.computer.id ?? null)
 
-  // The lead stays on top and can't go: no pin, section, hide or delete.
+  // One plain list. The lead stays in sight: no hide.
   const botActions = (bot: Bot, store: BotStore): ActionItem[] => [
-    ...(bot.lead ? [] : [{ title: bot.pinned ? 'Unpin' : 'Pin', icon: 'pin', action: () => store.setPinned(bot, !bot.pinned) }]),
+    { title: bot.pinned ? 'Unpin' : 'Pin', icon: 'pin', action: () => store.setPinned(bot, !bot.pinned) },
     ...moveToSectionItems(bot, store, setNaming),
     { title: 'Mark as Read', icon: 'bell.badge', action: () => store.markAllRead(bot.id) },
-    { title: 'Edit Profile…', icon: 'square.and.pencil', divider: true, action: () => setEditing({ id: crypto.randomUUID(), draft: draftOf(bot), store }) },
-    { title: 'Copy conversation ID', icon: 'square.on.square', divider: true, action: () => window.codync.app.copy(bot.id) },
-    { title: 'New session', icon: 'arrow.counterclockwise', action: () => setNewSessionBot({ bot, store }) },
-    ...(bot.lead ? [] : [
-      { title: 'Hide from sidebar', icon: 'eye.slash', divider: true, action: () => store.setHidden(bot, true) },
-      { title: 'Delete', icon: 'trash', destructive: true, action: () => setConfirmDelete({ bot, store }) },
-    ]),
+    { title: 'Edit Profile…', icon: 'square.and.pencil', action: () => setEditing({ id: crypto.randomUUID(), draft: draftOf(bot), store }) },
+    { title: 'Copy conversation ID', icon: 'square.on.square', action: () => window.codync.app.copy(bot.id) },
+    ...makeLeadItems(bot, store),
+    ...(bot.lead ? [] : [{ title: 'Hide from sidebar', icon: 'eye.slash', action: () => store.setHidden(bot, true) }]),
+    ...(offersDelete(bot, store) ? [{ title: 'Delete', icon: 'trash', destructive: true, action: () => setConfirmDelete({ bot, store }) }] : []),
   ]
 
   // ↑/↓ in the roster move the selection; Alt+↑/↓ moves the selected bot itself.
@@ -475,13 +472,6 @@ function ChatSplitView() {
       <Sheet open={settings !== null} onClose={() => setSettings(null)} width={Math.min(800, windowSize.width - 80)} height={Math.min(620, sheetHeight)}>
         {settings ? <SettingsView page={settings} setPage={setSettings} /> : null}
       </Sheet>
-      <Dialog
-        open={newSessionBot !== null}
-        title={tr('Start a new session?')}
-        message={tr('The conversation stays here, but the agent starts with a fresh context.')}
-        actions={newSessionBot ? [{ title: 'New session', action: () => newSessionBot.store.newSession(newSessionBot.bot.id) }] : []}
-        onClose={() => setNewSessionBot(null)}
-      />
       <Dialog
         open={confirmDelete !== null}
         title={`Delete ${confirmDelete?.bot.name ?? 'bot'}?`}

@@ -709,7 +709,7 @@ dependencies = [
 
 [[package]]
 name = "codync-host"
-version = "2.32.0"
+version = "2.33.0"
 dependencies = [
  "anyhow",
  "axum",
@@ -722,6 +722,7 @@ dependencies = [
  "codync-network",
  "croner",
  "crossterm",
+ "dbus-secret-service",
  "dirs",
  "ed25519-dalek",
  "flate2",

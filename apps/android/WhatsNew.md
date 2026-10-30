@@ -7,12 +7,14 @@ released version's section; a version without one gets the PRs' "What's New: And
 else a generic "Bug fixes and improvements" line. Delete old sections.
 -->
 
-## 2.32.0
+## 2.33.0
 
 ### zh-Hant
-- Bot 清單可以分成自己的分組，例如「工作」和「個人」：長按 Bot 選「移到分組」，點分組標題即可收合，收合時會顯示裡面的未讀數。
-- 遠端畫面連線更快，網路短暫中斷時也不會斷掉。
+- 任何 Bot 都能當主助理：長按 Bot 選「設為主助理」，通話時它會先開口。
+- 主助理可以像其他 Bot 一樣拖曳排序、釘選或移到分組，不需要時也可以直接刪除。
+- Bot 選單更簡潔：不再需要手動開新的工作階段，Codync 會在需要時自動接續。
 
 ### en-US
-- Sort the bot list into your own sections, like Work and Personal: touch and hold a bot and choose Move to section, then tap a section's heading to fold it, with its unread count showing while it's folded.
-- The remote screen connects faster and stays up through a brief connection drop.
+- Any bot can be your lead: touch and hold it and choose Make lead agent. It speaks first on calls.
+- Drag, pin or move the lead into a section like any bot, or delete it if you don't need one.
+- A simpler bot menu: no more New session, since Codync starts a fresh one on its own when a conversation needs it.

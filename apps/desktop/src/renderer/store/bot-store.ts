@@ -162,10 +162,6 @@ export class BotStore extends BotSync {
     this.perform((c) => c.call('stop', { botId }), true)
   }
 
-  newSession(botId: string) {
-    this.perform((c) => c.call('newSession', { botId }))
-  }
-
   /** Back to the bot's own agent from a fallback: now if it's idle, else from its next turn. The host posts the chat line. */
   switchBack(botId: string) {
     this.perform((c) => c.call('switchBack', { botId }), true)
@@ -314,6 +310,17 @@ export class BotStore extends BotSync {
   /** Whether the bot's harness keeps its own memory on beside Codync's. */
   setHarnessMemory(bot: Bot, harnessMemory: boolean) {
     this.patchBot(bot, { harnessMemory })
+  }
+
+  /** Makes `bot` the lead, in place of the one before; a refusal gives the star back. */
+  setLead(bot: Bot) {
+    const before = [...this.bots.values()].find((b) => b.lead)?.id
+    const show = (lead: string | undefined) => {
+      for (const [id, b] of this.bots) this.bots.set(id, { ...b, lead: id === lead })
+      this.changed()
+    }
+    show(bot.id)
+    this.perform((c) => c.call('setLead', { botId: bot.id }), true, () => show(before))
   }
 
   setHidden(bot: Bot, hidden: boolean) {

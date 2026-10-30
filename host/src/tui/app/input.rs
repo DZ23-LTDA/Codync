@@ -328,24 +328,11 @@ impl App {
                     }
                 }
             }
-            KeyCode::Char('S') => {
-                if self.bot().is_some_and(|b| b.group) {
-                    self.flash("A group has no session of its own");
-                } else if let Some(b) = self.bot() {
-                    let c = Confirm {
-                        title: format!("Start a new session for {}?", b.name),
-                        detail: "The agent forgets this conversation's context.".into(),
-                        note: "The transcript stays here.".into(),
-                        button: "New session",
-                        act: ConfirmAct::NewSession(b.id.clone()),
-                    };
-                    self.overlays.push(Overlay::Confirm(c));
-                }
-            }
+            KeyCode::Char('*') => self.make_lead(),
             KeyCode::Char('x') => {
-                if self.bot().is_some_and(|b| b.lead) {
-                    self.flash("The lead bot can't be deleted");
-                } else if let Some(b) = self.bot() {
+                // An older host keeps its lead.
+                let kept = self.bot().is_some_and(|b| b.lead) && !self.lead_choice_supported();
+                if let Some(b) = self.bot().filter(|_| !kept) {
                     let (detail, note) = if b.group {
                         ("Its conversation goes away.".into(), "Its bots stay.".into())
                     } else {
@@ -366,9 +353,7 @@ impl App {
             }
             KeyCode::Char('e') => self.edit_bot(),
             KeyCode::Char('p') => {
-                if self.bot().is_some_and(|b| b.lead) {
-                    self.flash("The lead bot always stays on top");
-                } else if let Some(b) = self.bot() {
+                if let Some(b) = self.bot() {
                     let (id, pinned) = (b.id.clone(), !b.pinned);
                     self.call("updateBot", json!({"id": id, "pinned": pinned}), After::Nothing);
                 }

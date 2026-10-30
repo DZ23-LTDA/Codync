@@ -219,6 +219,13 @@ public final class BotStore {
         hostVersion.map { !AppVersion.isBelow($0.version, Self.sectionsHost) } ?? false
     }
 
+    /// From host 2.33.0 the user picks the lead (`setLead`) and may delete it; an older host refuses both.
+    public var supportsLeadChoice: Bool {
+        hostVersion.map { !AppVersion.isBelow($0.version, Self.leadChoiceHost) } ?? false
+    }
+
+    static let leadChoiceHost = "2.33.0"
+
     static let sectionsHost = "2.32.0"
 
     /// Display name for a harness id, as the host reports it (falls back to the built-in list).

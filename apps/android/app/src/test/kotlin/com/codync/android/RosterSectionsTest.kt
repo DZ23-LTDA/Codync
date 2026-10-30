@@ -24,14 +24,14 @@ class RosterSectionsTest {
         ), rosterLines(roster, folded = emptySet()))
     }
 
-    @Test fun theLeadStaysOnTopOutsideItsSection() {
+    @Test fun theLeadSitsInItsSectionLikeAnyBot() {
         val lead = Bot("lead", lead = true, section = "Work")
         assertEquals(listOf(
-            RosterLine.Row(lead), RosterLine.Row(pinned),
-            RosterLine.Header("Work", count = 1, unread = 2, folded = false), RosterLine.Row(work1),
+            RosterLine.Row(pinned),
+            RosterLine.Header("Work", count = 2, unread = 2, folded = false), RosterLine.Row(work1), RosterLine.Row(lead),
             RosterLine.Label, RosterLine.Row(loose),
-        ), rosterLines(listOf(lead, pinned, work1, loose), folded = emptySet()))
-        assertNull(moved(listOf(lead, work1), "w1", -1))
+        ), rosterLines(listOf(pinned, work1, lead, loose), folded = emptySet()))
+        assertEquals(listOf("lead", "w1"), moved(listOf(work1, lead), "lead", -1))
     }
 
     @Test fun aFoldedSectionKeepsItsHeaderAndUnreadAndHidesItsBots() {
@@ -141,5 +141,12 @@ class RosterSectionsTest {
         assertTrue(host("2.32.0").supportsSections)
         assertTrue(host("2.32.1-dev").supportsSections)
         assertFalse(host(null).supportsSections)
+    }
+
+    @Test fun leadChoiceWaitsForAHostThatLetsTheLeadChange() {
+        fun host(version: String?) = AppState(hello = version?.let { buildJsonObject { put("version", it) } })
+        assertFalse(host("2.32.9").supportsLeadChoice)
+        assertTrue(host("2.33.0").supportsLeadChoice)
+        assertFalse(host(null).supportsLeadChoice)
     }
 }

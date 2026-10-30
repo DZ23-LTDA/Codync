@@ -278,6 +278,11 @@ public extension HostClient {
         return out
     }
 
+    /// The user makes this bot the lead, in place of the one before.
+    func setLead(_ botId: String) async throws {
+        let _: Empty = try await self.call("setLead", ["botId": botId])
+    }
+
     /// A call's audio is live: a lead opens it, and its opening is the call's.
     func callStarted(_ botId: String, call: String) async throws {
         let _: Empty = try await self.call("callStarted", ["botId": botId, "callId": call])
@@ -326,10 +331,6 @@ public extension HostClient {
 
     func stop(_ botId: String) async throws {
         let _: Empty = try await call("stop", ["botId": botId])
-    }
-
-    func newSession(_ botId: String) async throws {
-        let _: Empty = try await call("newSession", ["botId": botId])
     }
 
     func respondPermission(entryId: String, optionId: String?) async throws {
