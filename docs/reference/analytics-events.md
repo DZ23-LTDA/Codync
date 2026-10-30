@@ -101,6 +101,7 @@ host answers and sends it once the host is up.
 | `host_update_installed` | host | `installHostUpdate` | — |
 | `network_joined` | host | `networkCreate` / `networkJoin`: the computer is in a network of the user's computers | `via` (`create`/`invite`), never a name, invite or connector address |
 | `network_changed` | host | `networkInvite` / `networkPromote` / `networkRemove` / `networkRecover` / `setNetworkRules` / `networkLeave` | `action` (`invite`/`promote`/`remove`/`recover`/`rules`/`leave`), never a computer's name, the invite, the recovery code or a rule |
+| `network_failed` | host | A network step failed: a saved network didn't start with the host, a bot's letter to another computer didn't go (refused, or no such computer; one queued for a computer that's away isn't a failure), a request's outcome didn't go back, a letter from another computer couldn't be taken in, or a `network*` call failed | `stage` (`start`/`send`/`reply`/`receive`/`action`); for `action`, the call's own `via` or `action` as on `network_joined` / `network_changed`; never the error's text, a name or an address |
 
 ## Screens
 

@@ -59,9 +59,11 @@ pub async fn dispatch(hub: &Arc<Hub>, caller: &Caller, method: &str, b: Value) -
     devices::permit(caller, method)?;
     let observed = crate::analytics::observe_call(hub, caller, method, &b);
     let result = route(hub, caller, method, b).await;
-    if let (Ok(answer), Some((event, properties))) = (&result, observed)
-        && let Some(properties) = crate::analytics::answered(event, properties, answer)
-    {
+    let report = observed.and_then(|(event, properties)| match &result {
+        Ok(answer) => crate::analytics::answered(event, properties, answer).map(|p| (event, p)),
+        Err(_) => crate::analytics::failed(event, properties),
+    });
+    if let Some((event, properties)) = report {
         crate::analytics::capture(hub, event, properties);
     }
     result
