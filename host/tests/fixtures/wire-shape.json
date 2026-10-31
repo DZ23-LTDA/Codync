@@ -47,6 +47,7 @@
     "event:bot.bot.priceCachedPerMtok": "null",
     "event:bot.bot.pricePerMtok": "null",
     "event:bot.bot.reachableByAssistants": "bool",
+    "event:bot.bot.replyWebhook": "null",
     "event:bot.bot.resting": "array",
     "event:bot.bot.rev": "number",
     "event:bot.bot.section": "string",

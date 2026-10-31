@@ -84,6 +84,9 @@ pub struct BotConfig {
     /// What a million tokens read from the prompt cache cost, when the plan prices them differently.
     #[serde(default)]
     pub price_cached_per_mtok: Option<f64>,
+    /// A URL this bot posts its final reply to, for a chat bridge (see `chat::bridge`); `None` is no bridge.
+    #[serde(default)]
+    pub reply_webhook: Option<String>,
     /// Dollars the bot may spend per day, at the price the user declared below; `None` is no limit.
     #[serde(default)]
     pub budget_usd: Option<f64>,

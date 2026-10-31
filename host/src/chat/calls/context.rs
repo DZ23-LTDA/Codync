@@ -363,6 +363,7 @@ pub(super) mod tests {
             budget_usd: None,
             price_per_mtok: None,
             price_cached_per_mtok: None,
+            reply_webhook: None,
             permission: Permission::Ask,
             model: Some("opus".into()),
             model_options: std::collections::BTreeMap::new(),

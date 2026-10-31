@@ -50,6 +50,15 @@ pub(super) async fn call(hub: &Arc<Hub>, caller: &Caller, method: &str, b: Value
                 "costUsd": cost / 1_000_000.0,
             })
         }
+        "bridgeInfo" => {
+            let bot = str_arg(&b, "botId")?;
+            let cfg = crate::chat::team::visible_bot(hub, bot)?;
+            json!({
+                "botId": bot,
+                "webhook": cfg.reply_webhook,
+                "secret": crate::chat::bridge::secret(&hub.store, bot),
+            })
+        }
         "startRun" => crate::chat::run::start(hub, str_arg(&b, "botId")?, &approver(caller), &b)?,
         "approveRun" => crate::chat::run::approve(hub, str_arg(&b, "botId")?, &approver(caller), &b)?,
         "rejectRun" => crate::chat::run::reject(hub, &approver(caller), &b)?,
