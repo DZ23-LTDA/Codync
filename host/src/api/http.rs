@@ -26,6 +26,7 @@ pub fn router(hub: Arc<Hub>) -> Router {
     Router::new()
         .route("/health", get(health))
         .route("/hooks/routines/{id}", post(routine_hook))
+        .route("/hooks/bots/{secret}", post(bot_hook))
         .route("/events", get(events))
         .route("/api/{method}", post(command))
         .route("/api/setIcon", post(icon_command).layer(axum::extract::DefaultBodyLimit::max(8 * 1024 * 1024)))
@@ -240,6 +241,31 @@ async fn events(
         .map_err(|e| ApiError(StatusCode::INTERNAL_SERVER_ERROR, format!("{e:#}")))?;
     let events = events.map(|v| Ok(Event::default().data(v.to_string())));
     Ok(Sse::new(events).keep_alive(KeepAlive::new().interval(Duration::from_secs(15))))
+}
+
+/// A chat bridge handing a message to its bot. The secret names the bot; the body carries only text.
+async fn bot_hook(
+    State(hub): State<Arc<Hub>>,
+    Path(secret): Path<String>,
+    body: Bytes,
+) -> Result<Json<Value>, ApiError> {
+    const MAX_BODY: usize = 8 * 1024;
+    const MAX_TEXT: usize = 4_000;
+    if body.len() > MAX_BODY {
+        return Err(ApiError(StatusCode::PAYLOAD_TOO_LARGE, "event too large".into()));
+    }
+    let parsed: Value =
+        serde_json::from_slice(&body).map_err(|_| ApiError(StatusCode::BAD_REQUEST, "invalid json".into()))?;
+    let text = parsed["text"].as_str().unwrap_or_default().trim().to_owned();
+    if text.is_empty() || text.len() > MAX_TEXT {
+        return Err(ApiError(StatusCode::BAD_REQUEST, "text is required and must be short".into()));
+    }
+    let bot = crate::chat::bridge::bot_for(&hub.store, &secret)
+        .ok_or_else(|| ApiError(StatusCode::UNAUTHORIZED, "unknown bridge".into()))?;
+    let answer = dispatch(&hub, &Caller::Local, "send", json!({"botId": bot, "text": text, "from": "bridge"}))
+        .await
+        .map_err(|e| ApiError(StatusCode::BAD_REQUEST, format!("{e:#}")))?;
+    Ok(Json(json!({"ok": true, "entry": answer["entry"]})))
 }
 
 /// A scoped webhook credential authorizes only firing its own routine.
