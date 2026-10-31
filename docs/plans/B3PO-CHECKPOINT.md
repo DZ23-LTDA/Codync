@@ -85,3 +85,37 @@ Nenhum PR aberto. `dev` é a branch padrão do fork e está em `61621e94`.
 2. O2-B: reconciliação com custo confirmado do provedor quando houver fonte confiável; hoje o custo é estimado.
 3. Identidade B-3PO (fase B): depende da decisão do proprietário sobre versionar os 13 PNGs.
 4. O2-C e shims de O2-D: dependem de credenciais do proprietário (`BLOCKED_BY_EXTERNAL_DEPENDENCY`).
+
+## Estado ao fim da série de outubro de 2026
+
+`dev` recebeu 32 PRs mergeados. A CI é a do próprio fork (`codync-host` em ubuntu/macOS/windows e `Release desktop`
+com `check` = typecheck + `npm test` + build); o repositório espelho usado enquanto as Actions estavam desligadas foi
+**arquivado**.
+
+### O que está pronto, com evidência
+
+| Área | Entrega | Evidência |
+|---|---|---|
+| O2-A | selo humano: hash do payload, expiração 24 h, single-flight, `revoked`/`executed`, replay recusado, status `expired` | testes locais 11/11 em `chat::run`; CI verde nos PRs #20, #21, #22, #24, #26 |
+| O2-B | teto em dinheiro por bot/dia, gate, custo estimado separado, resumo de uso | CI verde; reserva atômica analisada em `docs/plans/o2b-reservation.md` (não necessária com orçamento por bot) |
+| O2-D | entrada autenticada por segredo, assinatura HMAC de saída, rate limit 30/min, entrega de ponte | e2e `bridge_e2e.rs`; CI verde |
+| O2-E | desktop em pt-BR na superfície traduzível: 210 frases, `pt` na lista de línguas | `node tools/l10n-coverage.mjs` → 100% da superfície `tr()`; CI `check` verde |
+| Identidade | mascote, cargo e equipe no modelo do host; catálogo de 13 avatares | CI verde |
+
+### O que falta, medido
+
+- **271 strings visíveis** no renderer não passam por `tr()` (`node tools/l10n-unwrapped.mjs`) — estão em inglês em todas
+  as línguas. Fechar O2-E no desktop exige envolvê-las, traduzir e **inspecionar cada tela** (regra do repositório).
+- iOS e Android não oferecem `pt`: a superfície deles usa frases fora das 210 traduzidas.
+- Formatação de data, hora e número por locale ainda não foi aplicada nas telas com tempo.
+- O2-B: reconciliação com o custo **confirmado** do provedor.
+- **O2-C e os shims de O2-D estão bloqueados** por credenciais do proprietário (`BLOCKED_BY_EXTERNAL_DEPENDENCY`).
+- Identidade B-3PO: aguarda decisão sobre versionar os 13 PNGs.
+
+### Fatos de ambiente que economizam tempo na próxima sessão
+
+- Toolchain MSVC instalado: `cargo build`, `cargo clippy --workspace --all-targets -D warnings` e testes por módulo
+  rodam localmente. Para linkar, exportar `LIB`/`INCLUDE` do MSVC + SDK e apontar `TMP`/`TEMP` para dentro do workspace.
+- `apps/desktop` tem `node_modules` instalado: `npm run typecheck`, `npm test`, `node tools/*.mjs`.
+- Falhas locais conhecidas e **pré-existentes**: `src/shared/host-update.test.ts` falha no Windows (10 de 15) e passa no
+  Linux de CI; a suíte inteira do host no Windows precisa de Developer Mode para o teste de symlink.
