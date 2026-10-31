@@ -86,6 +86,50 @@ Nenhum PR aberto. `dev` é a branch padrão do fork e está em `61621e94`.
 3. Identidade B-3PO (fase B): depende da decisão do proprietário sobre versionar os 13 PNGs.
 4. O2-C e shims de O2-D: dependem de credenciais do proprietário (`BLOCKED_BY_EXTERNAL_DEPENDENCY`).
 
+## Estado medido em 31/10/2026, 23:40Z (P0.2)
+
+Substitui as afirmações anteriores desta seção, que estavam erradas.
+
+### Correção de um erro deste documento
+
+O texto dizia que faltava `POST /hooks/bots/{secret}`. **Ele existe** desde o PR #18: a rota está em
+`host/src/api/http.rs:29` (`.route("/hooks/bots/{secret}", post(bot_hook))`). O que entrega é validação de corpo
+(8 KiB, 4.000 caracteres), 401 para segredo errado, 413 e 429 com rate limit de 30/min por bot, e teste de integração em
+`host/tests/bridge_e2e.rs`. Nada a fazer aqui.
+
+### Onde o repositório está
+
+| | |
+|---|---|
+| `origin/dev` | `76d5677b` (PR #39, windows verde em run 41252692797) |
+| PRs abertos | 0 |
+| CI do host | `.github/workflows/host.yml` — ubuntu, macOS e windows **verdes** no último run lido |
+| Strings fora da tradução | **271** (`node tools/l10n-unwrapped.mjs`) |
+| Mascotes | 13 no catálogo, **0 com arte** (`node tools/mascot-assets.mjs`, exit 0 — estado correto, não bug) |
+| `pt` na superfície traduzível | **100%** das 210 frases `tr()` (`node tools/l10n-coverage.mjs`) |
+
+### Correção do windows vermelho (P0.1)
+
+Run **41245644656** (PR #26) falhava em `windows-latest`: `import::tests::an_import_makes_bots_and_one_group_and_rolls_a_failed_bot_back`
+panics em `src/import/tests.rs:187` — a **limpeza** do teste (`remove_dir_all`) não conseguia apagar o diretório porque os
+atores do hub mantêm o banco aberto; no Unix isso passa. Corrigido no PR #39 com `cleanup()` (10 tentativas, desiste em
+silêncio): run **41252692797** com **ubuntu, macOS e windows verdes**.
+
+### O que continua aberto
+
+- **O2-E**: as 271 strings, em lotes temáticos, cada lote com a entrada em `pt.json`; porta de saída `l10n-unwrapped` = 0.
+- **O2-B**: reconciliação com custo confirmado do provedor.
+- **Distribuição não assinada** (P0.5): macOS sem certificado, `-unsigned`, docs de desbloqueio (xattr/SmartScreen/chmod).
+- **O2-C e shims de O2-D**: `BLOCKED_BY_EXTERNAL_DEPENDENCY` (credenciais).
+- **iOS/Android**: `BLOCKED_BY_EXTERNAL_DEPENDENCY` (sem Xcode e sem Android SDK 37).
+- **Arte dos mascotes**: aguarda a decisão de elenco do dono; ids **não** serão renomeados sem essa decisão.
+
+### Próxima tarefa concreta
+
+P0.5 — distribuição não assinada: o job `macos` do `release-desktop.yml` deve empacotar sem certificado quando a variável
+`DESKTOP_MACOS_SIGNING` não existir (hoje ele é pulado), com artefato `-unsigned`, release notes dizendo "não assinado" e a
+documentação de desbloqueio por sistema.
+
 ## Estado ao fim da série de outubro de 2026
 
 `dev` recebeu 32 PRs mergeados. A CI é a do próprio fork (`codync-host` em ubuntu/macOS/windows e `Release desktop`
