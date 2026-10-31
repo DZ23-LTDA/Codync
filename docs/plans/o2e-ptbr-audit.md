@@ -1,48 +1,48 @@
-# O2-E (pt-BR): auditoria antes de traduzir
+# O2-E — correção da auditoria: a tradução já existe, falta o português
 
-Medido no checkout atual, não estimado.
+## O que eu errei na primeira auditoria (#25)
 
-## O que existe hoje
+O documento anterior dizia "não há i18n". **Está errado.** O desktop traduz hoje, e por um mecanismo maduro:
 
-- **Não há i18n.** Nenhum catálogo de mensagens, nenhuma pasta de locale no código dos clientes — só artefatos de build.
-  Traduzir string a string espalhada nos arquivos seria criar dívida: cada texto novo volta em inglês e a mistura de
-  idiomas é exatamente o que o critério de O2-E proíbe.
-- **Desktop** (`apps/desktop/src`, 347 arquivos `.ts`/`.tsx`):
-  - **46** nós de texto JSX (`>Texto<`) — poucos porque a regra de UI do projeto é botão só com ícone;
-  - **253** atributos visíveis (`placeholder`, `title`, `aria-label`);
-  - **1.638** literais candidatos a copy no renderer (inclui nomes de campo de API — a triagem é parte do trabalho).
-- **TUI** (`host/src/tui`, 80 arquivos): **2.217** literais, a maioria teclas e formatos; a copy real é menor e precisa
-  da mesma triagem.
-- **iOS e Android** não foram medidos aqui: exigem Xcode e Android SDK, que este ambiente não tem
-  (`BLOCKED_BY_EXTERNAL_DEPENDENCY`).
+- `apps/desktop/src/renderer/lib/l10n.ts` — `translate(texto, preferência, sistema)` e o hook `useTr()`; a chave é o
+  **próprio texto em inglês** (`tr('Something went wrong')`), com casamento exato e templating para placeholders.
+- `apps/ios/Kit/Sources/CodyncKit/Resources/Languages/*.json` — a tabela de cada língua, **compartilhada com o iOS**
+  (o desktop importa os mesmos arquivos). O Android, portado do iOS, consome o mesmo conjunto.
+- Línguas hoje: `zh-Hans`, `zh-Hant`, `ja`, `ko`, `fr`, `de`, `es` — **sete, sem português**.
 
-## Decisão de arquitetura (antes de traduzir)
+## O número que importa
 
-1. **Catálogo de mensagens por cliente**, com `en-US` como chave de origem e `pt-BR` como tradução: `t("chat.empty")`.
-   Uma chave sem tradução cai no inglês e é listada por um teste — nada de string solta.
-2. **Formatação por locale** (data, hora, número, moeda) via `Intl` no desktop, `Locale` no Android, `Date.FormatStyle`
-   no iOS e a mesma regra na TUI. Nada de concatenar data formatada à mão.
-3. **Teste de cobertura**: falha se uma chave usada no código não existir no catálogo, ou se `pt-BR` tiver chave órfã.
-4. **Glossário fixo** para não traduzir o que não deve: *bot*, *agente*, *run*, *harness*, *skill*, *conector*, *MCP*,
-   *token*, *workspace* permanecem; "settings" → "configurações", "approve" → "aprovar", "budget" → "orçamento",
-   "run" (execução) → "execução" quando for a coisa, "run" quando for o registro técnico.
-5. **Não traduzir** identificadores de API, nomes de método, valores persistidos, nomes de modelo e mensagens de log.
+`node tools/l10n-coverage.mjs` mede completude contra a maior tabela:
 
-## Ordem de entrega proposta
+```
+de        1468 keys  100.0%   0 missing   0 not in de
+es        1468 keys  100.0%   0 missing   0 not in de
+fr        1468 keys  100.0%   0 missing   0 not in de
+ja        1468 keys  100.0%   0 missing   0 not in de
+ko        1468 keys  100.0%   0 missing   0 not in de
+zh-Hans   1468 keys  100.0%   0 missing   0 not in de
+zh-Hant   1468 keys  100.0%   0 missing   0 not in de
+```
 
-1. Fundação de i18n no desktop + catálogo `en-US` extraído de **diálogos, erros e estados vazios** (onde está a maior
-   parte da copy) — primeiro PR.
-2. Tradução `pt-BR` dessas mesmas telas + formatação de data/número (segundo PR).
-3. TUI (catálogo e tradução) — terceiro PR.
-4. iOS e Android quando houver ambiente para compilar; até lá ficam `BLOCKED_BY_EXTERNAL_DEPENDENCY`, não "feitos".
+Todas as sete tabelas têm **exatamente as mesmas 1.468 chaves**: são espelhos completos das frases usadas pelos apps.
 
-## Riscos
+## O que isso muda no plano
 
-- Traduzir só o desktop quebra a paridade que o repositório exige; por isso a TUI entra antes dos apps nativos, que
-  dependem de ambiente.
-- Texto em pt-BR é ~20% mais longo: cada tela traduzida precisa de inspeção visual, não só de teste.
+O critério de O2-E proíbe mistura de idiomas. Uma tabela `pt.json` parcial produz exatamente isso: uma tela em que
+algumas frases estão em português e o resto cai no inglês pelo fallback. Então o português **não entra aos poucos na
+interface**: ou a tabela está completa, ou a língua não aparece no seletor.
 
-## Próxima tarefa concreta
+A entrega de O2-E passa a ser:
 
-PR 1: `apps/desktop/src/renderer/i18n/` com catálogo tipado, `t()` e o teste de cobertura; extrair a copy dos
-diálogos/erros/estados vazios do desktop para `en-US`. Sem mudança visível ainda — é a fundação que impede a mistura.
+1. **`pt.json` com as 1.468 frases** traduzidas para pt-BR, no mesmo conjunto compartilhado (o que já serve iOS, Android
+   e desktop de uma vez) — é trabalho de tradução, com revisão, não de código.
+2. `pt` em `appLanguages`, `resolvedLanguage` e `catalogs` no `l10n.ts`, mais o teste de que `pt-BR` do sistema resolve
+   para `pt`.
+3. `node tools/l10n-coverage.mjs` deve mostrar `pt 1468 keys 100.0%` antes de a língua ser oferecida.
+4. Formatação de data, hora e número por locale nas telas que mostram tempo.
+5. Inspeção visual nas telas mais densas: português é ~20% mais longo e quebra layout que o inglês não quebra.
+
+## Decisão
+
+Não criei uma segunda infraestrutura de tradução. A tentativa de fundação própria (`lib/i18n/`) foi **removida** neste
+PR: ela duplicava o `l10n.ts`, e duplicar o lugar onde as strings vivem é como a mistura de idiomas começa.
