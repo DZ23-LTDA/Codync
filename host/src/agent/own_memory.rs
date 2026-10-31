@@ -3,6 +3,7 @@
 //! ([design](../../../docs/design/bot-memory.md#instructions-in-every-harness)). Claude Code also gets its settings
 //! through `_meta` (see `agent::bot`).
 
+use crate::agent::backends::{self, OwnMemory};
 use crate::store::BotConfig;
 use anyhow::{Context, Result};
 use serde_json::{Value, json};
@@ -20,14 +21,14 @@ pub fn args(backend: &str) -> &'static str {
     }
 }
 
-/// Whether Codync can turn the bot's harness's own memory off, and so offers the user a switch for it. Qwen Code
-/// reads it from the workspace folder, which Codync writes only in a bot's own workspace: a project folder's files
-/// are the user's.
+/// Whether Codync can turn the bot's harness's own memory off, and so offers the user a switch for it: the catalog
+/// declares it (`Harness::own_memory`), and Qwen Code's switch lives in the workspace folder, which Codync writes
+/// only in a bot's own workspace — a project folder's files are the user's.
 pub fn switchable(cfg: &BotConfig) -> bool {
-    match cfg.backend.as_str() {
-        "claude" | "copilot" | "codebuddy" | "workbuddy" => true,
-        "qwen" => crate::agent::workspace::is_managed(cfg),
-        _ => false,
+    match backends::own_memory(&cfg.backend) {
+        OwnMemory::Switchable => true,
+        OwnMemory::ManagedWorkspace => crate::agent::workspace::is_managed(cfg),
+        OwnMemory::None | OwnMemory::Shared => false,
     }
 }
 
@@ -36,7 +37,7 @@ pub fn switchable(cfg: &BotConfig) -> bool {
 /// `~/.hermes/memories` ([design](../../../docs/design/bot-memory.md#instructions-in-every-harness)). The apps say so
 /// where other harnesses have a switch.
 pub fn shared(cfg: &BotConfig) -> bool {
-    matches!(cfg.backend.as_str(), "gemini" | "hermes")
+    backends::own_memory(&cfg.backend) == OwnMemory::Shared
 }
 
 /// Whether the user kept the bot's harness's own memory on beside Codync's.

@@ -35,6 +35,8 @@ pub struct Harness {
     /// (`launch::start_agent`); this one covers the decisions taken before an agent runs, like the
     /// compaction command and the cache life (`bot/compaction.rs`).
     pub adapter: Adapter,
+    /// Whether Codync can turn this CLI's own memory off, and so offer the user a switch (`agent::own_memory`).
+    pub own_memory: OwnMemory,
     /// The installed CLI's native ACP mode (`{bin}` = resolved binary path).
     pub local: Option<&'static str>,
     /// Entry in the ACP registry (adapter or pinned build).
@@ -48,6 +50,21 @@ pub struct Harness {
     pub login: Option<&'static str>,
     /// How to tell whether it's signed in without starting it.
     pub signed_in: Option<SignInCheck>,
+}
+
+/// Whether the harness's own memory can be turned off, and how (`agent::own_memory`).
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]
+pub enum OwnMemory {
+    /// No switch: the harness keeps no memory of its own that Codync can turn off.
+    #[default]
+    None,
+    /// A switch in the bot's settings, wherever the bot works.
+    Switchable,
+    /// A switch only in a bot's own workspace, the one Codync writes: a project folder's files are the user's
+    /// (Qwen Code reads its switch from there).
+    ManagedWorkspace,
+    /// One memory for every session of the harness, that Codync can't turn off; the apps say so instead.
+    Shared,
 }
 
 #[derive(Clone, Copy)]
@@ -82,6 +99,12 @@ pub fn harness(id: &str) -> Option<&'static Harness> {
 /// know by name (an agent picked from the ACP registry) is `Adapter::Other`.
 pub fn adapter(id: &str) -> Adapter {
     harness(id).map_or(Adapter::Other, |h| h.adapter)
+}
+
+/// What the catalog says about turning a backend's own memory off: a harness Codync doesn't know by name
+/// has no switch.
+pub fn own_memory(id: &str) -> OwnMemory {
+    harness(id).map_or(OwnMemory::None, |h| h.own_memory)
 }
 
 // MARK: listing + launching
