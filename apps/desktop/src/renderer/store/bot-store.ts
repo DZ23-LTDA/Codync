@@ -447,20 +447,6 @@ export class BotStore extends BotSync {
     this.selection = id
     this.changed()
   }
-
-  consumeRoutineDraft(botId: string) {
-    const value = this.routineDrafts.get(botId)
-    if (value !== undefined) {
-      this.routineDrafts.delete(botId)
-      this.changed()
-    }
-    return value
-  }
-
-  setRoutineDraft(botId: string, text: string) {
-    this.routineDrafts.set(botId, text)
-    this.changed()
-  }
 }
 
 /** A full editor update must explicitly clear a previous model override. */

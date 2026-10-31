@@ -85,7 +85,6 @@ export class BotMirror extends Observable {
   /** A new network's recovery code until the user says they saved it: the host keeps it nowhere. */
   recoveryCode: RecoveryCode | null = null
   historyComplete = new Set<string>()
-  routineDrafts = new Map<string, string>()
   readonly composerDrafts: ComposerDrafts
   lastError: string | null = null
   /** A kit view selected a bot on this store (new bot or group, editor); the account picks it up. */

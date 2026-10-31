@@ -6,11 +6,9 @@ any left). tools/asc-submit.py reads the released version's section;
 a version without one gets a generic "Bug fixes and improvements" line. Delete old sections.
 -->
 
-## 2.33.3
+## 2.33.4
 ### zh-Hant
-- 可上下拖曳 section，連同其中的 bot 一起移動，也能放到「Bots」下方；此裝置會記住順序。
-- 儲存 bot 設定或編輯群組後，自訂圖示不會再消失。
+- 移除例行任務標題旁的聊天按鈕，介面更簡潔。仍可直接在聊天中請 bot 建立任務，或使用「＋」自行設定。
 
 ### en-US
-- Drag sections up or down with their bots, including below Bots. This device remembers the order.
-- Custom bot icons now stay after you save a bot's settings or edit a group.
+- Removed the chat shortcut beside Routines. Ask the bot directly in chat, or use + to set up a routine yourself.

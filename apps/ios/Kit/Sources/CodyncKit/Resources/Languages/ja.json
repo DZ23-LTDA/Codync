@@ -423,7 +423,7 @@
   "Set up on the computer: Codync → Settings → Computer access": "コンピューターでのセットアップ: Codync → 設定 → コンピューターアクセス",
   "No routines yet. Ask the bot for one, or set it up yourself with +.": "まだルーチンはありません。ボットにリクエストするか、+ を使用して自分で設定します。",
   "Loading routines…": "ルーチンをロード中…",
-  "No routines. c asks the bot for one; n sets one up here.": "ルーチンはありません。 c はボットに要求します。 n はここで 1 つを設定します。",
+  "No routines. n sets one up here, or ask the bot in chat.": "ルーチンはありません。n で設定するか、チャットでボットに依頼してください。",
   "Close routines": "ルーチンを閉じる",
   "Choose project folder…": "プロジェクトフォルダーを選択してください…",
   "If {agent} runs out of usage or can't answer, the bot carries on with the next one. Chat, memory and workspace carry over.": "{agent} の使用量がなくなるか応答できない場合、ボットは次のボットを続行します。チャット、記憶、ワークスペースは引き継がれます。",
