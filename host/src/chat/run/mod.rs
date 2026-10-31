@@ -1,7 +1,8 @@
 //! A run: one task handed to several bots at once, and the ledger that follows it.
 //!
 //! The host owns the fan-out (`chat::team`'s request path) and the ledger (`kv`), so the transcript, the cost and the
-//! audit stay in one place. The join and the seal are the next slices: `docs/plans/run-orchestration.md`.
+//! audit stay in one place. A sealed run waits for a person before any bot is asked: the seal is the difference between
+//! a bot that proposes and a bot that acts (`docs/plans/run-orchestration.md`).
 
 pub mod merge;
 
@@ -17,6 +18,12 @@ use std::sync::Arc;
 const MIN_BOTS: usize = 2;
 const MAX_BOTS: usize = 8;
 
+/// Where a run is in its life.
+const AWAITING: &str = "awaitingApproval";
+const RUNNING: &str = "running";
+const DONE: &str = "done";
+const REJECTED: &str = "rejected";
+
 /// One run, as its ledger keeps it.
 #[derive(Serialize, Deserialize)]
 pub struct Run {
@@ -26,6 +33,16 @@ pub struct Run {
     pub schema: Option<Value>,
     pub bots: Vec<Asked>,
     pub created_at: i64,
+    /// A sealed run is kept here until a person answers it, and no bot is asked before that.
+    #[serde(default)]
+    pub seal: bool,
+    /// The last state the ledger knows; a running run also reads its requests (see `status`).
+    #[serde(default)]
+    pub state: String,
+    #[serde(default)]
+    pub approved_by: Option<String>,
+    #[serde(default)]
+    pub approved_at: Option<i64>,
 }
 
 /// One bot the run was handed to, and the request that carries it.
@@ -34,7 +51,7 @@ pub struct Asked {
     pub bot: String,
     pub name: String,
     pub request: String,
-    /// The bot answer, filed when it reaches the sender (see `record_reply`).
+    /// The bot answer, filed when it reaches the sender (see `record_reply`); empty while the run waits.
     #[serde(default)]
     pub reply: Option<String>,
 }
@@ -75,35 +92,93 @@ fn bots(from: &str, ids: &Value) -> Result<Vec<String>> {
     Ok(out)
 }
 
-/// `startRun`: one request per bot, and the ledger that follows them.
-pub fn start(hub: &Arc<Hub>, from: &str, b: &Value) -> Result<Value> {
+/// Asks every bot in the run, in the order the user listed them.
+fn fan_out(hub: &Arc<Hub>, from: &str, run: &mut Run) -> Result<()> {
+    let source = team::visible_bot(hub, from)?;
+    for asked in &mut run.bots {
+        let answer = team::message_bot(hub, &source, &asked.bot, &run.task)?;
+        let name = answer["name"].as_str().unwrap_or_default();
+        if !name.is_empty() {
+            name.clone_into(&mut asked.name);
+        }
+        answer["requestId"].as_str().unwrap_or_default().clone_into(&mut asked.request);
+    }
+    for asked in &run.bots {
+        hub.store.kv_set(&format!("runreq.{}", asked.request), &run.id)?;
+    }
+    Ok(())
+}
+
+/// `startRun`: one request per bot, or a sealed run kept until a person answers it.
+pub fn start(hub: &Arc<Hub>, from: &str, by: &str, b: &Value) -> Result<Value> {
     let task = b["task"].as_str().with_context(|| "task is required")?.trim().to_owned();
     if task.is_empty() {
         bail!("task is empty");
     }
     let ids = bots(from, &b["bots"])?;
     let schema = b.get("schema").filter(|s| s.is_object()).cloned();
-    let source = team::visible_bot(hub, from)?;
-    let mut asked = Vec::with_capacity(ids.len());
-    for to in &ids {
-        let answer = team::message_bot(hub, &source, to, &task)?;
-        asked.push(Asked {
-            bot: answer["botId"].as_str().unwrap_or(to).to_owned(),
-            name: answer["name"].as_str().unwrap_or_default().to_owned(),
-            request: answer["requestId"].as_str().unwrap_or_default().to_owned(),
-            reply: None,
-        });
+    let seal = b["seal"].as_bool().unwrap_or(false);
+    let mut run = Run {
+        id: uuid::Uuid::new_v4().to_string(),
+        task,
+        schema,
+        bots: ids
+            .into_iter()
+            .map(|bot| Asked { bot, name: String::new(), request: String::new(), reply: None })
+            .collect(),
+        created_at: now_ms(),
+        seal,
+        state: if seal { AWAITING } else { RUNNING }.to_owned(),
+        approved_by: None,
+        approved_at: None,
+    };
+    if seal {
+        // A sealed run never reaches a bot before a person answers it.
+        save(&hub.store, &run)?;
+        return Ok(json!({"runId": run.id, "state": AWAITING, "sealed": true}));
     }
-    let run = Run { id: uuid::Uuid::new_v4().to_string(), task, schema, bots: asked, created_at: now_ms() };
-    for asked in &run.bots {
-        hub.store.kv_set(&format!("runreq.{}", asked.request), &run.id)?;
-    }
+    fan_out(hub, from, &mut run)?;
+    let approved_by = by.to_owned();
+    run.approved_by = Some(approved_by);
+    run.approved_at = Some(now_ms());
     save(&hub.store, &run)?;
     let named: Vec<Value> = run.bots.iter().map(|a| json!({"bot": a.bot, "name": a.name})).collect();
-    Ok(json!({"runId": run.id, "bots": named}))
+    Ok(json!({"runId": run.id, "state": RUNNING, "bots": named}))
 }
 
-/// `runStatus`: each bot's request as the transcript knows it, and whether the run is still going.
+/// `approveRun`: the person answers a sealed run, and only now do its bots get asked.
+pub fn approve(hub: &Arc<Hub>, from: &str, by: &str, b: &Value) -> Result<Value> {
+    let id = b["runId"].as_str().with_context(|| "runId is required")?;
+    let mut run = load(&hub.store, id)?;
+    if run.state != AWAITING {
+        bail!("run {id} isn't waiting for approval (it is {})", run.state);
+    }
+    fan_out(hub, from, &mut run)?;
+    run.state.clear();
+    run.state.push_str(RUNNING);
+    let approved_by = by.to_owned();
+    run.approved_by = Some(approved_by);
+    run.approved_at = Some(now_ms());
+    save(&hub.store, &run)?;
+    Ok(json!({"runId": run.id, "state": RUNNING, "approvedBy": run.approved_by}))
+}
+
+/// `rejectRun`: a sealed run nobody approved. It never reaches a bot.
+pub fn reject(hub: &Arc<Hub>, by: &str, b: &Value) -> Result<Value> {
+    let id = b["runId"].as_str().with_context(|| "runId is required")?;
+    let mut run = load(&hub.store, id)?;
+    if run.state != AWAITING {
+        bail!("run {id} isn't waiting for approval (it is {})", run.state);
+    }
+    run.state.clear();
+    run.state.push_str(REJECTED);
+    let approved_by = by.to_owned();
+    run.approved_by = Some(approved_by);
+    run.approved_at = Some(now_ms());
+    save(&hub.store, &run)?;
+    Ok(json!({"runId": run.id, "state": REJECTED}))
+}
+
 /// Files a reply in its run ledger, when the request belongs to a run.
 pub fn record_reply(hub: &Arc<Hub>, request: &str, text: &str) {
     let Some(run_id) = hub.store.kv_get(&format!("runreq.{request}")) else { return };
@@ -120,30 +195,39 @@ pub fn record_reply(hub: &Arc<Hub>, request: &str, text: &str) {
     }
 }
 
+/// `runStatus`: each bot request as the transcript knows it, and what the run came to.
 pub fn status(hub: &Arc<Hub>, b: &Value) -> Result<Value> {
     let id = b["runId"].as_str().with_context(|| "runId is required")?;
     let run = load(&hub.store, id)?;
-    let mut running = false;
+    let mut pending = false;
     let mut bots = Vec::with_capacity(run.bots.len());
     for asked in &run.bots {
         let status = hub.store.entry(&asked.request).map_or(Value::Null, |entry| entry.data["status"].clone());
-        running |= matches!(status.as_str(), Some("queued" | "sent"));
+        pending |= matches!(status.as_str(), Some("queued" | "sent"));
         bots.push(json!({"bot": asked.bot, "name": asked.name, "request": asked.request, "status": status}));
     }
+    let state = match run.state.as_str() {
+        RUNNING if pending => RUNNING,
+        RUNNING => DONE,
+        other => other,
+    };
     let answered: Vec<merge::Answer> = run
         .bots
         .iter()
         .filter_map(|a| a.reply.as_ref().map(|text| merge::Answer { name: a.name.clone(), text: text.clone() }))
         .collect();
-    let merged = match (run.schema.as_ref(), running) {
-        (Some(schema), false) => Some(merge::merge(&answered, schema)),
+    let merged = match (run.schema.as_ref(), state) {
+        (Some(schema), DONE) => Some(merge::merge(&answered, schema)),
         _ => None,
     };
     Ok(json!({
         "runId": run.id,
         "task": run.task,
+        "state": state,
+        "sealed": run.seal,
+        "approvedBy": run.approved_by,
+        "approvedAt": run.approved_at,
         "createdAt": run.created_at,
-        "status": if running { "running" } else { "done" },
         "bots": bots,
         "merged": merged.map(|m| json!({
             "agreed": m.agreed.iter().cloned().collect::<std::collections::BTreeMap<String, Value>>(),

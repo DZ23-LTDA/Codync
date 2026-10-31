@@ -10,10 +10,21 @@ use serde_json::{Value, json};
 use std::ops::ControlFlow;
 use std::sync::Arc;
 
+/// Who answered a sealed run, as far as the host can tell: the person on this computer, or the device used.
+fn approver(caller: &Caller) -> String {
+    match caller {
+        Caller::Local => "this computer".to_owned(),
+        Caller::Device { key, .. } => format!("device {}", key.chars().take(8).collect::<String>()),
+        Caller::Pairing { .. } => "a pairing channel".to_owned(),
+    }
+}
+
 pub(super) async fn call(hub: &Arc<Hub>, caller: &Caller, method: &str, b: Value) -> Result<ControlFlow<Value, Value>> {
     Ok(ControlFlow::Break(match method {
         "routineSchedule" => crate::routines::schedule_preview(&b, crate::store::now_ms())?,
-        "startRun" => crate::chat::run::start(hub, str_arg(&b, "botId")?, &b)?,
+        "startRun" => crate::chat::run::start(hub, str_arg(&b, "botId")?, &approver(caller), &b)?,
+        "approveRun" => crate::chat::run::approve(hub, str_arg(&b, "botId")?, &approver(caller), &b)?,
+        "rejectRun" => crate::chat::run::reject(hub, &approver(caller), &b)?,
         "runStatus" => crate::chat::run::status(hub, &b)?,
         "routines" => hub.routines.list(str_arg(&b, "botId")?),
         "saveRoutine" => hub.routines.save(hub, str_arg(&b, "botId")?, &b)?,
