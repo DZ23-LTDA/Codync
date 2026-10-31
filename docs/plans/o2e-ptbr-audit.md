@@ -46,3 +46,20 @@ A entrega de O2-E passa a ser:
 
 Não criei uma segunda infraestrutura de tradução. A tentativa de fundação própria (`lib/i18n/`) foi **removida** neste
 PR: ela duplicava o `l10n.ts`, e duplicar o lugar onde as strings vivem é como a mistura de idiomas começa.
+
+## O que ainda falta para o desktop ser português de verdade (medido)
+
+`node tools/l10n-coverage.mjs` diz que `pt` cobre **100%** das 210 frases que passam por `tr()`.
+`node tools/l10n-unwrapped.mjs` mostra o outro lado: **278 strings visíveis não passam por `tr()`** — são textos escritos
+direto no JSX e atributos `placeholder`/`title`/`aria-label` que nunca chegam a tabela nenhuma. Eles aparecem em inglês
+em **todas** as línguas, inclusive português, e a maioria são tooltips e rótulos de acessibilidade.
+
+Consequência honesta: o desktop **não está traduzido**; está traduzido na superfície que já passava pelo mecanismo.
+Fechar O2-E inclui:
+
+1. envolver essas 278 strings em `tr()` (por tela, sem quebrar layout);
+2. traduzi-las em `pt.json` e nas outras sete tabelas;
+3. inspecionar visualmente cada tela tocada — a regra do repositório exige e2e de UI, e texto português é ~20% mais longo;
+4. formatar data, hora e número por locale nas telas que mostram tempo.
+
+O número existe para não haver dúvida sobre o tamanho do que resta: 278, medido, não estimado.
