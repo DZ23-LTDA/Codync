@@ -158,6 +158,14 @@ impl Actor {
             // What the turn cost counts against the bot's daily budget, whichever chat it was in.
             if let Some(tokens) = turn_tokens(usage) {
                 super::budget::record(&self.hub.store, &self.cfg.id, tokens);
+                let part = |key: &str| usage[key].as_u64().unwrap_or(0);
+                super::budget::record_usage(
+                    &self.hub.store,
+                    &self.cfg.id,
+                    part("inputTokens"),
+                    part("cachedReadTokens"),
+                    part("cachedWriteTokens"),
+                );
                 // The price is the user's, because the host doesn't know their plan.
                 if let Some(price) = self.cfg.price_per_mtok {
                     super::budget::record_cost(&self.hub.store, &self.cfg.id, tokens, price);

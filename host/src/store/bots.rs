@@ -175,6 +175,7 @@ mod tests {
             budget: None,
             budget_usd: None,
             price_per_mtok: None,
+            price_cached_per_mtok: None,
             permission: Permission::Ask,
             model: None,
             model_options: std::collections::BTreeMap::new(),
