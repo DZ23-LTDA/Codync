@@ -824,6 +824,7 @@
   "hour unit": "h",
   "minute unit": "min",
   "Resets": "Restablecimiento",
+  "{percent}% used": "{percent} % usado",
   "5-hour": "5 horas",
   "Ready": "Listo",
   "Review changes": "Revisar cambios",

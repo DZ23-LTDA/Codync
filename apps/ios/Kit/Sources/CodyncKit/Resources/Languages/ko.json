@@ -824,6 +824,7 @@
   "hour unit": "시간",
   "minute unit": "분",
   "Resets": "초기화",
+  "{percent}% used": "{percent}% 사용됨",
   "5-hour": "5시간",
   "Ready": "준비됨",
   "Review changes": "변경 사항 검토",
