@@ -40,3 +40,25 @@ runStatus { runId } -> { runId, status, answers: [{ bot, name, status, text }], 
 - Not a subagent mechanism: native subagents stay with the harness.
 - Not a route around permissions: each request runs in the bot's own folder and permission, as `message_bot` does.
 - Not multi-computer: bots here are on this computer; `codync-network` bots are a separate step.
+
+## Implementation seams (where the code goes)
+
+Found while wiring stage 1; recorded so the next commit doesn’t rediscover them:
+
+- **Fan-out.** `chat::team::message_bot(hub, source, to, message)` already creates one request and returns
+  `{requestId, botId, name, status}`; it only needs `pub(crate)`. A run calls it once per bot, in the order the
+  user listed them, with the task plus the schema the answer must carry.
+- **Who may run.** `chat::team::visible_bot(hub, from)` is the visibility check every team tool uses; the caller
+  itself, a group and a bot that isn’t visible are refused from there.
+- **Reply capture.** A recipient’s answer comes back as `Cmd::BotReply` carrying `request_id` and the outcome;
+  the sender’s actor turns it into the next turn’s prompt (`chat::team::reply_prompt`). The ledger records the text
+  there, keyed by `request_id`, so a reply that arrives while the sender is busy still lands in the run.
+- **Statuses.** A request’s state is the `RequestStatus` in its entry’s data, read with `store.entry(id)`; the
+  run doesn’t keep a second copy that can drift.
+- **Ledger.** One `kv` key per run (`run.<id>`): task, schema, the bots and their request ids, created-at. Small
+  and rewrite-on-change; no schema migration, same choice as the daily budget.
+- **API.** A new method needs an arm in `api::dispatch` and a line in the permission table
+  (`api::devices::permit`): a run is control-plane, not `LOCAL_ONLY`.
+- **No tool.** Registering anything in the `team` server’s `tools()` changes what delegated turns see and broke
+  `files_e2e`/`network_e2e`; the run is driven by the host API and, later, by an explicit tool only with tests
+  that exercise a delegated turn.
