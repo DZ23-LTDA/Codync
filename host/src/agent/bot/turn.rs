@@ -88,6 +88,11 @@ impl Actor {
                 "Its daily budget of {budget} tokens is spent. Raise it in the bot's settings, or wait for tomorrow."
             );
         }
+        if !hidden && let Some(limit) = super::budget::exhausted_usd(&self.hub.store, &self.cfg) {
+            anyhow::bail!(
+                "Its daily spend limit of {limit:.2} dollars is reached. Raise it in the bot's settings, or wait for tomorrow."
+            );
+        }
         // A routine run keeps the turn its notice took when it began (`Routines::begin`).
         let run_turn = self
             .active_routine

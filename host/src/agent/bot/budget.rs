@@ -47,6 +47,45 @@ pub fn exhausted(store: &Store, cfg: &BotConfig) -> Option<u64> {
     (spent(store, &cfg.id) >= budget).then_some(budget)
 }
 
+fn cost_key(bot: &str, day: &str) -> String {
+    format!("spend-usd.{bot}.{day}")
+}
+
+/// Micro-dollars the bot spent today, from the price the user declared for its plan.
+pub fn spent_usd(store: &Store, bot: &str) -> u64 {
+    store.kv_get(&cost_key(bot, &today())).and_then(|v| v.parse().ok()).unwrap_or(0)
+}
+
+/// Adds a turn cost in micro-dollars: tokens times the price of a million tokens (the same number, by definition).
+#[expect(
+    clippy::cast_possible_truncation,
+    clippy::cast_sign_loss,
+    clippy::cast_precision_loss,
+    reason = "a day spend stays far below 2^53 micro-dollars"
+)]
+pub fn record_cost(store: &Store, bot: &str, tokens: u64, price_per_mtok: f64) {
+    if tokens == 0 || price_per_mtok <= 0.0 {
+        return;
+    }
+    let micro = (tokens as f64 * price_per_mtok).round().max(0.0) as u64;
+    let total = spent_usd(store, bot).saturating_add(micro);
+    if let Err(error) = store.kv_set(&cost_key(bot, &today()), &total.to_string()) {
+        tracing::warn!(bot = %bot, error = format!("{error:#}"), "could not record what the turn cost");
+    }
+}
+
+/// `Some(limit)` when today spend has reached the bot money limit: the next turn would go over it.
+#[expect(
+    clippy::cast_possible_truncation,
+    clippy::cast_sign_loss,
+    reason = "a daily limit stays far below 2^53 micro-dollars"
+)]
+pub fn exhausted_usd(store: &Store, cfg: &BotConfig) -> Option<f64> {
+    let budget = cfg.budget_usd?;
+    let limit = (budget * 1_000_000.0).round().max(0.0) as u64;
+    (spent_usd(store, &cfg.id) >= limit).then_some(budget)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -90,6 +129,20 @@ mod tests {
         let unlimited = bot(None);
         assert_eq!(exhausted(&store, &unlimited), None);
         assert_eq!(exhausted(&store, &bot(Some(2000))), None, "a raised budget lets it carry on");
+    }
+
+    #[test]
+    fn a_turn_costs_tokens_times_the_price_of_a_million() {
+        let (_dir, store) = TempDir::store();
+        // Three dollars per million tokens: a thousand tokens cost three thousand micro-dollars.
+        record_cost(&store, "b1", 1000, 3.0);
+        assert_eq!(spent_usd(&store, "b1"), 3_000);
+        let mut cfg = bot(None);
+        cfg.budget_usd = Some(0.002);
+        assert_eq!(exhausted_usd(&store, &cfg), Some(0.002), "already over the limit");
+        cfg.budget_usd = Some(1.0);
+        assert_eq!(exhausted_usd(&store, &cfg), None, "a limit above the spend lets it carry on");
+        assert_eq!(exhausted_usd(&store, &bot(None)), None, "a bot with no money limit never stops");
     }
 
     #[test]
