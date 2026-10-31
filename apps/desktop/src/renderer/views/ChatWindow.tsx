@@ -376,8 +376,8 @@ function ChatSplitView() {
           <Spacer />
           <HStack gap={6} className="no-drag">
             <ComputerFilterHeader hidden={hidden} setHidden={setHidden} manage={() => setSettings('computers')} compact />
-            <IconButton title="Search" icon="magnifyingglass" size={32} className="sidebar-header-action" onClick={() => setSearching(true)} />
-            <IconButton title="New" icon="plus" size={32} className="sidebar-header-action" buttonRef={newButton} menuOpen={newMenu} onClick={() => setNewMenu((o) => !o)} disabled={!onlineStores.length} />
+            <IconButton title={tr('Search')} icon="magnifyingglass" size={32} className="sidebar-header-action" onClick={() => setSearching(true)} />
+            <IconButton title={tr('New')} icon="plus" size={32} className="sidebar-header-action" buttonRef={newButton} menuOpen={newMenu} onClick={() => setNewMenu((o) => !o)} disabled={!onlineStores.length} />
           </HStack>
           <AnchoredMenu open={newMenu} onClose={() => setNewMenu(false)} anchor={newButton} items={newItems} />
         </div>
@@ -410,12 +410,12 @@ function ChatSplitView() {
         </div>
         {compact ? (
           <div className="rail-actions">
-            <IconButton title="Search" icon="magnifyingglass" onClick={() => setSearching(true)} />
-            <IconButton title="New" icon="plus" size={36} buttonRef={railNewButton} menuOpen={railNewMenu} disabled={!onlineStores.length} onClick={() => setRailNewMenu((o) => !o)} />
+            <IconButton title={tr('Search')} icon="magnifyingglass" onClick={() => setSearching(true)} />
+            <IconButton title={tr('New')} icon="plus" size={36} buttonRef={railNewButton} menuOpen={railNewMenu} disabled={!onlineStores.length} onClick={() => setRailNewMenu((o) => !o)} />
             <AnchoredMenu open={railNewMenu} onClose={() => setRailNewMenu(false)} anchor={railNewButton} items={newItems} />
-            <IconButton title="Extensions" icon="square.grid.2x2" size={36} onClick={openMarketplace} />
+            <IconButton title={tr('Extensions')} icon="square.grid.2x2" size={36} onClick={openMarketplace} />
             <UpdateBadge size={32} />
-            <button className={`rail-profile ${showAccount ? 'open' : ''}`} aria-label="Open account menu for Account" title="Account" onClick={() => setShowAccount((s) => !s)}>
+            <button className={`rail-profile ${showAccount ? 'open' : ''}`} aria-label={tr('Open account menu for Account')} title={tr('Account')} onClick={() => setShowAccount((s) => !s)}>
               <ProfileAvatar />
             </button>
           </div>
