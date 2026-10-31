@@ -9,6 +9,8 @@ a version without one gets a generic "Bug fixes and improvements" line. Delete o
 ## 2.33.3
 ### zh-Hant
 - 可上下拖曳 section，連同其中的 bot 一起移動，也能放到「Bots」下方；此裝置會記住順序。
+- 儲存 bot 設定或編輯群組後，自訂圖示不會再消失。
 
 ### en-US
 - Drag sections up or down with their bots, including below Bots. This device remembers the order.
+- Custom bot icons now stay after you save a bot's settings or edit a group.
