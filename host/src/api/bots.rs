@@ -62,6 +62,7 @@ pub(super) async fn call(hub: &Arc<Hub>, caller: &Caller, method: &str, b: Value
         "startRun" => crate::chat::run::start(hub, str_arg(&b, "botId")?, &approver(caller), &b)?,
         "approveRun" => crate::chat::run::approve(hub, str_arg(&b, "botId")?, &approver(caller), &b)?,
         "rejectRun" => crate::chat::run::reject(hub, &approver(caller), &b)?,
+        "revokeRun" => crate::chat::run::revoke(hub, &approver(caller), &b)?,
         "runStatus" => crate::chat::run::status(hub, &b)?,
         "routines" => hub.routines.list(str_arg(&b, "botId")?),
         "saveRoutine" => hub.routines.save(hub, str_arg(&b, "botId")?, &b)?,
