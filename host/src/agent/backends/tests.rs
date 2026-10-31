@@ -31,6 +31,26 @@ fn write_cli(dir: &Path, name: &str) {
 }
 
 #[test]
+fn the_catalog_says_which_adapter_each_cli_speaks() {
+    // Two adapters Codync treats apart, and every other harness a plain ACP agent.
+    assert_eq!(adapter("claude"), Adapter::Claude);
+    assert_eq!(adapter("codex"), Adapter::Codex);
+    assert_eq!(adapter("gemini"), Adapter::Other);
+    // An agent picked from the ACP registry has no catalog entry; its `initialize` still decides.
+    assert_eq!(adapter("some-registry-agent"), Adapter::Other, "a harness Codync doesn't know by name");
+}
+
+#[test]
+fn the_catalog_says_which_harnesses_have_a_memory_switch() {
+    assert_eq!(own_memory("claude"), OwnMemory::Switchable);
+    assert_eq!(own_memory("workbuddy"), OwnMemory::Switchable, "the CodeBuddy CLI under another name");
+    assert_eq!(own_memory("qwen"), OwnMemory::ManagedWorkspace, "only in a bot's own workspace");
+    assert_eq!(own_memory("gemini"), OwnMemory::Shared, "every session of the harness reads it");
+    assert_eq!(own_memory("grok"), OwnMemory::None);
+    assert_eq!(own_memory("some-registry-agent"), OwnMemory::None, "a harness Codync doesn't know by name");
+}
+
+#[test]
 fn an_installed_cli_comes_before_the_registry_build() {
     let dir = TempDir::new();
     for name in ["codebuddy", "mcode", "cursor-agent"] {
