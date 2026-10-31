@@ -147,6 +147,17 @@ fn entries_that_leave_the_archive_or_link_are_skipped() {
     assert_eq!(archive.skipped, ["../evil.md", "link"]);
 }
 
+/// Removes a scratch directory, best effort: a Windows test can finish its assertions and still be unable to delete
+/// the database file underneath it, and failing on that would report a bug the test never found.
+fn cleanup(dir: &std::path::Path) {
+    for _ in 0..10 {
+        if std::fs::remove_dir_all(dir).is_ok() {
+            return;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(20));
+    }
+}
+
 #[tokio::test]
 async fn an_import_makes_bots_and_one_group_and_rolls_a_failed_bot_back() {
     let dir = std::env::temp_dir().join(format!("codync-import-hub-{}", uuid::Uuid::new_v4()));
@@ -184,5 +195,9 @@ async fn an_import_makes_bots_and_one_group_and_rolls_a_failed_bot_back() {
     assert_eq!(lead, research["id"].as_str().unwrap(), "the export's lead leads");
     let warnings = done["warnings"].to_string();
     assert!(warnings.contains("Couldn't import Ops") && warnings.contains("Again"), "{warnings}");
-    std::fs::remove_dir_all(dir).unwrap();
+    // Windows refuses to delete a directory while any handle inside it is open, and the hub's actors keep the database
+    // open past the drop. Tidying up is not what this test proves, so it retries and gives up quietly instead of
+    // failing on a result that was correct.
+    drop(hub);
+    cleanup(&dir);
 }
