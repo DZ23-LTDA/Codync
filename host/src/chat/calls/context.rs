@@ -359,6 +359,7 @@ pub(super) mod tests {
             backend: "claude".into(),
             command: None,
             cwd: cwd.into(),
+            budget: None,
             permission: Permission::Ask,
             model: Some("opus".into()),
             model_options: std::collections::BTreeMap::new(),

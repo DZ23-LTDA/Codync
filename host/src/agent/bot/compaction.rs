@@ -155,6 +155,10 @@ impl Actor {
                 input = usage["inputTokens"].as_u64().unwrap_or(0),
                 "turn usage"
             );
+            // What the turn cost counts against the bot's daily budget, whichever chat it was in.
+            if let Some(tokens) = turn_tokens(usage) {
+                super::budget::record(&self.hub.store, &self.cfg.id, tokens);
+            }
         }
         if !self.in_main_chat() {
             return;
@@ -270,6 +274,18 @@ fn learned_life(answer: &Value, gap_ms: i64) -> Option<CacheLife> {
     CacheLife::observed(gap_ms, read, input)
 }
 
+/// The tokens a turn spent, as its agent reported them: prompt tokens, cache reads and cache writes. `None` when the
+/// answer carried no usage at all, so a harness that reports none isn't counted as free.
+fn turn_tokens(usage: &Value) -> Option<u64> {
+    let mut total = None;
+    for key in ["inputTokens", "cachedReadTokens", "cachedWriteTokens"] {
+        if let Some(n) = usage[key].as_u64() {
+            total = Some(total.map_or(n, |t: u64| t.saturating_add(n)));
+        }
+    }
+    total
+}
+
 /// Whether a session's context use fell the way it does when the agent summarizes it: by more than half.
 fn compacted_by_usage(before: Option<u64>, used: u64) -> bool {
     before.is_some_and(|before| before >= COMPACTED_FROM && used < before / 2)
@@ -278,6 +294,14 @@ fn compacted_by_usage(before: Option<u64>, used: u64) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_turn_says_what_it_spent_in_tokens() {
+        let usage = json!({"inputTokens": 1200, "cachedReadTokens": 30_000, "cachedWriteTokens": 400});
+        assert_eq!(turn_tokens(&usage), Some(31_600), "prompt, cache reads and cache writes");
+        assert_eq!(turn_tokens(&json!({"inputTokens": 7})), Some(7), "whatever the agent reports");
+        assert_eq!(turn_tokens(&json!({})), None, "an agent that reports no usage isn't counted as free");
+    }
 
     #[test]
     fn a_halved_context_reads_as_a_compaction() {

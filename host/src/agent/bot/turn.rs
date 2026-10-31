@@ -81,6 +81,13 @@ impl Actor {
         hidden: bool,
         done_tx: &mpsc::UnboundedSender<Done>,
     ) -> Result<()> {
+        // Before this turn costs anything: a bot past its daily budget waits for tomorrow. Hidden turns (the host's
+        // own compaction) still run, so a spent bot can still be summarized rather than left unable to continue.
+        if !hidden && let Some(budget) = super::budget::exhausted(&self.hub.store, &self.cfg) {
+            anyhow::bail!(
+                "Its daily budget of {budget} tokens is spent. Raise it in the bot's settings, or wait for tomorrow."
+            );
+        }
         // A routine run keeps the turn its notice took when it began (`Routines::begin`).
         let run_turn = self
             .active_routine
