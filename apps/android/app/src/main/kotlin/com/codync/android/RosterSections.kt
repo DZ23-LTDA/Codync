@@ -28,28 +28,28 @@ internal sealed interface RosterLine {
     }
 }
 
-/** The lead and pinned bots stay on top, outside sections. */
-internal val Bot.staysOnTop get() = lead || pinned
-
 /**
- * The sorted [roster] as it shows: the lead and pinned bots, then each section by name (its header,
- * then its bots in roster order unless it's [folded]), then bots without a section, under
- * [RosterLine.Label] when there are sections. The lead and a pinned bot show only on top.
+ * The sorted [roster] as it shows: the pinned bots, then each section by name (its header, then its
+ * bots in roster order unless it's [folded]), then bots without a section, under [RosterLine.Label]
+ * when there are sections. A pinned bot shows only on top.
  */
-internal fun rosterLines(roster: List<Bot>, folded: Set<String>): List<RosterLine> = buildList {
-    val (pinned, unpinned) = roster.partition { it.staysOnTop }
+internal fun rosterLines(roster: List<Bot>, folded: Set<String>, order: List<String> = emptyList(), moving: Boolean = false): List<RosterLine> = buildList {
+    val (pinned, unpinned) = roster.partition { it.pinned }
     val sections = unpinned.groupBy(Bot::section)
     pinned.forEach { add(RosterLine.Row(it)) }
-    val names = sectionNames(unpinned)
+    val custom = sectionNames(unpinned)
+    val names = orderedSections(custom + if (sections[null].isNullOrEmpty()) emptyList() else listOf(""), order)
     for (name in names) {
-        val bots = sections.getValue(name)
-        val header = RosterLine.Header(name, bots.size, bots.sumOf { it.unread }, name in folded)
-        add(header)
-        if (!header.folded) bots.forEach { add(RosterLine.Row(it)) }
+        if (name.isEmpty()) {
+            if (custom.isNotEmpty()) add(RosterLine.Label)
+            if (!moving) sections[null].orEmpty().forEach { add(RosterLine.Row(it)) }
+        } else {
+            val bots = sections.getValue(name)
+            val header = RosterLine.Header(name, bots.size, bots.sumOf { it.unread }, moving || name in folded)
+            add(header)
+            if (!header.folded) bots.forEach { add(RosterLine.Row(it)) }
+        }
     }
-    val loose = sections[null].orEmpty()
-    if (names.isNotEmpty() && loose.isNotEmpty()) add(RosterLine.Label)
-    loose.forEach { add(RosterLine.Row(it)) }
 }
 
 /** The sections [bots] are in, sorted the way the phone's language sorts ("İş" where Turkish puts it). */
@@ -64,6 +64,13 @@ private const val SECTIONS_HOST = "2.32.0"
 /** Section controls show only for a host that keeps sections; before its `hello` (offline) they stay hidden. */
 internal val AppState.supportsSections: Boolean
     get() = hello?.text("version")?.let { !AppVersion.isBelow(it, SECTIONS_HOST) } == true
+
+/** The first host version where the user picks the lead (`setLead`) and may delete it. */
+private const val LEAD_CHOICE_HOST = "2.33.0"
+
+/** An older host refuses both, so "Make lead agent" and the lead's Delete wait for its `hello`. */
+internal val AppState.supportsLeadChoice: Boolean
+    get() = hello?.text("version")?.let { !AppVersion.isBelow(it, LEAD_CHOICE_HOST) } == true
 
 /** `updateBot`'s section patch: null goes as JSON null, which clears it (a missing key keeps it). */
 internal fun sectionUpdate(id: String, section: String?): JsonObject = buildJsonObject { put("id", id); put("section", section) }

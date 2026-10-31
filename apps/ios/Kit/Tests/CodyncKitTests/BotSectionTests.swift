@@ -47,3 +47,9 @@ private func json(_ data: Data?) throws -> [String: Any] {
     sent = try json(await recorder.bodies["renameSection"])
     #expect(sent["to"] is NSNull)
 }
+
+@Test func setLeadSendsOnlyTheBot() async throws {
+    let recorder = Recorder()
+    try await HostClient(transport: recorder).setLead("b")
+    #expect(try json(await recorder.bodies["setLead"]) as? [String: String] == ["botId": "b"])
+}

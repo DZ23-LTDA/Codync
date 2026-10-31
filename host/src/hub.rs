@@ -19,6 +19,7 @@ use std::time::Duration;
 use tokio::sync::{broadcast, watch};
 
 mod groups;
+mod lead;
 mod order;
 mod patch;
 mod reactions;
@@ -274,7 +275,6 @@ impl Hub {
     }
 
     pub fn delete_bot(&self, id: &str) -> Result<()> {
-        crate::chat::lead::may_delete(&self.store, id)?;
         self.routines.disable_bot(&self.store, id)?;
         self.team.end_turn(id);
         self.groups.stop(self, id);

@@ -6,12 +6,9 @@ any left). tools/asc-submit.py reads the released version's section;
 a version without one gets a generic "Bug fixes and improvements" line. Delete old sections.
 -->
 
-## 2.32.0
-
+## 2.33.6
 ### zh-Hant
-- Bot 清單可以分成自己的分組，例如「工作」和「個人」：長按 Bot 選「移到分組」，點分組標題即可收合，收合時會顯示裡面的未讀數。
-- 遠端畫面連線更快，網路短暫中斷時也不會斷掉。
+- 「網路」功能換上 Codync Network 自己的圖示，在電腦頁、電腦選單與網路畫面中都一樣。
 
 ### en-US
-- Sort the bot list into your own sections, like Work and Personal: touch and hold a bot and choose Move to section, then tap a section's heading to fold it, with its unread count showing while it's folded.
-- The remote screen connects faster and stays up through a brief connection drop.
+- Network now has its own Codync Network icon on the Computers screen, in the computer menu and on the Network screen.

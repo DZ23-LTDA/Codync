@@ -21,6 +21,9 @@ public enum SendProgress: Sendable {
 @MainActor
 @Observable
 public final class BotStore {
+    public internal(set) var icons: [String: CustomIcon] = [:]
+    var iconsRevision: Int64 = -1
+    var iconsEpoch: UInt64 = 0
     public enum Connection: Equatable {
         case unpaired
         case connecting
@@ -75,7 +78,6 @@ public final class BotStore {
     var composerDrafts: [String: String] = [:]
     /// What was pasted into each draft, sent along so memory never takes it as the user's own words.
     @ObservationIgnored var composerPasted: [String: [String]] = [:]
-    public var routineDrafts: [String: String] = [:]
     public let fileDownloads = FileDownloads()
     var artifacts = ArtifactCache()
     public var lastError: String?
@@ -218,6 +220,13 @@ public final class BotStore {
     public var supportsSections: Bool {
         hostVersion.map { !AppVersion.isBelow($0.version, Self.sectionsHost) } ?? false
     }
+
+    /// From host 2.33.0 the user picks the lead (`setLead`) and may delete it; an older host refuses both.
+    public var supportsLeadChoice: Bool {
+        hostVersion.map { !AppVersion.isBelow($0.version, Self.leadChoiceHost) } ?? false
+    }
+
+    static let leadChoiceHost = "2.33.0"
 
     static let sectionsHost = "2.32.0"
 
