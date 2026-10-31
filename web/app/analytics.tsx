@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import posthog from "posthog-js";
-import { APP_STORE, DISCORD, DMG, GITHUB, PRODUCT_HUNT, WINDOWS } from "./links";
+import { APP_STORE, BUY_ME_A_COFFEE, DISCORD, DMG, GITHUB, KO_FI, PRODUCT_HUNT, WINDOWS } from "./links";
 
 // Cookieless counts for codync.dev (docs/reference/analytics-events.md, Website). Nothing is
 // stored on the device; PostHog's server hashes the visitor per day.
@@ -19,6 +19,8 @@ const links: [prefix: string, link: string][] = [
   [GITHUB, "github"],
   [DISCORD, "discord"],
   [PRODUCT_HUNT, "product_hunt"],
+  [BUY_ME_A_COFFEE, "buy_me_a_coffee"],
+  [KO_FI, "ko_fi"],
 ];
 
 export function track(event: "download_clicked", props: { platform: Platform }): void;

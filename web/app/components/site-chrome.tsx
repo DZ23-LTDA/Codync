@@ -2,7 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { DiscordLogo, GithubLogo } from "@phosphor-icons/react/ssr";
 import DownloadButton from "./download-button";
-import { DISCORD, EMAIL, GITHUB } from "../links";
+import { BUY_ME_A_COFFEE, DISCORD, EMAIL, GITHUB, KO_FI } from "../links";
 
 const nav: [href: string, label: string][] = [
   ["/#product", "Product"],
@@ -62,6 +62,8 @@ const footerLinks: [label: string, href: string][] = [
   ["Terms", "/terms"],
   ["Privacy", "/privacy"],
   ["Discord", DISCORD],
+  ["Buy Me a Coffee", BUY_ME_A_COFFEE],
+  ["Ko-fi", KO_FI],
   ["Contact", `mailto:${EMAIL}`],
 ];
 
