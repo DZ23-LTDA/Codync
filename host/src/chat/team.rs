@@ -40,7 +40,9 @@ room's members instead, and while answering another bot's request, say in your r
 others. Provide a self-contained request: the recipient has its own \
 conversation, working directory, tools and permissions, not your context. Coordinate file ownership before \
 asking for edits in a shared project. Native subagents are managed by your own harness; these tools are for \
-collaborating with the user's existing bots.";
+collaborating with the user's existing bots. \
+Use merge_answers once the replies to a question are in: give it the schema you asked each bot for (the JSON object \
+of fields) and their answers, and it says what they all agreed on and where they split.";
 
 pub fn tools() -> Value {
     json!([
@@ -72,6 +74,30 @@ pub fn tools() -> Value {
                 "required": ["botId", "message"],
             },
             "annotations": {"readOnlyHint": false, "idempotentHint": false},
+        },
+        {
+            "name": "merge_answers",
+            "description": "Line up several bots' answers to one question: what they all agreed on (a field every answer gave the same value for), where they split (each bot's value kept, never averaged), and which answers didn't follow the schema (kept verbatim). Deterministic — nothing is summarized, so the disagreement is still visible.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "schema": {"type": "object", "description": "The fields each answer carries, e.g. {\"verdict\": \"string\", \"confidence\": \"number\"}. Only the keys are compared."},
+                    "answers": {
+                        "type": "array",
+                        "minItems": 1,
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "name": {"type": "string", "description": "The bot's name, as the readers know it."},
+                                "text": {"type": "string", "description": "Its answer, a JSON object with the schema's fields."},
+                            },
+                            "required": ["name", "text"],
+                        },
+                    },
+                },
+                "required": ["schema", "answers"],
+            },
+            "annotations": {"readOnlyHint": true},
         }
     ])
 }
@@ -368,6 +394,7 @@ fn call(hub: &Arc<Hub>, from: &str, name: &str, args: &Value) -> Result<Value> {
     let source = visible_bot(hub, from)?;
     match name {
         "list_bots" => directory::list(hub, from, args, &[], |_| true),
+        "merge_answers" => crate::chat::run::tool(args),
         "message_bot" => {
             let (to, message) = message_args(args)?;
             match hub.network.recipient(to)? {
