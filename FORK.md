@@ -17,18 +17,19 @@ O roadmap completo e o que ainda falta: `docs/plans/run-orchestration.md`.
 
 ## Como verificar
 
-O upstream roda CI em PRs; um **fork** do GitHub não roda nada até o dono habilitar os workflows na aba Actions. Enquanto
-isso, a verificação deste fork usa um repositório espelho privado com o mesmo conjunto de checagens do upstream:
+O CI do repositório roda em PR (`codync-host`): `cargo fmt --check`, `cargo clippy --workspace --all-targets -D warnings`
+e `cargo nextest run --workspace --profile ci` em ubuntu, macOS e windows. O perfil `ci` (em
+`host/.config/nextest.toml`) dá duas retentativas e corta um teste pendurado em cinco minutos; a suíte `network_e2e` é
+pulada no windows, onde não alcança os pares.
+
+Localmente, com o MSVC instalado, dá para rodar o mesmo em segundos:
 
 ```bash
 cd host
 cargo fmt --all --check
 cargo clippy --workspace --all-targets -- -D warnings
-cargo nextest run --workspace --profile ci
+cargo test --bin codync-host chat::run   # um módulo; a suíte inteira precisa de Developer Mode
 ```
-
-O perfil `ci` (em `host/.config/nextest.toml`) dá duas retentativas e corta um teste pendurado em cinco minutos. A suíte
-`network_e2e` não alcança peers no runner do Windows e é pulada lá.
 
 ## Compilando no Windows
 

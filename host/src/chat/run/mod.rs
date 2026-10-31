@@ -201,6 +201,14 @@ pub fn start(hub: &Arc<Hub>, from: &str, by: &str, b: &Value) -> Result<Value> {
     Ok(json!({"runId": run.id, "state": RUNNING, "bots": named}))
 }
 
+/// The state a reader sees: a sealed run whose deadline passed reads as expired even before anyone calls approve.
+fn state_shown(state: &str, expires_at: Option<i64>, now: i64) -> &str {
+    match (state, expires_at) {
+        (AWAITING, Some(at)) if now > at => EXPIRED,
+        _ => state,
+    }
+}
+
 /// A run can be approved once: after that it is running, done, executed, rejected, expired or revoked.
 fn approvable(state: &str) -> bool {
     state == AWAITING
@@ -305,7 +313,7 @@ pub fn status(hub: &Arc<Hub>, b: &Value) -> Result<Value> {
         pending |= matches!(status.as_str(), Some("queued" | "sent"));
         bots.push(json!({"bot": asked.bot, "name": asked.name, "request": asked.request, "status": status}));
     }
-    let state = match run.state.as_str() {
+    let state = match state_shown(&run.state, run.expires_at, now_ms()) {
         RUNNING if pending => RUNNING,
         RUNNING => DONE,
         other => other,
@@ -356,6 +364,15 @@ mod tests {
         assert!(!all_answered(&[]), "an empty run is not executed");
         assert!(!all_answered(&[answered(Some("x")), answered(None)]), "one bot still owes an answer");
         assert!(all_answered(&[answered(Some("x")), answered(Some("y"))]), "everyone answered");
+    }
+
+    #[test]
+    fn a_seal_that_ran_out_reads_as_expired_before_anyone_approves() {
+        let now = 1_000;
+        assert_eq!(state_shown(AWAITING, Some(now + 1), now), AWAITING, "still inside the window");
+        assert_eq!(state_shown(AWAITING, Some(now - 1), now), EXPIRED, "the deadline passed");
+        assert_eq!(state_shown(AWAITING, None, now), AWAITING, "no deadline at all");
+        assert_eq!(state_shown(RUNNING, Some(now - 1), now), RUNNING, "a running run is not a seal");
     }
 
     #[test]
