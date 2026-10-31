@@ -33,7 +33,8 @@ export function SiteHeader() {
             href={KO_FI}
             aria-label="Buy me a coffee"
             title="Buy me a coffee"
-            className="rounded-full p-2 text-neutral-400 transition hover:text-neutral-100"
+            // Hidden on the narrowest phones, where it would push the header past the screen; the footer keeps the link.
+            className="hidden rounded-full p-2 text-neutral-400 transition hover:text-neutral-100 min-[360px]:block"
           >
             <Coffee size={20} />
           </a>
