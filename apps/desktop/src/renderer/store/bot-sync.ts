@@ -236,7 +236,7 @@ export class BotSync extends BotMirror {
         this.floors = snapshotFloors(this.entries, this.rev === 0 ? 0 : this.requestedSince)
         break
       case 'bot':
-        this.bots.set(event.bot.id, { ...event.bot, customIcon: this.icons[`bot:${event.bot.id}`] })
+        this.putHostBot(event.bot)
         this.bump(event.bot.rev)
         this.onRosterChanged?.()
         if (event.bot.unread > 0) this.acknowledgeVisible(event.bot.id)

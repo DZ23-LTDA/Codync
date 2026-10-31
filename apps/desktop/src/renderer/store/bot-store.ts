@@ -354,8 +354,7 @@ export class BotStore extends BotSync {
   async createGroup(name: string, description: string, members: string[]) {
     const draft: GroupDraft = { kind: 'group', name, description, members }
     const res = await (await this.ready()).call<{ bot: Bot }>('createBot', draft)
-    const bot = normalizeBot(res.bot)
-    this.bots.set(bot.id, bot)
+    const bot = this.putHostBot(normalizeBot(res.bot))
     this.selection = bot.id
     this.onRosterChanged?.()
     this.changed()
@@ -364,7 +363,7 @@ export class BotStore extends BotSync {
 
   async updateGroup(draft: GroupDraft) {
     const res = await (await this.ready()).call<{ bot: Bot }>('updateBot', draft)
-    this.bots.set(res.bot.id, normalizeBot(res.bot))
+    this.putHostBot(normalizeBot(res.bot))
     this.changed()
   }
 
@@ -402,8 +401,7 @@ export class BotStore extends BotSync {
     const res = draft.id
       ? await client.call<{ bot: Bot }>('updateBot', { ...draft, model: draft.model ?? null })
       : await client.call<{ bot: Bot }>('createBot', draft)
-    const bot = normalizeBot(res.bot)
-    this.bots.set(bot.id, bot)
+    const bot = this.putHostBot(normalizeBot(res.bot))
     this.onRosterChanged?.()
     this.changed()
     return bot

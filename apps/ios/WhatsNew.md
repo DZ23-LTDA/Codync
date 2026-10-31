@@ -6,19 +6,11 @@ any left). tools/asc-submit.py reads the released version's section;
 a version without one gets a generic "Bug fixes and improvements" line. Delete old sections.
 -->
 
-## 2.33.2
+## 2.33.3
 ### zh-Hant
-- 可上傳或貼上網址設定 bot 與 agent 圖示，支援原色、單色與離線快取；自訂圖片維持靜態。
-- 自訂圖片需要登入帳號；登入載入時只顯示進度。電腦選單新增裝置圖示。
-- 選擇工作資料夾時可直接使用最近紀錄、貼上路徑，並在底部確認選擇。
-- 即時動態與動態島的設定頁會說明兩者同步開啟或關閉。
-- 電腦的推送通知設定會顯示系統權限狀態；未允許通知時，可直接前往開啟權限。
-- 語音輸入尚未設定 API key 時，會直接開啟語音設定。
+- 可上下拖曳 section，連同其中的 bot 一起移動，也能放到「Bots」下方；此裝置會記住順序。
+- 儲存 bot 設定或編輯群組後，自訂圖示不會再消失。
 
 ### en-US
-- Upload images or paste URLs for bot and agent icons, with original colors, tinting and offline caching. Custom images stay still.
-- Custom images require sign-in. Account loading shows progress, and computer menus include device icons.
-- Choose workspaces from recent folders, paste a path, and confirm your selection at the bottom.
-- Live Activity and Dynamic Island settings explain that both turn on and off together.
-- Computer push settings show when notification permission is missing and help you enable it.
-- Dictation opens voice settings when your provider API key is missing.
+- Drag sections up or down with their bots, including below Bots. This device remembers the order.
+- Custom bot icons now stay after you save a bot's settings or edit a group.
