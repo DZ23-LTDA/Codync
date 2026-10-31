@@ -21,6 +21,23 @@ fn remember(store: &Store, bot: &str, secret: &str) {
     }
 }
 
+/// How many bridged messages a bot takes a minute: enough for a conversation, not enough to be a flood.
+const PER_MINUTE: u64 = 30;
+
+/// `Ok(())` when `bot` may take another bridged message this minute.
+pub fn allow_inbound(store: &Store, bot: &str) -> Result<(), ()> {
+    let minute = now_ms() / 60_000;
+    let key = format!("bri-rate.{bot}.{minute}");
+    let taken: u64 = store.kv_get(&key).and_then(|v| v.parse().ok()).unwrap_or(0);
+    if taken >= PER_MINUTE {
+        return Err(());
+    }
+    if let Err(error) = store.kv_set(&key, &(taken + 1).to_string()) {
+        tracing::warn!(bot = %bot, error = format!("{error:#}"), "could not count a bridged message");
+    }
+    Ok(())
+}
+
 /// How long a receiver has to take a delivery before it is given up on.
 const TIMEOUT: Duration = Duration::from_secs(10);
 
