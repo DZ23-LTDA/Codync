@@ -186,3 +186,5 @@ Composer keyboard behavior, animation and durable draft storage, with a host-fre
 regression fixture: [composer checks](../guides/composer.md).
 
 Section headings and the unsectioned Bots group also drag up or down within their computer. Alt+Up/Down on a focused heading moves it one place. Dragging folds the groups temporarily; cancelling restores the order, and dropping saves it per computer on this device.
+
+Roster action submenus open beside their parent on hover, click, Enter or Right. They flip left near the window edge; a short hover delay keeps the path into the child stable. Left or Escape returns to the parent. This mouse-specific behavior is desktop-only: iPhone uses its native context menu, Android keeps touch submenus, and the terminal uses keyboard prompts.

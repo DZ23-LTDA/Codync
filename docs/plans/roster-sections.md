@@ -68,7 +68,7 @@ section too.
 
 | Client | Model | Header | Menus | Name entry | Folded state |
 |---|---|---|---|---|---|
-| Desktop | `shared/models.ts` `Bot.section`, `normalizeBot` | modeled on `ComputerRosterSection` | `DesktopActionMenu` (`PanelMenus.tsx`), items from `views/section-menus.ts` (Move to section as submenu rows) | `Dialog` | `prefs.ts`, `collapsedRosterSections` |
+| Desktop | `shared/models.ts` `Bot.section`, `normalizeBot` | modeled on `ComputerRosterSection` | `views/DesktopActionMenu.tsx`, items from `views/section-menus.ts` (Move to section as a hover or keyboard submenu) | `Dialog` | `prefs.ts`, `collapsedRosterSections` |
 | iPhone | `Bot.swift` `Bot.section: String?`; `HostClient.setSection` sends `null` to clear | modeled on `ComputerSection` | system `contextMenu` submenu (`.contextActions`) | `.codyncDialog` | `@AppStorage("collapsedRosterSections")` |
 | Android | `HostClient.kt` `Bot.section`; `BotDraft.template()` leaves it out | modeled on iOS `ComputerSection` (`RosterSectionViews.kt`) | `contextActions` | `CodyncDialog` | `SharedPreferences` |
 | Terminal | `tui/app/bot.rs` `Bot.section` | labels beside `PINNED` / `BOTS` in `view/roster.rs` | keys, listed in `view/help.rs` | `section_fields` sheet (`manage/fields.rs`) | in memory |
