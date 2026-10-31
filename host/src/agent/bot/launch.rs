@@ -146,12 +146,7 @@ pub(crate) async fn start_agent(command: &str, cwd: &str, env: &[(String, String
             return Err(acp::Failure::error(acp::FailureKind::Timeout, message));
         }
     };
-    let sessions = SessionCaps {
-        load: init["agentCapabilities"]["loadSession"].as_bool().unwrap_or(false),
-        close: init["agentCapabilities"]["sessionCapabilities"]["close"].is_object(),
-        system_prompt: init["agentCapabilities"]["sessionCapabilities"]["systemPrompt"].is_object(),
-        additional_directories: init["agentCapabilities"]["sessionCapabilities"]["additionalDirectories"].is_object(),
-    };
+    let sessions = session_caps(&init);
     Ok(Conn {
         acp,
         rx,
@@ -167,6 +162,19 @@ pub(crate) async fn start_agent(command: &str, cwd: &str, env: &[(String, String
     })
 }
 
+/// The session capabilities an agent advertised at `initialize`. `session/resume` counts as resuming: an agent that
+/// advertises only that reopens its sessions with it and sends no `loadSession`.
+fn session_caps(init: &Value) -> SessionCaps {
+    let sessions = &init["agentCapabilities"]["sessionCapabilities"];
+    SessionCaps {
+        load: init["agentCapabilities"]["loadSession"].as_bool().unwrap_or(false),
+        resume: sessions["resume"].is_object(),
+        close: sessions["close"].is_object(),
+        system_prompt: sessions["systemPrompt"].is_object(),
+        additional_directories: sessions["additionalDirectories"].is_object(),
+    }
+}
+
 fn adapter(init: &Value) -> Adapter {
     if init["agentCapabilities"]["_meta"]["claudeCode"].is_object() {
         Adapter::Claude
@@ -180,6 +188,23 @@ fn adapter(init: &Value) -> Adapter {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn an_agent_that_resumes_instead_of_loading_says_so() {
+        // DeepSeek Harness, as it answers `initialize`.
+        let dsh = json!({"agentCapabilities": {"loadSession": false,
+            "sessionCapabilities": {"close": {}, "list": {}, "resume": {}}}});
+        let caps = session_caps(&dsh);
+        assert!(!caps.load && caps.can_resume(), "it resumes, just not with session/load");
+        assert_eq!(caps.reopen(), Some("session/resume"));
+        // Claude's adapter takes session/load, which wins when an agent offers both.
+        assert_eq!(session_caps(&json!({"agentCapabilities": {"loadSession": true}})).reopen(), Some("session/load"));
+        let both = json!({"agentCapabilities": {"loadSession": true, "sessionCapabilities": {"resume": {}}}});
+        assert_eq!(session_caps(&both).reopen(), Some("session/load"));
+        // Neither: the session can't come back.
+        let never = session_caps(&json!({"agentCapabilities": {}}));
+        assert!(!never.can_resume() && never.reopen().is_none());
+    }
 
     #[test]
     fn variant_ids_become_options_only_when_the_agent_lists_plain_models() {

@@ -152,7 +152,7 @@ impl Actor {
         }
         // An agent that can't resume keeps its session; its next new session gets the new tools.
         if std::mem::take(&mut self.tools_changed)
-            && self.conn.as_ref().is_some_and(|c| c.sessions.load)
+            && self.conn.as_ref().is_some_and(|c| c.sessions.can_resume())
             && let Some(c) = self.conn.take()
         {
             c.acp.kill().await;
@@ -218,11 +218,11 @@ impl Actor {
                 self.turn_session = Some(sid);
                 return Ok(());
             }
-            if !conn.sessions.load {
+            let Some(reopen) = conn.sessions.reopen() else {
                 tracing::info!(bot = %self.cfg.id, "the agent can't resume sessions; starting a fresh one");
                 self.set_session(slot, None);
                 return Box::pin(self.ensure_session(slot)).await;
-            }
+            };
             self.hub.set_runtime(&self.cfg.id, |r| r.activity = "Resuming session…".into());
             let mut params = self.session_params(&servers, Some(&sid));
             if let Some(s) = &snapshot {
@@ -231,7 +231,7 @@ impl Actor {
             if instructions == Instructions::SystemPrompt {
                 params["systemPrompt"] = system_prompt(&self.snapshot(&sid).await?.system);
             }
-            let res = self.session_request("session/load", params).await;
+            let res = self.session_request(reopen, params).await;
             let Some(conn) = self.conn.as_mut() else { return res.map(drop) };
             // The agent replays history as session/update before answering; drop it.
             while let Ok(inc) = conn.rx.try_recv() {
@@ -261,7 +261,7 @@ impl Actor {
                     return Ok(());
                 }
                 Err(e) => {
-                    tracing::warn!(bot = %self.cfg.id, error = format!("{e:#}"), "session/load failed; starting fresh");
+                    tracing::warn!(bot = %self.cfg.id, error = format!("{e:#}"), "{reopen} failed; starting fresh");
                 }
             }
         }
@@ -299,7 +299,7 @@ impl Actor {
     /// would otherwise hold the bot, and its Stop, forever.
     pub(super) async fn session_request(&mut self, method: &str, params: Value) -> Result<Value> {
         let conn = self.conn.as_mut().ok_or_else(|| anyhow!("agent not running"))?;
-        conn.opening = matches!(method, "session/new" | "session/load");
+        conn.opening = matches!(method, "session/new" | "session/load" | "session/resume");
         let answered = tokio::time::timeout(SESSION_TIMEOUT, conn.acp.request(method, params)).await;
         conn.opening = false;
         if let Ok(result) = answered {
@@ -319,7 +319,7 @@ impl Actor {
         if !std::mem::take(&mut conn.opening) {
             return;
         }
-        if !conn.sessions.load {
+        if !conn.sessions.can_resume() {
             // ponytail: that session lasts until the agent next stops; keep the cut-short request's Answer past the
             // time limit and session/close the id it returns, if that ever matters.
             tracing::warn!(bot = %self.cfg.id, "a session request was cut short; the agent can't resume, so it keeps running");
