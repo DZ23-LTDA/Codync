@@ -19,6 +19,8 @@ impl Hub {
             v["sharedMemory"] = crate::chat::memory::shared(cfg).into();
             v["memoryRev"] = self.store.memory_rev().into();
             v["budgetSpentToday"] = crate::agent::bot::budget::spent(&self.store, &cfg.id).into();
+            // The mascot to draw, already resolved to one this build ships.
+            v["avatar"] = crate::agent::avatar::shown(cfg.avatar_id.as_deref()).into();
         }
         let rt = if cfg.is_group() {
             // A group has no agent: Fast mode belongs to its members.
