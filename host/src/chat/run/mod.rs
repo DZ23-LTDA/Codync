@@ -93,6 +93,30 @@ fn load(store: &Store, id: &str) -> Result<Run> {
     serde_json::from_str(&raw).with_context(|| format!("run {id} is unreadable"))
 }
 
+/// Runs being approved right now: two people answering the same sealed run at once must not fire two fan-outs.
+static APPROVING: std::sync::LazyLock<std::sync::Mutex<std::collections::HashSet<String>>> =
+    std::sync::LazyLock::new(Default::default);
+
+/// Holds a run while its approval is running; dropping it lets the next approval in.
+pub struct Approving(String);
+
+impl Drop for Approving {
+    fn drop(&mut self) {
+        if let Ok(mut runs) = APPROVING.lock() {
+            runs.remove(&self.0);
+        }
+    }
+}
+
+/// `Ok` when this caller is the one approving `id`; the second one is refused instead of fanning out again.
+fn begin_approval(id: &str) -> Result<Approving> {
+    let mut runs = APPROVING.lock().map_err(|_| anyhow::anyhow!("the approval lock is poisoned"))?;
+    if !runs.insert(id.to_owned()) {
+        bail!("run {id} is already being approved");
+    }
+    Ok(Approving(id.to_owned()))
+}
+
 /// The bots a run may go to: two to eight, no duplicates, and never the caller itself.
 fn bots(from: &str, ids: &Value) -> Result<Vec<String>> {
     let Some(list) = ids.as_array() else { bail!("bots is required and must be a list of bot ids") };
@@ -187,6 +211,8 @@ pub fn approve(hub: &Arc<Hub>, from: &str, by: &str, b: &Value) -> Result<Value>
     if run.payload_hash != payload_hash(&run.task, &run.bots, run.schema.as_ref()) {
         bail!("run {id} changed since it was sealed; seal it again");
     }
+    // One approval at a time: the second person gets "already being approved", not a second fan-out.
+    let _approving = begin_approval(id)?;
     fan_out(hub, from, &mut run)?;
     run.state.clear();
     run.state.push_str(RUNNING);
@@ -277,6 +303,15 @@ mod tests {
 
     fn ids(v: &Value) -> Result<Vec<String>> {
         bots("me", v)
+    }
+
+    #[test]
+    fn one_run_is_approved_once() {
+        let first = begin_approval("run-a").expect("the first approval gets in");
+        assert!(begin_approval("run-a").is_err(), "a second approval waits for the first");
+        assert!(begin_approval("run-b").is_ok(), "another run is unaffected");
+        drop(first);
+        assert!(begin_approval("run-a").is_ok(), "once it finishes, the run can be approved again");
     }
 
     #[test]
