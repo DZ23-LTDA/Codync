@@ -59,6 +59,16 @@ Production also needs completed Apple native application registrations in Clerk 
 
 A migration that changes what the database accepts goes out before the Worker code that relies on it, in each environment: dev first, then main. `wrangler d1 migrations list <db> --remote` shows what an environment still lacks. Before applying one to main, note the restore point (`wrangler d1 time-travel info codync`) and compare the live schema with `cloud/migrations/`.
 
+## Releasing cloud changes
+
+CI only tests `cloud/`; nothing deploys it. A dev → main PR that changes `cloud/` (routes, bindings, migrations) goes out in this order:
+
+1. Before the PR merges: create any new binding in dev (R2 bucket, rate limit, D1 migration), `npm run deploy:dev`, and test the changed flows end to end against `dev-api.codync.dev` with the dev apps.
+2. Right after the merge into `main`, before or with the release tag: create the same bindings for main (`wrangler.toml` names them, e.g. `codync-icons` beside `codync-icons-dev`; keep R2 buckets private), apply migrations, `npm run deploy:main`.
+3. Check main: each new route on `api.codync.dev` answers (401 without credentials, not 404), and `npx wrangler deployments list` shows the new version.
+
+Clients and host that call a new route must not reach users before step 2. In 2026-10, custom icons shipped in v2.33.2 while production cloud was days old and its R2 bucket missing, so every upload failed.
+
 ## Secrets audit
 
 The repository is public, so its whole history counts as published. Last scan: 2026-10-07 (`gitleaks git .` plus pattern grep over `git log -p --all`).

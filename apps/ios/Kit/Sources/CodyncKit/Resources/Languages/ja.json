@@ -824,6 +824,7 @@
   "hour unit": "時間単位",
   "minute unit": "分単位",
   "Resets": "リセット",
+  "{percent}% used": "{percent}% 使用済み",
   "5-hour": "5時間",
   "Ready": "準備完了",
   "Review changes": "変更を確認する",

@@ -6,6 +6,8 @@ export const WINDOWS = "/download/windows";
 export const APP_STORE = "https://apps.apple.com/app/codync/id6760984418";
 export const GITHUB = "https://github.com/leepokai/Codync";
 export const DISCORD = "https://discord.gg/KBAX3Qznxh";
+// Donation page.
+export const KO_FI = "https://ko-fi.com/leepokai";
 export const EMAIL = "kevin@codync.dev";
 // YouTube id of the launch film.
 export const FILM = "QAhyZWpV70U";

@@ -7,9 +7,9 @@ released version's section; a version without one gets the PRs' "What's New: And
 else a generic "Bug fixes and improvements" line. Delete old sections.
 -->
 
-## 2.33.4
+## 2.33.5
 ### zh-Hant
-- 移除例行任務標題旁的聊天按鈕，介面更簡潔。仍可直接在聊天中請 bot 建立任務，或使用「＋」自行設定。
+- 用量上限現在標示已用比例，例如「已用 62%」，不會再誤以為是剩餘量。Antigravity 的 Gemini 上限改名為「Gemini 5h」與「Gemini 7d」。
 
 ### en-US
-- Removed the chat shortcut beside Routines. Ask the bot directly in chat, or use + to set up a routine yourself.
+- Usage limits now say how much is used, such as "62% used", so they no longer read as what's left. Antigravity's Gemini limits are now named "Gemini 5h" and "Gemini 7d".
