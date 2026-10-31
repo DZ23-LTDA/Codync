@@ -173,6 +173,8 @@ mod tests {
             command: None,
             cwd: "/tmp".into(),
             budget: None,
+            budget_usd: None,
+            price_per_mtok: None,
             permission: Permission::Ask,
             model: None,
             model_options: std::collections::BTreeMap::new(),

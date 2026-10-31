@@ -360,6 +360,8 @@ pub(super) mod tests {
             command: None,
             cwd: cwd.into(),
             budget: None,
+            budget_usd: None,
+            price_per_mtok: None,
             permission: Permission::Ask,
             model: Some("opus".into()),
             model_options: std::collections::BTreeMap::new(),
