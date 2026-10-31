@@ -15,15 +15,6 @@ import androidx.compose.ui.unit.dp
 import com.codync.android.core.*
 import com.codync.android.design.*
 
-internal val LocalAgentIconOverrides = staticCompositionLocalOf<Map<String, CustomIcon>> { emptyMap() }
-
-internal fun agentIconOverrides(state: AppState): Map<String, CustomIcon> = buildMap {
-    for (agent in agentBackends(state)) state.icons["agent:${agent.id}"]?.let { icon ->
-        put(agent.id, icon)
-        agent.registry?.let { put(it, icon) }
-    }
-}
-
 @Composable internal fun CustomIconEditor(target: String, state: AppState, store: AppStore) {
     if (state.hello?.containsKey("icons") != true) return
     var needsSignIn by remember { mutableStateOf(false) }

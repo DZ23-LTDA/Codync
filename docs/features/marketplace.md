@@ -139,4 +139,4 @@ immediately; setup failures remain visible for retry.
 
 ## Custom icons
 
-Agents and bots support per-computer image overrides. See [custom icons](custom-icons.md) for the API, storage limits, cache behavior and deployment.
+Agents show their bundled logo (a terminal symbol when none is bundled); only bots take custom images. See [custom icons](custom-icons.md) for the API, storage limits, cache behavior and deployment.
