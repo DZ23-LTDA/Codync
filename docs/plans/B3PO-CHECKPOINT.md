@@ -22,6 +22,9 @@ Este arquivo é o checkpoint operacional exigido pela seção 11 daquele documen
 | #8 | `startRun` + ledger em `kv` | mergeado, ubuntu verde |
 | #9 | join determinístico das respostas | mergeado, ubuntu verde |
 | #10 | selo de aprovação humana (**O2-A**) | mergeado, ubuntu verde |
+| #20 | selo vinculado ao hash do payload + expiração em 24 h | mergeado, ubuntu verde |
+| #21 | aprovação single-flight (dois aprovadores simultâneos) | mergeado, ubuntu verde |
+| #22 | estados `revoked` e `executed`, com motivo | mergeado, ubuntu verde |
 | #11 | teto de gasto em dinheiro (**O2-B**) | mergeado, ubuntu verde |
 | #13 | plano das pontes de chat | mergeado (docs) |
 | #14 | uso por tipo de token + preço de cache | mergeado, ubuntu verde |
@@ -40,7 +43,9 @@ Nenhum PR aberto. `dev` é a branch padrão do fork e está em `61621e94`.
 ## Pendências e bloqueios
 
 - **O2-C (conectores sociais/vendas)**: `BLOCKED_BY_EXTERNAL_DEPENDENCY` — exige chaves OAuth/Composio do proprietário.
-- **O2-D (pontes)**: falta o endpoint de entrada (`/hooks/bots/{secret}`) e os shims de Slack/Discord/Telegram.
+- **O2-A** está completa: selo, hash do payload, expiração, single-flight, `revoked`/`executed` e proteção contra replay
+  (teste unitário no módulo `chat::run`).
+- **Onda 1 e O2-D (pontes)**: falta o endpoint de entrada (`/hooks/bots/{secret}`) e os shims de Slack/Discord/Telegram.
 - **O2-E (pt-BR)**: não iniciada; exige os quatro clientes e quebra a regra de paridade se feita isolada.
 - **iOS/Android**: `BLOCKED_BY_EXTERNAL_DEPENDENCY` — este ambiente é Windows, sem Xcode nem Android SDK 37.
 - **GitHub Actions do fork**: workflows listados mas sem disparo em PR; verificação segue no espelho.
