@@ -26,6 +26,8 @@ const RUNNING: &str = "running";
 const DONE: &str = "done";
 const REJECTED: &str = "rejected";
 const EXPIRED: &str = "expired";
+const REVOKED: &str = "revoked";
+const EXECUTED: &str = "executed";
 
 /// One run, as its ledger keeps it.
 #[derive(Serialize, Deserialize)]
@@ -52,6 +54,9 @@ pub struct Run {
     /// A sealed run nobody answered by then is expired and never reaches a bot.
     #[serde(default)]
     pub expires_at: Option<i64>,
+    /// Why a person rejected or revoked the run, when they said.
+    #[serde(default)]
+    pub reason: Option<String>,
 }
 
 /// How long a sealed run waits for a person.
@@ -180,6 +185,7 @@ pub fn start(hub: &Arc<Hub>, from: &str, by: &str, b: &Value) -> Result<Value> {
         approved_by: None,
         approved_at: None,
         expires_at: seal.then(|| now_ms() + SEAL_TTL_MS),
+        reason: None,
     };
     if seal {
         // A sealed run never reaches a bot before a person answers it.
@@ -239,6 +245,30 @@ pub fn reject(hub: &Arc<Hub>, by: &str, b: &Value) -> Result<Value> {
     Ok(json!({"runId": run.id, "state": REJECTED}))
 }
 
+/// `revokeRun`: a sealed run nobody wants any more. Only a run still waiting can be withdrawn; once bots were asked,
+/// stopping the work is the run's own cancellation, not a seal matter.
+pub fn revoke(hub: &Arc<Hub>, by: &str, b: &Value) -> Result<Value> {
+    let id = b["runId"].as_str().with_context(|| "runId is required")?;
+    let mut run = load(&hub.store, id)?;
+    if run.state != AWAITING {
+        bail!("run {id} isn't waiting for approval (it is {})", run.state);
+    }
+    run.state.clear();
+    run.state.push_str(REVOKED);
+    run.approved_by = Some(by.to_owned());
+    run.approved_at = Some(now_ms());
+    if let Some(reason) = b["reason"].as_str().filter(|reason| !reason.is_empty()) {
+        run.reason = Some(reason.to_owned());
+    }
+    save(&hub.store, &run)?;
+    Ok(json!({"runId": run.id, "state": REVOKED}))
+}
+
+/// Whether every bot in the run has an answer filed.
+fn all_answered(bots: &[Asked]) -> bool {
+    !bots.is_empty() && bots.iter().all(|asked| asked.reply.is_some())
+}
+
 /// Files a reply in its run ledger, when the request belongs to a run.
 pub fn record_reply(hub: &Arc<Hub>, request: &str, text: &str) {
     let Some(run_id) = hub.store.kv_get(&format!("runreq.{request}")) else { return };
@@ -249,6 +279,10 @@ pub fn record_reply(hub: &Arc<Hub>, request: &str, text: &str) {
             asked.reply = Some(text.to_owned());
             filed = true;
         }
+    }
+    if filed && all_answered(&run.bots) && run.state == RUNNING {
+        run.state.clear();
+        run.state.push_str(EXECUTED);
     }
     if filed && let Err(error) = save(&hub.store, &run) {
         tracing::warn!(run = %run_id, error = format!("{error:#}"), "could not file a run reply");
@@ -287,6 +321,7 @@ pub fn status(hub: &Arc<Hub>, b: &Value) -> Result<Value> {
         "sealed": run.seal,
         "approvedBy": run.approved_by,
         "approvedAt": run.approved_at,
+        "reason": run.reason,
         "createdAt": run.created_at,
         "bots": bots,
         "merged": merged.map(|m| json!({
@@ -303,6 +338,19 @@ mod tests {
 
     fn ids(v: &Value) -> Result<Vec<String>> {
         bots("me", v)
+    }
+
+    #[test]
+    fn a_run_is_executed_only_when_every_bot_answered() {
+        let answered = |reply: Option<&str>| Asked {
+            bot: "b".to_owned(),
+            name: "B".to_owned(),
+            request: "r".to_owned(),
+            reply: reply.map(str::to_owned),
+        };
+        assert!(!all_answered(&[]), "an empty run is not executed");
+        assert!(!all_answered(&[answered(Some("x")), answered(None)]), "one bot still owes an answer");
+        assert!(all_answered(&[answered(Some("x")), answered(Some("y"))]), "everyone answered");
     }
 
     #[test]
