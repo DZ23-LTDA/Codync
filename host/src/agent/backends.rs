@@ -8,7 +8,7 @@
 //! is resolved only when it's tried: an installed CLI that starts never downloads
 //! a second copy.
 
-use crate::agent::{acp, node, registry};
+use crate::agent::{Adapter, acp, node, registry};
 use crate::shell;
 use serde_json::{Value, json};
 use std::collections::HashSet;
@@ -31,6 +31,10 @@ pub struct Harness {
     pub name: &'static str,
     /// CLI names that mean "installed on this machine".
     pub bins: &'static [&'static str],
+    /// Which adapter this CLI speaks, known before it starts. The live answer comes from `initialize`
+    /// (`launch::start_agent`); this one covers the decisions taken before an agent runs, like the
+    /// compaction command and the cache life (`bot/compaction.rs`).
+    pub adapter: Adapter,
     /// The installed CLI's native ACP mode (`{bin}` = resolved binary path).
     pub local: Option<&'static str>,
     /// Entry in the ACP registry (adapter or pinned build).
@@ -72,6 +76,12 @@ impl Install {
 
 pub fn harness(id: &str) -> Option<&'static Harness> {
     HARNESSES.iter().find(|h| h.id == id)
+}
+
+/// The adapter a backend speaks before its agent starts, from the catalog: a harness Codync doesn't
+/// know by name (an agent picked from the ACP registry) is `Adapter::Other`.
+pub fn adapter(id: &str) -> Adapter {
+    harness(id).map_or(Adapter::Other, |h| h.adapter)
 }
 
 // MARK: listing + launching

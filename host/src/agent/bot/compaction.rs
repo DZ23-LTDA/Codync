@@ -3,6 +3,7 @@
 //! rules are `codync_mem::compaction`; this records what it needs and acts on what it decides.
 
 use super::{Actor, Adapter, Done, Instructions, Queued};
+use crate::agent::backends;
 use crate::chat::{context, handoff, memory};
 use crate::store::{EntryKind, Lane, now_ms};
 use codync_mem::compaction::{self as rules, CacheLife, Conversation, Decision};
@@ -48,7 +49,8 @@ impl Actor {
             .iter()
             .any(|(k, _)| k == "ANTHROPIC_API_KEY")
             || std::env::var_os("ANTHROPIC_API_KEY").is_some();
-        let claude = self.conn.as_ref().is_some_and(|c| c.adapter == Adapter::Claude) || self.cfg.backend == "claude";
+        let claude = self.conn.as_ref().is_some_and(|c| c.adapter == Adapter::Claude)
+            || backends::adapter(&self.cfg.backend) == Adapter::Claude;
         if claude && !api_key { CacheLife::OneHour } else { CacheLife::FiveMinutes }
     }
 
@@ -66,14 +68,7 @@ impl Actor {
     /// The command that makes the agent compact, with the keep-list where it takes one. Before the agent runs, its
     /// harness stands in for the adapter.
     fn compact_command(&self) -> Option<String> {
-        let adapter = self.conn.as_ref().map_or(
-            match self.cfg.backend.as_str() {
-                "claude" => Adapter::Claude,
-                "codex" => Adapter::Codex,
-                _ => Adapter::Other,
-            },
-            |c| c.adapter,
-        );
+        let adapter = self.conn.as_ref().map_or_else(|| backends::adapter(&self.cfg.backend), |c| c.adapter);
         match adapter {
             Adapter::Claude => Some(format!("/compact {}", rules::KEEP)),
             Adapter::Codex => Some("/compact".into()),

@@ -31,6 +31,16 @@ fn write_cli(dir: &Path, name: &str) {
 }
 
 #[test]
+fn the_catalog_says_which_adapter_each_cli_speaks() {
+    // Two adapters Codync treats apart, and every other harness a plain ACP agent.
+    assert_eq!(adapter("claude"), Adapter::Claude);
+    assert_eq!(adapter("codex"), Adapter::Codex);
+    assert_eq!(adapter("gemini"), Adapter::Other);
+    // An agent picked from the ACP registry has no catalog entry; its `initialize` still decides.
+    assert_eq!(adapter("some-registry-agent"), Adapter::Other, "a harness Codync doesn't know by name");
+}
+
+#[test]
 fn an_installed_cli_comes_before_the_registry_build() {
     let dir = TempDir::new();
     for name in ["codebuddy", "mcode", "cursor-agent"] {

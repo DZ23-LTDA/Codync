@@ -161,14 +161,7 @@ pub(crate) enum Instructions {
 }
 
 /// Which adapter answered `initialize`, where Codync treats it apart from the others.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub(crate) enum Adapter {
-    /// claude-agent-acp: takes `_meta.systemPrompt` and `_meta.claudeCode.options`, and `/compact <instructions>`.
-    Claude,
-    /// codex-acp: `/compact` (its keep-list is in `CODEX_CONFIG`).
-    Codex,
-    Other,
-}
+pub(crate) use crate::agent::Adapter;
 
 pub(crate) struct Conn {
     pub(crate) acp: Arc<Acp>,
