@@ -77,6 +77,10 @@ pub struct BotConfig {
     /// Empty for a group.
     #[serde(default)]
     pub cwd: String,
+    /// Tokens the bot may spend per day, counted from what its agents report for each turn
+    /// (`agent::bot::budget`); `None` is no limit.
+    #[serde(default)]
+    pub budget: Option<u64>,
     #[serde(default)]
     pub permission: Permission,
     #[serde(default)]

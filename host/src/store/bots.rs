@@ -172,6 +172,7 @@ mod tests {
             backend: "claude".into(),
             command: None,
             cwd: "/tmp".into(),
+            budget: None,
             permission: Permission::Ask,
             model: None,
             model_options: std::collections::BTreeMap::new(),

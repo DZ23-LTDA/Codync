@@ -9,6 +9,8 @@
     "event:bot.bot.avatarColor": "string",
     "event:bot.bot.avatarShape": "string",
     "event:bot.bot.backend": "string",
+    "event:bot.bot.budget": "null",
+    "event:bot.bot.budgetSpentToday": "number",
     "event:bot.bot.command": "string",
     "event:bot.bot.computer": "bool",
     "event:bot.bot.connectors": "array",

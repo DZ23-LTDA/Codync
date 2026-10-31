@@ -30,6 +30,8 @@ mod tool_entry;
 mod turn;
 mod updates;
 
+pub mod budget;
+
 pub use cmd::Cmd;
 use cmd::Queued;
 pub(crate) use launch::{launch_commands, select_model, start_agent, system_prompt};

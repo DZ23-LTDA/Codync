@@ -75,6 +75,10 @@ for line in sys.stdin:
                              "size": int(size.group(1)) if size else 200000})
         update(session, {"sessionUpdate": "agent_message_chunk", "content": {"type": "text", "text": "ok"}})
         result = {"stopReason": "end_turn"}
+        # What the turn cost, for the bot's daily budget.
+        spend = re.search(r"SPEND (\d+)", text)
+        if spend:
+            result["usage"] = {"inputTokens": int(spend.group(1))}
     else:
         result = {}
     if "id" in request:
