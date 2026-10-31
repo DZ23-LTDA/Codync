@@ -54,3 +54,13 @@ cargo run -- serve
 - O host Rust decide; clientes só renderizam (`docs/architecture/overview.md`).
 - Campo novo no wire de bot exige registrar em `host/tests/fixtures/wire-shape.json`, senão o teste de contrato barra.
 - `cargo clippy -D warnings` inclui dead code: um módulo novo precisa de consumidor real no mesmo PR.
+
+## Skills de fora
+
+`tools/import-skills.py` traz skills de repositórios públicos para `~/.codync/skills/<id>` (o mesmo lugar e o mesmo formato que o Codync usa: uma pasta com `SKILL.md`). Ele percorre o tarball, acha toda pasta com `SKILL.md`, copia e **pula id que já existe**, para nunca sobrescrever uma skill editada à mão.
+
+```powershell
+python tools/import-skills.py morluto/rea pbakaus/impeccable blader/humanizer
+```
+
+MCPs (Composio e conectores) são outro caminho: eles entram como servidores MCP do bot, com a chave no vault — não por este script.
