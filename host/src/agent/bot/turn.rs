@@ -298,6 +298,14 @@ impl Actor {
         if final_text.is_none() {
             final_text = self.files.summary.take();
         }
+        // A bridge hears the user's own chat only: a room, a routine and another bot's request stay here.
+        if !grouped
+            && !delegated
+            && let Some(url) = self.cfg.reply_webhook.as_deref()
+            && let Some(text) = final_text.as_deref()
+        {
+            crate::chat::bridge::deliver(&self.hub, &self.cfg.id, url, text);
+        }
         let stop_reason = match &done {
             Ok(v) => v["stopReason"].as_str().unwrap_or("end_turn").to_owned(),
             Err(_) => "error".into(),

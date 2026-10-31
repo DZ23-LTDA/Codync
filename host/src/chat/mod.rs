@@ -2,6 +2,7 @@
 //! bot-to-bot requests, artifacts and the Library, team management, a bot's own fallbacks, prompt snapshots, long-term memory, automatic bot names and the lead bot.
 
 pub mod artifacts;
+pub mod bridge;
 pub mod calls;
 pub mod context;
 pub mod fallbacks;
