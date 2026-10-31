@@ -262,6 +262,9 @@ async fn bot_hook(
     }
     let bot = crate::chat::bridge::bot_for(&hub.store, &secret)
         .ok_or_else(|| ApiError(StatusCode::UNAUTHORIZED, "unknown bridge".into()))?;
+    if crate::chat::bridge::allow_inbound(&hub.store, &bot).is_err() {
+        return Err(ApiError(StatusCode::TOO_MANY_REQUESTS, "too many bridged messages".into()));
+    }
     let answer = dispatch(&hub, &Caller::Local, "send", json!({"botId": bot, "text": text, "from": "bridge"}))
         .await
         .map_err(|e| ApiError(StatusCode::BAD_REQUEST, format!("{e:#}")))?;
