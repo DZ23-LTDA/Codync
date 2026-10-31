@@ -7,15 +7,9 @@ released version's section; a version without one gets the PRs' "What's New: And
 else a generic "Bug fixes and improvements" line. Delete old sections.
 -->
 
-## 2.33.2
+## 2.33.3
 ### zh-Hant
-- 選擇工作資料夾時可使用最近紀錄、貼上路徑，並在底部確認。
-- 上傳圖片或貼上網址設定 bot 與 agent 圖示，支援原色、單色及離線快取；自訂圖片維持靜態。
-- 自訂圖片需要登入。登入載入時只顯示進度，電腦選單新增裝置圖示。
-- 推送設定顯示通知權限，並協助前往開啟。
+- 可上下拖曳 section，連同其中的 bot 一起移動，也能放到「Bots」下方；此裝置會記住順序。
 
 ### en-US
-- Choose recent workspaces, paste a path, and confirm at the bottom.
-- Upload images or paste URLs for bot and agent icons, with colors, tinting and offline caching. Custom images stay still.
-- Custom images require sign-in. Account loading shows progress; computer menus show device icons.
-- Push settings show missing notification permission and help you enable it.
+- Drag sections up or down with their bots, including below Bots. This device remembers the order.
