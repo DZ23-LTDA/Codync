@@ -6,7 +6,9 @@ Este arquivo é o checkpoint operacional exigido pela seção 11 daquele documen
 ## Onda e fase atuais
 
 - **Onda 1 — concluída** (validada por CI): matriz de capacidades, `session/resume` do DeepSeek, orçamento de tokens com gate, fan-out e ledger do `run`.
-- **Onda 2 — em andamento**: O2-A e O2-B concluídas; O2-D pela metade; O2-C bloqueada em credenciais; O2-E não iniciada.
+- **Onda 2 — em andamento**: O2-A **concluída**; O2-B com gate/contabilidade prontos (reserva analisada em
+  `o2b-reservation.md`); O2-D completa no host, shims bloqueados em credenciais; O2-C bloqueada em credenciais;
+  O2-E com auditoria feita (`o2e-ptbr-audit.md`) e a fundação de i18n como próxima entrega.
 - **Identidade B-3PO** — iniciada no host: mascote, cargo e equipe modelados e validados.
 
 ## Entregas concluídas e evidência
@@ -18,6 +20,9 @@ Este arquivo é o checkpoint operacional exigido pela seção 11 daquele documen
 | #3 | orçamento diário de tokens com gate | mergeado, ubuntu verde |
 | #5 | contrato do `run` | mergeado (docs) |
 | #6 | `FORK.md` (o que difere, como verificar, como compilar) | mergeado (docs) |
+| #23 | análise da reserva atômica de O2-B | mergeado (docs) |
+| #25 | auditoria de strings de O2-E | mergeado (docs) |
+| #26 | prazo vencido lido como `expired` no status | mergeado, CI do fork verde |
 | #7 | seams de implementação do `run` | mergeado (docs) |
 | #8 | `startRun` + ledger em `kv` | mergeado, ubuntu verde |
 | #9 | join determinístico das respostas | mergeado, ubuntu verde |
@@ -61,3 +66,22 @@ Nenhum PR aberto. `dev` é a branch padrão do fork e está em `61621e94`.
 - Um endpoint público de entrada é superfície de ataque: segredo longo, corpo limitado, nenhuma ferramenta de escrita liberada por esse caminho, e o mesmo gate de orçamento/selo dos outros turnos.
 - Laço bot→canal→bot precisa de marca de origem e limite por minuto.
 - A integração dos 13 mascotes (assets + galeria no desktop) depende de decisão sobre empacotar os PNGs no repositório.
+
+## Verificação (atualizado)
+
+- O **CI do fork roda de verdade** desde que o proprietário habilitou Actions: workflow `codync-host`, em ubuntu, macOS e
+  windows, disparado em PR. O repositório espelho `codync-ci` foi **arquivado** (a exclusão exige o escopo
+  `delete_repo`, que o token local não tem).
+- **Toolchain local funcionando** (MSVC Build Tools 14.44 + Windows SDK 10.0.26100): `cargo build`, `cargo clippy
+  --workspace --all-targets -D warnings` e testes por módulo rodam nesta máquina. Para linkar, exportar `LIB`/`INCLUDE`
+  do MSVC + SDK e apontar `TMP`/`TEMP` para dentro do workspace (o linker não escreve no `%TEMP%` do sistema).
+- Suíte completa local tem três falhas **ambientais** conhecidas: symlink sem privilégio (precisa de Developer Mode),
+  arquivo em uso por `TMP` compartilhado, e um teste que assume o `%TEMP%` padrão.
+
+## Próximas tarefas concretas
+
+1. O2-E: fundação de i18n no desktop (catálogo tipado, `t()`, teste de cobertura) e extração de diálogos/erros/estados
+   vazios — sem mudança visual ainda.
+2. O2-B: reconciliação com custo confirmado do provedor quando houver fonte confiável; hoje o custo é estimado.
+3. Identidade B-3PO (fase B): depende da decisão do proprietário sobre versionar os 13 PNGs.
+4. O2-C e shims de O2-D: dependem de credenciais do proprietário (`BLOCKED_BY_EXTERNAL_DEPENDENCY`).
