@@ -144,6 +144,13 @@ impl BotReply {
         self.hops
     }
 
+    /// Files this reply in its run's ledger, when the request belongs to a run.
+    pub fn file(&self, hub: &Arc<Hub>) {
+        if let Ok(text) = &self.outcome {
+            crate::chat::run::record_reply(hub, &self.request_id, text);
+        }
+    }
+
     fn line(&self) -> String {
         let (name, id, quote) = (&self.from_name, &self.request_id, &self.quote);
         match &self.outcome {

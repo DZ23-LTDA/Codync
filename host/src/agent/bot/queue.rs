@@ -229,6 +229,9 @@ impl Actor {
                             replies.push(reply);
                         }
                     }
+                    for reply in &replies {
+                        reply.file(&self.hub);
+                    }
                     self.reply_hops = replies.iter().map(crate::chat::team::BotReply::hops).max();
                     let prompt = crate::chat::team::reply_prompt(&replies);
                     if let Err(e) = self.start_turn(main.clone(), &[], &prompt, false, done_tx).await {

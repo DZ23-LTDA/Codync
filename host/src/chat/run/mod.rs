@@ -3,6 +3,8 @@
 //! The host owns the fan-out (`chat::team`'s request path) and the ledger (`kv`), so the transcript, the cost and the
 //! audit stay in one place. The join and the seal are the next slices: `docs/plans/run-orchestration.md`.
 
+pub mod merge;
+
 use crate::chat::team;
 use crate::hub::Hub;
 use crate::store::{Store, now_ms};
@@ -32,6 +34,9 @@ pub struct Asked {
     pub bot: String,
     pub name: String,
     pub request: String,
+    /// The bot answer, filed when it reaches the sender (see `record_reply`).
+    #[serde(default)]
+    pub reply: Option<String>,
 }
 
 fn key(id: &str) -> String {
@@ -86,15 +91,35 @@ pub fn start(hub: &Arc<Hub>, from: &str, b: &Value) -> Result<Value> {
             bot: answer["botId"].as_str().unwrap_or(to).to_owned(),
             name: answer["name"].as_str().unwrap_or_default().to_owned(),
             request: answer["requestId"].as_str().unwrap_or_default().to_owned(),
+            reply: None,
         });
     }
     let run = Run { id: uuid::Uuid::new_v4().to_string(), task, schema, bots: asked, created_at: now_ms() };
+    for asked in &run.bots {
+        hub.store.kv_set(&format!("runreq.{}", asked.request), &run.id)?;
+    }
     save(&hub.store, &run)?;
     let named: Vec<Value> = run.bots.iter().map(|a| json!({"bot": a.bot, "name": a.name})).collect();
     Ok(json!({"runId": run.id, "bots": named}))
 }
 
 /// `runStatus`: each bot's request as the transcript knows it, and whether the run is still going.
+/// Files a reply in its run ledger, when the request belongs to a run.
+pub fn record_reply(hub: &Arc<Hub>, request: &str, text: &str) {
+    let Some(run_id) = hub.store.kv_get(&format!("runreq.{request}")) else { return };
+    let Ok(mut run) = load(&hub.store, &run_id) else { return };
+    let mut filed = false;
+    for asked in &mut run.bots {
+        if asked.request == request {
+            asked.reply = Some(text.to_owned());
+            filed = true;
+        }
+    }
+    if filed && let Err(error) = save(&hub.store, &run) {
+        tracing::warn!(run = %run_id, error = format!("{error:#}"), "could not file a run reply");
+    }
+}
+
 pub fn status(hub: &Arc<Hub>, b: &Value) -> Result<Value> {
     let id = b["runId"].as_str().with_context(|| "runId is required")?;
     let run = load(&hub.store, id)?;
@@ -105,11 +130,26 @@ pub fn status(hub: &Arc<Hub>, b: &Value) -> Result<Value> {
         running |= matches!(status.as_str(), Some("queued" | "sent"));
         bots.push(json!({"bot": asked.bot, "name": asked.name, "request": asked.request, "status": status}));
     }
+    let answered: Vec<merge::Answer> = run
+        .bots
+        .iter()
+        .filter_map(|a| a.reply.as_ref().map(|text| merge::Answer { name: a.name.clone(), text: text.clone() }))
+        .collect();
+    let merged = match (run.schema.as_ref(), running) {
+        (Some(schema), false) => Some(merge::merge(&answered, schema)),
+        _ => None,
+    };
     Ok(json!({
         "runId": run.id,
         "task": run.task,
+        "createdAt": run.created_at,
         "status": if running { "running" } else { "done" },
         "bots": bots,
+        "merged": merged.map(|m| json!({
+            "agreed": m.agreed.iter().cloned().collect::<std::collections::BTreeMap<String, Value>>(),
+            "disagreed": m.disagreed.iter().map(|d| json!({"field": d.field, "values": d.values})).collect::<Vec<_>>(),
+            "unparsed": m.unparsed.iter().map(|a| json!({"name": a.name, "text": a.text})).collect::<Vec<_>>(),
+        })),
     }))
 }
 
