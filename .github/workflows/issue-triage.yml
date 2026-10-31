@@ -45,6 +45,9 @@ jobs:
           } > input.txt
 
       - name: Classify
+        # The classifier is the Claude CLI on this repository's own token: a fork without the secret skips instead of
+        # failing every issue and pull request.
+        if: env.CLAUDE_CODE_OAUTH_TOKEN != ''
         env:
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           SCHEMA: >-
@@ -81,7 +84,9 @@ jobs:
           jq -c .structured_output result.json
 
       - name: Apply labels
+        if: env.CLAUDE_CODE_OAUTH_TOKEN != ''
         env:
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           GH_TOKEN: ${{ github.token }}
         run: |
           type=$(jq -r '.structured_output.type' result.json)
