@@ -87,6 +87,15 @@ pub struct BotConfig {
     /// A URL this bot posts its final reply to, for a chat bridge (see `chat::bridge`); `None` is no bridge.
     #[serde(default)]
     pub reply_webhook: Option<String>,
+    /// The mascot a bot shows (`agent::avatar`), independent of what it runs and of the role it plays.
+    #[serde(default)]
+    pub avatar_id: Option<String>,
+    /// What the person calls this bot's job, e.g. "Analista de dados": a description, never an authorization.
+    #[serde(default)]
+    pub role_title: Option<String>,
+    /// The roster grouping the bot shows in, e.g. "Financeiro": visual only, never an authorization.
+    #[serde(default)]
+    pub team: Option<String>,
     /// Dollars the bot may spend per day, at the price the user declared below; `None` is no limit.
     #[serde(default)]
     pub budget_usd: Option<f64>,

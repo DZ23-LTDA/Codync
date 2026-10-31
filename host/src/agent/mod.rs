@@ -3,6 +3,7 @@
 
 pub mod acp;
 pub mod auth;
+pub mod avatar;
 pub mod backends;
 pub mod bot;
 pub mod config;
