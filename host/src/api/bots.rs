@@ -227,6 +227,10 @@ pub(super) async fn call(hub: &Arc<Hub>, caller: &Caller, method: &str, b: Value
                 }
             }
             let mut data = json!({"text": text, "clientNonce": nonce, "attachments": attachments});
+            // A message a bridge brought in says so: it is not the person typing in the app.
+            if let Some(from) = b["from"].as_str().filter(|from| !from.is_empty()) {
+                data["from"] = from.into();
+            }
             // What the user pasted rather than typed: memory never takes it as the user's own words.
             let pasted: Vec<&str> = b["pasted"]
                 .as_array()

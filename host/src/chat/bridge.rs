@@ -9,6 +9,18 @@ use sha2::Sha256;
 use std::fmt::Write as _;
 use std::time::Duration;
 
+/// The bot behind an inbound bridge secret, if this computer issued it.
+pub fn bot_for(store: &Store, secret: &str) -> Option<String> {
+    store.kv_get(&format!("bri.{secret}"))
+}
+
+/// The record that lets `bot_for` answer: called when a secret is made, so the reverse lookup never guesses.
+fn remember(store: &Store, bot: &str, secret: &str) {
+    if let Err(error) = store.kv_set(&format!("bri.{secret}"), bot) {
+        tracing::warn!(bot = %bot, error = format!("{error:#}"), "could not keep the bridge reverse index");
+    }
+}
+
 /// How long a receiver has to take a delivery before it is given up on.
 const TIMEOUT: Duration = Duration::from_secs(10);
 
@@ -22,6 +34,7 @@ pub fn secret(store: &Store, bot: &str) -> String {
     if let Err(error) = store.kv_set(&key, &made) {
         tracing::warn!(bot = %bot, error = format!("{error:#}"), "could not keep the bridge secret");
     }
+    remember(store, bot, &made);
     made
 }
 
