@@ -1,6 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
-import { DiscordLogo, GithubLogo } from "@phosphor-icons/react/ssr";
+import { Coffee, DiscordLogo, GithubLogo } from "@phosphor-icons/react/ssr";
 import DownloadButton from "./download-button";
 import { BUY_ME_A_COFFEE, DISCORD, EMAIL, GITHUB, KO_FI } from "../links";
 
@@ -29,6 +29,14 @@ export function SiteHeader() {
           ))}
         </div>
         <div className="flex items-center justify-end gap-2">
+          <a
+            href={BUY_ME_A_COFFEE}
+            aria-label="Buy me a coffee"
+            title="Buy me a coffee"
+            className="rounded-full p-2 text-neutral-400 transition hover:text-neutral-100"
+          >
+            <Coffee size={20} />
+          </a>
           <a
             href={DISCORD}
             aria-label="Codync on Discord"
