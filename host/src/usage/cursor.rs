@@ -7,13 +7,25 @@ use base64::engine::general_purpose::{URL_SAFE, URL_SAFE_NO_PAD};
 use rusqlite::{Connection, OpenFlags};
 use serde_json::Value;
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
 use super::Window;
 
+/// Whether the dashboard last named a unified plan, so a failed poll keeps its weekly reading.
+static LAST_UNIFIED: AtomicBool = AtomicBool::new(false);
+
+/// Which reading a poll reports.
+#[derive(Debug, PartialEq)]
+enum Route {
+    /// The dashboard's weekly window, or `None` to keep the last one.
+    Unified(Option<Vec<Window>>),
+    /// The legacy plan's usage summary.
+    Summary,
+}
+
 pub(super) async fn collect() -> Option<Vec<Window>> {
-    let token_result = tokio::task::spawn_blocking(read_token).await;
-    let token = token_result.ok().flatten()?;
+    let token = tokio::task::spawn_blocking(read_token).await.ok().flatten()?;
     let client = reqwest::Client::builder()
         .timeout(Duration::from_secs(15))
         .redirect(reqwest::redirect::Policy::none())
@@ -25,32 +37,35 @@ pub(super) async fn collect() -> Option<Vec<Window>> {
         .bearer_auth(&token)
         .header("Connect-Protocol-Version", "1")
         .json(&serde_json::json!({}));
-    let status_result = read_response(status_request).await;
-    let status = status_result?;
-    if status["isUnified"].as_bool() == Some(true) {
-        return parse_unified(&status);
+    let status = read_response(status_request).await;
+    let route = choose(status.as_ref(), LAST_UNIFIED.load(Ordering::Relaxed));
+    LAST_UNIFIED.store(matches!(route, Route::Unified(_)), Ordering::Relaxed);
+    if let Route::Unified(windows) = route {
+        return windows;
     }
 
-    let sub = jwt_sub(&token)?;
-    let cookie = cookie(&sub, &token)?;
     let summary_request = client
         .get("https://cursor.com/api/usage-summary")
-        .header("Cookie", cookie)
+        .header("Cookie", session_cookie(&token)?)
         .header("Accept", "application/json");
-    let summary_result = read_response(summary_request).await;
-    let summary = summary_result?;
+    let summary = read_response(summary_request).await?;
     Some(parse(&summary))
 }
 
+/// The dashboard service is internal: when it fails, a legacy plan still reads its summary,
+/// while a unified plan keeps its last weekly reading (its summary pools read zero).
+fn choose(status: Option<&Value>, last_unified: bool) -> Route {
+    let unified = status.map_or(last_unified, |s| s["isUnified"].as_bool() == Some(true));
+    if unified { Route::Unified(status.and_then(parse_unified)) } else { Route::Summary }
+}
+
 async fn read_response(request: reqwest::RequestBuilder) -> Option<Value> {
-    let response_result = request.send().await;
-    let response = response_result.ok()?;
+    let response = request.send().await.ok()?;
     if !response.status().is_success() {
         tracing::debug!(status = %response.status(), "cursor usage request was refused");
         return None;
     }
-    let body_result = response.json::<Value>().await;
-    body_result.ok()
+    response.json::<Value>().await.ok()
 }
 
 fn parse_unified(status: &Value) -> Option<Vec<Window>> {
@@ -76,16 +91,14 @@ fn read_token() -> Option<String> {
 
 fn read_saved_token(cli_path: Option<&Path>, app_path: Option<&Path>) -> Option<String> {
     // A stale CLI login must not hide an already-working desktop login.
-    app_path.and_then(read_app_token).or_else(|| read_cli_token(cli_path?))
+    let usable = |token: &String| session_cookie(token).is_some();
+    app_path.and_then(read_app_token).filter(usable).or_else(|| read_cli_token(cli_path?).filter(usable))
 }
 
 fn read_cli_token(path: &Path) -> Option<String> {
     let raw = std::fs::read_to_string(path).ok()?;
     let auth: Value = serde_json::from_str(&raw).ok()?;
-    let token = token_text(auth["accessToken"].as_str()?);
-    let sub = jwt_sub(&token)?;
-    cookie(&sub, &token)?;
-    Some(token)
+    Some(token_text(auth["accessToken"].as_str()?))
 }
 
 fn read_app_token(path: &Path) -> Option<String> {
@@ -117,6 +130,10 @@ fn jwt_sub(token: &str) -> Option<String> {
     let value: Value = serde_json::from_slice(&bytes).ok()?;
     let sub = value["sub"].as_str().filter(|s| !s.is_empty())?;
     Some(sub.to_owned())
+}
+
+fn session_cookie(token: &str) -> Option<String> {
+    cookie(&jwt_sub(token)?, token)
 }
 
 fn cookie(sub: &str, token: &str) -> Option<String> {
@@ -247,24 +264,27 @@ mod tests {
         let path = std::env::temp_dir().join(format!("codync-cursor-{}.db", uuid::Uuid::new_v4()));
         let conn = Connection::open(&path).unwrap();
         conn.execute("CREATE TABLE ItemTable (key TEXT, value BLOB)", []).unwrap();
+        let app_token = test_token("user_app");
         conn.execute(
             "INSERT INTO ItemTable (key, value) VALUES ('cursorAuth/accessToken', ?1)",
-            [rusqlite::types::Value::Blob(br#""tok""#.to_vec())],
+            [rusqlite::types::Value::Blob(format!("\"{app_token}\"").into_bytes())],
         )
         .unwrap();
-        drop(conn);
         let cli_path = path.with_extension("json");
         for raw in ["{", "{}", r#"{"accessToken":""}"#, r#"{"accessToken":"not-a-jwt"}"#] {
             std::fs::write(&cli_path, raw).unwrap();
-            assert_eq!(read_saved_token(Some(&cli_path), Some(&path)).as_deref(), Some("tok"));
+            assert_eq!(read_saved_token(Some(&cli_path), Some(&path)), Some(app_token.clone()));
             assert_eq!(read_saved_token(Some(&cli_path), None), None);
         }
-        let token = test_token();
+        let token = test_token("user_cli");
         std::fs::write(&cli_path, json!({"accessToken": token}).to_string()).unwrap();
-        assert_eq!(read_saved_token(Some(&cli_path), Some(&path)).as_deref(), Some("tok"));
-        assert_eq!(read_saved_token(Some(&cli_path), None), Some(token));
+        assert_eq!(read_saved_token(Some(&cli_path), Some(&path)), Some(app_token.clone()));
+        assert_eq!(read_saved_token(Some(&cli_path), None), Some(token.clone()));
+        conn.execute("UPDATE ItemTable SET value = 'tok'", []).unwrap();
+        assert_eq!(read_saved_token(Some(&cli_path), Some(&path)), Some(token), "a broken app value is not a login");
+        drop(conn);
         std::fs::remove_file(&cli_path).unwrap();
-        assert_eq!(read_saved_token(Some(&cli_path), Some(&path)).as_deref(), Some("tok"));
+        assert_eq!(read_saved_token(Some(&cli_path), Some(&path)), None);
         std::fs::remove_file(&path).unwrap();
         assert_eq!(read_saved_token(Some(&cli_path), Some(&path)), None);
         assert!(!path.exists(), "reading an absent desktop database never creates one");
@@ -273,7 +293,7 @@ mod tests {
     #[test]
     fn a_cli_only_login_supplies_usage_credentials_without_changing_them() {
         let path = std::env::temp_dir().join(format!("codync-cursor-{}.json", uuid::Uuid::new_v4()));
-        let token = test_token();
+        let token = test_token("user_cli");
         let raw = json!({"accessToken": token, "refreshToken": "leave-this-alone"}).to_string();
         std::fs::write(&path, &raw).unwrap();
         let saved = read_saved_token(Some(&path), None);
@@ -283,8 +303,19 @@ mod tests {
         assert_eq!(after, raw);
     }
 
-    fn test_token() -> String {
-        let payload = URL_SAFE_NO_PAD.encode(br#"{"sub":"user_cli"}"#);
+    fn test_token(sub: &str) -> String {
+        let payload = URL_SAFE_NO_PAD.encode(json!({ "sub": sub }).to_string());
         format!("eyJhbGciOiJub25lIn0.{payload}.sig")
+    }
+
+    #[test]
+    fn a_failed_dashboard_keeps_a_unified_plan_off_the_legacy_summary() {
+        let unified = json!({"isUnified": true, "usagePercent": 46});
+        let Route::Unified(Some(windows)) = choose(Some(&unified), false) else { panic!("a unified reading") };
+        assert_eq!(windows[0].id, "weekly");
+        assert_eq!(choose(Some(&json!({"isUnified": true})), false), Route::Unified(None));
+        assert_eq!(choose(None, true), Route::Unified(None), "a failed poll keeps the last weekly window");
+        assert_eq!(choose(None, false), Route::Summary, "a legacy or unknown plan still reads its summary");
+        assert_eq!(choose(Some(&json!({"isUnified": false})), true), Route::Summary);
     }
 }
