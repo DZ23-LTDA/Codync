@@ -20,6 +20,7 @@ pub mod profile;
 pub mod prompt;
 pub mod reactions;
 pub mod replies;
+pub mod run;
 pub mod skills;
 pub mod team;
 pub mod uploads;

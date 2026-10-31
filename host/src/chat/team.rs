@@ -334,7 +334,7 @@ fn visible(row: &BotRow) -> bool {
     !row.deleted && !row.config.hidden && !row.config.is_group()
 }
 
-fn visible_bot(hub: &Hub, id: &str) -> Result<BotConfig> {
+pub(crate) fn visible_bot(hub: &Hub, id: &str) -> Result<BotConfig> {
     hub.store.bot(id)?.filter(visible).map(|r| r.config).ok_or_else(|| anyhow!("unknown or hidden bot"))
 }
 
@@ -402,7 +402,7 @@ fn check_request(hub: &Hub, source: &BotConfig, message: &str) -> Result<()> {
     Ok(())
 }
 
-fn message_bot(hub: &Arc<Hub>, source: &BotConfig, to: &str, message: &str) -> Result<Value> {
+pub(crate) fn message_bot(hub: &Arc<Hub>, source: &BotConfig, to: &str, message: &str) -> Result<Value> {
     check_request(hub, source, message)?;
     if source.id == to {
         bail!("a bot cannot message itself");

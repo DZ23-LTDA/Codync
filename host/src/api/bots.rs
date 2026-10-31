@@ -13,6 +13,8 @@ use std::sync::Arc;
 pub(super) async fn call(hub: &Arc<Hub>, caller: &Caller, method: &str, b: Value) -> Result<ControlFlow<Value, Value>> {
     Ok(ControlFlow::Break(match method {
         "routineSchedule" => crate::routines::schedule_preview(&b, crate::store::now_ms())?,
+        "startRun" => crate::chat::run::start(hub, str_arg(&b, "botId")?, &b)?,
+        "runStatus" => crate::chat::run::status(hub, &b)?,
         "routines" => hub.routines.list(str_arg(&b, "botId")?),
         "saveRoutine" => hub.routines.save(hub, str_arg(&b, "botId")?, &b)?,
         "setRoutineEnabled" => hub.routines.set_enabled(
