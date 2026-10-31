@@ -12,6 +12,8 @@ use crate::store::{Store, now_ms};
 use anyhow::{Context, Result, bail};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
+use sha2::{Digest, Sha256};
+use std::fmt::Write as _;
 use std::sync::Arc;
 
 /// Below this a run is a message, above it a broadcast nobody joins.
@@ -23,6 +25,7 @@ const AWAITING: &str = "awaitingApproval";
 const RUNNING: &str = "running";
 const DONE: &str = "done";
 const REJECTED: &str = "rejected";
+const EXPIRED: &str = "expired";
 
 /// One run, as its ledger keeps it.
 #[derive(Serialize, Deserialize)]
@@ -43,7 +46,16 @@ pub struct Run {
     pub approved_by: Option<String>,
     #[serde(default)]
     pub approved_at: Option<i64>,
+    /// SHA-256 of exactly what will run, so an approval cannot be replayed onto a different payload.
+    #[serde(default)]
+    pub payload_hash: String,
+    /// A sealed run nobody answered by then is expired and never reaches a bot.
+    #[serde(default)]
+    pub expires_at: Option<i64>,
 }
+
+/// How long a sealed run waits for a person.
+const SEAL_TTL_MS: i64 = 24 * 60 * 60 * 1000;
 
 /// One bot the run was handed to, and the request that carries it.
 #[derive(Clone, Serialize, Deserialize)]
@@ -54,6 +66,18 @@ pub struct Asked {
     /// The bot answer, filed when it reaches the sender (see `record_reply`); empty while the run waits.
     #[serde(default)]
     pub reply: Option<String>,
+}
+
+/// What the approval covers: the task, the bots and the schema, canonically serialised and hashed.
+fn payload_hash(task: &str, bots: &[Asked], schema: Option<&Value>) -> String {
+    let ids: Vec<&str> = bots.iter().map(|asked| asked.bot.as_str()).collect();
+    let canonical = serde_json::json!({"task": task, "bots": ids, "schema": schema}).to_string();
+    let digest = Sha256::digest(canonical.as_bytes());
+    let mut hex = String::with_capacity(64);
+    for byte in digest {
+        let _ = write!(hex, "{byte:02x}");
+    }
+    hex
 }
 
 fn key(id: &str) -> String {
@@ -118,19 +142,20 @@ pub fn start(hub: &Arc<Hub>, from: &str, by: &str, b: &Value) -> Result<Value> {
     let ids = bots(from, &b["bots"])?;
     let schema = b.get("schema").filter(|s| s.is_object()).cloned();
     let seal = b["seal"].as_bool().unwrap_or(false);
+    let asked: Vec<Asked> =
+        ids.into_iter().map(|bot| Asked { bot, name: String::new(), request: String::new(), reply: None }).collect();
     let mut run = Run {
         id: uuid::Uuid::new_v4().to_string(),
+        payload_hash: payload_hash(&task, &asked, schema.as_ref()),
         task,
         schema,
-        bots: ids
-            .into_iter()
-            .map(|bot| Asked { bot, name: String::new(), request: String::new(), reply: None })
-            .collect(),
+        bots: asked,
         created_at: now_ms(),
         seal,
         state: if seal { AWAITING } else { RUNNING }.to_owned(),
         approved_by: None,
         approved_at: None,
+        expires_at: seal.then(|| now_ms() + SEAL_TTL_MS),
     };
     if seal {
         // A sealed run never reaches a bot before a person answers it.
@@ -152,6 +177,15 @@ pub fn approve(hub: &Arc<Hub>, from: &str, by: &str, b: &Value) -> Result<Value>
     let mut run = load(&hub.store, id)?;
     if run.state != AWAITING {
         bail!("run {id} isn't waiting for approval (it is {})", run.state);
+    }
+    if run.expires_at.is_some_and(|at| now_ms() > at) {
+        run.state.clear();
+        run.state.push_str(EXPIRED);
+        save(&hub.store, &run)?;
+        bail!("run {id} expired before anyone approved it");
+    }
+    if run.payload_hash != payload_hash(&run.task, &run.bots, run.schema.as_ref()) {
+        bail!("run {id} changed since it was sealed; seal it again");
     }
     fan_out(hub, from, &mut run)?;
     run.state.clear();
@@ -243,6 +277,22 @@ mod tests {
 
     fn ids(v: &Value) -> Result<Vec<String>> {
         bots("me", v)
+    }
+
+    #[test]
+    fn the_approval_covers_exactly_what_was_sealed() {
+        let asked = |ids: &[&str]| -> Vec<Asked> {
+            ids.iter()
+                .map(|id| Asked { bot: (*id).to_owned(), name: String::new(), request: String::new(), reply: None })
+                .collect()
+        };
+        let schema = json!({"verdict": "string"});
+        let base = payload_hash("decide", &asked(&["a", "b"]), Some(&schema));
+        assert_eq!(base.len(), 64);
+        assert_eq!(base, payload_hash("decide", &asked(&["a", "b"]), Some(&schema)), "same payload, same hash");
+        assert_ne!(base, payload_hash("decide!", &asked(&["a", "b"]), Some(&schema)), "another task");
+        assert_ne!(base, payload_hash("decide", &asked(&["b", "a"]), Some(&schema)), "another roster order");
+        assert_ne!(base, payload_hash("decide", &asked(&["a", "b"]), None), "another schema");
     }
 
     #[test]
