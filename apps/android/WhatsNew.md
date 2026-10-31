@@ -7,9 +7,9 @@ released version's section; a version without one gets the PRs' "What's New: And
 else a generic "Bug fixes and improvements" line. Delete old sections.
 -->
 
-## 2.33.3
+## 2.33.4
 ### zh-Hant
-- 可上下拖曳 section，連同其中的 bot 一起移動，也能放到「Bots」下方；此裝置會記住順序。
+- 移除例行任務標題旁的聊天按鈕，介面更簡潔。仍可直接在聊天中請 bot 建立任務，或使用「＋」自行設定。
 
 ### en-US
-- Drag sections up or down with their bots, including below Bots. This device remembers the order.
+- Removed the chat shortcut beside Routines. Ask the bot directly in chat, or use + to set up a routine yourself.
