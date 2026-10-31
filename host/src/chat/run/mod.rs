@@ -201,11 +201,16 @@ pub fn start(hub: &Arc<Hub>, from: &str, by: &str, b: &Value) -> Result<Value> {
     Ok(json!({"runId": run.id, "state": RUNNING, "bots": named}))
 }
 
+/// A run can be approved once: after that it is running, done, executed, rejected, expired or revoked.
+fn approvable(state: &str) -> bool {
+    state == AWAITING
+}
+
 /// `approveRun`: the person answers a sealed run, and only now do its bots get asked.
 pub fn approve(hub: &Arc<Hub>, from: &str, by: &str, b: &Value) -> Result<Value> {
     let id = b["runId"].as_str().with_context(|| "runId is required")?;
     let mut run = load(&hub.store, id)?;
-    if run.state != AWAITING {
+    if !approvable(&run.state) {
         bail!("run {id} isn't waiting for approval (it is {})", run.state);
     }
     if run.expires_at.is_some_and(|at| now_ms() > at) {
@@ -233,7 +238,7 @@ pub fn approve(hub: &Arc<Hub>, from: &str, by: &str, b: &Value) -> Result<Value>
 pub fn reject(hub: &Arc<Hub>, by: &str, b: &Value) -> Result<Value> {
     let id = b["runId"].as_str().with_context(|| "runId is required")?;
     let mut run = load(&hub.store, id)?;
-    if run.state != AWAITING {
+    if !approvable(&run.state) {
         bail!("run {id} isn't waiting for approval (it is {})", run.state);
     }
     run.state.clear();
@@ -250,7 +255,7 @@ pub fn reject(hub: &Arc<Hub>, by: &str, b: &Value) -> Result<Value> {
 pub fn revoke(hub: &Arc<Hub>, by: &str, b: &Value) -> Result<Value> {
     let id = b["runId"].as_str().with_context(|| "runId is required")?;
     let mut run = load(&hub.store, id)?;
-    if run.state != AWAITING {
+    if !approvable(&run.state) {
         bail!("run {id} isn't waiting for approval (it is {})", run.state);
     }
     run.state.clear();
@@ -351,6 +356,14 @@ mod tests {
         assert!(!all_answered(&[]), "an empty run is not executed");
         assert!(!all_answered(&[answered(Some("x")), answered(None)]), "one bot still owes an answer");
         assert!(all_answered(&[answered(Some("x")), answered(Some("y"))]), "everyone answered");
+    }
+
+    #[test]
+    fn an_approval_cannot_be_replayed() {
+        assert!(approvable(AWAITING), "only a run still waiting");
+        for spent in [RUNNING, DONE, EXECUTED, REJECTED, EXPIRED, REVOKED] {
+            assert!(!approvable(spent), "{spent} was already answered and cannot run again");
+        }
     }
 
     #[test]
