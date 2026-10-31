@@ -1,8 +1,9 @@
 //! Who a bot is, apart from what it runs: the mascot it shows, the role it plays and the team it shows in.
 //!
 //! The mascot is a catalog id, never a role: a bot can be the same mascot as another one, and any mascot can be any
-//! role. The ids are the ones in the avatar package (`assets/avatars/manifest.json`); the images themselves are not
-//! needed here, only the list, so a host without the assets still validates what it stores.
+//! role. The canonical artwork lives at `assets/mascots/<id>.png` (`tools/mascot-assets.mjs` derives the copies each
+//! client ships); the images themselves are not needed here, only the list, so a host without the assets still
+//! validates what it stores and shows the fallback.
 
 /// Every mascot this build knows, in the order the package lists them.
 pub const IDS: [&str; 13] = [
