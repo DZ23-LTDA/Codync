@@ -141,12 +141,33 @@ pub fn spawn(hub: Arc<Hub>, base: BotConfig) -> BotHandle {
 struct SessionCaps {
     /// `session/load`: resume a session after a restart.
     load: bool,
+    /// ACP `session/resume`: the same for an agent that reopens with `session/resume` instead (`DeepSeek Harness`
+    /// advertises it and no `loadSession`).
+    resume: bool,
     /// `session/close`: an idle session can be released while the agent keeps running.
     close: bool,
     /// ACP `systemPrompt`: instructions on `session/new` and `load` that the agent keeps at system level.
     system_prompt: bool,
     /// ACP `additionalDirectories`: folders outside `cwd` the agent may work in, here the memory folders.
     additional_directories: bool,
+}
+
+impl SessionCaps {
+    /// Whether a session can be reopened after the agent stops, whichever request that takes.
+    fn can_resume(self) -> bool {
+        self.load || self.resume
+    }
+
+    /// The request that reopens a session, `None` when the agent can't.
+    fn reopen(self) -> Option<&'static str> {
+        if self.load {
+            Some("session/load")
+        } else if self.resume {
+            Some("session/resume")
+        } else {
+            None
+        }
+    }
 }
 
 /// How the bot's instructions (identity and memory) reach the agent.

@@ -52,7 +52,7 @@ impl Actor {
             return;
         }
         let Some(conn) = &self.conn else { return };
-        if !conn.sessions.load {
+        if !conn.sessions.can_resume() {
             return;
         }
         let release = plan(&conn.loaded, conn.started, conn.sessions.close, Instant::now());
@@ -92,7 +92,7 @@ impl Actor {
     /// so a bot on a short schedule doesn't hold a set of MCP servers per run until [`IDLE`].
     pub(super) async fn release_spent(&mut self, sid: &str) {
         let Some(conn) = &self.conn else { return };
-        if !conn.sessions.load {
+        if !conn.sessions.can_resume() {
             return;
         }
         let alone = conn.loaded.keys().all(|s| s == sid) && self.queue.is_empty();
@@ -109,7 +109,8 @@ impl Actor {
     /// Closes a session the agent can load again when it's next needed, like one a turn failed in (see
     /// `acp::may_end_session`): the next turn loads it afresh instead of finding it dead.
     pub(super) async fn close_reloadable(&mut self, sid: &str) {
-        if self.conn.as_ref().is_some_and(|c| c.sessions.close && c.sessions.load && c.loaded.contains_key(sid)) {
+        if self.conn.as_ref().is_some_and(|c| c.sessions.close && c.sessions.can_resume() && c.loaded.contains_key(sid))
+        {
             self.close_session(sid).await;
         }
     }

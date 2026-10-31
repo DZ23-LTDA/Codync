@@ -1,7 +1,8 @@
 """ACP fixture recording how a bot's instructions and compactions reach it.
 
 `standard` advertises ACP `systemPrompt`; `reporting` reports compactions with `compaction_update`; `silent` only
-shows them in `usage_update`; `flaky` resumes sessions and fails its first prompt ever (across restarts), as a rate limit does; `codex` and `claude` answer `initialize` the way those adapters do, so the host asks
+shows them in `usage_update`; `flaky` resumes sessions and fails its first prompt ever (across restarts), as a rate limit does; `resume` reopens its sessions with ACP `session/resume` and no `loadSession`, as DeepSeek Harness
+does; `codex` and `claude` answer `initialize` the way those adapters do, so the host asks
 them to compact. A prompt containing COMPACT_NOW, or one that is a `/compact` command, compacts; one containing
 `USAGE <n>` (optionally `SIZE <m>`) reports that much context in use. Every request is appended to
 `requests.jsonl` in the working directory.
@@ -46,6 +47,8 @@ for line in sys.stdin:
         capabilities = {"loadSession": mode in ("claude", "flaky"), "sessionCapabilities": {}}
         if mode == "standard":
             capabilities["sessionCapabilities"]["systemPrompt"] = {}
+        if mode == "resume":
+            capabilities["sessionCapabilities"]["resume"] = {}
         if mode == "claude":
             capabilities["_meta"] = {"claudeCode": {}}
         result = {"protocolVersion": 1, "agentCapabilities": capabilities}
@@ -54,7 +57,7 @@ for line in sys.stdin:
     elif method == "session/new":
         sessions += 1
         result = {"sessionId": f"s{sessions}"}
-    elif method == "session/load":
+    elif method in ("session/load", "session/resume"):
         result = {}
     elif method == "session/prompt":
         session = params["sessionId"]
