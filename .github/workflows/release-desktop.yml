@@ -69,7 +69,13 @@ jobs:
     needs: check
     # Fork PRs get no signing secrets, so they stop at check, Windows and Linux; the release PR into main
     # builds the Mac app before the tag.
-    if: needs.check.outputs.package == 'true' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+    # Signing and notarising needs this repository's Apple certificate, which a fork does not have: without the
+    # variable set the job is skipped instead of failing on every pull request. Set DESKTOP_MACOS_SIGNING=true (with the
+    # APPLE_*/ASC_* secrets) to turn it back on.
+    if: >-
+      vars.DESKTOP_MACOS_SIGNING == 'true' &&
+      needs.check.outputs.package == 'true' &&
+      (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
     runs-on: macos-26
     steps:
       - uses: actions/checkout@v4
