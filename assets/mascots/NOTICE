@@ -1,0 +1,15 @@
+Mascot artwork — brand asset, not open source
+=============================================
+
+The images under assets/mascots/ are artwork owned by DZ23. They are brand assets of the B-3PO BOT PLATFORM and are
+NOT licensed for reuse, redistribution or modification. This notice covers the image files only.
+
+Everything else in this repository — including the code that names, validates, derives and displays these images — is
+licensed under the Apache License 2.0, as stated in the repository's LICENSE file. The Apache licence does not extend to
+the artwork.
+
+The artwork carries no name and no role: a mascot is an identity a person picks for a bot, never a job title. Roles and
+teams are configuration in the host, not something baked into a picture.
+
+This is a project decision about ownership, not a legal clearance. Before any public launch, distribution or marketing
+spend, the trademark question is checked separately (master goal, section 14).
