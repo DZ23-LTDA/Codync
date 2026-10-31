@@ -37,6 +37,22 @@ enum RosterLine: Identifiable {
         if case let .computer(id, _) = self { id } else { nil }
     }
 
+    var sectionComputer: ComputerID? {
+        switch self {
+        case let .section(_, id, _), let .label(id): id
+        default: nil
+        }
+    }
+
+    func sectionName(on computer: ComputerID) -> String? {
+        guard sectionComputer == computer else { return nil }
+        return switch self {
+        case let .section(section, _, _): section.name
+        case .label: ""
+        default: nil
+        }
+    }
+
     func botId(on computerId: ComputerID) -> String? {
         if case let .bot(item, _) = self, item.ref.computerId == computerId { item.bot.id } else { nil }
     }
