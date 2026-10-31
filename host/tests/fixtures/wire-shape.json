@@ -44,6 +44,7 @@
     "event:bot.bot.permission": "string",
     "event:bot.bot.pinned": "bool",
     "event:bot.bot.position": "number",
+    "event:bot.bot.priceCachedPerMtok": "null",
     "event:bot.bot.pricePerMtok": "null",
     "event:bot.bot.reachableByAssistants": "bool",
     "event:bot.bot.resting": "array",

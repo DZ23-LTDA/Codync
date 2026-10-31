@@ -86,6 +86,34 @@ pub fn exhausted_usd(store: &Store, cfg: &BotConfig) -> Option<f64> {
     (spent_usd(store, &cfg.id) >= limit).then_some(budget)
 }
 
+fn usage_key(bot: &str, day: &str) -> String {
+    format!("usage.{bot}.{day}")
+}
+
+/// Tokens the bot spent today, split as the agents report them: fresh input, cache read, cache written.
+pub fn usage(store: &Store, bot: &str) -> (u64, u64, u64) {
+    let saved =
+        store.kv_get(&usage_key(bot, &today())).and_then(|v| serde_json::from_str::<serde_json::Value>(&v).ok());
+    let part = |name: &str| saved.as_ref().and_then(|v| v[name].as_u64()).unwrap_or(0);
+    (part("input"), part("cacheRead"), part("cacheWrite"))
+}
+
+/// Adds a turn usage to today, by kind.
+pub fn record_usage(store: &Store, bot: &str, input: u64, cache_read: u64, cache_write: u64) {
+    if input == 0 && cache_read == 0 && cache_write == 0 {
+        return;
+    }
+    let (i, r, w) = usage(store, bot);
+    let saved = serde_json::json!({
+        "input": i.saturating_add(input),
+        "cacheRead": r.saturating_add(cache_read),
+        "cacheWrite": w.saturating_add(cache_write),
+    });
+    if let Err(error) = store.kv_set(&usage_key(bot, &today()), &saved.to_string()) {
+        tracing::warn!(bot = %bot, error = format!("{error:#}"), "could not record the turn usage");
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -129,6 +157,15 @@ mod tests {
         let unlimited = bot(None);
         assert_eq!(exhausted(&store, &unlimited), None);
         assert_eq!(exhausted(&store, &bot(Some(2000))), None, "a raised budget lets it carry on");
+    }
+
+    #[test]
+    fn usage_keeps_the_kinds_apart() {
+        let (_dir, store) = TempDir::store();
+        record_usage(&store, "b1", 100, 90_000, 400);
+        record_usage(&store, "b1", 50, 1_000, 0);
+        assert_eq!(usage(&store, "b1"), (150, 91_000, 400));
+        assert_eq!(usage(&store, "other"), (0, 0, 0), "a bot that never ran");
     }
 
     #[test]

@@ -19,9 +19,37 @@ fn approver(caller: &Caller) -> String {
     }
 }
 
+/// Tokens priced in the unit the prices are quoted in, kept as a float because prices are.
+#[expect(clippy::cast_precision_loss, reason = "token counts stay below 2^53")]
+fn micro(tokens: u64, price: f64) -> f64 {
+    let tokens = tokens as f64;
+    (tokens * price).round().max(0.0)
+}
+
+/// `part / total`, zero when there is nothing to divide.
+#[expect(clippy::cast_precision_loss, reason = "token counts stay below 2^53")]
+fn ratio(part: u64, total: u64) -> f64 {
+    if total == 0 { 0.0 } else { part as f64 / total as f64 }
+}
+
 pub(super) async fn call(hub: &Arc<Hub>, caller: &Caller, method: &str, b: Value) -> Result<ControlFlow<Value, Value>> {
     Ok(ControlFlow::Break(match method {
         "routineSchedule" => crate::routines::schedule_preview(&b, crate::store::now_ms())?,
+        "usageSummary" => {
+            let bot = str_arg(&b, "botId")?;
+            let cfg = crate::chat::team::visible_bot(hub, bot)?;
+            let (input, cache_read, cache_write) = crate::agent::bot::budget::usage(&hub.store, bot);
+            let cache_hit = ratio(cache_read, input + cache_read + cache_write);
+            let price = cfg.price_per_mtok.unwrap_or(0.0);
+            let cached_price = cfg.price_cached_per_mtok.unwrap_or(price);
+            let cost = micro(input + cache_write, price) + micro(cache_read, cached_price);
+            json!({
+                "botId": bot,
+                "tokens": {"input": input, "cacheRead": cache_read, "cacheWrite": cache_write},
+                "cacheHitRate": cache_hit,
+                "costUsd": cost / 1_000_000.0,
+            })
+        }
         "startRun" => crate::chat::run::start(hub, str_arg(&b, "botId")?, &approver(caller), &b)?,
         "approveRun" => crate::chat::run::approve(hub, str_arg(&b, "botId")?, &approver(caller), &b)?,
         "rejectRun" => crate::chat::run::reject(hub, &approver(caller), &b)?,

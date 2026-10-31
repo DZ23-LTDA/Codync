@@ -81,6 +81,9 @@ pub struct BotConfig {
     /// (`agent::bot::budget`); `None` is no limit.
     #[serde(default)]
     pub budget: Option<u64>,
+    /// What a million tokens read from the prompt cache cost, when the plan prices them differently.
+    #[serde(default)]
+    pub price_cached_per_mtok: Option<f64>,
     /// Dollars the bot may spend per day, at the price the user declared below; `None` is no limit.
     #[serde(default)]
     pub budget_usd: Option<f64>,
