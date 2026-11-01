@@ -435,11 +435,12 @@ mod tests {
 
     #[test]
     fn unit_tests_keep_out_of_the_real_data_folder() {
-        assert!(
-            std::env::var_os("CODYNC_HOME").is_some() || !data_dir().starts_with(home()),
-            "{}",
-            data_dir().display()
-        );
+        // Compare against the production data folder itself, not against the home prefix: on
+        // Windows the temp folder lives inside the home (`%LOCALAPPDATA%\Temp`), so a prefix
+        // test fails on a plain developer machine while the data folder is still a temp one.
+        let real = home().join(crate::environment::Environment::current().data_folder());
+        let dir = data_dir();
+        assert_ne!(dir, real, "unit tests must not write into {}", real.display());
     }
 
     #[test]
