@@ -56,7 +56,7 @@ export function NodeNotice({ onAdd }: { onAdd: () => void }) {
         <Text size="subheadline" weight="semibold" tone="text">{tr("Node.js isn't on {name}").replaceAll('{name}', store.hostName)}</Text>
         <Text size="caption" tone="secondary">{tr(`Some agents need it to run. Codync can add a copy just for them.`)}</Text>
       </VStack>
-      <Button onClick={onAdd}>Add Node.js</Button>
+      <Button onClick={onAdd}>{tr('Add Node.js')}</Button>
     </div>
   )
 }

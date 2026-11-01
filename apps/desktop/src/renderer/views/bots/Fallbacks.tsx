@@ -22,12 +22,13 @@ export const agentChoice = (b: Backend) => ({ id: b.id, label: b.available ? b.n
 
 /** The Agent card's first row while the bot runs on a fallback, with the way back to its own agent. */
 export function AgentStepBanner({ bot }: { bot: Bot }) {
+  const tr = useTr()
   const store = useStore()
   return (
     <HStack gap={8} className="fade-in">
       <AgentIcon registry={store.agentRegistry(bot.agentStep?.agent ?? bot.backend)} size={14} />
       <Text tone="text" grow>{stepBanner(bot, (a) => store.backendName(a), Date.now())}</Text>
-      <Button kind="secondary" className="fallback-switch-back" onClick={() => store.switchBack(bot.id)}>Switch back</Button>
+      <Button kind="secondary" className="fallback-switch-back" onClick={() => store.switchBack(bot.id)}>{tr('Switch back')}</Button>
     </HStack>
   )
 }

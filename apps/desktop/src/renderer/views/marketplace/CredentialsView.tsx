@@ -70,8 +70,8 @@ export function CredentialsView({ onBack }: { onBack: () => void }) {
         <CardSection title={tr('1Password')} footer={tr('Use a service account with read access only to a dedicated shared vault. The 1Password CLI must be installed on the computer.')}>
           <span>{tr(status?.onePasswordConnected ? 'Connected' : tr('Connect a shared vault'))}</span>
           <CredentialField label={tr('Service account token')} value={token} onChange={setToken} placeholder={tr('Paste your token')} secret />
-          <div><Button disabled={busy || !token} onClick={() => void save(token)}>Connect</Button></div>
-          {status?.onePasswordConnected ? <div><Button kind="secondary" disabled={busy} onClick={() => void save('')}>Disconnect</Button></div> : null}
+          <div><Button disabled={busy || !token} onClick={() => void save(token)}>{tr('Connect')}</Button></div>
+          {status?.onePasswordConnected ? <div><Button kind="secondary" disabled={busy} onClick={() => void save('')}>{tr('Disconnect')}</Button></div> : null}
           <Text size="footnote" tone="secondary">{tr(`Use op://vault/item/field in a connector's credential field. Codync retrieves the value when the connector runs.`)}</Text>
         </CardSection>
         {busy ? <Spinner /> : null}

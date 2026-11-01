@@ -32,8 +32,8 @@ export function SSHConfigSuggestions({ add }: { add: (host: string) => void }) {
               </Text>
             </VStack>
             <HStack gap={8}>
-              <Button onClick={() => void ssh.answerConfig('allowed')}>Allow</Button>
-              <Button kind="secondary" onClick={() => void ssh.answerConfig('denied')}>Not now</Button>
+              <Button onClick={() => void ssh.answerConfig('allowed')}>{tr('Allow')}</Button>
+              <Button kind="secondary" onClick={() => void ssh.answerConfig('denied')}>{tr('Not now')}</Button>
             </HStack>
           </VStack>
         </HStack>

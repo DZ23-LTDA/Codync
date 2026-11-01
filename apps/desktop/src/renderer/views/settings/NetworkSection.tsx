@@ -107,8 +107,8 @@ export function NetworkSection({ store, heading }: { store: BotStore; /** The co
         <VStack gap={10} className="settings-appear">
           {view.joined ? null : <Text size="callout" tone="secondary">{tr('Connect your computers so bots on one can message bots on another.')}</Text>}
           <HStack gap={8}>
-            <Button kind="secondary" disabled={!manageable} onClick={() => setOpen({ kind: 'create' })}>Create network</Button>
-            <Button kind="secondary" disabled={!manageable} onClick={() => setOpen({ kind: 'join' })}>Join with invite</Button>
+            <Button kind="secondary" disabled={!manageable} onClick={() => setOpen({ kind: 'create' })}>{tr('Create network')}</Button>
+            <Button kind="secondary" disabled={!manageable} onClick={() => setOpen({ kind: 'join' })}>{tr('Join with invite')}</Button>
           </HStack>
         </VStack>
       )}

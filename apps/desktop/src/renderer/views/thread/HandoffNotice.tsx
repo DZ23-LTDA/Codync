@@ -65,7 +65,7 @@ export function HandoffNotice({ entry, card }: { entry: Entry; card: HandoffCard
       </Disclosure>
       <div className="handoff-actions">
         {store.answering.has(entry.id) ? <Spinner /> : <>
-          <Button kind="secondary" onClick={() => store.keepConversation(entry)}>Keep this conversation</Button>
+          <Button kind="secondary" onClick={() => store.keepConversation(entry)}>{tr('Keep this conversation')}</Button>
           <IconButton title={tr('Edit what it carries')} icon="pencil" onClick={() => setDraft(card.text ?? '')} />
         </>}
       </div>
