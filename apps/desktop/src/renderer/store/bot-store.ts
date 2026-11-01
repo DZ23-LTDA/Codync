@@ -175,7 +175,7 @@ export class BotStore extends BotSync {
       const { entry } = await this.withLink((c) => c.call<{ entry: Entry | null }>('endCall', { botId, callId: call, seconds, lines }), true)
       if (entry) this.upsert(entry)
     } catch (error) {
-      this.lastError = humanError(error)
+      this.lastError = humanError(error, "The call couldn't be ended on the host. Try again.")
     }
   }
 
@@ -261,7 +261,7 @@ export class BotStore extends BotSync {
       await this.withLink((c) => c.call('editHandoff', { entryId: entry.id, text }), true)
       return true
     } catch (error) {
-      this.lastError = humanError(error)
+      this.lastError = humanError(error, "Your edit wasn't saved on the host. Try again.")
       this.changed()
       return false
     }
