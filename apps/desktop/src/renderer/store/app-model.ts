@@ -9,7 +9,7 @@ import { BotStore } from './bot-store'
 import { CloudModel } from './cloud'
 import { DeviceComputerOrder } from './computer-order'
 import { ComputerAccess } from './computer-access'
-import { humanError } from '../lib/human-error'
+import { humanError } from '../lib/human-error.ts'
 
 /** A bot on a computer: bot ids are only unique per computer. */
 export interface BotRef {

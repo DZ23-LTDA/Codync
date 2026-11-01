@@ -7,7 +7,7 @@ import { Text } from '../components/Text'
 import { useScreenViewed } from '../store/analytics'
 import './pairing-code.css'
 import { useTr } from '../lib/use-language'
-import { humanError } from '../lib/human-error'
+import { humanError } from '../lib/human-error.ts'
 
 
 /**

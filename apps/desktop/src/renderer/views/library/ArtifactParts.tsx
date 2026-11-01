@@ -5,7 +5,7 @@ import type { BotStore } from '../../store/bot-store'
 import type { ArtifactHTML } from '../../store/artifacts'
 import { useTr } from '../../lib/use-language'
 import './library.css'
-import { humanError } from '../../lib/human-error'
+import { humanError } from '../../lib/human-error.ts'
 
 /**
  * An artifact in a frame of its own origin (`main/artifacts.ts`): the whole artifact, or for a card its top, scaled down and

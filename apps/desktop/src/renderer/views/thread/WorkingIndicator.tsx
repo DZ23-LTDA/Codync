@@ -8,6 +8,7 @@ import { ThinkingOrb } from '../../components/ThinkingOrb'
 import { prefs, usePref } from '../../lib/prefs'
 import { useTr } from '../../lib/use-language'
 import { useFollowEnd } from './follow-end'
+import { isLongTurn } from './long-turn'
 import { TraceRow } from './TraceView'
 
 /** The bot's current activity and elapsed time; with thinking details on (Settings), a click unfolds the turn's steps. */
@@ -17,6 +18,7 @@ export function WorkingIndicator({ bot, steps }: { bot: Bot; steps: Entry[] }) {
   const waiting = needsInput(bot)
   const [expanded, setExpanded] = useState(false)
   const open = details && expanded
+  const long = useLongTurn(bot.startedAt, waiting)
   const status = (
     <HStack as="span" gap={8}>
       <ThinkingOrb state={waiting ? 'listening' : 'working'} size={16} color={waiting ? 'var(--warning)' : 'var(--secondary)'} />
@@ -32,6 +34,7 @@ export function WorkingIndicator({ bot, steps }: { bot: Bot; steps: Entry[] }) {
   return (
     <VStack align="flex-start" className="agent-inset">
       <div className={open ? 'working expanded' : 'working'}>
+        {long ? <Text as="div" size="footnote" tone="tertiary">{tr('Taking longer than usual. You can stop it.')}</Text> : null}
         {details ? (
           <button className="working-toggle" onClick={() => setExpanded((x) => !x)} aria-expanded={open} title={tr(open ? 'Hide steps' : 'Show steps')}>
             {status}
@@ -60,6 +63,22 @@ function WorkingSteps({ steps }: { steps: Entry[] }) {
       </VStack>
     </div>
   )
+}
+
+/** Diz se o turno já passou do tempo normal; conta a partir de `since` e para de contar quando o bot espera a pessoa. */
+function useLongTurn(since: number | null | undefined, waiting: boolean): boolean {
+  const [long, setLong] = useState(false)
+  useEffect(() => {
+    if (!since || waiting) {
+      setLong(false)
+      return
+    }
+    const check = () => setLong(isLongTurn(Date.now() - since))
+    check()
+    const timer = setInterval(check, 1000)
+    return () => clearInterval(timer)
+  }, [since, waiting])
+  return long
 }
 
 /** `Text(date, style: .timer)`: 0:42, 12:05, 1:02:33. */

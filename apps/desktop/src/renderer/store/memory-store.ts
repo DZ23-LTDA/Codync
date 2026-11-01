@@ -1,6 +1,6 @@
 import type { HostClient } from '../client/host-client'
 import { Observable } from '../lib/observable'
-import { humanError } from '../lib/human-error'
+import { humanError } from '../lib/human-error.ts'
 
 /** One memory entry (the host's `codync_mem::store::Entry`). */
 export interface MemoryEntry {

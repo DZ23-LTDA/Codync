@@ -7,7 +7,7 @@ import { pref, type Pref } from '../lib/prefs'
 import { account } from './account'
 import type { AppModel } from './app-model'
 import type { BotStore } from './bot-store'
-import { humanError } from '../lib/human-error'
+import { humanError } from '../lib/human-error.ts'
 
 // Wire types of the Codync cloud (`/v1`, cloud/src/api.ts); times are epoch milliseconds.
 

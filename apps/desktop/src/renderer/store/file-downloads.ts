@@ -1,7 +1,7 @@
 import type { SharedFile } from '@shared/models'
 import { decodeFileChunk, validateSharedFile } from '../../shared/files.ts'
 import type { HostClient } from '../client/host-client'
-import { humanError } from '../lib/human-error'
+import { humanError } from '../lib/human-error.ts'
 
 export type DownloadState = { kind: 'downloading'; received: number } | { kind: 'saved' } | { kind: 'failed'; message: string }
 interface Job { cancelled: boolean; handle: string | null }

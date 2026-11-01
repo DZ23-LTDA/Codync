@@ -2,7 +2,7 @@ import { account } from './account'
 import type { CustomIcons } from '@shared/custom-icons'
 import { Observable } from '../lib/observable'
 import type { BotStore } from './bot-store'
-import { humanError } from '../lib/human-error'
+import { humanError } from '../lib/human-error.ts'
 
 export class IconEditor extends Observable {
   busy = false

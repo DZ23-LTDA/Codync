@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { DirListing } from '@shared/models'
 import { useStore } from './context'
-import { humanError } from '../lib/human-error'
+import { humanError } from '../lib/human-error.ts'
 
 /** Keeps asynchronous browsing and confirmation out of the renderer. */
 export function useFolderPicker(onPick: (path: string) => void) {

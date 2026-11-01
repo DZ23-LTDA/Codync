@@ -1,5 +1,5 @@
 import { useEffect, useState, type DependencyList } from 'react'
-import { humanError } from '../lib/human-error'
+import { humanError } from '../lib/human-error.ts'
 
 /**
  * What `load` resolves to, null while it loads (or when it has nothing to load); `error` says why it failed. An answer
