@@ -252,5 +252,14 @@
   "New group chat": "Nova conversa em grupo",
   "Name": "Nome",
   "Stop dictating": "Parar de ditar",
-  "Taking longer than usual. You can stop it.": "Está demorando mais que o normal. Você pode parar."
+  "Taking longer than usual. You can stop it.": "Está demorando mais que o normal. Você pode parar.",
+  "Something went wrong. Try again — if it keeps happening, check that the host is running.": "Algo deu errado. Tente de novo — se continuar, veja se o host está rodando.",
+  "The file did not download. Try again.": "O arquivo não foi baixado. Tente de novo.",
+  "That image could not be used. Choose another file.": "Essa imagem não pôde ser usada. Escolha outro arquivo.",
+  "This screen could not load. Try again.": "Esta tela não carregou. Tente de novo.",
+  "The file could not be imported. Try again.": "O arquivo não pôde ser importado. Tente de novo.",
+  "Could not open this artifact. Try again.": "Não foi possível abrir este artefato. Tente de novo.",
+  "That change could not be undone.": "Não foi possível desfazer essa mudança.",
+  "The demo host could not answer.": "O host de demonstração não respondeu.",
+  "Codync could not use this permission. Open the system settings and try again.": "O Codync não conseguiu usar esta permissão. Abra as configurações do sistema e tente de novo."
 }
