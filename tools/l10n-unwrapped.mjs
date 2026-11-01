@@ -12,7 +12,8 @@ import { pathToFileURL } from "node:url";
 
 const root = "apps/desktop/src/renderer";
 // `tr('...')`, `tr("...")` or `tr(\`...\`)`, any of them possibly spanning lines.
-const trCall = /\btr\(\s*(?:'[^']*'|"[^"]*"|`[^`]*`|\{[^}]*\})\s*\)/gs;
+// `tr('…')`, `tr("…")`, `tr(`…`)`, or a ternary of literals: `tr(a ? 'One' : 'Two')` is translated too.
+const trCall = /\btr\(\s*(?:'[^']*'|"[^"]*"|`[^`]*`|\{[^}]*\}|[^()]*\?[^()]*)\s*\)/gs;
 const visibleText = />\s*([A-Z][A-Za-z][^<>{}]{2,60})\s*</g;
 // `footer`, `detail`, `empty`, `label` and `message` carry copy on the shared components and were invisible to an
 // earlier version of this scan: their text showed in English while the report said every string was covered.
@@ -42,11 +43,27 @@ function lineAt(source, index) {
  * so a caller can print it or count it. `file` is the path as given.
  */
 export function findUnwrapped(source, file = "") {
-  const scanned = withoutTranslations(source);
+  // A JSX comment is not copy: `{/* the heading still reads "Needs update" */}` was reported as if it were.
+  const scanned = withoutTranslations(source).replace(/\{\/\*[\s\S]*?\*\/\}/g, (comment) => comment.replace(/[^\n]/g, " "));
   const found = [];
+  // Copy at module scope cannot call a hook: by convention it is announced by the component that renders it
+  // (`tr(item.title)`). Those are counted apart, so the number that matters -- copy inside a component -- stays honest.
+  const depthAt = (index) => {
+    let depth = 0;
+    for (const char of scanned.slice(0, index)) {
+      if (char === "{") depth += 1;
+      else if (char === "}") depth = Math.max(0, depth - 1);
+    }
+    return depth;
+  };
+
   for (const match of scanned.matchAll(visibleText)) {
     const text = match[1].trim();
     if (ignoreText.test(text)) continue;
+    if (depthAt(match.index) === 0) {
+      found.push({ file, line: lineAt(scanned, match.index), kind: "module", text });
+      continue;
+    }
     // The match starts at the `>`; report the line the words are on, not the line the element opened on.
     const at = match.index + match[0].indexOf(match[1]);
     found.push({ file, line: lineAt(scanned, at), kind: "text", text });
@@ -57,9 +74,14 @@ export function findUnwrapped(source, file = "") {
     found.push({ file, line: lineAt(scanned, match.index), kind: match[1], text });
   }
   for (const block of scanned.matchAll(expressionBlock)) {
+    const atModule = depthAt(block.index) === 0;
     for (const match of block[0].matchAll(quoted)) {
       const text = match[2].trim();
       if (!isProse(text) || ignoreText.test(text)) continue;
+      if (atModule) {
+        found.push({ file, line: lineAt(scanned, block.index + block[0].indexOf(match[2])), kind: "module", text });
+        continue;
+      }
       const at = block.index + block[0].indexOf(match[2], match.index);
       found.push({ file, line: lineAt(scanned, at), kind: "expression", text });
     }
@@ -75,12 +97,20 @@ function main() {
     entries.push(...findUnwrapped(readFileSync(file, "utf8"), relative));
   }
 
+  const moduleLevel = entries.filter((entry) => entry.kind === "module");
+  const inComponents = entries.filter((entry) => entry.kind !== "module");
   if (entries.length === 0) {
     console.log("every visible string goes through tr()");
     return;
   }
-  console.log(`${entries.length} visible strings never reach the translation:`);
-  for (const entry of entries) console.log(`  ${entry.file}:${entry.line}: ${entry.kind} "${entry.text}"`);
+  // Two numbers, because they mean different things: copy inside a component must call tr(); copy at module scope
+  // cannot, and is announced by the component that renders it (`tr(item.title)`).
+  console.log(`${inComponents.length} visible strings inside a component never reach the translation:`);
+  for (const entry of inComponents) console.log(`  ${entry.file}:${entry.line}: ${entry.kind} "${entry.text}"`);
+  console.log(`${moduleLevel.length} at module scope, announced by the component that renders them.`);
+  if (process.argv.includes("--module")) {
+    for (const entry of moduleLevel) console.log(`  ${entry.file}:${entry.line}: ${entry.kind} "${entry.text}"`);
+  }
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) main();

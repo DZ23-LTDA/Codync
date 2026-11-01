@@ -12,6 +12,7 @@ import type { BotStore } from '../store/bot-store'
 
 /** A roster row: avatar with status, name, and the live activity or last message (Grok Bot's desktop sidebar). */
 export const BotRow = memo(function BotRow({ bot, store, compact, usingComputer, members }: { bot: Bot; store: BotStore; compact: boolean; usingComputer: boolean; members: Bot[] }) {
+  const tr = useTr()
   // The cached roster paints before hello names the agents. Follow the store so that arrival replaces "Custom agent".
   useModel(store)
   return (
@@ -21,7 +22,7 @@ export const BotRow = memo(function BotRow({ bot, store, compact, usingComputer,
         <HStack align="baseline" gap={4} shrink>
           {bot.pinned ? <Icon name="pin.fill" size={10} color="var(--tertiary)" /> : null}
           <Text size="body" weight={bot.unread > 0 ? 'semibold' : 'medium'} tone="text" truncate>{bot.name}</Text>
-          {usingComputer ? <Icon name="cursorarrow.motionlines" size={10} color="var(--accent)" title="Using the computer" /> : null}
+          {usingComputer ? <Icon name="cursorarrow.motionlines" size={10} color="var(--accent)" title={tr('Using the computer')} /> : null}
         </HStack>
         <HStack gap={6} shrink>
           <HStack align="stretch" grow>
