@@ -1,10 +1,10 @@
-# Homebrew cask template for the leepokai/homebrew-codync tap.
+# Homebrew cask template for the DZ23-LTDA/homebrew-codync tap.
 # tools/release-gate.py fills in the version and the DMG's sha256 of the release it marks latest.
 cask "codync" do
   version "0.0.0"
   sha256 "REPLACE_WITH_SHA256"
 
-  url "https://github.com/leepokai/Codync/releases/download/v#{version}/codync-macos.dmg"
+  url "https://github.com/DZ23-LTDA/Codync/releases/download/v#{version}/codync-macos.dmg"
   name "Codync"
   desc "Message your coding agents as bots from your phone, desktop or terminal"
   homepage "https://www.codync.dev/"

@@ -37,7 +37,7 @@ def main():
     manifest = {
         "version": version,
         "platform": args.platform,
-        "url": f"https://github.com/leepokai/Codync/releases/download/v{version}/{name}",
+        "url": f"https://github.com/DZ23-LTDA/Codync/releases/download/v{version}/{name}",
         "sha256": hashlib.sha256(archive).hexdigest(),
         "size": len(archive),
     }

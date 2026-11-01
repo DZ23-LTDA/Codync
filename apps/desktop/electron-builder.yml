@@ -25,7 +25,7 @@ protocols:
     schemes: [codync, com.pokai.Codync]
 publish:
   provider: github
-  owner: leepokai
+  owner: DZ23-LTDA
   repo: Codync
   releaseType: release
 

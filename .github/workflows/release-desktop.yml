@@ -160,7 +160,7 @@ jobs:
           curl -sSL https://github.com/sparkle-project/Sparkle/releases/download/2.10.0/Sparkle-2.10.0.tar.xz | tar xJ -C "$RUNNER_TEMP"
           mkdir -p build/updates && cp apps/desktop/dist/codync-macos.zip build/updates/
           printf '%s' "$SPARKLE_PRIVATE_KEY" | "$RUNNER_TEMP/bin/generate_appcast" --ed-key-file - --maximum-deltas 0 \
-            --download-url-prefix "https://github.com/leepokai/Codync/releases/download/v${VERSION}/" \
+            --download-url-prefix "https://github.com/DZ23-LTDA/Codync/releases/download/v${VERSION}/" \
             --link https://www.codync.dev/ -o build/appcast.xml build/updates
           python3 -m venv "$RUNNER_TEMP/update-verification"
           "$RUNNER_TEMP/update-verification/bin/pip" install 'cryptography>=44,<47'
