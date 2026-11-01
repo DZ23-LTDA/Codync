@@ -7,5 +7,13 @@
   "firstTokenWhere": "host com agente local (first_token_e2e.rs, 20 rodadas)",
   "screensInspected": 13,
   "defectsFoundOnScreen": 8,
-  "installedAppVersion": "2.33.2"
+  "installedAppVersion": "2.33.2",
+  "firstUseCreateBotMs": 4,
+  "firstUseFirstAnswerMs": 569,
+  "approvalCardMs": 602,
+  "approvalYesMs": 21,
+  "pairingQrMs": 75,
+  "pairingConnectMs": 13,
+  "pairingRedeemMs": 1,
+  "firstUseWhere": "host com agente de teste (Windows, build debug); não é o app instalado"
 }
