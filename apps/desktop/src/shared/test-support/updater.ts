@@ -79,7 +79,10 @@ export function updaterFixture(options: { packaged?: boolean; main?: boolean; pr
     'node:events': { EventEmitter },
     'node:fs': { existsSync: (file: string) => shipIt.request && file === '/Users/me/Library/Caches/com.pokai.Codync.ShipIt/ShipItState.plist' },
     'node:os': { homedir: () => '/Users/me' },
-    'node:path': path,
+    // The fixture is a macOS machine (`process.platform` below is 'darwin'), so it
+    // gets POSIX path rules even when the test runs on Windows: a Windows checkout
+    // must exercise the same /Applications/Codync.app it would on a Mac.
+    'node:path': path.posix,
     electron: { app, ipcMain: ipc, shell: { openPath: async (target: string) => { opened.push(target); return '' } }, BrowserWindow: { getFocusedWindow: () => behavior.focused }, powerMonitor: { getSystemIdleTime: () => behavior.idleSeconds } },
     'electron-updater': { autoUpdater: updater },
     './account': { isMainEnvironment: () => options.main ?? true },
