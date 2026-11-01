@@ -16,7 +16,7 @@ export function HostStateView({ compact = false }: { compact?: boolean }) {
   const state = app.host.state
   switch (state.kind) {
     case 'notInstalled':
-      return <EmptyState compact={compact} icon={<HostBot compact={compact} mood="idle" />} title={`Set up this ${isMac ? 'Mac' : 'computer'}`} message={`Codync runs your coding agents through the host, a small background service on this ${isMac ? 'Mac' : 'computer'}.`} action={[tr('Install host'), () => window.codync.host.install()]} />
+      return <EmptyState compact={compact} icon={<HostBot compact={compact} mood="idle" />} title={tr('Set up this {what}').replaceAll('{what}', isMac ? tr('Mac') : tr('computer'))} message={`Codync runs your coding agents through the host, a small background service on this ${isMac ? 'Mac' : 'computer'}.`} action={[tr('Install host'), () => window.codync.host.install()]} />
     case 'missingBinary':
       return <EmptyState compact={compact} icon={<HostBot compact={compact} mood="failed" />} title={tr('The host is missing')} message={window.codync.appScheme === 'codync-dev' ? 'Rebuild Codync Dev with its development host, then open it again.' : "This copy of Codync doesn't include codync-host. Download Codync again from codync.dev or GitHub."} />
     case 'failed':
