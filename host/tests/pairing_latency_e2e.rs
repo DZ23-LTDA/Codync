@@ -58,7 +58,7 @@ async fn a_pairing_code_is_shown_and_the_wait_is_measured() {
 
     let mut samples = Vec::new();
     let mut last = serde_json::Value::Null;
-    for _ in 0..5 {
+    for _ in 0..10 {
         let started = Instant::now();
         last = host.call("pairing", json!({})).await;
         samples.push(started.elapsed().as_millis());
@@ -74,8 +74,9 @@ async fn a_pairing_code_is_shown_and_the_wait_is_measured() {
     samples.sort_unstable();
     let fastest = samples[0];
     let slowest = samples[samples.len() - 1];
-    println!("pairing code (ms), 5 rounds: {samples:?} · fastest {fastest} · slowest {slowest}");
+    println!("pairing code (ms), 10 rounds: {samples:?} · fastest {fastest} · slowest {slowest}");
 
-    // Showing a QR is something a person waits for with the phone in hand.
-    assert!(slowest < 5_000, "showing the pairing code took {slowest} ms: {samples:?}");
+    // Showing a QR is something a person waits for with the phone in hand, and no call may wait for the background
+    // Tailscale read: the whole point is that it never blocks, even before it lands.
+    assert!(slowest < 500, "showing the pairing code took {slowest} ms: {samples:?}");
 }

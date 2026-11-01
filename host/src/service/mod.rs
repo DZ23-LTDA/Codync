@@ -175,22 +175,26 @@ impl KeepAwake {
 /// and the pairing screen paid it with the phone in hand. The name is stable for the life of the process, so it is read
 /// once, the same way `CODYNC_EXTERNAL_URL` is.
 fn tailscale_dns() -> Option<&'static str> {
-    static DNS: LazyLock<Option<String>> = LazyLock::new(|| {
+    // Read, never initialized on this path: whoever is showing a pairing code must not wait for a process that only
+    // makes the URL prettier. Before the background read lands, the caller gets the addresses it already has.
+    TAILSCALE_DNS.get().and_then(|dns| dns.as_deref())
+}
+
+/// This machine's Tailscale DNS name, filled in once by the background read and read without ever waiting.
+static TAILSCALE_DNS: OnceLock<Option<String>> = OnceLock::new();
+
+/// Reads the Tailscale name while nothing is waiting for it.
+///
+/// `addresses()` needs that name, and the process it starts cost two seconds on Windows: a pairing code paid it with the
+/// phone in hand. Reading it once, in the background, when the host comes up moves that cost to where nobody is waiting.
+pub fn warm_addresses() {
+    let read = || {
         let out = Command::new("tailscale").args(["status", "--json"]).output().ok()?;
         let v: Value = serde_json::from_slice(&out.stdout).ok()?;
         let dns = v["Self"]["DNSName"].as_str()?.trim_end_matches('.');
         (!dns.is_empty()).then(|| dns.to_owned())
-    });
-    DNS.as_deref()
-}
-
-/// Reads the Tailscale name while nothing is waiting for it.
-///
-/// `addresses()` needs that name, and the process it starts cost two seconds on Windows: the first pairing code after a
-/// restart paid it with the phone in hand. Calling this once, in the background, when the host comes up moves that cost
-/// to where nobody is watching.
-pub fn warm_addresses() {
-    let _ = tailscale_dns();
+    };
+    let _ = TAILSCALE_DNS.set(read());
 }
 
 /// Addresses the phone can try, best first: the ones set in `CODYNC_EXTERNAL_URL`, Tailscale, then LAN.

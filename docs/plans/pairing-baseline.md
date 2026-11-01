@@ -50,3 +50,29 @@ execução**, sempre na **quinta** chamada — e ele **não** é o Tailscale:
 - o valor (~1,8 s) é estável entre execuções, então não é ruído.
 
 **Não sei o que é.** Fica medido, não explicado — e é o próximo passo antes de declarar o pareamento rápido.
+
+
+## A causa do 1,8 s, achada por bissecção
+
+Duas execuções com contagem diferente mostraram o mesmo padrão: a chamada lenta era **sempre a última do laço**, não a
+quinta. Isso descartou o contador de códigos e apontou para tempo de processo.
+
+Medida decisiva: **esperar 4 s antes de medir**.
+
+```
+com espera:  [3, 3, 4, 4, 6, 7, 11, 11, 11, 14] ms   ← nenhum caso lento
+sem espera:  [3, 3, 3, 3, 3, 3, 3, 3, 4, 1830] ms
+```
+
+**A chamada lenta era quem chegava enquanto a leitura do Tailscale do fundo ainda estava em voo**: `LazyLock` faz o segundo
+chamador **esperar** a inicialização. O aquecimento tinha movido o custo, não o eliminado.
+
+Correção: a leitura passa a usar `OnceLock::get()`, que **não espera** — antes de o fundo terminar, `addresses()` devolve só
+os endereços de IP que já tinha. O teste agora exige **< 500 ms por chamada**, explicitamente para provar que ninguém espera:
+
+```
+[3, 3, 3, 4, 4, 4, 5, 5, 7, 75] ms
+```
+
+O que se perde: por alguns instantes depois de subir, a URL do QR usa IP em vez do nome do Tailscale. Quem tem Tailscale
+costuma alcançar pelo IP da rede CGNAT do mesmo jeito, e um QR que aparece na hora vale mais que um nome bonito.
