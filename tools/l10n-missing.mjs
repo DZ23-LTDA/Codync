@@ -20,8 +20,9 @@ export function phrasesIn(source) {
   for (const pattern of patterns) {
     for (const match of source.matchAll(pattern)) {
       const phrase = match[1].trim();
-      // A phrase made only of a variable name is not a phrase; neither is an empty string.
-      if (phrase !== "" && !/^[A-Za-z_$][\w$]*$/.test(phrase)) found.add(phrase);
+      // An empty literal is not a phrase. A bare identifier is not matched at all: every pattern here requires a quote,
+      // so `tr(label)` never reaches this line -- filtering single words here would drop "Skills" and "Installed".
+      if (phrase !== "") found.add(phrase);
     }
   }
   return found;
