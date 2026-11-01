@@ -217,7 +217,7 @@ function DestinationComposer({ botId, reply, about, cancelReply, onCall, onInter
             {reply ? (
               <HStack gap={4} className="composer-reply">
                 <QuoteRow quote={quoteOf(reply)} className="composer-reply-quote" />
-                <IconButton title="Cancel reply" icon="xmark" size={24} onClick={cancelReply} />
+                <IconButton title={tr('Cancel reply')} icon="xmark" size={24} onClick={cancelReply} />
               </HStack>
             ) : null}
           </ComposerReveal>
@@ -231,7 +231,7 @@ function DestinationComposer({ botId, reply, about, cancelReply, onCall, onInter
           <div className="composer-box">
             {/* One capsule: attachments, the field, and send / stop / call. */}
             {canAttach ? (
-              <button className="press composer-add" aria-label="Add files" title="Add files" onClick={() => void window.codync.app.pickFiles().then(append)}>
+              <button className="press composer-add" aria-label={tr('Add files')} title={tr('Add files')} onClick={() => void window.codync.app.pickFiles().then(append)}>
                 <Icon name="plus" size={13} weight="medium" color="var(--text)" />
               </button>
             ) : null}
@@ -293,7 +293,7 @@ function DestinationComposer({ botId, reply, about, cancelReply, onCall, onInter
               />
             ) : dictation.available ? (
               <HStack as="span" gap={0} className="composer-mic-group">
-                <button className="press composer-mic" aria-label="Dictate" title="Dictate" onClick={() => dictation.start(draft)}>
+                <button className="press composer-mic" aria-label={tr('Dictate')} title={tr('Dictate')} onClick={() => dictation.start(draft)}>
                   <Icon name="mic" size={13} weight="medium" />
                 </button>
                 <DictationEngineMenu />

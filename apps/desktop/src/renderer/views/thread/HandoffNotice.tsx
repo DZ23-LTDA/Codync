@@ -66,18 +66,18 @@ export function HandoffNotice({ entry, card }: { entry: Entry; card: HandoffCard
       <div className="handoff-actions">
         {store.answering.has(entry.id) ? <Spinner /> : <>
           <Button kind="secondary" onClick={() => store.keepConversation(entry)}>Keep this conversation</Button>
-          <IconButton title="Edit what it carries" icon="pencil" onClick={() => setDraft(card.text ?? '')} />
+          <IconButton title={tr('Edit what it carries')} icon="pencil" onClick={() => setDraft(card.text ?? '')} />
         </>}
       </div>
       <Sheet open={draft !== null} onClose={() => setDraft(null)} width={620}>
         {draft !== null && <SheetPage>
           <ModalHeader
             title={tr(`Edit the handoff`)}
-            trailing={saving ? <Spinner /> : <IconButton title="Save" icon="checkmark" disabled={!draft.trim()} onClick={() => { void save() }} />}
+            trailing={saving ? <Spinner /> : <IconButton title={tr('Save')} icon="checkmark" disabled={!draft.trim()} onClick={() => { void save() }} />}
           />
           <CardForm>
-            <CardSection footer="Your next message starts a fresh conversation that begins with this.">
-              <Field value={draft} onChange={setDraft} label="Handoff" lines={[10, 24]} mono />
+            <CardSection footer={tr('Your next message starts a fresh conversation that begins with this.')}>
+              <Field value={draft} onChange={setDraft} label={tr('Handoff')} lines={[10, 24]} mono />
             </CardSection>
           </CardForm>
         </SheetPage>}

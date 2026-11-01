@@ -43,7 +43,7 @@ export function RoutineEditorView({ botId, routine, saved }: {
   // Anything the bot set up (a one-off time, an interval, events, several triggers) stays as it is until replaced.
   const keepsOriginal = routine ? (routine.triggers.length === 1 ? !['cron', 'webhook'].includes(routine.triggers[0]!.type) : routine.triggers.length > 0) : false
   const options = [
-    ...(keepsOriginal ? [{ id: 'keep', label: 'Set by bot' }] : []),
+    ...(keepsOriginal ? [{ id: 'keep', label: tr('Set by bot') }] : []),
     { id: 'cron', label: 'Schedule' },
     { id: 'webhook', label: 'Webhook' },
   ]
@@ -153,7 +153,7 @@ export function RoutineEditorView({ botId, routine, saved }: {
 
   return (
     <VStack className="routine-editor">
-      <ModalHeader icon={schedule.kind === 'webhook' ? 'link' : 'clock'} title={routine ? 'Edit routine' : 'Set up a routine'} />
+      <ModalHeader icon={schedule.kind === 'webhook' ? 'link' : 'clock'} title={routine ? tr('Edit routine') : tr('Set up a routine')} />
       {/* The card fits the form; it scrolls only when taller than the window allows. */}
       <fieldset className="routine-form" disabled={busy || !loaded}>
         <VStack gap={24} className="routine-form-body">
@@ -231,7 +231,7 @@ export function RoutineEditorView({ botId, routine, saved }: {
             <>
               <IconButton title={tr('Delete routine')} icon="trash" onClick={() => setConfirmDelete(true)} />
               <IconButton
-                title={started ? 'Started' : 'Test run'}
+                title={started ? 'Started' : tr('Test run')}
                 icon={started ? 'checkmark' : 'play.circle'}
                 disabled={started || store.isOffline}
                 onClick={async () => {
@@ -248,7 +248,7 @@ export function RoutineEditorView({ botId, routine, saved }: {
           <Spacer />
           <Button disabled={!canSave} onClick={() => void save()} title={`Save (${saveShortcut})`}>
             {busy ? <Spinner size={12} /> : null}
-            {busy ? 'Saving…' : routine ? 'Save changes' : 'Create routine'}
+            {busy ? tr('Saving…') : routine ? tr('Save changes') : tr('Create routine')}
             {busy ? null : <span className="button-shortcut">{saveShortcut}</span>}
           </Button>
         </HStack>

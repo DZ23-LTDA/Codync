@@ -9,12 +9,14 @@ import { Approval, Empty, Message, Notice, Overview, Wings } from './IslandViews
 import { UsageMeter, UsageView } from './IslandUsage'
 import './island.css'
 import './island-views.css'
+import { useTr } from '../../lib/use-language'
 
 /** How long the views stay on screen while the shape folds back into the notch (its 0.34 s close). */
 const FOLD_MS = 340
 
 /** The notch island: a black shape that grows out of the notch and folds back into it. */
 export function IslandWindow({ model }: { model: IslandModel }) {
+  const tr = useTr()
   useModel(model)
   const { mode, frame } = model
   const open = isOpenMode(mode)
@@ -33,7 +35,7 @@ export function IslandWindow({ model }: { model: IslandModel }) {
       data-mode={mode}
       style={{ width: frame.width, height: frame.height }}
       role={closed ? 'button' : undefined}
-      aria-label={closed ? 'Show bots' : undefined}
+      aria-label={closed ? tr('Show bots') : undefined}
       onClick={closed ? () => model.openNow() : undefined}
     >
       <span className="island-ear left" />
@@ -104,6 +106,7 @@ const TABS: { tab: IslandTab; icon: string; label: string }[] = [
 
 /** Tabs on the left of the notch; the working count, the usage meter and Codync on the right. */
 function Header({ model, mode }: { model: IslandModel; mode: IslandMode }) {
+  const tr = useTr()
   const selected = mode === 'message' || mode === 'usage' ? mode : mode === 'overview' || mode === 'empty' ? 'bots' : null
   const count = model.activeCount
   return (
@@ -114,14 +117,14 @@ function Header({ model, mode }: { model: IslandModel; mode: IslandMode }) {
             <Icon name={t.icon} size={13} scaled={false} />
           </button>
         ))}
-        <button className="island-tab" title="New bot" aria-label="New bot" onClick={() => model.newBot()}>
+        <button className="island-tab" title={tr('New bot')} aria-label={tr('New bot')} onClick={() => model.newBot()}>
           <Icon name="plus" size={13} weight="semibold" scaled={false} />
         </button>
       </div>
       <div className="island-tabs">
         {count ? <span className="island-count">{`${count} working`}</span> : null}
         <UsageMeter model={model} />
-        <button className="island-tab" title="Open Codync" aria-label="Open Codync" onClick={() => model.openApp()}>
+        <button className="island-tab" title={tr('Open Codync')} aria-label={tr('Open Codync')} onClick={() => model.openApp()}>
           <Icon name="arrow.up.right.square" size={13} scaled={false} />
         </button>
       </div>
