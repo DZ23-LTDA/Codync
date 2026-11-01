@@ -271,5 +271,6 @@
   "The call couldn't be ended on the host. Try again.": "Não foi possível encerrar a chamada no host. Tente de novo.",
   "Your edit wasn't saved on the host. Try again.": "Sua edição não foi salva no host. Tente de novo.",
   "The memory list couldn't be loaded. Try again.": "A lista de memória não carregou. Tente de novo.",
-  "That folder couldn't be opened. Choose another one.": "Essa pasta não pôde ser aberta. Escolha outra."
+  "That folder couldn't be opened. Choose another one.": "Essa pasta não pôde ser aberta. Escolha outra.",
+  "No matching bots": "Nenhum bot encontrado"
 }
