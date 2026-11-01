@@ -42,8 +42,22 @@ Receita que funciona: `TMP` no workspace → `npm run build` → `node tools/acc
 `--no-sandbox --disable-gpu` → Playwright `_electron.launch`. Telas vistas e corrigidas: boas-vindas, acesso ao computador
 (pt completo), estados de host (pt + sem vazamento de comando). Evidências em `evidencias/` no workspace.
 
-### Próxima tarefa concreta
+### Próxima tarefa concreta — watchdog do item 11
 
-**Item 11 — o watchdog**, o único item do gate que posso levar a `TESTED` sem release, sem VM e sem sessão interativa:
-temporizador por turno sem evento no host + registro do motivo no transcript, testado com um agente falso que aceita o
-turno e nunca responde.
+Ancorada no código de hoje (`3ef93bd6`), para não recomeçar a investigação:
+
+| Peça | Onde |
+|---|---|
+| Laço periódico do ator (tick) | `host/src/agent/bot/mod.rs:382` (`flush_tick.tick()`) |
+| Padrão de "prazo vencido → mata o processo" que já existe | `mod.rs:389-398` (`routine_deadline`, `cancel_deadline`) |
+| Campos do ator | `mod.rs:118-133` — não há `last_event`; é o campo que falta criar |
+| Eventos chegam por | `host/src/agent/bot/updates.rs` (é onde `last_event` seria tocado) |
+| Cancelamento já registra no chat | `host/src/agent/bot/turn.rs:322-323` — `stop_notice("Stopped.", "cancelled")` |
+| Metade já entregue no desktop | `apps/desktop/src/renderer/views/thread/long-turn.ts` + `WorkingIndicator` (aviso após 2 min) |
+
+O que implementar: campo `last_event: Instant` tocado a cada `session/update`; no tick, se `turn.is_some()` e
+`last_event.elapsed() >= STALL_AFTER`, marcar `stop_requested`, matar o processo (mesmo caminho do `cancel_deadline`) e
+gravar o motivo real no turno. Teste: agente falso que aceita o turno e nunca responde.
+
+**Paridade pendente e declarada**: o aviso de turno longo existe só no desktop; iOS/Android e TUI não receberam — a regra
+de paridade do repositório exige a correspondente no mesmo tipo de entrega, e isso não foi feito.
