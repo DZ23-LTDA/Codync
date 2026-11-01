@@ -68,8 +68,12 @@ class LayoutTest {
         assertTrue(summary.right <= new.left)
         snapshot("large-text")
         compose.onNode(computers).performClick()
+        // The pill's menu leads to the sheet; the row it draws is the computer over what the phone
+        // gets from it (bot count and route, iOS `ComputerSummary`), not a bare "Connected".
         compose.onNodeWithText("Manage computers").assertIsDisplayed()
-        compose.onNodeWithText("Acceptance computer · Connected").assertIsDisplayed()
+        compose.onNodeWithText("Manage computers").performClick()
+        compose.onNodeWithText("Acceptance computer").assertIsDisplayed()
+        compose.onNodeWithText("5 bots", substring = true).assertIsDisplayed()
     }
 
     private fun snapshot(name: String) {
