@@ -42,23 +42,23 @@ export function ApprovalSheet({ approval }: { approval: Approval }) {
         <Icon name={deviceIcon(request.platform)} size={40} weight="light" color="var(--secondary)" />
         <VStack align="center" gap={4}>
           <Text as="div" size="title3" weight="semibold" className="settings-centered">
-            {request.deviceName} wants to use {approval.store.hostName}
+            {tr('{device} wants to use {host}').replaceAll('{device}', request.deviceName).replaceAll('{host}', approval.store.hostName)}
           </Text>
-          {request.email ? <Text as="div" size="callout" tone="secondary">Signed in as {request.email}</Text> : null}
+          {request.email ? <Text as="div" size="callout" tone="secondary">{tr('Signed in as {email}').replaceAll('{email}', request.email ?? '')}</Text> : null}
         </VStack>
         {request.code ? (
           <>
-            <Text as="div" size={48} weight="semibold" mono tone="text" className="selectable settings-appear" aria-label={`Code ${request.code.split('').join(' ')}`}>
+            <Text as="div" size={48} weight="semibold" mono tone="text" className="selectable settings-appear" aria-label={tr('Code {code}').replaceAll('{code}', request.code.split('').join(' '))}>
               {spacedCode(request.code)}
             </Text>
             <Text as="div" size="callout" tone="secondary" className="settings-centered">
-              Approve only if {request.deviceName} shows exactly this code. If it doesn't, deny: someone may be trying to get in.
+              {tr('Approve only if {device} shows exactly this code. If it does not, deny: someone may be trying to get in.').replaceAll('{device}', request.deviceName)}
             </Text>
           </>
         ) : (
           <>
             <Spinner />
-            <Text as="div" size="callout" tone="secondary">Waiting for {request.deviceName} to show its code…</Text>
+            <Text as="div" size="callout" tone="secondary">{tr('Waiting for {device} to show its code…').replaceAll('{device}', request.deviceName)}</Text>
           </>
         )}
         <Reveal show={error !== null}>
