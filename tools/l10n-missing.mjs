@@ -31,10 +31,10 @@ export function phrasesIn(source) {
 
 /**
  * A value shown as an example of a format, not copy: a placeholder UUID, a key with its assignment, a header syntax,
- * a scheme prefix, a plain number used as a default. Translating those would be wrong -- "Authorization: Bearer" stays as
+ * a scheme prefix, a plain number used as a default, a cron expression shown as an example. Translating those would be wrong -- "Authorization: Bearer" stays as
  * it is in every language and 3600 is 3600.
  */
-const example = /^(?:[0-9a-f]{8}-|API_KEY=|Authorization: Bearer|codync-network:|https?:\/\/|[a-z-]+:|\d+$|name@example\.com)/;
+const example = /^(?:[0-9a-f]{8}-|API_KEY=|Authorization: Bearer|codync-network:|https?:\/\/|[a-z-]+:|\d+$|name@example\.com|\S+ \S+ \S+ \S+ \S+)/;
 
 /** The phrases used in the renderer with no key in `table`. Pure, so the rule is testable on its own. */
 export function missingFrom(phrases, table) {

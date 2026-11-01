@@ -205,7 +205,7 @@ export function Message({ model }: { model: IslandModel }) {
               className={`island-chip ${swap}`}
               style={{ background: withAlpha(avatarColor(bot.color), 0.16), color: `color-mix(in srgb, ${avatarColor(bot.color)} 55%, white)` }}
               onClick={() => model.nextMessageBot()}
-              title="Choose a bot"
+              title={tr('Choose a bot')}
             >
               <CharacterAvatar customIcon={bot.customIcon} shape={bot.shape} color={bot.color} size={18} mood={moodOf(bot)} dark />
               {bot.name}
@@ -233,11 +233,11 @@ export function Message({ model }: { model: IslandModel }) {
             {dictation.listening ? (
               <RecordingPill startedAt={dictation.startedAt} sample={() => dictation} onStop={() => dictation.finish()} color="#ffffff" />
             ) : dictation.available ? (
-              <button type="button" className="island-mic" aria-label="Dictate" title="Dictate" onClick={() => dictation.start(model.draft)}>
+              <button type="button" className="island-mic" aria-label={tr('Dictate')} title={tr('Dictate')} onClick={() => dictation.start(model.draft)}>
                 <Icon name="mic" size={12} weight="medium" scaled={false} />
               </button>
             ) : null}
-            <button type="submit" className="island-send" aria-label="Send" title="Send" disabled={!model.draft.trim()}>
+            <button type="submit" className="island-send" aria-label={tr('Send')} title={tr('Send')} disabled={!model.draft.trim()}>
               <Icon name="arrow.up" size={12} weight="bold" scaled={false} />
             </button>
           </form>

@@ -41,26 +41,26 @@ export function RoutineScheduleFields({ schedule, update, preview, error }: {
 
   return (
     <CardSection footer={<SchedulePreview preview={preview} error={error} />}>
-      <LabeledRow key="Repeat" label="Repeat">
-        <ChipChoice label="Repeat" selection={repeat} options={repeatChoices} onChange={choose} />
+      <LabeledRow key="Repeat" label={tr('Repeat')}>
+        <ChipChoice label={tr('Repeat')} selection={repeat} options={repeatChoices} onChange={choose} />
       </LabeledRow>
       {repeat === 'weekly' ? (
-        <LabeledRow key="On" label="On">
-          <ChipChoice label="Day" selection={schedule.weekday} options={weekdays} onChange={(weekday) => update({ weekday })} />
+        <LabeledRow key="On" label={tr('On')}>
+          <ChipChoice label={tr('Day')} selection={schedule.weekday} options={weekdays} onChange={(weekday) => update({ weekday })} />
         </LabeledRow>
       ) : null}
       {repeat === 'hourly' ? (
-        <LabeledRow key="At minute" label="At minute">
+        <LabeledRow key="At minute" label={tr('At minute')}>
           <ChoicePicker selection={schedule.minute} options={minutes} onChange={(minute) => update({ minute })} fill="var(--field)" />
         </LabeledRow>
       ) : repeat === 'custom' ? (
-        <LabeledRow key="Cron" label="Cron" top>
+        <LabeledRow key="Cron" label={tr('Cron')} top>
           <VStack gap={6} grow>
             <input
               className="schedule-input routine-cron-input"
-              aria-label="Cron"
+              aria-label={tr('Cron')}
               value={schedule.expression}
-              placeholder="0 9 * * 1-5"
+              placeholder={tr('0 9 * * 1-5')}
               spellCheck={false}
               autoCorrect="off"
               onChange={(e) => update({ expression: e.target.value })}
@@ -69,11 +69,11 @@ export function RoutineScheduleFields({ schedule, update, preview, error }: {
           </VStack>
         </LabeledRow>
       ) : (
-        <LabeledRow key="At" label="At">
+        <LabeledRow key="At" label={tr('At')}>
           <input
             type="time"
             className="schedule-input schedule-time"
-            aria-label="Time"
+            aria-label={tr('Time')}
             value={`${pad(schedule.hour)}:${pad(schedule.minute)}`}
             onChange={(e) => {
               const [hour, minute] = e.target.value.split(':').map(Number)
@@ -82,7 +82,7 @@ export function RoutineScheduleFields({ schedule, update, preview, error }: {
           />
         </LabeledRow>
       )}
-      <LabeledRow key="Time zone" label="Time zone">
+      <LabeledRow key="Time zone" label={tr('Time zone')}>
         <TimeZonePicker zone={schedule.zone} onChange={(zone) => update({ zone })} />
       </LabeledRow>
     </CardSection>

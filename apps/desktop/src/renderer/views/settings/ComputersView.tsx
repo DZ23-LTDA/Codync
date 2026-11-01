@@ -50,11 +50,11 @@ export function ComputersView() {
         ))}
 
         <div className="settings-ssh">
-          <SectionHeader title="Over SSH">
+          <SectionHeader title={tr('Over SSH')}>
             {sshState.config?.access === 'denied' ? (
-              <IconButton title="Find computers in your SSH config" icon="magnifyingglass" onClick={() => void sshState.answerConfig('allowed')} />
+              <IconButton title={tr('Find computers in your SSH config')} icon="magnifyingglass" onClick={() => void sshState.answerConfig('allowed')} />
             ) : null}
-            <IconButton title="Add SSH computer" icon="plus" onClick={() => addSSH('')} />
+            <IconButton title={tr('Add SSH computer')} icon="plus" onClick={() => addSSH('')} />
           </SectionHeader>
           <Reveal show={sshState.state.profiles.length === 0}>
             <Text as="div" size="callout" tone="secondary">
@@ -68,8 +68,8 @@ export function ComputersView() {
         </div>
 
         <div>
-          <SectionHeader title="Other computers in your account">
-            {account.isSignedIn ? <IconButton title="Refresh" icon="arrow.clockwise" onClick={() => void cloud.refresh()} /> : null}
+          <SectionHeader title={tr('Other computers in your account')}>
+            {account.isSignedIn ? <IconButton title={tr('Refresh')} icon="arrow.clockwise" onClick={() => void cloud.refresh()} /> : null}
           </SectionHeader>
           {!account.isSignedIn ? (
             <Text as="div" size="callout" tone="secondary">{tr(`Sign in to see the other computers in your account.`)}</Text>
@@ -150,7 +150,7 @@ function ManagedComputerCard({ store, ssh: overSSH, nested = false }: { store: B
       </Text>
       {owner ? (
         <Button kind="secondary" onClick={() => setConfirmUnclaim(true)} disabled={busy || !manageable}>
-          Remove from account
+          {tr('Remove from account')}
         </Button>
       ) : account.isSignedIn ? (
         <Button kind="secondary" onClick={() => run(async () => void (await app.cloud.claim(store)))} disabled={busy || !manageable}>
@@ -174,9 +174,9 @@ function ManagedComputerCard({ store, ssh: overSSH, nested = false }: { store: B
             </VStack>
             {overSSH ? (
               // This computer's voice settings are their own Settings page.
-              <IconButton title="Voice chat" icon="waveform" selected={showVoice} disabled={!online} onClick={() => setShowVoice((s) => !s)} />
+              <IconButton title={tr('Voice chat')} icon="waveform" selected={showVoice} disabled={!online} onClick={() => setShowVoice((s) => !s)} />
             ) : null}
-            <IconButton title="Pair iPhone" icon="qrcode" selected={showPairing} disabled={!online} onClick={() => setShowPairing((s) => !s)} />
+            <IconButton title={tr('Pair iPhone')} icon="qrcode" selected={showPairing} disabled={!online} onClick={() => setShowPairing((s) => !s)} />
           </div>,
           // Until the host gives its cloud status, there's no way to tell its relay or account.
           ...(cloud
@@ -318,7 +318,7 @@ function AccountComputerRow({ computer, olderCopy, onRemove }: { computer: Cloud
           <Text size="caption" tone={olderCopy ? 'tertiary' : 'secondary'}>{tr(accountComputerStatus(computer, olderCopy))}</Text>
         </div>
         <Spacer />
-        {olderCopy ? <IconButton title="Remove from account" icon="trash" onClick={onRemove} /> : null}
+        {olderCopy ? <IconButton title={tr('Remove from account')} icon="trash" onClick={onRemove} /> : null}
       </div>
     </div>
   )
@@ -396,13 +396,13 @@ function SSHProfileEditor({ profile: initial, isNew }: { profile: SSHProfile; is
             <Spacer />
             <Text tone="secondary">{profile.identityFile?.split(/[\\/]/).pop() ?? tr(`ssh-agent / SSH config`)}</Text>
             <IconButton
-              title="Choose key file"
+              title={tr('Choose key file')}
               icon="key"
               onClick={() => void bridge.chooseKey().then((path) => path && setProfile((p) => ({ ...p, identityFile: path })))}
             />
             {profile.identityFile ? (
               <HStack as="span" align="stretch" className="settings-appear">
-                <IconButton title="Use ssh-agent" icon="xmark.circle" onClick={() => setProfile({ ...profile, identityFile: null })} />
+                <IconButton title={tr('Use ssh-agent')} icon="xmark.circle" onClick={() => setProfile({ ...profile, identityFile: null })} />
               </HStack>
             ) : null}
           </div>

@@ -40,10 +40,10 @@ export function NetworkCard({ net, outside, rulesOf, several, disabled, act }: {
   )
   const accessory = (
     <HStack gap={2}>
-      {net.canInvite ? <IconButton title="Invite a computer" icon="person.crop.circle.badge.plus" disabled={disabled} onClick={act.invite} /> : null}
-      {net.canRecover ? <IconButton title="Recover ownership" icon="key" disabled={disabled} onClick={act.recover} /> : null}
-      <IconButton title="Refresh" icon="arrow.clockwise" disabled={disabled} onClick={act.refresh} />
-      <IconButton title="Leave network" icon="rectangle.portrait.and.arrow.right" disabled={disabled} onClick={act.leave} />
+      {net.canInvite ? <IconButton title={tr('Invite a computer')} icon="person.crop.circle.badge.plus" disabled={disabled} onClick={act.invite} /> : null}
+      {net.canRecover ? <IconButton title={tr('Recover ownership')} icon="key" disabled={disabled} onClick={act.recover} /> : null}
+      <IconButton title={tr('Refresh')} icon="arrow.clockwise" disabled={disabled} onClick={act.refresh} />
+      <IconButton title={tr('Leave network')} icon="rectangle.portrait.and.arrow.right" disabled={disabled} onClick={act.leave} />
     </HStack>
   )
   const footer = several
@@ -62,7 +62,7 @@ export function NetworkCard({ net, outside, rulesOf, several, disabled, act }: {
               <Text>{o.hostName}</Text>
               <Text size="caption" tone="secondary">{`${tr('Over SSH')} · ${tr('Not in the network')}`}</Text>
             </VStack>
-            <IconButton title="Add to the network" icon="plus" disabled={disabled || o.connection.kind !== 'online' || o.mismatch !== null} onClick={() => act.add(o)} />
+            <IconButton title={tr('Add to the network')} icon="plus" disabled={disabled || o.connection.kind !== 'online' || o.mismatch !== null} onClick={() => act.add(o)} />
           </HStack>
         ))}
       </CardSection>
@@ -70,7 +70,7 @@ export function NetworkCard({ net, outside, rulesOf, several, disabled, act }: {
         <CardSection
           key={of.store.computer.id}
           title={rulesOf.length > 1 ? tr('Who may message bots on {name}').replaceAll('{name}', of.net.computer) : 'Who may message bots here'}
-          accessory={<IconButton title="Add rule" icon="plus" disabled={disabled} onClick={() => act.addRule(of)} />}
+          accessory={<IconButton title={tr('Add rule')} icon="plus" disabled={disabled} onClick={() => act.addRule(of)} />}
           footer={
             n === rulesOf.length - 1
               ? "The first rule that matches decides. Without rules, every computer in the network may message every bot here. Answers to this computer's own messages always get in."
@@ -80,9 +80,9 @@ export function NetworkCard({ net, outside, rulesOf, several, disabled, act }: {
           {of.net.rules.map((rule, i) => (
             <HStack key={i} gap={4} className="settings-row settings-appear">
               <Text grow>{ruleLine(rule, of.net, tr)}</Text>
-              <IconButton title="Move up" icon="chevron.up" disabled={disabled || i === 0} onClick={() => act.setRules(of, moved(of.net.rules, i, -1))} />
-              <IconButton title="Move down" icon="chevron.down" disabled={disabled || i === of.net.rules.length - 1} onClick={() => act.setRules(of, moved(of.net.rules, i, 1))} />
-              <IconButton title="Delete rule" icon="trash" disabled={disabled} onClick={() => act.setRules(of, of.net.rules.filter((_, j) => j !== i))} />
+              <IconButton title={tr('Move up')} icon="chevron.up" disabled={disabled || i === 0} onClick={() => act.setRules(of, moved(of.net.rules, i, -1))} />
+              <IconButton title={tr('Move down')} icon="chevron.down" disabled={disabled || i === of.net.rules.length - 1} onClick={() => act.setRules(of, moved(of.net.rules, i, 1))} />
+              <IconButton title={tr('Delete rule')} icon="trash" disabled={disabled} onClick={() => act.setRules(of, of.net.rules.filter((_, j) => j !== i))} />
             </HStack>
           ))}
         </CardSection>
@@ -103,7 +103,7 @@ function ComputerRow({ computer: c, disabled, promote, remove }: { computer: Net
         <Text size="caption" tone="secondary" truncate title={c.agents.map((a) => a.name).join(', ') || undefined}>{detail}</Text>
       </VStack>
       {c.canPromote ? <Button kind="secondary" disabled={disabled} onClick={promote}>Make admin</Button> : null}
-      {c.canRemove ? <IconButton title="Remove from the network" icon="trash" disabled={disabled} onClick={remove} /> : null}
+      {c.canRemove ? <IconButton title={tr('Remove from the network')} icon="trash" disabled={disabled} onClick={remove} /> : null}
     </HStack>
   )
 }
