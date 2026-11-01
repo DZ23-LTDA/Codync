@@ -26,3 +26,17 @@ connect a computer and check {provider} usage.`). Todas corrigidas.
 
 Kotlin e Swift continuam sem compilação nesta máquina (sem macOS, sem Android SDK). O que está verificado é que as chaves
 existem no `pt.json` e o diff foi lido.
+
+
+## Correção, no mesmo dia
+
+A primeira versão desta nota dizia que o iOS **não tinha** estado "sem bots" e que o Android tinha. **Estava errado.**
+
+Os dois calculam a mesma frase numa propriedade — `Needs you` · `Need you` · `Working` · `No bots yet` · `All quiet` — e
+nenhum dos dois traduzia. Ou seja: a cobertura era igual; o que faltava era **tradução**, não estado.
+
+Corrigido nos dois lados (`L10n.tr` no iOS, `phrase(...)` no Android), junto com `Failed` e `Ready` do Android. Nomes em
+pt: **Precisa de você**, **Precisam de você**, **Trabalhando**, **Nenhum bot ainda**, **Tudo em paz**, **Falhou**, **Pronto**.
+
+Lição: a diferença que eu vi era de **texto**, e eu a descrevi como diferença de **comportamento**. Uma nota de paridade
+que erra isso manda o próximo agente "consertar" um estado que já existe.
