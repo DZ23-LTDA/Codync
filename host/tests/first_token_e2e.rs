@@ -105,7 +105,8 @@ async fn first_word_latency_stays_under_a_ceiling() {
 #[ignore = "twenty rounds: run it to publish the baseline"]
 async fn first_word_p95_over_twenty_rounds() {
     let all = samples(20).await;
-    let index = ((all.len() as f64) * 0.95).ceil() as usize - 1;
+    // Integer arithmetic: a float-to-usize cast here is a lint the crate refuses, and it was right to.
+    let index = (all.len() * 95).div_ceil(100).saturating_sub(1);
     let p95 = all[index.min(all.len() - 1)];
     println!("first word (ms), 20 rounds: {all:?} · p95 {p95}");
 }
