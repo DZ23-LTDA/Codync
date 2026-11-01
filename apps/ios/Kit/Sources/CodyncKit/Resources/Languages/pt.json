@@ -245,5 +245,6 @@
   "The background service didn't start.": "O serviço em segundo plano não iniciou.",
   "The background service didn't start. Windows refused to register the automatic start.": "O serviço em segundo plano não iniciou. O Windows recusou registrar a inicialização automática.",
   "Set up this computer": "Configurar este computador",
-  "Set up this Mac": "Configurar este Mac"
+  "Set up this Mac": "Configurar este Mac",
+  "Another Codync host is already running. Close it, then try again.": "Já existe outro host do Codync rodando. Feche-o e tente de novo."
 }

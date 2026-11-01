@@ -34,12 +34,18 @@ function hostFailure(message: string, tr: (text: string) => string): string {
       ? tr("The background service didn't start. macOS couldn't load {path}.").replaceAll('{path}', path)
       : tr("The background service didn't start.")
   }
+  // Two hosts on the same data directory: the person needs the cause and the action, not the Rust error chain and its
+  // "Caused by: ... (os error 33)" tail.
+  if (/old host did not exit|another codync-host is already running/i.test(message)) {
+    return tr('Another Codync host is already running. Close it, then try again.')
+  }
   // Windows prints the command that failed (`reg add ... /f failed`) plus an OS error. The person needs the outcome and
   // the next step, not the command line: the full message stays in the host log.
   if (/reg add/i.test(message)) {
     return tr("The background service didn't start. Windows refused to register the automatic start.")
   }
-  return tr(message)
+  const firstLine = message.split(/\r?\n/).find((line) => line.trim() !== '') ?? message
+  return tr(firstLine.replace(/^Error:\s*/, ''))
 }
 
 function FailedHost({ compact, message }: { compact: boolean; message: string }) {
