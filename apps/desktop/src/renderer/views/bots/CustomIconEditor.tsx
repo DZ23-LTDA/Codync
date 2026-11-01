@@ -47,19 +47,19 @@ export function CustomIconEditor({ target }: { target: string }) {
       onKeyDown={(event) => { if (event.key === 'Enter' && event.target instanceof HTMLInputElement && !event.nativeEvent.isComposing) { event.preventDefault(); if (!disabled && url.trim()) void editor.save({ url: url.trim() }) } }}>
       <label htmlFor={urlId}>{tr('Image URL')}</label>
       <HStack gap={8}>
-        <input id={urlId} className="field-box" type="url" placeholder="https://…" value={url} disabled={disabled}
+        <input id={urlId} className="field-box" type="url" placeholder={tr('https://…')} value={url} disabled={disabled}
           autoFocus onChange={(event) => setURL(event.target.value)} />
-        <IconButton title="Use URL" icon="arrow.up" size={36} disabled={disabled || !url.trim()}
+        <IconButton title={tr('Use URL')} icon="arrow.up" size={36} disabled={disabled || !url.trim()}
           onClick={() => void editor.save({ url: url.trim() })} />
       </HStack>
     </div>}
-    {icon && <SwitchRow title="Tint icon" detail="Turn off to keep the image's original colors." on={icon.tinted}
+    {icon && <SwitchRow title={tr('Tint icon')} detail={tr("Turn off to keep the image's original colors.")} on={icon.tinted}
       onChange={(tinted) => { if (!disabled) void editor.save({ tinted }) }} />}
     <VStack gap={2} className="custom-icon-help">
       <Text size="caption" tone="secondary">PNG, JPEG, WebP up to 5 MiB; SVG up to 256 KiB.</Text>
       <Text size="caption" tone="secondary">Saved immediately. Custom images stay still.</Text>
     </VStack>
-    <Dialog open={needsSignIn} title="Sign in required" message="Sign in to use custom images."
+    <Dialog open={needsSignIn} title={tr('Sign in required')} message={tr('Sign in to use custom images.')}
       onClose={() => setNeedsSignIn(false)} actions={[
         { title: 'Continue with Apple', action: () => { setNeedsSignIn(false); void account.signIn('apple') } },
         { title: 'Continue with Google', action: () => { setNeedsSignIn(false); void account.signIn('google') } },

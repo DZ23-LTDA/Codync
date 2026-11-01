@@ -31,3 +31,7 @@ test("a plain number is a value, not copy", () => {
   assert.deepEqual(missingFrom(new Set(["3600", "Save"]), {}), ["Save"]);
 });
 
+test("a cron expression is an example, not copy", () => {
+  assert.deepEqual(missingFrom(new Set(["0 9 * * 1-5", "Repeat"]), {}), ["Repeat"]);
+});
+
