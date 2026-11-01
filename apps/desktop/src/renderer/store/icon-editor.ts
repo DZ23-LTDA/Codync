@@ -25,7 +25,7 @@ export class IconEditor extends Observable {
       const result = await client.call<{ icons: CustomIcons; iconsRevision: number }>('setIcon', { target: this.target, ...body, data }, 60_000)
       if (epoch === this.store.iconsEpoch) this.store.applyIcons(result.icons, result.iconsRevision)
     } catch (e) {
-      this.error = humanError(e)
+      this.error = humanError(e, 'That image could not be used. Choose another file.')
     } finally {
       this.busy = false
       this.changed()

@@ -18,7 +18,7 @@ export function useFetched<T>(load: () => Promise<T> | null, deps: DependencyLis
       },
       (reason: unknown) => {
         console.warn('load failed', reason)
-        if (current) setError(humanError(reason))
+        if (current) setError(humanError(reason, 'This screen could not load. Try again.'))
       },
     )
     return () => {

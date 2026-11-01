@@ -54,7 +54,7 @@ export class FileDownloads {
       await window.codync.files.finish(job.handle)
       if (alive()) this.states.set(file.id, { kind: 'saved' })
     } catch (error) {
-      if (alive()) this.states.set(file.id, { kind: 'failed', message: humanError(error) })
+      if (alive()) this.states.set(file.id, { kind: 'failed', message: humanError(error, 'The file did not download. Try again.') })
     } finally {
       if (job.handle) await window.codync.files.cancel(job.handle).catch(console.error)
       if (this.jobs.get(file.id) === job) {
