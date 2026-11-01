@@ -1,7 +1,7 @@
 //! Opening the database: tables, pragmas and schema migrations.
 
 use super::Store;
-use anyhow::Result;
+use anyhow::{Context, Result};
 use rusqlite::{Connection, OptionalExtension};
 use std::path::Path;
 use std::sync::Mutex;
@@ -132,7 +132,19 @@ fn migrate_6(c: &Connection) -> Result<()> {
 }
 
 impl Store {
+    /// Opens the database, turning a failure into something a person can act on: a raw sqlite error is a stack trace
+    /// with a file name, and the honest thing to say is what happened and what was not done.
     pub fn open(path: &Path) -> Result<Self> {
+        Self::open_connection(path).with_context(|| {
+            format!(
+                "Couldn't open the database at {}: the file may be damaged. Nothing was deleted — copy it somewhere \
+                 safe before trying again.",
+                path.display()
+            )
+        })
+    }
+
+    fn open_connection(path: &Path) -> Result<Self> {
         let c = Connection::open(path)?;
         c.execute_batch(
             "PRAGMA journal_mode=WAL;
@@ -261,5 +273,26 @@ mod tests {
         assert_eq!(s.kv_get("read.root"), None);
         assert_eq!(s.kv_get("lane.session.b@b/root"), None);
         assert_eq!(s.kv_get("lane.session.b@b/routine-r1").as_deref(), Some("s2"), "a run's session stays");
+    }
+
+    #[test]
+    fn a_damaged_database_says_so_and_is_left_alone() {
+        let dir = std::env::temp_dir().join(format!("codync-corrupt-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let file = dir.join("t.db");
+        // Not a sqlite file: the header is wrong, which is what a truncated or overwritten database looks like.
+        std::fs::write(&file, b"this is not a database").unwrap();
+        let before = std::fs::read(&file).unwrap();
+
+        let error = match Store::open(&file) {
+            Ok(_) => panic!("a damaged file must not open"),
+            Err(error) => format!("{error:#}"),
+        };
+
+        assert!(error.contains("may be damaged"), "says what is wrong, not a sqlite code: {error}");
+        assert!(error.contains("Nothing was deleted"), "says what was not done: {error}");
+        assert!(file.exists(), "the file is still there");
+        assert_eq!(std::fs::read(&file).unwrap(), before, "and untouched, so a copy can still be taken");
+        std::fs::remove_dir_all(&dir).ok();
     }
 }
