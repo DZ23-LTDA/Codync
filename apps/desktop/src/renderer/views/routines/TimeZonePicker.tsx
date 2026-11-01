@@ -9,6 +9,7 @@ import { useTr } from '../../lib/use-language'
 
 /** The routine's time zone: a button that opens every zone, filtered as you type. */
 export function TimeZonePicker({ zone: saved, onChange }: { zone: string; onChange: (zone: string) => void }) {
+  const tr = useTr()
   const zone = currentZone(saved)
   const anchor = useRef<HTMLButtonElement>(null)
   const [open, setOpen] = useState(false)
@@ -17,7 +18,7 @@ export function TimeZonePicker({ zone: saved, onChange }: { zone: string; onChan
       <button
         ref={anchor}
         className="schedule-input zone-button"
-        aria-label={`Time zone, ${zone}`}
+        aria-label={tr('Time zone, {zone}').replaceAll('{zone}', zone)}
         aria-haspopup="listbox"
         aria-expanded={open}
         onClick={() => setOpen(true)}
@@ -94,7 +95,7 @@ function ZoneList({ zone, pick }: { zone: string; pick: (zone: string) => void }
             </span>
           </button>
         ))}
-        {matches.length === 0 ? <Text size="callout" tone="secondary" className="zone-empty">No time zone matches “{query}”.</Text> : null}
+        {matches.length === 0 ? <Text size="callout" tone="secondary" className="zone-empty">{tr('No time zone matches “{query}”.').replaceAll('{query}', query)}</Text> : null}
       </div>
     </div>
   )

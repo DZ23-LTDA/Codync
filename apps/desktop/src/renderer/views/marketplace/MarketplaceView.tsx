@@ -332,7 +332,7 @@ function RemoveButton({ title, onClick }: { title: string; onClick: () => void }
   return (
     <button
       title={tr('Remove')}
-      aria-label={`Remove ${title}`}
+      aria-label={tr('Remove {name}').replaceAll('{name}', title)}
       className="market-remove"
       onClick={(e) => {
         e.stopPropagation()

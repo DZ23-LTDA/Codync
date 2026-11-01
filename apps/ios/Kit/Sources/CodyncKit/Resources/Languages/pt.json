@@ -803,5 +803,12 @@
   "{count} notes, over the {cap}-note cap. Ask the bot to merge some.": "{count} notas, acima do limite de {cap}. Peça ao bot para juntar algumas.",
   "{count} tokens": "{count} tokens",
   ", over the {cap} cap": ", acima do limite de {cap}",
-  "Added to {name}": "Adicionado a {name}"
+  "Added to {name}": "Adicionado a {name}",
+  "Time zone, {zone}": "Fuso horário, {zone}",
+  "No time zone matches “{query}”.": "Nenhum fuso horário corresponde a “{query}”.",
+  "Timeout {duration}": "Tempo limite {duration}",
+  "Save ({shortcut})": "Salvar ({shortcut})",
+  "Saved on {host} only and given to {agent} when it starts.": "Guardado só em {host} e entregue a {agent} quando ele inicia.",
+  "Running on {host}. Links open on this device.": "Rodando em {host}. Links abrem neste aparelho.",
+  "Codync": "Codync"
 }
