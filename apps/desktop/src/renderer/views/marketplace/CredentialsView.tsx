@@ -51,12 +51,12 @@ export function CredentialsView({ onBack }: { onBack: () => void }) {
 
   return (
     <SheetPage className="credentials-page">
-      <ScreenHeader title="Credentials" onBack={onBack} trailing={<IconButton title="Close" icon="xmark" onClick={dismiss} />} />
+      <ScreenHeader title={tr('Credentials')} onBack={onBack} trailing={<IconButton title={tr('Close')} icon="xmark" onClick={dismiss} />} />
       <CardForm>
-        <CardSection title="Storage">
+        <CardSection title={tr('Storage')}>
           <div className="credential-storage"><Icon name="lock.shield" size={20} /><div><strong>{tr(status?.provider ?? 'System credential store')}</strong><p>{tr('Encrypted on the connected computer.')}</p></div></div>
         </CardSection>
-        <CardSection title="Saved connections">
+        <CardSection title={tr('Saved connections')}>
           {plugins.installedConnectors.filter((c) => c.keys.length > 0).map((c) => (
             <button key={c.id} className="plain-row-button" onClick={() => setSelected(c)}>
               <span className="credential-row-title">{c.name}</span>
@@ -67,9 +67,9 @@ export function CredentialsView({ onBack }: { onBack: () => void }) {
           <Text size="caption" tone="secondary">{tr(`Values stay hidden. Select a connection to replace its credentials.`)}</Text>
         </CardSection>
         <LoginsSection />
-        <CardSection title="1Password" footer="Use a service account with read access only to a dedicated shared vault. The 1Password CLI must be installed on the computer.">
+        <CardSection title={tr('1Password')} footer={tr('Use a service account with read access only to a dedicated shared vault. The 1Password CLI must be installed on the computer.')}>
           <span>{tr(status?.onePasswordConnected ? 'Connected' : 'Connect a shared vault')}</span>
-          <CredentialField label="Service account token" value={token} onChange={setToken} placeholder="Paste your token" secret />
+          <CredentialField label={tr('Service account token')} value={token} onChange={setToken} placeholder={tr('Paste your token')} secret />
           <div><Button disabled={busy || !token} onClick={() => void save(token)}>Connect</Button></div>
           {status?.onePasswordConnected ? <div><Button kind="secondary" disabled={busy} onClick={() => void save('')}>Disconnect</Button></div> : null}
           <Text size="footnote" tone="secondary">{tr(`Use op://vault/item/field in a connector's credential field. Codync retrieves the value when the connector runs.`)}</Text>

@@ -29,9 +29,15 @@ export function phrasesIn(source) {
   return found;
 }
 
+/**
+ * A value shown as an example of a format, not copy: a placeholder UUID, a key with its assignment, a header syntax,
+ * a scheme prefix. Translating those would be wrong -- "Authorization: Bearer" stays as it is in every language.
+ */
+const example = /^(?:[0-9a-f]{8}-|API_KEY=|Authorization: Bearer|codync-network:|https?:\/\/|[a-z-]+:)/;
+
 /** The phrases used in the renderer with no key in `table`. Pure, so the rule is testable on its own. */
 export function missingFrom(phrases, table) {
-  return [...phrases].filter((phrase) => !(phrase in table)).sort();
+  return [...phrases].filter((phrase) => !(phrase in table) && !example.test(phrase)).sort();
 }
 
 function main() {

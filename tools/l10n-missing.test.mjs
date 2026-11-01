@@ -21,3 +21,9 @@ test("what is missing is what the table has no key for", () => {
 test("a table with every key reports nothing missing", () => {
   assert.deepEqual(missingFrom(new Set(["A"]), { A: "A" }), []);
 });
+
+test("a value shown as an example of a format is not copy to translate", () => {
+  const phrases = new Set(["https://", "API_KEY=", "Authorization: Bearer", "Connect"]);
+  assert.deepEqual(missingFrom(phrases, {}), ["Connect"]);
+});
+
