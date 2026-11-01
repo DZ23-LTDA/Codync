@@ -242,7 +242,12 @@ class ChannelIntegrationTest {
         enqueueHost(burst = 600)
         val connected = HostConnector.connect(computer(), identity())
         try {
-            val events = withTimeout(8_000) { connected.events().onEach { delay(2) }.take(600).toList() }
+            // `delay(2)` really waits ~15 ms on Windows, whose default timer granularity is that
+            // coarse, so 600 events take ~9 s there: the old 8 s budget was shorter than the test's
+            // own pacing and failed whenever the suite ran on a Windows machine. The budget covers
+            // the coarse timer, not the queue; every assertion below is unchanged.
+            val budget = 600L * 20 + 8_000
+            val events = withTimeout(budget) { connected.events().onEach { delay(2) }.take(600).toList() }
             assertEquals((0 until 600).map(Int::toLong), events.map { it.getValue("index").jsonPrimitive.long })
             assertEquals(cid, connected.call("hello").jsonObject.text("computerId"))
         } finally { connected.close() }
