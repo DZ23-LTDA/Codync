@@ -157,7 +157,7 @@ function GeneralSettings() {
           </VStack>
           {account.isSignedIn ? (
             <Button kind="secondary" onClick={() => void account.signOut()} disabled={account.isBusy}>
-              {account.isBusy ? 'Please wait…' : 'Sign out'}
+              {account.isBusy ? tr('Please wait…') : tr('Sign out')}
             </Button>
           ) : (
             <>

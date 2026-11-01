@@ -154,7 +154,7 @@ function ManagedComputerCard({ store, ssh: overSSH, nested = false }: { store: B
         </Button>
       ) : account.isSignedIn ? (
         <Button kind="secondary" onClick={() => run(async () => void (await app.cloud.claim(store)))} disabled={busy || !manageable}>
-          {busy ? 'Adding…' : 'Add to account'}
+          {busy ? tr('Adding…') : tr('Add to account')}
         </Button>
       ) : null}
     </HStack>
@@ -169,7 +169,7 @@ function ManagedComputerCard({ store, ssh: overSSH, nested = false }: { store: B
             <VStack grow className="settings-stack">
               <Text size="headline">{name}</Text>
               <Text size="caption" tone="secondary">
-                {`${tr(overSSH ? 'Over SSH' : isMacLabel)} · ${tr(statusText(store))}`}
+                {`${tr(overSSH ? tr('Over SSH') : isMacLabel)} · ${tr(statusText(store))}`}
               </Text>
             </VStack>
             {overSSH ? (
@@ -261,14 +261,14 @@ function ManagedComputerCard({ store, ssh: overSSH, nested = false }: { store: B
         open={confirmAutoApproval}
         title={tr('Let account devices in without a code?')}
         message={tr("Any device signed in to your account gets full control of {name}: its files, terminals and bots, with no check here. If someone gets into your account, or Codync's cloud is ever compromised, they could add their own device and you'd have no chance to stop it. Devices paired with a QR code aren't affected.").replaceAll('{name}', name)}
-        actions={[{ title: 'Skip the check', destructive: true, action: () => setApproval('auto') }]}
+        actions={[{ title: tr('Skip the check'), destructive: true, action: () => setApproval('auto') }]}
         onClose={() => setConfirmAutoApproval(false)}
       />
       <Dialog
         open={confirmUnclaim}
         title={tr('Remove {name} from the account?').replaceAll('{name}', name)}
         message={tr('Devices that were approved through the account lose access. Devices paired with a QR code keep it.')}
-        actions={[{ title: 'Remove from account', destructive: true, action: () => run(() => app.cloud.unclaim(store)) }]}
+        actions={[{ title: tr('Remove from account'), destructive: true, action: () => run(() => app.cloud.unclaim(store)) }]}
         onClose={() => setConfirmUnclaim(false)}
       />
     </VStack>
@@ -384,13 +384,13 @@ function SSHProfileEditor({ profile: initial, isNew }: { profile: SSHProfile; is
   return (
     // Return in a field saves (the default action).
     <VStack className="settings-ssh-editor" onKeyDown={(e) => e.key === 'Enter' && e.target instanceof HTMLInputElement && void save()}>
-      <ModalHeader icon="terminal" title={isNew ? 'Add SSH computer' : 'Edit SSH computer'} trailing={<IconButton title={isNew ? 'Add' : 'Save'} icon="checkmark" onClick={() => void save()} />} />
+      <ModalHeader icon="terminal" title={isNew ? tr('Add SSH computer') : tr('Edit SSH computer')} trailing={<IconButton title={isNew ? 'Add' : 'Save'} icon="checkmark" onClick={() => void save()} />} />
       <VStack gap={16} className="settings-ssh-editor-body">
         <CardSection>
           {field('Name', profile.name, (name) => setProfile({ ...profile, name }), 'Optional')}
           {field('Host', profile.host, (host) => setProfile({ ...profile, host }), 'SSH alias or hostname')}
-          {field('User', user, setUser, 'From SSH config')}
-          {field('SSH port', port, setPort, 'From SSH config')}
+          {field('User', user, setUser, tr('From SSH config'))}
+          {field(tr('SSH port'), port, setPort, tr('From SSH config'))}
           <div className="settings-row">
             <span>Key</span>
             <Spacer />

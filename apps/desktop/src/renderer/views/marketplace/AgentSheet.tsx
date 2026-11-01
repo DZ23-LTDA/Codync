@@ -278,7 +278,7 @@ function AgentKeysForm({ backend, method, saved, back, done }: {
       <ScreenHeader
         title={method.name}
         onBack={back}
-        trailing={saving ? <Spinner /> : <IconButton title="Save" icon="checkmark" disabled={missing} onClick={() => void save(filled(values))} />}
+        trailing={saving ? <Spinner /> : <IconButton title={tr('Save')} icon="checkmark" disabled={missing} onClick={() => void save(filled(values))} />}
       />
       <CardForm>
         <VStack gap={6}>
@@ -289,7 +289,7 @@ function AgentKeysForm({ backend, method, saved, back, done }: {
                   label={v.label}
                   value={values[v.name] ?? ''}
                   secret={v.secret}
-                  placeholder={saved.includes(v.name) ? 'Saved (type to replace)' : v.name}
+                  placeholder={saved.includes(v.name) ? tr('Saved (type to replace)') : v.name}
                   onChange={(x) => setValues((old) => ({ ...old, [v.name]: x }))}
                 />
                 <Text size="caption" tone="secondary">{v.label + (v.optional ? tr(` (optional)`) : '')}</Text>
@@ -299,13 +299,13 @@ function AgentKeysForm({ backend, method, saved, back, done }: {
           <VStack gap={6} className="agent-keys-notes">
             {method.description ? <span>{method.description}</span> : null}
             <span>Saved on {store.hostName} only and given to {backend.name} when it starts.</span>
-            {method.link && URL.canParse(method.link) ? <WebLink title="Get a key" url={method.link} /> : null}
+            {method.link && URL.canParse(method.link) ? <WebLink title={tr('Get a key')} url={method.link} /> : null}
           </VStack>
         </VStack>
         {saved.length ? (
           <CardSection>
             <button className="market-danger-button" onClick={() => void save(Object.fromEntries(vars.map((v) => [v.name, ''])))}>
-              Remove saved keys
+              {tr('Remove saved keys')}
             </button>
           </CardSection>
         ) : null}
