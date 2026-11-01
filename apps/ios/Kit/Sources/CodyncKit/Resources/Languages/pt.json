@@ -881,5 +881,6 @@
   "Next {when}": "Próximo {when}",
   "Start over": "Começar de novo",
   "The terminal couldn't load. Update Android System WebView, then try again.": "O terminal não carregou. Atualize o Android System WebView e tente de novo.",
-  "Choose": "Escolher"
+  "Choose": "Escolher",
+  "Upload image": "Enviar imagem"
 }
