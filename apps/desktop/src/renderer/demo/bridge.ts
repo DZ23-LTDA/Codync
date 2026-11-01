@@ -2,6 +2,7 @@ import type { AccountState, CallError, CodyncBridge, HostSnapshot, UpdateState }
 import { DEMO_UNAVAILABLE, FakeHost } from './fake-host'
 import { COMPUTER_ID, HOST_NAME } from './story'
 import { version } from '../../../package.json'
+import { humanError } from '../lib/human-error'
 
 // `window.codync` for the browser: a running local host served by `FakeHost`, everything else
 // signed out, unavailable or a no-op. Imported before the renderer so module-level reads see it.
@@ -42,7 +43,7 @@ const bridge: CodyncBridge = {
       try {
         return await host.call(method, (body ?? {}) as Record<string, unknown>)
       } catch (e) {
-        throw (e as CallError).status ? e : ({ status: 500, message: String(e) } satisfies CallError)
+        throw (e as CallError).status ? e : ({ status: 500, message: humanError(e, 'The demo host could not answer.') } satisfies CallError)
       }
     },
     stream(url, _token, onData) {
