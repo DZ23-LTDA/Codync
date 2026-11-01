@@ -18,8 +18,14 @@ const rawValue = /String\(\s*(error|e|err|reason)\s*\)/;
 export function findErrorLeaks(source, file = "") {
   const found = [];
   for (const [index, line] of source.split("\n").entries()) {
+    // Prose about errors is not an error shown to anyone: a doc comment naming String(e) must not count as one.
+    const trimmed = line.trim();
+    if (trimmed.startsWith("//") || trimmed.startsWith("*") || trimmed.startsWith("/*")) continue;
     if (stackRead.test(line)) found.push({ file, line: index + 1, kind: "stack", text: line.trim() });
-    else if (rawValue.test(line)) found.push({ file, line: index + 1, kind: "raw value", text: line.trim() });
+    // humanError() is the reviewed way to turn a thrown value into a sentence: it strips the class prefix, keeps one
+    // line and falls back to a sentence the caller chose, so it is not a leak to review.
+    else if (rawValue.test(line) && !line.includes("humanError("))
+      found.push({ file, line: index + 1, kind: "raw value", text: line.trim() });
   }
   return found;
 }

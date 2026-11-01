@@ -7,6 +7,7 @@ import { Text } from '../components/Text'
 import { useScreenViewed } from '../store/analytics'
 import './pairing-code.css'
 import { useTr } from '../lib/use-language'
+import { humanError } from '../lib/human-error'
 
 
 /**
@@ -33,7 +34,7 @@ export function PairingCode({ name, cloudOn, requestCode, renew = 0 }: { name: s
     } catch (e) {
       if (request !== latest.current) return
       setCode(null)
-      setError(e instanceof Error ? e.message : String(e))
+      setError(humanError(e, 'Could not show the pairing code. Try again.'))
     }
   }, [requestCode])
 
