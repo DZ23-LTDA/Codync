@@ -67,13 +67,10 @@ jobs:
 
   macos:
     needs: check
-    # Fork PRs get no signing secrets, so they stop at check, Windows and Linux; the release PR into main
-    # builds the Mac app before the tag.
-    # Signing and notarising needs this repository's Apple certificate, which a fork does not have: without the
-    # variable set the job is skipped instead of failing on every pull request. Set DESKTOP_MACOS_SIGNING=true (with the
-    # APPLE_*/ASC_* secrets) to turn it back on.
+    # A fork has no Apple certificate, so this job packs the app **unsigned** instead of being skipped: assisted
+    # distribution is what the project ships today. Set DESKTOP_MACOS_SIGNING=true (with the APPLE_*/ASC_* secrets) and
+    # the same job signs, notarises and brings back the update feed.
     if: >-
-      vars.DESKTOP_MACOS_SIGNING == 'true' &&
       needs.check.outputs.package == 'true' &&
       (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
     runs-on: macos-26
@@ -96,6 +93,7 @@ jobs:
           shared-key: desktop-macos
 
       - name: Install Apple certificate
+        if: vars.DESKTOP_MACOS_SIGNING == 'true'
         env:
           APPLE_CERTIFICATE_P12: ${{ secrets.APPLE_CERTIFICATE_P12 }}
           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
@@ -126,12 +124,13 @@ jobs:
       - name: Build, sign and notarize
         working-directory: apps/desktop
         env:
-          CSC_IDENTITY_AUTO_DISCOVERY: "true"
+          # No certificate, no signature: electron-builder packs the app and says so, rather than failing the job.
+          CSC_IDENTITY_AUTO_DISCOVERY: ${{ vars.DESKTOP_MACOS_SIGNING == 'true' && 'true' || 'false' }}
           # Same-repo PRs get the secrets; sign them too so the dry run checks the real app.
           CSC_FOR_PULL_REQUEST: "true"
           # Notarized with the App Store Connect API key: unlike an app-specific password, it
           # survives Apple ID password changes.
-          NOTARIZE: ${{ github.event_name != 'pull_request' || github.base_ref == 'main' }}
+          NOTARIZE: ${{ vars.DESKTOP_MACOS_SIGNING == 'true' && (github.event_name != 'pull_request' || github.base_ref == 'main') }}
           APPLE_API_KEY: ${{ runner.temp }}/AuthKey.p8
           APPLE_API_KEY_ID: ${{ secrets.ASC_KEY_ID }}
           APPLE_API_ISSUER: ${{ secrets.ASC_ISSUER_ID }}
@@ -143,11 +142,15 @@ jobs:
           npm ci
           npm run icons
           npm run dist:mac:main -- --publish never
-          codesign -d --entitlements - dist/mac-universal/Codync.app | grep -q com.apple.security.device.audio-input ||
-            { echo "audio-input entitlement missing"; exit 1; }
+          # An unsigned build has no signature to read entitlements from; the check only means something when signed.
+          if [ "$CSC_IDENTITY_AUTO_DISCOVERY" = true ]; then
+            codesign -d --entitlements - dist/mac-universal/Codync.app | grep -q com.apple.security.device.audio-input ||
+              { echo "audio-input entitlement missing"; exit 1; }
+          fi
           if [ "$NOTARIZE" = true ]; then spctl --assess --type execute -v dist/mac-universal/Codync.app; fi
 
       - name: Update feeds
+        if: vars.DESKTOP_MACOS_SIGNING == 'true'
         env:
           SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
         run: |
@@ -167,7 +170,8 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: "!startsWith(github.ref, 'refs/tags/')"
         with:
-          name: codync-macos
+          # The name says which build this is: an unsigned artefact must never be mistaken for a signed release.
+          name: codync-macos${{ vars.DESKTOP_MACOS_SIGNING == 'true' && '' || '-unsigned' }}
           path: |
             apps/desktop/dist/codync-macos.dmg
             apps/desktop/dist/latest-mac.yml
