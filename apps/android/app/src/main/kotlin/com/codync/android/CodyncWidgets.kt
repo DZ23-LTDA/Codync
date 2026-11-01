@@ -314,7 +314,9 @@ private fun ticks(percent: Double, tint: Int, red: Int): Bitmap {
 
 private fun rank(bot: WidgetBot) = when (bot.status) { "needsInput" -> 0; "working" -> 1; else -> 2 }
 
-private fun stateWord(bot: WidgetBot): Pair<String, Ink> = when (bot.status) {
+// The word comes from `phrase`, which reads LocalContext: without @Composable here the widget
+// source does not compile at all (COMPOSABLE_EXPECTED at this line).
+@Composable private fun stateWord(bot: WidgetBot): Pair<String, Ink> = when (bot.status) {
     "needsInput" -> "Needs you" to attention
     "error" -> phrase("Failed") to danger
     "working" -> phrase("Working") to ink
