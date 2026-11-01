@@ -162,8 +162,8 @@ function UserStatus({ entry, botWorking, hovering }: { entry: Entry; botWorking:
       return (
         <HStack as="span" gap={2}>
           <Text size="caption2" weight="semibold" tone="danger" className="user-status-error">{tr(`Failed to send`)}</Text>
-          <IconButton title="Resend" icon="arrow.clockwise" size={24} onClick={() => store.retry(entry)} />
-          <IconButton title="Delete" icon="trash" size={24} onClick={() => store.discard(entry)} />
+          <IconButton title={tr('Resend')} icon="arrow.clockwise" size={24} onClick={() => store.retry(entry)} />
+          <IconButton title={tr('Delete')} icon="trash" size={24} onClick={() => store.discard(entry)} />
         </HStack>
       )
     case 'cancelled':
@@ -174,6 +174,7 @@ function UserStatus({ entry, botWorking, hovering }: { entry: Entry; botWorking:
 }
 
 export function AgentBubble({ entry, openTrace, reply, openArtifact }: { entry: Entry; openTrace: () => void; reply?: () => void; openArtifact?: (artifactId: string) => void }) {
+  const tr = useTr()
   const store = useStore()
   const [hovering, setHovering] = useState(false)
   const copy = () => entry.data.text && window.codync.app.copy(entry.data.text)
@@ -186,7 +187,7 @@ export function AgentBubble({ entry, openTrace, reply, openArtifact }: { entry: 
           items={() => [
             { title: 'Copy', icon: 'square.on.square', action: copy },
             ...(reply ? [{ title: 'Reply', icon: 'arrowshape.turn.up.left', action: reply }] : []),
-            { title: 'Show what it did', icon: 'list.bullet', action: openTrace },
+            { title: tr('Show what it did'), icon: 'list.bullet', action: openTrace },
           ]}
         >
           {entry.data.artifact ? (
@@ -274,17 +275,18 @@ function MessageActions({ visible, className, reactions, reply, trace, copy }: {
   trace?: () => void
   copy: () => void
 }) {
+  const tr = useTr()
   const [menu, setMenu] = useState<'reactions' | 'more' | null>(null)
   const smile = useRef<HTMLButtonElement>(null)
   const more = useRef<HTMLButtonElement>(null)
   const shown = visible || menu !== null
   return (
     <div className={`message-actions ${className} ${shown ? 'shown' : ''}`} aria-hidden={!shown}>
-      <button ref={smile} className="message-action" title="Add reaction" aria-label="Add reaction" onClick={() => setMenu('reactions')}>
+      <button ref={smile} className="message-action" title={tr('Add reaction')} aria-label={tr('Add reaction')} onClick={() => setMenu('reactions')}>
         <Icon name="face.smiling" size={14} />
       </button>
-      {reply ? <IconButton title="Reply" icon="arrowshape.turn.up.left" size={26} onClick={reply} /> : null}
-      <button ref={more} className="message-action" title="More message actions" aria-label="More message actions" onClick={() => setMenu('more')}>
+      {reply ? <IconButton title={tr('Reply')} icon="arrowshape.turn.up.left" size={26} onClick={reply} /> : null}
+      <button ref={more} className="message-action" title={tr('More message actions')} aria-label={tr('More message actions')} onClick={() => setMenu('more')}>
         <Icon name="ellipsis" size={14} />
       </button>
       <AnchoredMenu open={menu === 'reactions'} onClose={() => setMenu(null)} anchor={smile} items={() => []} reactions={reactions} />
@@ -292,7 +294,7 @@ function MessageActions({ visible, className, reactions, reply, trace, copy }: {
         open={menu === 'more'}
         onClose={() => setMenu(null)}
         anchor={more}
-        items={() => [{ title: 'Copy', icon: 'square.on.square', action: copy }, ...(trace ? [{ title: 'Show what it did', icon: 'list.bullet', action: trace }] : [])]}
+        items={() => [{ title: 'Copy', icon: 'square.on.square', action: copy }, ...(trace ? [{ title: tr('Show what it did'), icon: 'list.bullet', action: trace }] : [])]}
       />
     </div>
   )

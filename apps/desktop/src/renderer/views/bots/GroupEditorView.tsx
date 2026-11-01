@@ -56,13 +56,13 @@ export function GroupEditorView({ group }: { group: Bot }) {
 
   return (
     <SheetPage>
-      <ModalHeader icon="person.2" title={tr(`Group chat`)} trailing={saving ? <Spinner /> : <IconButton title="Save" icon="checkmark" disabled={!canSave} onClick={save} />} />
+      <ModalHeader icon="person.2" title={tr(`Group chat`)} trailing={saving ? <Spinner /> : <IconButton title={tr('Save')} icon="checkmark" disabled={!canSave} onClick={save} />} />
       <div className="group-scroll">
         <div className="group-form">
           <div className="group-identity">
             <GroupAvatar members={picked} size={84} />
-            <input className="group-name" value={name} placeholder={defaultName} aria-label="Name" onChange={(e) => setName(e.target.value)} />
-            <AutoTextArea className="group-about" value={about} placeholder="What this group works on" minRows={1} maxRows={4} onChange={setAbout} />
+            <input className="group-name" value={name} placeholder={defaultName} aria-label={tr('Name')} onChange={(e) => setName(e.target.value)} />
+            <AutoTextArea className="group-about" value={about} placeholder={tr('What this group works on')} minRows={1} maxRows={4} onChange={setAbout} />
           </div>
           <VStack>
             <div className="group-section-title">Members</div>
@@ -79,7 +79,7 @@ export function GroupEditorView({ group }: { group: Bot }) {
                   className="field-box fade-in group-search"
                   autoFocus
                   value={query}
-                  placeholder="Search bots"
+                  placeholder={tr('Search bots')}
                   onChange={(e) => setQuery(e.target.value)}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' && !e.nativeEvent.isComposing && candidates[0]) toggle(candidates[0].id)
@@ -107,7 +107,7 @@ export function GroupEditorView({ group }: { group: Bot }) {
           {error ? <Text size="footnote" tone="danger" className="fade-in">{error}</Text> : null}
           {current ? (
             <button className="press group-delete" onClick={() => setConfirmDelete(current)}>
-              Delete group chat
+              {tr('Delete group chat')}
             </button>
           ) : null}
         </div>
@@ -125,7 +125,7 @@ function DeleteBotDialog({ bot, onClose, onDeleted }: { bot: Bot | null; onClose
     <Dialog
       open={bot !== null}
       title={`Delete ${bot?.name ?? 'bot'}?`}
-      message={tr(bot && isGroup(bot) ? 'Its bots and their own chats stay.' : 'Files it changed on your computer stay as they are.')}
+      message={tr(bot && isGroup(bot) ? tr('Its bots and their own chats stay.') : tr('Files it changed on your computer stay as they are.'))}
       actions={[
         {
           title: 'Delete bot and its conversation',

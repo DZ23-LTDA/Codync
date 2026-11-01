@@ -47,9 +47,9 @@ export function FallbacksRow({ draft, bot, onChange }: { draft: BotDraft; bot: B
     <VStack gap={8}>
       <HStack gap={2}>
         <Text tone="text">{tr(`Fallbacks`)}</Text>
-        <IconButton title="About fallbacks" icon="info.circle" size={22} onClick={() => setAbout(true)} />
+        <IconButton title={tr('About fallbacks')} icon="info.circle" size={22} onClick={() => setAbout(true)} />
         <Spacer />
-        {list.length < MAX_FALLBACKS && choices.length ? <IconButton title="Add fallback" icon="plus" className="fade-in" onClick={() => setAdding(true)} /> : null}
+        {list.length < MAX_FALLBACKS && choices.length ? <IconButton title={tr('Add fallback')} icon="plus" className="fade-in" onClick={() => setAdding(true)} /> : null}
       </HStack>
       {list.length ? (
         list.map((f, i) => (
@@ -114,10 +114,10 @@ function FallbackRow({ fallback, index, count, bot, now, move, remove }: {
       {bot.agentStep?.agent === fallback.backend ? <Text size="caption" weight="medium" tone="text" className="fallback-chip fade-in">{tr(`In use`)}</Text> : null}
       <DropdownMenu
         className="icon-button fallback-menu"
-        title="More"
+        title={tr('More')}
         items={() => [
-          ...(index > 0 ? [{ title: 'Move up', icon: 'arrow.up', action: () => move(-1) }] : []),
-          ...(index < count - 1 ? [{ title: 'Move down', icon: 'arrow.down', action: () => move(1) }] : []),
+          ...(index > 0 ? [{ title: tr('Move up'), icon: 'arrow.up', action: () => move(-1) }] : []),
+          ...(index < count - 1 ? [{ title: tr('Move down'), icon: 'arrow.down', action: () => move(1) }] : []),
           { title: 'Remove', icon: 'trash', destructive: true, divider: count > 1, action: remove },
         ]}
       >
@@ -141,7 +141,7 @@ function AddFallback({ choices, onAdd }: { choices: Backend[]; onAdd: (f: Fallba
   }
   return (
     <SheetPage>
-      <ModalHeader title={tr(`Add fallback`)} trailing={<IconButton title="Add" icon="checkmark" disabled={!backend} onClick={() => onAdd({ backend, model, modelOptions })} />} />
+      <ModalHeader title={tr(`Add fallback`)} trailing={<IconButton title={tr('Add')} icon="checkmark" disabled={!backend} onClick={() => onAdd({ backend, model, modelOptions })} />} />
       <CardForm>
         <CardSection>
           <AgentModelPicker backend={backend} models={models} selection={model} onChange={pickModel} options={modelOptions} onOptionsChange={setModelOptions} sessionNote={false} agents={choices.map(agentChoice)} onAgentChange={(id) => { setBackend(id); setModel(null); setModelOptions({}) }} />

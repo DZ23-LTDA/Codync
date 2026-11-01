@@ -103,11 +103,11 @@ export function ComposioConnectSheet({ app, requestId, done }: { app: ComposioAp
 
   const needsFields = plan?.status === 'needsFields'
   const trailing = connected
-    ? <IconButton title="Done" icon="checkmark" onClick={dismiss} />
+    ? <IconButton title={tr('Done')} icon="checkmark" onClick={dismiss} />
     : needsFields
       ? saving
         ? <Spinner />
-        : <IconButton title="Connect" icon="checkmark" disabled={plan?.fields?.some((f) => f.required && !values[f.name]) ?? true} onClick={() => void submit()} />
+        : <IconButton title={tr('Connect')} icon="checkmark" disabled={plan?.fields?.some((f) => f.required && !values[f.name]) ?? true} onClick={() => void submit()} />
       : null
 
   const waitingRow = (text: string) => (
@@ -134,7 +134,7 @@ export function ComposioConnectSheet({ app, requestId, done }: { app: ComposioAp
           <CardSection footer={`Turn ${app.name} on for a bot in the bot's settings, under Connectors.`}>
             <HStack as="span" gap={6} className="composio-connected">
               <Icon name="checkmark.circle.fill" size={12} />
-              Connected
+              {tr('Connected')}
             </HStack>
           </CardSection>
         ) : needsFields ? (
@@ -147,19 +147,19 @@ export function ComposioConnectSheet({ app, requestId, done }: { app: ComposioAp
             ))}
           </CardSection>
         ) : plan?.status === 'redirect' ? (
-          <CardSection footer="Sign in on the page that opened. This updates by itself when you're done.">
+          <CardSection footer={tr("Sign in on the page that opened. This updates by itself when you're done.")}>
             {plan.url && URL.canParse(plan.url) ? (
               <div>
                 <Button kind="secondary" onClick={() => window.codync.app.openExternal(plan.url!)}>
                   <Icon name="safari" size={11} />
-                  Open the sign-in page
+                  {tr('Open the sign-in page')}
                 </Button>
               </div>
             ) : null}
-            {waitingRow('Waiting for you to finish signing in…')}
+            {waitingRow(tr('Waiting for you to finish signing in…'))}
           </CardSection>
         ) : error === null ? (
-          <CardSection>{waitingRow('Asking Composio…')}</CardSection>
+          <CardSection>{waitingRow(tr('Asking Composio…'))}</CardSection>
         ) : null}
         {error ? <CardSection><ErrorText text={error} /></CardSection> : null}
       </CardForm>
