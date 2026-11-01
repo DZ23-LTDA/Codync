@@ -85,10 +85,11 @@ export function VoiceChatSettingsView({ showsHeader = true }: { showsHeader?: bo
 
 /** How long a silence ends what you say, before it's sent. */
 function PauseRow() {
+  const tr = useTr()
   const [pause, setPause] = usePref(voice.pause)
   return (
     <div className="settings-appear">
-      <ValueRow label="Send after a pause of" detail="Longer leaves time to think mid-sentence.">
+      <ValueRow label={tr('Send after a pause of')} detail={tr('Longer leaves time to think mid-sentence.')}>
       <ChoicePicker selection={pause} options={[{ id: 1, label: '1 s' }, { id: 1.5, label: '1.5 s' }, { id: 2.5, label: '2.5 s' }]} onChange={setPause} />
       </ValueRow>
     </div>

@@ -485,5 +485,9 @@
   "name@example.com": "nome@exemplo.com",
   "Save sign-in": "Salvar login",
   "Connected": "Conectado",
-  "Connect a shared vault": "Conectar um vault compartilhado"
+  "Connect a shared vault": "Conectar um vault compartilhado",
+  "Close routines": "Fechar rotinas",
+  "Set up a routine": "Configurar uma rotina",
+  "Choose file…": "Escolher arquivo…",
+  "Import": "Importar"
 }
