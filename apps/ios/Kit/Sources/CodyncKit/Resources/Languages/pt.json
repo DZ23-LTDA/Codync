@@ -767,5 +767,6 @@
   "Let a bot work in your apps. You choose which bots can use this computer.": "Deixe um bot trabalhar nos seus apps. Você escolhe quais bots podem usar este computador.",
   "Updates are available in release builds.": "As atualizações estão disponíveis nas versões de release.",
   "Check for updates": "Verificar atualizações",
-  "Off: only Wi-Fi and Tailscale reach it, nothing goes through Cloudflare.": "Desligado: só Wi-Fi e Tailscale alcançam, nada passa pelo Cloudflare."
+  "Off: only Wi-Fi and Tailscale reach it, nothing goes through Cloudflare.": "Desligado: só Wi-Fi e Tailscale alcançam, nada passa pelo Cloudflare.",
+  "No usage limits yet. Run a bot once and they show up here.": "Nenhum limite de uso ainda. Rode um bot uma vez e eles aparecem aqui."
 }
