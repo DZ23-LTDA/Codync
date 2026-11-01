@@ -15,7 +15,9 @@ Todas pelo demo (`src/renderer/demo`), que roda o renderer real com um host de m
 | 8 | Configurações → Computadores | Configurações | — | cabeçalho verificado em pt |
 | 9 | Configurações → Rede | Configurações | — | idem |
 | 10 | Configurações → Acesso ao computador | Configurações | — | idem |
-| 11 | Configurações → Atualizações | Configurações | — | idem |
+| 11 | Configurações → Atualizações | Configurações | "Check for updates", "Updates are available in release builds." | corrigido |
+| 12 | Menu de contexto do bot (2ª leitura) | clique direito no item | — (Fixar, Mover para a seção, Editar perfil…, Tornar o agente principal) | ok |
+| 13 | Editor de bot | menu → "Editar perfil…" | — (Perfil, Avatar, Nome, Agente, Computador em pt) | ok |
 
 ## O que as 8–11 provam, e o que não provam
 
