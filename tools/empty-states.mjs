@@ -26,6 +26,9 @@ function main() {
   const rows = [];
   for (const file of globSync(`${base}/${root}/**/*.tsx`)) {
     const relative = file.slice(base.length + 1).replace(`${root}/`, "");
+    // A menu does not "become empty": it maps a constant list of choices. Counting it as an uncovered screen made the
+    // number bigger and less true.
+    if (/Menu\.tsx$/i.test(relative)) continue;
     const state = emptyStateOf(readFileSync(file, "utf8"));
     if (state.list) rows.push({ file: relative, ...state });
   }
