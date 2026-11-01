@@ -17,6 +17,12 @@ export function phrasesIn(source) {
     /\btr\(\s*"((?:[^"\\]|\\.)+)"/g,
     /\btr\(\s*`([^`$]+)`/g,
   ];
+  // Copy that reaches the screen through a list of UI items: `{ title: 'Support', … }` rendered by `tr(item.title)`.
+  // The literal never passes through tr() itself, so a missing key here showed as English while every counter said zero.
+  for (const match of source.matchAll(/\b(?:title|label|detail|empty):\s*(['"])([^'"\n]{2,80})\1/g)) {
+    const phrase = match[2].trim();
+    if (phrase !== "") found.add(phrase);
+  }
   for (const pattern of patterns) {
     for (const match of source.matchAll(pattern)) {
       // A single-quoted string in the source keeps its escapes; the table has the text a reader sees.
