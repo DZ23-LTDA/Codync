@@ -40,12 +40,20 @@ export function phrasesIn(source) {
  * A value shown as an example of a format, not copy: a placeholder UUID, a key with its assignment, a header syntax,
  * a scheme prefix, a plain number used as a default, a cron expression shown as an example. Translating those would be wrong -- "Authorization: Bearer" stays as
  * it is in every language and 3600 is 3600.
+ *
+ * Every pattern is anchored, and none of them describe "a sentence": an earlier version ended with
+ * `\S+ \S+ \S+ \S+ \S+` (meant for the cron example), which also swallowed every English sentence of five words or
+ * more — exactly the long sentences that need translating, which is how this scanner kept reporting 0 missing while
+ * the desktop screen was 96% translated.
  */
-const example = /^(?:[0-9a-f]{8}-|API_KEY=|Authorization: Bearer|codync-network:|https?:\/\/|[a-z-]+:|\d+$|name@example\.com|\S+ \S+ \S+ \S+ \S+)/;
+const example = /^(?:[0-9a-f]{8}-|API_KEY=|Authorization: Bearer|codync-network:|https?:\/\/|name@example\.com$|\d+$|[a-z][a-z-]*:$|[0-9*/,: -]+$)/;
+
+/** Whether a phrase is a value shown as an example of a format rather than copy (see `example`). */
+export const isExample = (phrase) => example.test(phrase);
 
 /** The phrases used in the renderer with no key in `table`. Pure, so the rule is testable on its own. */
 export function missingFrom(phrases, table) {
-  return [...phrases].filter((phrase) => !(phrase in table) && !example.test(phrase)).sort();
+  return [...phrases].filter((phrase) => !(phrase in table) && !isExample(phrase)).sort();
 }
 
 function main() {
