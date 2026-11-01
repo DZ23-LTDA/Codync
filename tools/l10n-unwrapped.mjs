@@ -19,6 +19,13 @@ const visibleText = />\s*([A-Z][A-Za-z][^<>{}]{2,60})\s*</g;
 const visibleAttribute = /\b(placeholder|title|aria-label|footer|detail|empty|label|message)="([^"]{2,200})"/g;
 // Text that is not interface copy: a JSX expression producing a value, or a brand name.
 const ignoreText = /^(Promise|Codync|Math\.|B-3PO)/;
+// A string inside a JSX expression: `{cond ? 'Message a bot' : 'New bot'}` or `{'Nothing yet.'}`. This used to be
+// invisible to every counter -- the text is not between `>` and `<`, so the markup scan walked past it.
+// The block first, then every literal inside it: a ternary holds two phrases and both are copy.
+const expressionBlock = /\{[^{}\n]{0,200}\}/g;
+const quoted = /(['"])([^'"\n]{2,120})\1/g;
+// Prose, not an id or a class: capital letter, and either a space or a full stop.
+const isProse = (text) => /^[A-Z]/.test(text) && /[\s.!?…]/.test(text);
 const ignoreAttribute = /^(B-3PO|Codync)$/;
 
 /** The text of a file with every tr(...) call blanked out, keeping newlines so positions still map to lines. */
@@ -48,6 +55,14 @@ export function findUnwrapped(source, file = "") {
     const text = match[2].trim();
     if (ignoreAttribute.test(text)) continue;
     found.push({ file, line: lineAt(scanned, match.index), kind: match[1], text });
+  }
+  for (const block of scanned.matchAll(expressionBlock)) {
+    for (const match of block[0].matchAll(quoted)) {
+      const text = match[2].trim();
+      if (!isProse(text) || ignoreText.test(text)) continue;
+      const at = block.index + block[0].indexOf(match[2], match.index);
+      found.push({ file, line: lineAt(scanned, at), kind: "expression", text });
+    }
   }
   return found.sort((a, b) => a.line - b.line);
 }
