@@ -3,9 +3,9 @@
 > Fonte de direção: **goal v3.2** + **adendos v3.3 e v3.4**. O gate do Release 1 tem **11 itens** (9 do v3.2 + 10 e 11 do
 > v3.4).
 
-## Sessão de 31/10/2026, 23:30Z
+## Sessão de 01/11/2026, 01:00Z
 
-`dev` = `0fa01f85`. PRs abertos: **0**. Árvore limpa (só `docs/plans/preview-window.md`, de outra sessão, intocado).
+`dev` = `ce8a690d`. PRs abertos: **0**. Árvore limpa (só `docs/plans/preview-window.md`, de outra sessão, intocado).
 
 ### Versão instalada — a regra 0 do v3.4
 
@@ -19,12 +19,12 @@
 
 | # | Item | Estado | Evidência |
 |---|---|---|---|
-| 1 | Scanner de i18n | IMPLEMENTED + TESTED | PRs #46, #76 · **298** strings visíveis fora do `tr()` |
+| 1 | Scanner de i18n | **IMPLEMENTED + TESTED** | PRs #46, #76, #102, #112 · **45** strings visíveis fora do `tr()`; o scanner passou a ver `footer`/`detail`/`empty`/`label`/`message`, a linha real do nó de texto e expressões JSX · 14 testes |
 | 2 | Release do fork ≠ upstream | IMPLEMENTED + TESTED | PR #47 · guarda aborta fora de `DZ23-LTDA/Codync` |
 | 3 | Banco em todos os estados | **TESTED** | PRs #43, #48, #50, #62 · 10 testes |
-| 6 | Erros humanos | IN_PROGRESS | PRs #53–#57, #64, #73, #75 · 0 stacks / 0 valores crus na tela; 3 vazamentos corrigidos e vistos no app |
-| 7 | pt-BR no escopo | IN_PROGRESS | PRs #71, #72, #73, #95, #96, #99 · **0 de 303** frases `tr()` sem tradução (349 chaves) · **297** strings ainda fora do `tr()` · 3 telas vistas no app e 4 defeitos de idioma corrigidos |
-| 10 | Ciclo de entrega | **IN_PROGRESS** | release publicada; instalação e update in-app **não** |
+| 6 | Erros humanos | **IN_PROGRESS** | PRs #53–#57, #64, #73, #75, #91–#93, #101 · **0 chamadas de `humanError` no fallback genérico** (30 frases próprias, traduzidas); estados vazios: 36 no medidor heurístico, `NetworkSection` conferido e **tem** estado vazio — o medidor precisa de verificação na tela |
+| 7 | pt-BR no escopo | **IN_PROGRESS** | PRs #71–#73, #95–#99, #101, #103–#105, #111, #113, #114, #116, #118, #121 · **0 de 656** frases `tr()` sem tradução (669 chaves) · **45** strings fora do `tr()`, com causa escrita em `docs/plans/i18n-leftovers.md` · 5 defeitos de idioma achados só na tela |
+| 10 | Ciclo de entrega | **BLOCKED_BY_EXTERNAL_DEPENDENCY** | release 2.34.0 publicada; instalador construir OK; **3 tentativas de instalar não retornam** (nenhum processo, nenhum log) — `docs/plans/install-blocked.md`; ação do dono: rodar o .exe sem `/S` |
 | 11 | Cancelar e destravar | IN_PROGRESS | `stop` existe (host, store, botão); falta **watchdog** e registro do motivo |
 | 4, 5, 8, 9 | instalação/primeiro uso/perf/release | NOT_STARTED / parcial | host pronto em 334 ms; resto depende de VM e app |
 
