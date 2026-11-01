@@ -176,7 +176,7 @@ export class BotSync extends BotMirror {
         })
       } catch (error) {
         if (!alive()) return
-        const message = humanError(error)
+        const message = humanError(error, "Codync couldn't reach the host. Check that it is running.")
         this.finishRefresh?.(new Error(message))
         this.setConnection({ kind: 'offline', message })
         if (error instanceof HostError && error.status === 401) return
