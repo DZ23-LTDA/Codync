@@ -51,7 +51,7 @@ export function PairingCode({ name, cloudOn, requestCode, renew = 0 }: { name: s
       {code ? (
         <>
           <div className="pairing-qr fade-in">
-            <img src={code.qr} alt={`Pairing code for ${name}`} width={200} height={200} />
+            <img src={code.qr} alt={tr('Pairing code for {name}').replaceAll('{name}', name)} width={200} height={200} />
           </div>
           <Text as="div" size="caption" tone="secondary" className="pairing-note">
             {tr(`Scan with the Codync app or the iPhone Camera. No Tailscale or open ports needed: your iPhone connects directly on the same Wi-Fi, and through the encrypted relay anywhere else.`)}
@@ -66,7 +66,7 @@ export function PairingCode({ name, cloudOn, requestCode, renew = 0 }: { name: s
           <HStack gap={4}>
             {expiresAt ? (
               <Text size="caption2" tone="tertiary">
-                Works once, until {new Date(expiresAt).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}
+                {tr('Works once, until {time}').replaceAll('{time}', new Date(expiresAt).toLocaleTimeString('pt-BR', { hour: 'numeric', minute: '2-digit' }))}
               </Text>
             ) : null}
             <IconButton title={tr('New code')} icon="arrow.clockwise" onClick={() => void load()} />
