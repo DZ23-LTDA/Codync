@@ -232,5 +232,7 @@
   "Check again": "Verificar de novo",
   "Set up later": "Configurar depois",
   "Continue": "Continuar",
-  "Get started": "Começar"
+  "Get started": "Começar",
+  "Permissions stay on this computer. You can change them later in Settings → Computer access.": "As permissões ficam neste computador. Você pode mudá-las depois em Ajustes → Acesso ao computador.",
+  "GitHub Star": "Estrela no GitHub"
 }

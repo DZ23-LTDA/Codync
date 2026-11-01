@@ -35,7 +35,7 @@ export function AccessOnboarding({ onContinue }: { onContinue: (ready: boolean) 
         <Text as="div" size="caption" tone="secondary">{access.computerName}</Text>
       </header>
       <div className="access-onboarding-picker" role="group" aria-label={tr('Computer access setup')}>
-        <SegmentedChoice selection={selection} options={pages} onChange={setSelection} />
+        <SegmentedChoice selection={selection} options={pages.map((page) => ({ ...page, label: tr(page.label) }))} onChange={setSelection} />
       </div>
       <div className="access-onboarding-stage">
         {pages.map((page, i) => <div key={page.id}
