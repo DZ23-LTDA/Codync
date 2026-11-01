@@ -54,7 +54,7 @@ export function SSHRow({ profile, status, edit, attached = true }: { profile: SS
         {status.kind === 'confirmHostKey' ? (
           <VStack gap={6}>
             <Text size="caption" tone="secondary">
-              First connection to {status.name}. Check that its host key fingerprint matches what the computer's owner sees (
+              {tr("First connection to {host}. Check that its host key fingerprint matches what the computer's owner sees (").replaceAll('{host}', status.name)}
               <code className="settings-mono">ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub</code>).
             </Text>
             {status.fingerprints.map((f) => (

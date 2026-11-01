@@ -103,7 +103,7 @@ export function RecoveryCodeSheet({ recovery: { code, network: networkName, comp
             .replaceAll('{name}', computer)}
         </Text>
         <HStack justify="end">
-          <Button onClick={done}>I saved it</Button>
+          <Button onClick={done}>{tr('I saved it')}</Button>
         </HStack>
       </VStack>
     </VStack>

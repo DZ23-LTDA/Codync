@@ -235,6 +235,7 @@ export function NoticeRow({ entry, addFallback }: { entry: Entry; addFallback?: 
 /** A message's reactions: the user's (clicking one takes it back), then the bots', each emoji with the avatars of the
  * bots that chose it. */
 export function ReactionsRow({ entry }: { entry: Entry }) {
+  const tr = useTr()
   const store = useStore()
   const mine = entry.data.reactions ?? []
   const theirs = groupBotReactions(entry.data.botReactions ?? [])
@@ -244,7 +245,7 @@ export function ReactionsRow({ entry }: { entry: Entry }) {
   return (
     <HStack align="stretch" gap={4}>
       {mine.map((emoji) => (
-        <button key={emoji} className="press reaction-chip" title={`Remove ${emoji}`} aria-label={`Remove reaction ${emoji}`} onClick={() => store.react(entry, emoji)}>
+        <button key={emoji} className="press reaction-chip" title={tr('Remove {emoji}').replaceAll('{emoji}', emoji)} aria-label={tr('Remove reaction {emoji}').replaceAll('{emoji}', emoji)} onClick={() => store.react(entry, emoji)}>
           <Text size="body">{emoji}</Text>
         </button>
       ))}

@@ -45,6 +45,7 @@ interface Peer {
 
 /** The pair a conversation is between, for its header: the chat's own bot, then its peer. */
 function BotPair({ botId, peer }: { botId: string; peer: Peer }) {
+  const tr = useTr()
   const store = useStore()
   const name = (id: string) => store.authorName(id, id === peer.id ? peer.name : undefined)
   const label = (id: string) => (
@@ -54,7 +55,7 @@ function BotPair({ botId, peer }: { botId: string; peer: Peer }) {
     </HStack>
   )
   return (
-    <HStack as="span" gap={8} aria-label={`${name(botId)} and ${name(peer.id)}`}>
+    <HStack as="span" gap={8} aria-label={tr('{first} and {second}').replaceAll('{first}', name(botId)).replaceAll('{second}', name(peer.id))}>
       {label(botId)}
       <Icon name="arrow.left.arrow.right" size={11} color="var(--tertiary)" />
       {label(peer.id)}
