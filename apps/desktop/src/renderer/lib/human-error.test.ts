@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { humanError } from "./human-error.ts";
+import { humanError, humanErrorIn } from "./human-error.ts";
 
 test("an error's message is shown without the class prefix", () => {
   assert.equal(humanError(new Error("The host is not reachable")), "The host is not reachable");
@@ -31,7 +31,7 @@ test("a long message is cut, with an ellipsis, so a screen does not overflow", (
 });
 
 test("the default sentence tells the person what to check, not just that it failed", () => {
-  const sentence = humanError(new Error(""));
+  const sentence = humanErrorIn("en", new Error(""));
   assert.ok(sentence.includes("Try again"), "asks for a retry");
   assert.ok(sentence.includes("host is running"), "and names the thing to check");
 });
