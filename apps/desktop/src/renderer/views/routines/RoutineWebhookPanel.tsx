@@ -71,14 +71,14 @@ export function RoutineWebhookPanel({ botId, routineId }: { botId: string; routi
               : 'The Codync cloud is off, so only this computer can send to it.'
           }
         >
-          {row(webhook.url ? 'URL' : 'Local URL', webhook.url ?? webhook.localUrl, 'url')}
+          {row(webhook.url ? 'URL' : tr('Local URL'), webhook.url ?? webhook.localUrl, 'url')}
           {row(
             'Key',
             showKey ? webhook.key : '•'.repeat(16),
             'key',
             <>
-              <IconButton title={showKey ? 'Hide key' : 'Show key'} icon={showKey ? 'eye.slash' : 'eye'} onClick={() => setShowKey((s) => !s)} />
-              <IconButton title="Replace key" icon="arrow.triangle.2.circlepath" disabled={rotating || store.isOffline} onClick={() => setConfirmRotate(true)} />
+              <IconButton title={showKey ? tr('Hide key') : tr('Show key')} icon={showKey ? 'eye.slash' : 'eye'} onClick={() => setShowKey((s) => !s)} />
+              <IconButton title={tr('Replace key')} icon="arrow.triangle.2.circlepath" disabled={rotating || store.isOffline} onClick={() => setConfirmRotate(true)} />
             </>,
           )}
         </CardSection>
@@ -91,7 +91,7 @@ export function RoutineWebhookPanel({ botId, routineId }: { botId: string; routi
         open={confirmRotate}
         title={tr('Replace the key?')}
         message={tr('Senders using the current key stop working until they get the new one.')}
-        actions={[{ title: 'Replace key', destructive: true, action: () => void load(true) }]}
+        actions={[{ title: tr('Replace key'), destructive: true, action: () => void load(true) }]}
         onClose={() => setConfirmRotate(false)}
       />
     </VStack>

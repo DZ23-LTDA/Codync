@@ -50,10 +50,10 @@ export function SkillSheet({ skill }: { skill: SkillRef }) {
   }
 
   const trailing = added ? (
-    <span title="Added" aria-label="Added" className="skill-added">
+    <span title={tr('Added')} aria-label={tr('Added')} className="skill-added">
       <Icon name="checkmark" size={13} weight="semibold" />
     </span>
-  ) : adding ? <Spinner /> : <IconButton title="Add" icon="plus" onClick={() => void add()} />
+  ) : adding ? <Spinner /> : <IconButton title={tr('Add')} icon="plus" onClick={() => void add()} />
 
   return (
     <SheetPage>
@@ -64,7 +64,7 @@ export function SkillSheet({ skill }: { skill: SkillRef }) {
             <Text size="subheadline" tone="secondary">{skill.description}</Text>
           </CardSection>
         ) : null}
-        <CardSection title="Instructions" footer={added ? 'Bots read these before using the skill.' : 'Add it to let bots use these instructions.'}>
+        <CardSection title={tr('Instructions')} footer={added ? tr('Bots read these before using the skill.') : tr('Add it to let bots use these instructions.')}>
           {markdown ? <MarkdownText text={markdown} /> : markdown === '' ? <Text tone="secondary">{tr(`No instructions.`)}</Text> : error ? null : <Spinner />}
         </CardSection>
         {error ? <CardSection><ErrorText text={error} /></CardSection> : null}
