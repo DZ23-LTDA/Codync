@@ -5,8 +5,10 @@ import { HStack, IconSlot, VStack } from '../../components/Stack'
 import { Text } from '../../components/Text'
 import { analytics } from '../../store/analytics'
 import { sshStatusDetail } from '@shared/ssh-startup'
+import { useTr } from '../../lib/use-language'
 
 export function SSHRow({ profile, status, edit, attached = true }: { profile: SSHProfile; status: SSHStatus; attached?: boolean; edit: () => void }) {
+  const tr = useTr()
   const bridge = window.codync.ssh
   const dev = window.codync.appScheme === 'codync-dev'
   const target = `${profile.user ? `${profile.user}@` : ''}${profile.host}${profile.port !== null ? `:${profile.port}` : ''}`
@@ -41,12 +43,12 @@ export function SSHRow({ profile, status, edit, attached = true }: { profile: SS
           <Text size="caption" tone={problem ? 'attention' : 'secondary'}>{line}</Text>
         </VStack>
         {active ? (
-          <IconButton title="Disconnect" icon="stop.circle" onClick={() => bridge.disconnect(profile.id)} />
+          <IconButton title={tr('Disconnect')} icon="stop.circle" onClick={() => bridge.disconnect(profile.id)} />
         ) : (
-          <IconButton title="Connect" icon="arrow.clockwise" onClick={() => bridge.connect(profile.id)} />
+          <IconButton title={tr('Connect')} icon="arrow.clockwise" onClick={() => bridge.connect(profile.id)} />
         )}
-        <IconButton title="Edit" icon="pencil" onClick={edit} />
-        <IconButton title="Remove" icon="trash" onClick={() => bridge.remove(profile.id)} />
+        <IconButton title={tr('Edit')} icon="pencil" onClick={edit} />
+        <IconButton title={tr('Remove')} icon="trash" onClick={() => bridge.remove(profile.id)} />
       </div>
       <Reveal show={status.kind === 'confirmHostKey'}>
         {status.kind === 'confirmHostKey' ? (
@@ -68,7 +70,7 @@ export function SSHRow({ profile, status, edit, attached = true }: { profile: SS
       <Reveal show={status.kind === 'notInstalled' && !dev}>
         <HStack gap={6} className="settings-row">
           <span className="settings-code selectable">{SSH_INSTALL_COMMAND}</span>
-          <IconButton title="Copy install command" icon="doc.on.doc" onClick={() => { analytics.track({ event: 'link_opened', link: 'install_command' }); window.codync.app.copy(SSH_INSTALL_COMMAND) }} />
+          <IconButton title={tr('Copy install command')} icon="doc.on.doc" onClick={() => { analytics.track({ event: 'link_opened', link: 'install_command' }); window.codync.app.copy(SSH_INSTALL_COMMAND) }} />
         </HStack>
       </Reveal>
     </div>

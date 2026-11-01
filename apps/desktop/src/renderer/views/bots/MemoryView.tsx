@@ -38,14 +38,14 @@ export function MemoryCard({ botId }: { botId: string }) {
   const harness = host.backendName(bot?.backend ?? 'claude')
   const own = tr("{name}'s own memory").replaceAll('{name}', harness)
   const sections: { id: Section; label: string }[] = [
-    { id: 'yours', label: 'About you' }, { id: 'bot', label: 'This bot' }, { id: 'dreams', label: 'Dreams' },
+    { id: 'yours', label: tr('About you') }, { id: 'bot', label: tr('This bot') }, { id: 'dreams', label: 'Dreams' },
     ...(view?.projectMemory ? [{ id: 'harness' as const, label: harness }] : []),
   ]
   const layer = section === 'yours' ? view?.yours : section === 'bot' ? view?.bot : undefined
 
   return <>
     <div className="memory-panel">
-      <TabChoice label="Memory" selection={section} options={sections} onChange={(next) => {
+      <TabChoice label={tr('Memory')} selection={section} options={sections} onChange={(next) => {
         setSection(next)
         // Claude Code writes its notes outside Codync, so nothing moves `memoryRev`: read them again on the way in.
         if (next === 'harness') void memory.load()
@@ -54,7 +54,7 @@ export function MemoryCard({ botId }: { botId: string }) {
         {memory.error && <p role="alert" className="memory-error">{memory.error}</p>}
         {!view && !memory.error && <p className="memory-muted">Loading memory…</p>}
         {view && bot && section === 'yours' && <Switch on={bot.sharedMemory} onChange={(on) => host.setSharedMemory(bot, on)}>
-          Use what your bots share
+          {tr('Use what your bots share')}
         </Switch>}
         {/* The harness's own memory: a switch where Codync can turn it off, "Shared" where every bot on it shares it. */}
         {view && bot && section === 'bot' && (bot.harnessMemory !== null || bot.harnessMemoryShared) && <HStack gap={4}>
@@ -71,7 +71,7 @@ export function MemoryCard({ botId }: { botId: string }) {
             .replace('{used}', String(layer.used)).replace('{cap}', String(layer.cap))}</p>,
           ...(layer.entries.length ? [] : [<div key="empty" className="memory-empty">
             <Icon name="brain" size={20} color="var(--tertiary)" />
-            <span>{tr(section === 'yours' ? 'Nothing shared yet.' : 'Nothing yet. What this bot learns about you shows up here.')}</span>
+            <span>{tr(section === 'yours' ? tr('Nothing shared yet.') : tr('Nothing yet. What this bot learns about you shows up here.'))}</span>
           </div>]),
           ...layer.entries.map((entry) => <EntryRow key={entry.id} entry={entry} />),
           ...(view?.files ? fileRows(view.files, section === 'yours', setFile, tr) : []),
@@ -79,7 +79,7 @@ export function MemoryCard({ botId }: { botId: string }) {
         {view && section === 'dreams' && [
           <div key="note" className="memory-layer-note">
             <p className="memory-muted">{tr('Between chats the bot tidies its memory from your own words.')}</p>
-            <IconButton title="About dreaming" icon="info.circle" onClick={() => setInfo('dreams')} />
+            <IconButton title={tr('About dreaming')} icon="info.circle" onClick={() => setInfo('dreams')} />
           </div>,
           ...(view.dreams.length ? [] : [<div key="empty" className="memory-empty"><Icon name="moon" size={20} color="var(--tertiary)" /><span>{tr('No dreams yet.')}</span></div>]),
           ...view.dreams.map((dream) => <div className="memory-content fade-in" key={dream.id}>
@@ -104,7 +104,7 @@ export function MemoryCard({ botId }: { botId: string }) {
     <FormSheet open={info !== null} onClose={() => setInfo(null)} height={560}>
       {info === 'harness' && <MemoryInfoSheet icon="brain" title={own}
         points={harnessInfo(harness, bot?.harnessMemoryShared ? 'shared' : bot?.backend === 'claude' ? 'readable' : 'hidden', tr)} />}
-      {info === 'dreams' && <MemoryInfoSheet icon="moon" title="Dreaming" points={dreamsInfo} />}
+      {info === 'dreams' && <MemoryInfoSheet icon="moon" title={tr('Dreaming')} points={dreamsInfo} />}
     </FormSheet>
   </>
 }

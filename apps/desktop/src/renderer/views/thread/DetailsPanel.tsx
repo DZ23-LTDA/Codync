@@ -39,6 +39,7 @@ export function DetailsPanel({ botId, routineId, tab, setTab, editGroup, openArt
   share: () => void
   close: () => void
 }) {
+  const tr = useTr()
   const store = useStore()
   const bot = store.bots.get(botId) ?? null
   const group = !!bot && isGroup(bot)
@@ -47,8 +48,8 @@ export function DetailsPanel({ botId, routineId, tab, setTab, editGroup, openArt
     <div className="details-panel">
       <div className="details-drag" />
       <div className="details-actions">
-        {bot && !group ? <MacChatButton className="ringed" title="Create template" icon="square.and.arrow.up" onClick={share} /> : null}
-        <MacChatButton className="ringed" title="Close details" icon="xmark" onClick={close} />
+        {bot && !group ? <MacChatButton className="ringed" title={tr('Create template')} icon="square.and.arrow.up" onClick={share} /> : null}
+        <MacChatButton className="ringed" title={tr('Close details')} icon="xmark" onClick={close} />
       </div>
       <div className="details-scroll">
         {bot ? <Identity bot={bot} /> : null}
@@ -56,7 +57,7 @@ export function DetailsPanel({ botId, routineId, tab, setTab, editGroup, openArt
           <GroupMembersList group={bot} editGroup={editGroup} />
         ) : (
           <>
-            <TabChoice label="Conversation details" selection={tab} options={hasLibrary(store.hostVersion?.version) ? TABS : TABS.filter((t) => t.id !== 'library')} onChange={setTab} />
+            <TabChoice label={tr('Conversation details')} selection={tab} options={hasLibrary(store.hostVersion?.version) ? TABS : TABS.filter((t) => t.id !== 'library')} onChange={setTab} />
             <div key={tab} className="details-tab fade-in">
               {tab === 'details' ? (
                 <>
@@ -113,9 +114,9 @@ function ComputerUse({ bot }: { bot: Bot }) {
     <section className="details-section">
       <Text className="details-section-title">{tr(`Computer`)}</Text>
       <div className="outlined-card details-switch">
-        <RowLabel grow label="Use the computer" detail={ready ? null : 'On that computer, open Codync → Settings → Computer access to set it up first.'} />
+        <RowLabel grow label={tr('Use the computer')} detail={ready ? null : tr('On that computer, open Codync → Settings → Computer access to set it up first.')} />
         <HStack as="span" align="stretch" className="details-switch-control">
-          <Switch label="Use the computer" on={bot.computer} disabled={store.isOffline} onChange={(on) => store.setComputer(bot, on)} />
+          <Switch label={tr('Use the computer')} on={bot.computer} disabled={store.isOffline} onChange={(on) => store.setComputer(bot, on)} />
         </HStack>
       </div>
     </section>
@@ -134,7 +135,7 @@ function GroupMembersList({ group, editGroup }: { group: Bot; editGroup: () => v
             <BotAvatar bot={bot} size={32} />
             <VStack as="span" gap={1} grow>
               <span className="member-name">{bot.name}</span>
-              {isWorking(bot) ? <Text size="compactSecondary" tone="secondary" className="member-name">{tr(bot.activity || 'Working…')}</Text> : null}
+              {isWorking(bot) ? <Text size="compactSecondary" tone="secondary" className="member-name">{tr(bot.activity || tr('Working…'))}</Text> : null}
             </VStack>
           </button>
           {group.members.length > 1 ? <IconButton title={`Remove ${bot.name} from the group`} icon="xmark" onClick={() => store.removeMember(group, bot.id)} /> : null}
