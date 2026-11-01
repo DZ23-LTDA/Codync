@@ -44,7 +44,7 @@ export function RecordingPill({ startedAt, sample, onStop, transcribing = false,
   }
   return (
     <HStack as="span" gap={6} className={`recording-pill ${className}`}>
-      <button type="button" className="recording-stop" aria-label="Stop dictating" title="Stop dictating" onClick={onStop}>
+      <button type="button" className="recording-stop" aria-label={tr('Stop dictating')} title={tr('Stop dictating')} onClick={onStop}>
         <Icon name="stop.fill" size={11} scaled={false} />
       </button>
       <Text tabular tone="text">{elapsed}</Text>

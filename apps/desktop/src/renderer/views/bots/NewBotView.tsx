@@ -26,6 +26,7 @@ export function NewBotView({ computer }: { computer: ComputerChoice | null }) {
   const store = useStore()
   const [draft, setDraft] = useState(newDraft)
 
+  const tr = useTr()
   const create = async () => {
     const bot = await store.save(fillDefaults(store, { ...draft, name: draft.name.trim() }))
     store.setSelection(bot.id)
@@ -33,10 +34,10 @@ export function NewBotView({ computer }: { computer: ComputerChoice | null }) {
 
   return (
     <CreateLayout
-      title="New bot"
+      title={tr('New bot')}
       preview={<CharacterAvatar shape={draft.avatarShape} color={draft.avatarColor} size={96} />}
       name={draft.name}
-      placeholder="Name your bot"
+      placeholder={tr('Name your bot')}
       onName={(name) => setDraft((d) => ({ ...d, name }))}
       canCreate
       computer={computer}
@@ -70,7 +71,7 @@ export function NewGroupView({ computer }: { computer: ComputerChoice | null }) 
 
   return (
     <CreateLayout
-      title="New group chat"
+      title={tr('New group chat')}
       preview={<GroupAvatar members={picked} size={96} />}
       name={name}
       placeholder={defaultName || 'Name your group'}
@@ -140,7 +141,7 @@ function CreateLayout({ title, preview, name, placeholder, onName, canCreate, co
           autoFocus
           value={name}
           placeholder={tr(placeholder)}
-          aria-label="Name"
+          aria-label={tr('Name')}
           onChange={(e) => onName(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === 'Enter' && !e.nativeEvent.isComposing && e.keyCode !== 229) submit()
