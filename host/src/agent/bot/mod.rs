@@ -402,7 +402,7 @@ impl Actor {
                     }
                     // No event for `STALL_AFTER` means the turn is stuck: cancel it the same way the person's Stop does,
                     // so the bot never stays "Working" forever.
-                    if should_stop(self.turn.is_some(), self.stop_requested, self.last_event.elapsed()) {
+                    if should_stop(self.turn.is_some(), self.stop_requested, self.last_event.elapsed(), stall_after()) {
                         tracing::warn!(bot = %self.cfg.id, seconds = STALL_AFTER.as_secs(), "turn stalled; cancelling it");
                         self.stop_reason = Some(STALLED_NOTICE.to_owned());
                         self.cancel_turn().await;
@@ -481,56 +481,21 @@ pub(super) const STALL_AFTER: Duration = Duration::from_secs(180);
 /// What the conversation says when the watchdog, not the person, stopped the turn.
 pub(super) const STALLED_NOTICE: &str = "Stopped: the agent stopped answering.";
 
-/// Whether a turn with no event for `elapsed` is stuck. Pure, so the rule is testable without an agent.
-pub(super) fn stalled(elapsed: Duration) -> bool {
-    elapsed >= STALL_AFTER
-}
-
 /// The watchdog's whole decision: stop a running turn that nobody already asked to stop and that has been silent for the
 /// window. Pure, so every combination is a test instead of an argument.
-pub(super) fn should_stop(turn_active: bool, stop_requested: bool, elapsed: Duration) -> bool {
-    turn_active && !stop_requested && stalled(elapsed)
+pub(super) fn should_stop(turn_active: bool, stop_requested: bool, elapsed: Duration, window: Duration) -> bool {
+    turn_active && !stop_requested && elapsed >= window
+}
+
+/// The window itself. `CODYNC_STALL_AFTER_SECS` shortens it for the end-to-end test; production uses `STALL_AFTER`.
+pub(super) fn stall_after() -> Duration {
+    std::env::var("CODYNC_STALL_AFTER_SECS")
+        .ok()
+        .and_then(|value| value.parse::<u64>().ok())
+        .map_or(STALL_AFTER, Duration::from_secs)
 }
 
 const CANCEL_GRACE: Duration = Duration::from_secs(15);
-
-#[cfg(test)]
-mod stall_tests {
-    use super::{STALL_AFTER, should_stop, stalled};
-    use std::time::Duration;
-
-    #[test]
-    fn a_turn_that_just_sent_an_event_is_not_stuck() {
-        assert!(!stalled(Duration::ZERO));
-        assert!(!stalled(STALL_AFTER - Duration::from_millis(1)));
-    }
-
-    #[test]
-    fn a_turn_with_no_event_for_the_whole_window_is_stuck() {
-        assert!(stalled(STALL_AFTER));
-        assert!(stalled(STALL_AFTER * 2));
-    }
-
-    #[test]
-    fn the_watchdog_stops_a_silent_running_turn() {
-        assert!(should_stop(true, false, STALL_AFTER));
-    }
-
-    #[test]
-    fn the_watchdog_leaves_alone_a_bot_that_is_not_working() {
-        assert!(!should_stop(false, false, STALL_AFTER * 10));
-    }
-
-    #[test]
-    fn the_watchdog_does_not_fight_a_stop_already_asked_for() {
-        assert!(!should_stop(true, true, STALL_AFTER));
-    }
-
-    #[test]
-    fn the_watchdog_waits_for_the_window_before_acting() {
-        assert!(!should_stop(true, false, STALL_AFTER - Duration::from_secs(1)));
-    }
-}
 
 /// An interrupted turn older than this isn't resumed.
 const STALE_RESUME_MS: i64 = 60 * 60 * 1000;
@@ -543,5 +508,43 @@ async fn recv_incoming(conn: &mut Option<Conn>) -> Option<Incoming> {
     match conn {
         Some(c) => c.rx.recv().await,
         None => std::future::pending().await,
+    }
+}
+
+#[cfg(test)]
+mod stall_tests {
+    use super::{STALL_AFTER, should_stop};
+    use std::time::Duration;
+
+    #[test]
+    fn a_turn_that_just_sent_an_event_is_not_stuck() {
+        assert!(!should_stop(true, false, Duration::ZERO, STALL_AFTER));
+        assert!(!should_stop(true, false, STALL_AFTER.saturating_sub(Duration::from_millis(1)), STALL_AFTER));
+    }
+
+    #[test]
+    fn a_turn_with_no_event_for_the_whole_window_is_stuck() {
+        assert!(should_stop(true, false, STALL_AFTER, STALL_AFTER));
+        assert!(should_stop(true, false, STALL_AFTER * 2, STALL_AFTER));
+    }
+
+    #[test]
+    fn the_watchdog_stops_a_silent_running_turn() {
+        assert!(should_stop(true, false, STALL_AFTER, STALL_AFTER));
+    }
+
+    #[test]
+    fn the_watchdog_leaves_alone_a_bot_that_is_not_working() {
+        assert!(!should_stop(false, false, STALL_AFTER * 10, STALL_AFTER));
+    }
+
+    #[test]
+    fn the_watchdog_does_not_fight_a_stop_already_asked_for() {
+        assert!(!should_stop(true, true, STALL_AFTER, STALL_AFTER));
+    }
+
+    #[test]
+    fn the_watchdog_waits_for_the_window_before_acting() {
+        assert!(!should_stop(true, false, STALL_AFTER.saturating_sub(Duration::from_secs(1)), STALL_AFTER));
     }
 }
