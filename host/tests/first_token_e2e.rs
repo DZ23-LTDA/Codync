@@ -57,9 +57,8 @@ impl Host {
     }
 }
 
-/// Milliseconds from `send` to the first entry whose text is the agent's, repeated `rounds` times on one bot.
-#[tokio::test(flavor = "multi_thread")]
-async fn first_word_latency_is_measured_and_stays_under_a_ceiling() {
+/// Milliseconds from `send` to the first entry whose text is the agent's, `rounds` times on one bot, sorted.
+async fn samples(rounds: usize) -> Vec<u128> {
     let host = Host::start().await;
     let agent = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/fast_reply_agent.py");
     let created = host
@@ -71,7 +70,7 @@ async fn first_word_latency_is_measured_and_stays_under_a_ceiling() {
     let bot = created["bot"]["id"].as_str().unwrap().to_owned();
 
     let mut samples = Vec::new();
-    for round in 0..5 {
+    for round in 0..rounds {
         let before = host.entries(&bot).await.len();
         let started = Instant::now();
         host.call("send", json!({"botId": bot, "text": format!("round {round}")})).await;
@@ -88,10 +87,25 @@ async fn first_word_latency_is_measured_and_stays_under_a_ceiling() {
     }
 
     samples.sort_unstable();
-    let fastest = samples[0];
-    let p95 = samples[samples.len() - 1];
-    println!("first word (ms), 5 rounds: {samples:?} · fastest {fastest} · p95 {p95}");
+    samples
+}
 
-    // A ceiling loose enough for a busy machine, tight enough to catch a real regression in the path.
-    assert!(p95 < 5_000, "first word p95 took {p95} ms: {samples:?}");
+/// The ceiling a change must not cross, on a busy machine.
+#[tokio::test(flavor = "multi_thread")]
+async fn first_word_latency_stays_under_a_ceiling() {
+    let all = samples(5).await;
+    let worst = all[all.len() - 1];
+    println!("first word (ms), 5 rounds: {all:?}");
+    assert!(worst < 5_000, "first word took {worst} ms: {all:?}");
+}
+
+/// The p95 the gate asks for. Twenty rounds is slow for CI, so it runs on demand:
+/// `cargo test --test first_token_e2e -- --ignored --nocapture`.
+#[tokio::test(flavor = "multi_thread")]
+#[ignore = "twenty rounds: run it to publish the baseline"]
+async fn first_word_p95_over_twenty_rounds() {
+    let all = samples(20).await;
+    let index = ((all.len() as f64) * 0.95).ceil() as usize - 1;
+    let p95 = all[index.min(all.len() - 1)];
+    println!("first word (ms), 20 rounds: {all:?} · p95 {p95}");
 }
