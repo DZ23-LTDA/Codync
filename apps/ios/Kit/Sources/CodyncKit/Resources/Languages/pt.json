@@ -531,5 +531,20 @@
   "Nothing running right now.": "Nada rodando agora.",
   "Your bots are idle. Message one from here, or open Codync.": "Seus bots estão ociosos. Mande uma mensagem daqui, ou abra o Codync.",
   "Create a bot in Codync to get started.": "Crie um bot no Codync para começar.",
-  "Message a bot": "Mandar mensagem a um bot"
+  "Message a bot": "Mandar mensagem a um bot",
+  "Copy conversation ID": "Copiar o ID da conversa",
+  "Get Codync for mobile": "Baixar o Codync para celular",
+  "Help & documentation": "Ajuda e documentação",
+  "Hide from sidebar": "Ocultar da barra lateral",
+  "Import bots…": "Importar bots…",
+  "Mark as Read": "Marcar como lida",
+  "Needs your approval": "Precisa da sua aprovação",
+  "Report an issue": "Relatar um problema",
+  "Reset everything": "Apagar tudo",
+  "Resize sidebar": "Redimensionar a barra lateral",
+  "Using the computer": "Usando o computador",
+  "Install host": "Instalar o host",
+  "Try again on this computer": "Tentar de novo neste computador",
+  "Delete bot and its conversations": "Apagar o bot e as conversas dele",
+  "All computers": "Todos os computadores"
 }

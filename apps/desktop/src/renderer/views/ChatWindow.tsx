@@ -149,7 +149,7 @@ export function ChatWindow() {
         open={confirmReset}
         title={tr('Reset all data?')}
         message={tr("Signs out every account and deletes this computer's bots, conversations, keys and settings. Codync then starts over from the welcome screen.")}
-        actions={[{ title: 'Reset everything', destructive: true, action: () => void window.codync.app.resetAllData() }]}
+        actions={[{ title: tr('Reset everything'), destructive: true, action: () => void window.codync.app.resetAllData() }]}
         onClose={() => setConfirmReset(false)}
       />
       <Dialog
@@ -291,9 +291,9 @@ function ChatSplitView() {
   })
 
   const newItems = (): MenuItem[] => [
-    { title: 'New bot', icon: 'plus', action: () => create('bot') },
-    { title: 'New group chat', icon: 'person.2', action: () => create('group') },
-    ...(localOnline ? [{ title: 'Import bots…', icon: 'square.and.arrow.down', action: () => setImporting(true) }] : []),
+    { title: tr('New bot'), icon: 'plus', action: () => create('bot') },
+    { title: tr('New group chat'), icon: 'person.2', action: () => create('group') },
+    ...(localOnline ? [{ title: tr('Import bots…'), icon: 'square.and.arrow.down', action: () => setImporting(true) }] : []),
   ]
 
   const openMarketplace = () => setMarketplace((selectedStore ?? app.local ?? onlineStores[0])?.computer.id ?? null)
@@ -302,11 +302,11 @@ function ChatSplitView() {
   const botActions = (bot: Bot, store: BotStore): ActionItem[] => [
     { title: bot.pinned ? 'Unpin' : 'Pin', icon: 'pin', action: () => store.setPinned(bot, !bot.pinned) },
     ...moveToSectionItems(bot, store, setNaming),
-    { title: 'Mark as Read', icon: 'bell.badge', action: () => store.markAllRead(bot.id) },
+    { title: tr('Mark as Read'), icon: 'bell.badge', action: () => store.markAllRead(bot.id) },
     { title: 'Edit Profile…', icon: 'square.and.pencil', action: () => setEditing({ id: crypto.randomUUID(), draft: draftOf(bot), store }) },
-    { title: 'Copy conversation ID', icon: 'square.on.square', action: () => window.codync.app.copy(bot.id) },
+    { title: tr('Copy conversation ID'), icon: 'square.on.square', action: () => window.codync.app.copy(bot.id) },
     ...makeLeadItems(bot, store),
-    ...(bot.lead ? [] : [{ title: 'Hide from sidebar', icon: 'eye.slash', action: () => store.setHidden(bot, true) }]),
+    ...(bot.lead ? [] : [{ title: tr('Hide from sidebar'), icon: 'eye.slash', action: () => store.setHidden(bot, true) }]),
     ...(offersDelete(bot, store) ? [{ title: 'Delete', icon: 'trash', destructive: true, action: () => setConfirmDelete({ bot, store }) }] : []),
   ]
 
@@ -362,7 +362,7 @@ function ChatSplitView() {
         <Text as="div" size="title2" weight="semibold">{connecting ? tr(`Connecting to your computers…`) : tr(`Your coding agents, as teammates.`)}</Text>
         <Text as="div" tone="secondary" className="empty-detail-message">{connecting ? tr(`Your bots will appear once connected. Manage computers to see connection progress.`) : tr(`Pick a bot, or create one for each kind of work and point it at a project.`)}</Text>
         <Button onClick={() => create('bot')} disabled={!onlineStores.length}>
-          New bot
+          {tr('New bot')}
         </Button>
       </div>
     )
@@ -424,7 +424,7 @@ function ChatSplitView() {
           <SidebarFooter accountOpen={showAccount} onAccount={() => setShowAccount((s) => !s)} onExtensions={roster.grouped ? undefined : openMarketplace} />
         )}
       </aside>
-      <ResizeHandle label="Resize sidebar" width={width} min={76} max={sidebarMax} edge="trailing" onResize={resizeSidebar} onDragging={setResizing} />
+      <ResizeHandle label={tr('Resize sidebar')} width={width} min={76} max={sidebarMax} edge="trailing" onResize={resizeSidebar} onDragging={setResizing} />
       <main className="detail">
         {/* The call bar's settings open this window's Settings at Voice chat. */}
         <OpenVoiceSettings.Provider value={openVoiceSettings}>{detail}</OpenVoiceSettings.Provider>
@@ -487,7 +487,7 @@ function ChatSplitView() {
         open={confirmDelete !== null}
         title={`Delete ${confirmDelete?.bot.name ?? 'bot'}?`}
         message={tr('Files it changed on your computer stay as they are.')}
-        actions={confirmDelete ? [{ title: 'Delete bot and its conversation', destructive: true, action: () => confirmDelete.store.delete(confirmDelete.bot) }] : []}
+        actions={confirmDelete ? [{ title: tr('Delete bot and its conversation'), destructive: true, action: () => confirmDelete.store.delete(confirmDelete.bot) }] : []}
         onClose={() => setConfirmDelete(null)}
       />
       <SectionNameDialog naming={naming} onClose={() => setNaming(null)} />
