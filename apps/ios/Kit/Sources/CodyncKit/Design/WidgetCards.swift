@@ -173,7 +173,11 @@ public struct BotsWidgetCard: View {
     private var needs: Int { bots.filter(\.needsInput).count }
     private var working: Int { bots.filter { $0.isWorking && !$0.needsInput }.count }
     private var count: Int { needs > 0 ? needs : working > 0 ? working : bots.count }
-    private var label: String { needs > 0 ? (needs == 1 ? "Needs you" : "Need you") : working > 0 ? "Working" : bots.isEmpty ? "No bots yet" : "All quiet" }
+    private var label: String {
+        if needs > 0 { return L10n.tr(needs == 1 ? "Needs you" : "Need you") }
+        if working > 0 { return L10n.tr("Working") }
+        return L10n.tr(bots.isEmpty ? "No bots yet" : "All quiet")
+    }
 
     public var body: some View {
         VStack(alignment: .leading, spacing: 10) {

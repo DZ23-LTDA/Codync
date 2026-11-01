@@ -910,5 +910,10 @@
   "Connect a computer": "Conectar um computador",
   "No usage yet": "Sem uso ainda",
   "Open Codync to pair with your computer.": "Abra o Codync para parear com seu computador.",
-  "Open Codync to connect a computer and check {provider} usage.": "Abra o Codync para conectar um computador e ver o uso de {provider}."
+  "Open Codync to connect a computer and check {provider} usage.": "Abra o Codync para conectar um computador e ver o uso de {provider}.",
+  "Needs you": "Precisa de você",
+  "Need you": "Precisam de você",
+  "All quiet": "Tudo em paz",
+  "Failed": "Falhou",
+  "Ready": "Pronto"
 }

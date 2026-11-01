@@ -316,9 +316,9 @@ private fun rank(bot: WidgetBot) = when (bot.status) { "needsInput" -> 0; "worki
 
 private fun stateWord(bot: WidgetBot): Pair<String, Ink> = when (bot.status) {
     "needsInput" -> "Needs you" to attention
-    "error" -> "Failed" to danger
-    "working" -> "Working" to ink
-    else -> "Ready" to secondary
+    "error" -> phrase("Failed") to danger
+    "working" -> phrase("Working") to ink
+    else -> phrase("Ready") to secondary
 }
 
 /** Who needs you and who's still working: a count, then the bots in that order. */
@@ -327,7 +327,7 @@ private fun stateWord(bot: WidgetBot): Pair<String, Ink> = when (bot.status) {
     val needs = bots.count { it.status == "needsInput" }
     val working = bots.count { it.status == "working" }
     val count = if (needs > 0) needs else if (working > 0) working else bots.size
-    val label = if (needs > 0) (if (needs == 1) "Needs you" else "Need you") else if (working > 0) "Working" else if (bots.isEmpty()) "No bots yet" else "All quiet"
+    val label = phrase(if (needs > 0) (if (needs == 1) "Needs you" else "Need you") else if (working > 0) "Working" else if (bots.isEmpty()) "No bots yet" else "All quiet")
     Column(GlanceModifier.fillMaxSize()) {
         Row(GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Text(phrase("Bots"), GlanceModifier.defaultWeight(), style = style(13f, ink, FontWeight.Medium))
