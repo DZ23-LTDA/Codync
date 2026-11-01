@@ -64,7 +64,7 @@ export function InstallConnectorSheet({ item, requestId, addsAtOnce = true, done
       <ModalHeader
         icon="point.3.connected.trianglepath.dotted"
         title={tr(`Add connector`)}
-        trailing={saving ? <Spinner /> : <IconButton title="Add" icon="plus" disabled={missing && !retrying} onClick={() => void install()} />}
+        trailing={saving ? <Spinner /> : <IconButton title={tr('Add')} icon="plus" disabled={missing && !retrying} onClick={() => void install()} />}
       />
       <CardForm>
         <CardSection>
@@ -77,7 +77,7 @@ export function InstallConnectorSheet({ item, requestId, addsAtOnce = true, done
           </VStack>
         </CardSection>
         {item.options.length > 1 ? (
-          <CardSection title="Runs">
+          <CardSection title={tr('Runs')}>
             <ChoiceList
               selection={optionId}
               onChange={setOptionId}
@@ -91,7 +91,7 @@ export function InstallConnectorSheet({ item, requestId, addsAtOnce = true, done
           </CardSection>
         ) : null}
         {option ? (
-          <CardSection title="Setup" footer={onHost('Keys are saved on {name} only.')}>
+          <CardSection title={tr('Setup')} footer={onHost('Keys are saved on {name} only.')}>
             {option.inputs.length === 0 ? (
               <Text tone="secondary">
                 {option.kind === 'remote'
@@ -169,21 +169,21 @@ export function CustomConnectorSheet() {
 
   return (
     <SheetPage>
-      <ModalHeader icon="point.3.connected.trianglepath.dotted" title={tr(`Custom connector`)} trailing={saving ? <Spinner /> : <IconButton title="Add" icon="plus" disabled={!ready} onClick={() => void save()} />} />
+      <ModalHeader icon="point.3.connected.trianglepath.dotted" title={tr(`Custom connector`)} trailing={saving ? <Spinner /> : <IconButton title={tr('Add')} icon="plus" disabled={!ready} onClick={() => void save()} />} />
       <CardForm>
         <CardSection footer={footer}>
           <SegmentedChoice selection={mode} onChange={setMode} options={[{ id: 'command', label: 'Command' }, { id: 'url', label: 'URL' }, { id: 'config', label: 'Config' }]} />
           {mode === 'config' ? <Field value={config} onChange={setConfig} placeholder={'{ "mcpServers": { … } }'} lines={[6, 16]} mono /> : null}
-          {mode !== 'config' ? <Field value={name} onChange={setName} placeholder="Name" /> : null}
+          {mode !== 'config' ? <Field value={name} onChange={setName} placeholder={tr('Name')} /> : null}
           {mode !== 'config' ? <Field value={target} onChange={setTarget} placeholder={mode === 'url' ? 'https://example.com/mcp' : 'npx -y @scope/server'} mono /> : null}
         </CardSection>
         {mode === 'url' ? (
-          <CardSection title="Headers" footer={onHost('Optional, one Name: value per line. Leave empty if the service has you sign in. Saved on {name} only.')}>
-            <Field value={envText} onChange={setEnvText} placeholder="Authorization: Bearer …" lines={[2, 6]} mono />
+          <CardSection title={tr('Headers')} footer={onHost('Optional, one Name: value per line. Leave empty if the service has you sign in. Saved on {name} only.')}>
+            <Field value={envText} onChange={setEnvText} placeholder={tr('Authorization: Bearer …')} lines={[2, 6]} mono />
           </CardSection>
         ) : mode === 'command' ? (
-          <CardSection title="Environment" footer={onHost('One KEY=value per line. Saved on {name} only.')}>
-            <Field value={envText} onChange={setEnvText} placeholder="API_KEY=…" lines={[2, 6]} mono />
+          <CardSection title={tr('Environment')} footer={onHost('One KEY=value per line. Saved on {name} only.')}>
+            <Field value={envText} onChange={setEnvText} placeholder={tr('API_KEY=…')} lines={[2, 6]} mono />
           </CardSection>
         ) : null}
         {error ? <CardSection><ErrorText text={error} /></CardSection> : null}
@@ -219,15 +219,15 @@ export function NewSkillSheet() {
       <ModalHeader
         icon="square.and.pencil"
         title={tr(`New skill`)}
-        trailing={saving ? <Spinner /> : <IconButton title="Save" icon="checkmark" disabled={!name.trim() || !instructions.trim()} onClick={() => void save()} />}
+        trailing={saving ? <Spinner /> : <IconButton title={tr('Save')} icon="checkmark" disabled={!name.trim() || !instructions.trim()} onClick={() => void save()} />}
       />
       <CardForm>
-        <CardSection footer="The bot sees the name and when to use it, and reads the instructions only when a task fits.">
-          <Field value={name} onChange={setName} placeholder="Name" />
-          <Field value={summary} onChange={setSummary} placeholder="When to use it" lines={[2, 4]} />
+        <CardSection footer={tr('The bot sees the name and when to use it, and reads the instructions only when a task fits.')}>
+          <Field value={name} onChange={setName} placeholder={tr('Name')} />
+          <Field value={summary} onChange={setSummary} placeholder={tr('When to use it')} lines={[2, 4]} />
         </CardSection>
-        <CardSection title="Instructions">
-          <Field value={instructions} onChange={setInstructions} placeholder="Step by step, in plain words…" lines={[6, 20]} />
+        <CardSection title={tr('Instructions')}>
+          <Field value={instructions} onChange={setInstructions} placeholder={tr('Step by step, in plain words…')} lines={[6, 20]} />
         </CardSection>
         {error ? <CardSection><ErrorText text={error} /></CardSection> : null}
       </CardForm>

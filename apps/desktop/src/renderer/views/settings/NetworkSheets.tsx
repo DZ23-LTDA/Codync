@@ -69,14 +69,14 @@ export function NetworkSetupSheet({ store, joining }: { store: BotStore; joining
       <VStack gap={16} className="network-sheet-body">
         <CardSection footer={joining ? null : 'This computer becomes the owner: it invites the others.'}>
           {[
-            ...(joining ? [<Field key="invite" label="Invite" value={invite} set={setInvite} placeholder="codync-network:…" mono />] : []),
-            <Field key="network" label="Network name" value={networkName} set={setNetworkName} placeholder={joining ? 'From the invite' : 'home'} />,
-            <Field key="name" label="Computer name" value={name} set={setName} placeholder="Host name" />,
+            ...(joining ? [<Field key="invite" label={tr('Invite')} value={invite} set={setInvite} placeholder={tr('codync-network:…')} mono />] : []),
+            <Field key="network" label={tr('Network name')} value={networkName} set={setNetworkName} placeholder={joining ? 'From the invite' : 'home'} />,
+            <Field key="name" label={tr('Computer name')} value={name} set={setName} placeholder={tr('Host name')} />,
           ]}
         </CardSection>
-        <CardSection title="When there's no direct path">
+        <CardSection title={tr("When there's no direct path")}>
           <ChoiceList selection={choice} options={connectorChoices} onChange={setChoice} />
-          {choice === 'relay' ? <Field key="url" label="Relay address" value={url} set={setUrl} placeholder="https://" /> : null}
+          {choice === 'relay' ? <Field key="url" label={tr('Relay address')} value={url} set={setUrl} placeholder={tr('https://')} /> : null}
         </CardSection>
         <Reveal show={problem !== null}>
           <Text size="caption" tone="danger">{problem}</Text>
@@ -91,11 +91,11 @@ export function RecoveryCodeSheet({ recovery: { code, network: networkName, comp
   const tr = useTr()
   return (
     <VStack className="network-sheet">
-      <ModalHeader icon="key" title="Save your recovery code" onClose={null} />
+      <ModalHeader icon="key" title={tr('Save your recovery code')} onClose={null} />
       <VStack gap={14} className="network-sheet-body">
         <HStack gap={8}>
           <Text as="div" className="settings-code network-code" mono>{code}</Text>
-          <IconButton title="Copy recovery code" icon="doc.on.doc" onClick={() => window.codync.app.copy(code)} />
+          <IconButton title={tr('Copy recovery code')} icon="doc.on.doc" onClick={() => window.codync.app.copy(code)} />
         </HStack>
         <Text size="callout" tone="secondary">
           {tr("It makes another computer the owner of {network} if {name} is lost. It's shown only once and kept on no computer.")
@@ -126,7 +126,7 @@ export function InviteSheet({ store, net }: { store: BotStore; net: Network }) {
 
   return (
     <VStack className="network-sheet">
-      <ModalHeader icon="person.crop.circle.badge.plus" title="Invite a computer" subtitle={net.name} trailing={<IconButton title="New invite" icon="arrow.clockwise" onClick={() => void make()} />} />
+      <ModalHeader icon="person.crop.circle.badge.plus" title={tr('Invite a computer')} subtitle={net.name} trailing={<IconButton title={tr('New invite')} icon="arrow.clockwise" onClick={() => void make()} />} />
       <VStack gap={14} className="network-sheet-body">
         {invite === null ? (
           <Spinner />
@@ -136,7 +136,7 @@ export function InviteSheet({ store, net }: { store: BotStore; net: Network }) {
           <>
             <HStack gap={8}>
               <Text as="div" className="settings-code network-code" mono>{invite.invite}</Text>
-              <IconButton title="Copy invite" icon="doc.on.doc" onClick={() => window.codync.app.copy(invite.invite)} />
+              <IconButton title={tr('Copy invite')} icon="doc.on.doc" onClick={() => window.codync.app.copy(invite.invite)} />
             </HStack>
             <Text size="callout" tone="secondary">
               {tr('One use. Works until {time} while {name} stays on.').replaceAll('{time}', expiryTime(invite.expiresAt)).replaceAll('{name}', net.computer)}
@@ -172,13 +172,13 @@ export function RecoverSheet({ store, net }: { store: BotStore; net: Network }) 
     <VStack className="network-sheet" onKeyDown={(e) => e.key === 'Enter' && e.target instanceof HTMLInputElement && void recover()}>
       <ModalHeader
         icon="key"
-        title="Recover ownership"
+        title={tr('Recover ownership')}
         subtitle={net.name}
-        trailing={busy ? <Spinner /> : result?.ok ? null : <IconButton title="Recover" icon="checkmark" onClick={() => void recover()} />}
+        trailing={busy ? <Spinner /> : result?.ok ? null : <IconButton title={tr('Recover')} icon="checkmark" onClick={() => void recover()} />}
       />
       <VStack gap={16} className="network-sheet-body">
-        <CardSection footer="For when the owner is lost: this computer becomes the owner.">
-          <Field label="Recovery code" value={code} set={setCode} placeholder="00000000-…" mono />
+        <CardSection footer={tr('For when the owner is lost: this computer becomes the owner.')}>
+          <Field label={tr('Recovery code')} value={code} set={setCode} placeholder={tr('00000000-…')} mono />
         </CardSection>
         <Reveal show={result !== null}>
           <Text size="caption" tone={result?.ok ? 'secondary' : 'danger'}>{result?.text}</Text>
