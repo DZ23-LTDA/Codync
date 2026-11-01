@@ -82,7 +82,7 @@ export function SettingsView({ page, setPage }: { page: SettingsPage; setPage: (
         </div>
       </div>
       <span className="settings-close">
-        <IconButton title="Close" icon="xmark" onClick={dismiss} />
+        <IconButton title={tr('Close')} icon="xmark" onClick={dismiss} />
       </span>
     </div>
   )
@@ -144,7 +144,7 @@ function GeneralSettings() {
 
   return (
     <CardForm>
-      <CardSection title="Account" footer={account.errorMessage}>
+      <CardSection title={tr('Account')} footer={account.errorMessage}>
         <div className="settings-row">
           <Icon name="person.crop.circle" size={26} color="var(--secondary)" />
           <VStack grow className="settings-stack">
@@ -171,7 +171,7 @@ function GeneralSettings() {
           )}
         </div>
       </CardSection>
-      <CardSection title="Appearance">
+      <CardSection title={tr('Appearance')}>
         <ValueRow label="Theme">
           <ChoicePicker selection={appearance} options={[...APPEARANCES]} onChange={(value) => void window.codync.app.setAppearance(value).then(setAppearance)} />
         </ValueRow>
@@ -190,7 +190,7 @@ function GeneralSettings() {
         </Switch>
       </CardSection>
       <CardSection
-        title="Language"
+        title={tr('Language')}
         footer="Choose the language for this device. Unsupported system languages use English."
       >
         <ValueRow label="App language">
@@ -204,12 +204,12 @@ function GeneralSettings() {
           />
         </ValueRow>
       </CardSection>
-      <CardSection title="Chat" footer="Lets you unfold a working bot's thinking and steps from its status in the chat. Only changes this device.">
+      <CardSection title={tr('Chat')} footer="Lets you unfold a working bot's thinking and steps from its status in the chat. Only changes this device.">
         <Switch on={thinkingDetails} onChange={setThinkingDetails}>
           Show thinking details
         </Switch>
       </CardSection>
-      <CardSection title="System">
+      <CardSection title={tr('System')}>
         {window.codync.platform === 'darwin' ? <Switch on={showInDock} onChange={(on) => void window.codync.app.setShowInDock(on).then(setShowInDock)}>Show in Dock</Switch> : null}
         {window.codync.island.supported ? (
           <Switch on={island} onChange={(on) => void window.codync.island.setEnabled(on).then(setIsland)}>
@@ -242,10 +242,10 @@ function PrivacySettings() {
   const setShared = (on: boolean) => void local?.setAnalytics(on).catch((e: unknown) => app.setError(errorText(e)))
   return (
     <>
-      <CardSection title="Privacy" footer="Which features you use, never your messages, code or files. Helps us spot bugs sooner and make Codync better for you.">
+      <CardSection title={tr('Privacy')} footer="Which features you use, never your messages, code or files. Helps us spot bugs sooner and make Codync better for you.">
         <HStack gap={4}>
           <span className={running ? undefined : 'settings-off'}>{tr('Share usage analytics')}</span>
-          <IconButton title="About usage analytics" icon="info.circle" onClick={() => setAbout(true)} />
+          <IconButton title={tr('About usage analytics')} icon="info.circle" onClick={() => setAbout(true)} />
           <Switch on={local?.analytics === true} onChange={setShared} disabled={!running} label="Share usage analytics" className="settings-privacy-switch" />
         </HStack>
       </CardSection>
