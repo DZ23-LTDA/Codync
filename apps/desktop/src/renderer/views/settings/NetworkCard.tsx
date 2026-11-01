@@ -102,7 +102,7 @@ function ComputerRow({ computer: c, disabled, promote, remove }: { computer: Net
         <Text>{c.name}</Text>
         <Text size="caption" tone="secondary" truncate title={c.agents.map((a) => a.name).join(', ') || undefined}>{detail}</Text>
       </VStack>
-      {c.canPromote ? <Button kind="secondary" disabled={disabled} onClick={promote}>Make admin</Button> : null}
+      {c.canPromote ? <Button kind="secondary" disabled={disabled} onClick={promote}>{tr('Make admin')}</Button> : null}
       {c.canRemove ? <IconButton title={tr('Remove from the network')} icon="trash" disabled={disabled} onClick={remove} /> : null}
     </HStack>
   )
