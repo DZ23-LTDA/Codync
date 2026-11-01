@@ -30,6 +30,7 @@ export function ImportBotsSheet({ store, open, onClose, maxHeight }: {
 
 /** Bots from another app: the export steps, the bots and group chats in the file, then what came over. */
 function ImportBotsView() {
+  const tr = useTr()
   const store = useStore()
   const [model] = useState(() => new BotImport(store))
   useModel(model)
@@ -37,7 +38,7 @@ function ImportBotsView() {
 
   return (
     <VStack className="import-sheet">
-      <ModalHeader icon="square.and.arrow.down" title="Import bots" subtitle="Bring your agents over from Grok Bot" />
+      <ModalHeader icon="square.and.arrow.down" title={tr('Import bots')} subtitle="Bring your agents over from Grok Bot" />
       <VStack gap={16} className="import-body">
         {step.kind === 'start' ? <Start model={model} /> : null}
         {step.kind === 'review' ? <Review model={model} plan={step.plan} skipped={step.skipped} /> : null}
@@ -113,6 +114,7 @@ function Done({ result }: { result: ImportResult }) {
 }
 
 function Footer({ model }: { model: BotImport }) {
+  const tr = useTr()
   const dismiss = useDismiss()
   const step = model.step
   return (
@@ -120,12 +122,12 @@ function Footer({ model }: { model: BotImport }) {
       {model.busy ? <Spinner /> : null}
       <Spacer />
       {step.kind === 'done' ? (
-        <Button onClick={dismiss}>Done</Button>
+        <Button onClick={dismiss}>{tr('Done')}</Button>
       ) : (
         <>
-          <Button kind="secondary" onClick={dismiss}>Cancel</Button>
-          {step.kind === 'start' ? <Button onClick={() => void model.choose()} disabled={model.busy}>Choose file…</Button> : null}
-          {step.kind === 'review' ? <Button onClick={() => void model.importPicked()} disabled={!model.canImport}>Import</Button> : null}
+          <Button kind="secondary" onClick={dismiss}>{tr('Cancel')}</Button>
+          {step.kind === 'start' ? <Button onClick={() => void model.choose()} disabled={model.busy}>{tr('Choose file…')}</Button> : null}
+          {step.kind === 'review' ? <Button onClick={() => void model.importPicked()} disabled={!model.canImport}>{tr('Import')}</Button> : null}
         </>
       )}
     </HStack>
