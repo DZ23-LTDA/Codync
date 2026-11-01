@@ -1,76 +1,97 @@
 # B-3PO — checkpoint de continuidade
 
-> Fonte de direção: **goal v3.2** + **adendos v3.3 e v3.4**. O gate do Release 1 tem **11 itens** (9 do v3.2 + 10 e 11 do
-> v3.4).
+> Fonte de direção: **goal v3.2** + **adendos v3.3 e v3.4**. O gate do Release 1 tem **11 itens**
+> (9 do v3.2 + 10 e 11 do v3.4). O relatório de gate sai de `node tools/release-report.mjs`.
 
-## Sessão de 01/11/2026, 01:30Z
+## Sessão de 01/11/2026, 21:00Z — auditoria de recuperação e primeiro ciclo de correção
 
-`dev` = `0fc8e166`. PRs abertos: **0**. Árvore limpa (só `docs/plans/preview-window.md`, de outra sessão, intocado).
+`dev` = `51cb2e1c44db098517235aa294064b88798b0f33`. PRs abertos: **#169** e o deste checkpoint. Nenhum
+segredo real encontrado; nenhuma reescrita de histórico necessária.
 
-### Versão instalada — a regra 0 do v3.4
+### Recuperação — reconciliada
 
-| | |
-|---|---|
-| **App instalado** | **v2.33.2** (`ProductVersion 2.33.2.0`, arquivos de 30/10) — **não contém nada do `dev` de hoje** |
-| **Release publicada** | **v2.34.0** — https://github.com/DZ23-LTDA/Codync/releases/tag/v2.34.0 · `codync-windows-x64.exe` (128,9 MB) |
-| Instalar nesta máquina | **não concluiu**: 3 tentativas, `/S` nunca retorna. Não é UAC (instalação per-user), não é processo vivo, não é `TEMP`. **Bloqueio de ambiente**, declarado em `docs/plans/release-v2.34.0.md` |
+O `Codync-dev.zip` é um snapshot fiel do `dev` em `2e69b6c2`: **3511 de 3513 arquivos idênticos**
+por SHA-256, **zero** arquivos exclusivos do ZIP. Os dois restantes são symlinks
+(`apps/screen-macos-tests/Sources/*.swift`) que o extrator recusou por apontarem para fora da
+pasta. Não há trabalho recuperável só no ZIP, e o checkpoint anterior (que citava `0fc8e166`) estava
+desatualizado em relação ao remoto.
+
+### Ambiente construído nesta máquina
+
+| Peça | Versão | Observação |
+|---|---|---|
+| Rust | 1.99.0, host `x86_64-pc-windows-gnu` | o repo fixa a 1.99.0; não há MSVC C++ nem admin aqui, então o host GNU é a adaptação local |
+| Android SDK | platform 37.2, build-tools 37.0.0, platform-tools 37.0.1 | instalado em `projects/b3po-codync/tools/android-sdk` |
+| JDK | Temurin 21.0.13 | exigido pelo AGP 9.4.1 |
+| Node / npm | 26.13.0 / 11.20.0 | |
+
+### O que passou a rodar (e o que isso revelou)
+
+| Suíte | Resultado em 01/11 | O que estava quebrado |
+|---|---|---|
+| Host | **840 passando, 0 falhando, 2 ignorados**, 34 binários | 2 testes de unidade + a suíte E2E travava no Windows (PR #161) |
+| Desktop | **326 passando, 0 falhando**; typecheck limpo; `electron-vite build` ok | 13 testes de fixture falhavam no Windows (PR #160) |
+| Web | 43 páginas, lint e docs ok; 0 critical / 0 high | `next` 16.2.1 com 1 critical (PR #159) |
+| Cloud | 125 testes, typecheck ok | 8 high no toolchain (PR #167) |
+| Relay / private relay | todas as suítes verdes; 0 achados | 5 high + 1 moderate (PR #163) |
+| Android | `:core:test` 192 (1 ignorado), `:app:testDebugUnitTest`, `:assembleDebug`, `:lintDebug` verdes | **o app não compilava no `dev`** (PR #165); um teste de timing não passava no Windows (PR #168) |
+
+O achado mais grave do ciclo não veio de um teste: `.github/workflows/android.yml` estava vermelho
+em todo push para `dev` desde o PR #149, porque o app Android não compilava (`@Composable` faltando
+em `stateWord`). O merge levou a run verde do próprio PR junto.
+
+### Entrega — o que estava apontando para o upstream
+
+`electron-builder.yml` publicava com `owner: leepokai` (isso vira o feed do `electron-updater`), o
+instalador, o tap do Homebrew, o manifesto de update do host e o release gate também eram do
+upstream. O PR #164 aponta tudo para `DZ23-LTDA/Codync` e o gate passa a exigir a variável
+`RELEASE_GATE_ENABLED` — sem ela o job continua skipped, nada é publicado.
+
+### Segurança — triagem concluída
+
+Relatório completo em `projects/b3po-codync/reports/SECURITY-TRIAGE.md` (workspace do agente):
+
+- **156 achados do GitGuard** (scan de `main@7f33f3c`) reproduzidos em `dev` com `npm audit`,
+  Gitleaks 8.30.1 e Semgrep 1.183.0.
+- **Nenhuma credencial real**: as 4 chaves do PostHog são `phc_` (públicas por design; `phx_` não
+  existe no repositório), o PEM do teste de FCM é gerado em tempo de execução, o resto é fixture ou
+  bundle de terceiro. Nada a revogar, nada a reescrever no histórico.
+- Dependências: `web` 0/0, `relay` 0, `private-relay` 0, `cloud` 0 high, `desktop` 0 high.
+- GitHub Actions: 64 referências pinadas por SHA (`chore/pin-action-shas`, aguardando PR).
 
 ### Gate (11 itens)
 
-| # | Item | Estado | Evidência |
+| # | Item | Estado | Evidência desta sessão |
 |---|---|---|---|
-| 1 | Scanner de i18n | **IMPLEMENTED + TESTED** | PRs #46, #76, #102, #112, #127 · **0** strings em componente fora do `tr()` · **13** de escopo de módulo, consumidor verificado um por um · 15 testes |
-| 2 | Release do fork ≠ upstream | IMPLEMENTED + TESTED | PR #47 · guarda aborta fora de `DZ23-LTDA/Codync` |
-| 3 | Banco em todos os estados | **TESTED** | PRs #43, #48, #50, #62 · 10 testes |
-| 6 | Erros humanos | **IN_PROGRESS** | PRs #53–#57, #64, #73, #75, #91–#93, #101 · **0 chamadas de `humanError` no fallback genérico**; estados vazios: medidor heurístico marca 36, `NetworkSection` conferido e **tem** estado vazio |
-| 7 | pt-BR no escopo | **IN_PROGRESS** | PRs #71–#73, #95–#99, #101, #103–#105, #111, #113–#116, #118, #121, #123, #127, #129, #133 · **0 de 756** frases `tr()` sem chave (769 no `pt.json`) · **0** strings em componente fora do `tr()` · **13 telas abertas no app** e **8 defeitos** que só elas revelaram |
-| 10 | Ciclo de entrega | **BLOCKED_BY_EXTERNAL_DEPENDENCY** | release 2.34.0 publicada; instalador 2.34.0 construído; **3 tentativas de instalar não retornam** — `install-blocked.md`; ação do dono: rodar o .exe sem `/S` |
-| 11 | Cancelar e destravar | IN_PROGRESS | `stop` existe (host, store, botão); falta **watchdog** e registro do motivo |
-| 4, 5, 8, 9 | instalação/primeiro uso/perf/release | NOT_STARTED / parcial | host pronto em 334 ms; resto depende de VM e app |
+| 1 | Scanner de i18n | IMPLEMENTED | o scanner **estava errado** (descartava toda frase de 5+ palavras); corrigido + 27 traduções (PR #166). `pt` = 100% da tela do desktop |
+| 2 | Release do fork ≠ upstream | IMPLEMENTED | PR #164 (URLs, tap e gate) |
+| 3 | Banco em todos os estados | TESTED | suíte do host verde nas 3 OSes da CI (PR #161) |
+| 4 | Instalação/update/rollback em 3 sistemas | BLOCKED_BY_EXTERNAL_DEPENDENCY | precisa do app instalado (§ abaixo) |
+| 5 | Primeiro uso em 3 min, QR, reconexão | NOT_STARTED | sem app instalado |
+| 6 | Erros humanos, vazios e offline | IN_PROGRESS | `error-messages`: 0 stack traces; `empty-states`: 28 de 63 views com estado vazio (o medidor é heurístico e superestima) |
+| 7 | pt-BR no escopo | IN_PROGRESS | `pt` 100% da tela do desktop; iOS/Android 0 chaves sem tradução; falta inspeção visual com o app rodando |
+| 8 | Performance medida | NOT_STARTED | números antigos existem, mas de renderer dev, não do app instalado |
+| 9 | Checkpoint, bump, WhatsNew, tag | NOT_STARTED | este documento é a parte de checkpoint |
+| 10 | Ciclo de entrega | BLOCKED_BY_EXTERNAL_DEPENDENCY | além do instalador, o app publicado buscaria update no upstream até o PR #164 entrar |
+| 11 | Cancelar/destravar turno | TESTED | PRs #86–#88 + E2E de host |
 
-**3 de 11 com implementação e teste · 0 verified** (CI não cria runs desde `41255618924`).
+**Nenhum item VERIFIED.** Itens 4, 5, 8 e 10 dependem de rodar o app instalado.
 
-### Medidas do adendo v3.4 (§2)
+### Bloqueios com ação do dono
 
-1. **Primeiro uso em máquina limpa**: **não medido** — exige VM Windows.
-2. **pt-BR**: **feito** — `docs/plans/ptbr-coverage-report.md` (253/1468 chaves; 298 strings fora do `tr()`).
-3. **Travamento**: **metade** — `docs/plans/stuck-turn-report.md` (mecanismo existe; travamento real não reproduzido).
-
-### Inspeção visual real (Playwright + Electron)
-
-Receita que funciona: `TMP` no workspace → `npm run build` → `node tools/account-config.mjs dev` → Electron com
-`--no-sandbox --disable-gpu` → Playwright `_electron.launch`. Telas vistas e corrigidas: boas-vindas, acesso ao computador
-(pt completo), estados de host (pt + sem vazamento de comando). Evidências em `evidencias/` no workspace.
-
-### Próxima tarefa concreta — watchdog do item 11
-
-Ancorada no código de hoje (`3ef93bd6`), para não recomeçar a investigação:
-
-| Peça | Onde |
+| Bloqueio | Ação que libera |
 |---|---|
-| Laço periódico do ator (tick) | `host/src/agent/bot/mod.rs:382` (`flush_tick.tick()`) |
-| Padrão de "prazo vencido → mata o processo" que já existe | `mod.rs:389-398` (`routine_deadline`, `cancel_deadline`) |
-| Campos do ator | `mod.rs:118-133` — não há `last_event`; é o campo que falta criar |
-| Eventos chegam por | `host/src/agent/bot/updates.rs` (é onde `last_event` seria tocado) |
-| Cancelamento já registra no chat | `host/src/agent/bot/turn.rs:322-323` — `stop_notice("Stopped.", "cancelled")` |
-| Metade já entregue no desktop | `apps/desktop/src/renderer/views/thread/long-turn.ts` + `WorkingIndicator` (aviso após 2 min) |
+| Instalação do app publicado (itens 4, 5, 8, 10) | rodar `codync-windows-x64.exe` uma vez; três tentativas via harness nunca retornaram |
+| Release gate (marcar release como latest, apontar o tap) | criar o tap `DZ23-LTDA/homebrew-codync`, o secret `TAP_TOKEN` e a variável `RELEASE_GATE_ENABLED=true` |
+| iOS (build, testes, telas) | macOS + Xcode; não existe nesta máquina |
+| Android instrumentado | imagem de sistema + AVD (~2 GB) |
+| Assinatura macOS/Windows | certificados; não são desta máquina |
+| Deploy de `cloud/`/`relay/` | autorização explícita |
 
-O que implementar: campo `last_event: Instant` tocado a cada `session/update`; no tick, se `turn.is_some()` e
-`last_event.elapsed() >= STALL_AFTER`, marcar `stop_requested`, matar o processo (mesmo caminho do `cancel_deadline`) e
-gravar o motivo real no turno. Teste: agente falso que aceita o turno e nunca responde.
+### Próxima tarefa concreta
 
-**Paridade pendente e declarada**: o aviso de turno longo existe só no desktop; iOS/Android e TUI não receberam — a regra
-de paridade do repositório exige a correspondente no mesmo tipo de entrega, e isso não foi feito.
-
-### Números medidos nesta série (reproduzíveis)
-
-| Medida | Valor | Como |
-|---|---|---|
-| Strings em componente fora do `tr()` | **0** | `node tools/l10n-unwrapped.mjs` |
-| Frases `tr()` sem entrada no `pt.json` | **0 de 756** | `node tools/l10n-missing.mjs` |
-| Chaves no `pt.json` | **769** | idem |
-| Telas abertas no app · defeitos só vistos nelas | **13 · 8** | `visual-inspection-04.md` |
-| Abertura até o primeiro conteúdo | **2204 ms** | Playwright + `performance` no renderer dev |
-| Primeiro token do host (p95 · mediana · pior) | **4 ms · 3 ms · 587 ms** | `first_token_e2e.rs`, 20 rodadas |
-| Suíte desktop | **313 passam · 13 falham** | as 13 são `host-update`, pré-existentes no Windows |
-| App instalado | **2.33.2** | não contém nada desta série |
+1. Fechar os PRs #166–#168 e abrir o PR das GitHub Actions pinadas.
+2. Com autorização do dono: instalar o app publicado e medir primeiro uso, abertura e update
+   (itens 4, 5, 8). É o único caminho para sair de NOT_STARTED/BLOCKED nesses quatro itens.
+3. Sem a instalação: traduzir as 115 frases que faltam nas outras seis línguas e conferir os
+   estados vazios apontados por `tools/empty-states.mjs` (triagem manual, o medidor é heurístico).
