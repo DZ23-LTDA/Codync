@@ -29,3 +29,9 @@ test("a long message is cut, with an ellipsis, so a screen does not overflow", (
   assert.equal(long.length, 200);
   assert.ok(long.endsWith("…"));
 });
+
+test("the default sentence tells the person what to check, not just that it failed", () => {
+  const sentence = humanError(new Error(""));
+  assert.ok(sentence.includes("Try again"), "asks for a retry");
+  assert.ok(sentence.includes("host is running"), "and names the thing to check");
+});

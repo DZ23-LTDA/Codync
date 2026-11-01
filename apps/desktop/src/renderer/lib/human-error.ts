@@ -7,7 +7,7 @@
  */
 const MAX = 200;
 
-export function humanError(error: unknown, fallback = "Something went wrong. Try again."): string {
+export function humanError(error: unknown, fallback = "Something went wrong. Try again — if it keeps happening, check that the host is running."): string {
   const raw = error instanceof Error ? error.message : typeof error === "string" ? error : "";
   // The first line only: an anyhow chain or a Node stack arrives with the detail on the lines below.
   const first = raw.split("\n")[0]?.trim() ?? "";
