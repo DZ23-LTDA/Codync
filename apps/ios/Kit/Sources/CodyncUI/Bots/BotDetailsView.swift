@@ -70,9 +70,9 @@ struct BotDetailsView: View {
     private var actions: some View {
         HStack(spacing: 8) {
             if let bot {
-                cornerButton("Create template", "square.and.arrow.up") { template = EditorRequest(BotDraft(bot)) }
+                cornerButton(L10n.tr("Create template"), "square.and.arrow.up") { template = EditorRequest(BotDraft(bot)) }
             }
-            cornerButton("Close details", "xmark") { dismiss() }
+            cornerButton(L10n.tr("Close details"), "xmark") { dismiss() }
         }
         .padding(.top, 14)
         .padding(.trailing, 14)

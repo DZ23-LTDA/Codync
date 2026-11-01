@@ -74,7 +74,7 @@ struct ArtifactView: View {
 
     private var header: some View {
         ScreenHeader {
-            IconButton("Close artifact", systemImage: "xmark") { dismiss() }
+            IconButton(L10n.tr("Close artifact"), systemImage: "xmark") { dismiss() }
         } title: {
             Button { renaming = artifact } label: {
                 Text(title)
@@ -87,7 +87,7 @@ struct ArtifactView: View {
             .disabled(artifact == nil)
             .accessibilityHint(L10n.tr("Rename artifact"))
         } trailing: {
-            IconButton("Share artifact", systemImage: "square.and.arrow.up") { share() }
+            IconButton(L10n.tr("Share artifact"), systemImage: "square.and.arrow.up") { share() }
                 .disabled(model.artifacts.html[target.id] == nil)
         }
     }

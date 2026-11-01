@@ -882,5 +882,7 @@
   "Start over": "Começar de novo",
   "The terminal couldn't load. Update Android System WebView, then try again.": "O terminal não carregou. Atualize o Android System WebView e tente de novo.",
   "Choose": "Escolher",
-  "Upload image": "Enviar imagem"
+  "Upload image": "Enviar imagem",
+  "{name} fallback actions": "Ações do fallback {name}",
+  "Loading available models": "Carregando modelos disponíveis"
 }

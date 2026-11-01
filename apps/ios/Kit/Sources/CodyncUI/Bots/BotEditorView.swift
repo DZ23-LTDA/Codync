@@ -26,7 +26,7 @@ public struct BotEditorView: View {
                 if saving {
                     Spinner()
                 } else {
-                    IconButton("Save", systemImage: "checkmark") { save() }
+                    IconButton(L10n.tr("Save"), systemImage: "checkmark") { save() }
                         .disabled(!draft.isValid || saving || model.connection != .online)
                 }
             }
@@ -162,7 +162,7 @@ struct BotSettingsForm: View {
                         .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
-                    .accessibilityLabel("Edit Bot avatar")
+                    .accessibilityLabel(L10n.tr("Edit Bot avatar"))
                     if pickingAvatar {
                         VStack(spacing: 16) {
                             AvatarPicker(shape: $draft.avatarShape, color: $draft.avatarColor)
