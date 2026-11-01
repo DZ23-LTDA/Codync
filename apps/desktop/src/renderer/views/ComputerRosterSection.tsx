@@ -33,7 +33,7 @@ export function ComputerRosterSection({ store, compact, collapsed, previous, nex
     <section ref={section} className={`computer-roster-section ${lifted ? 'lifted' : ''}`} aria-label={store.hostName} data-computer-section={id}>
       <div className="computer-roster-heading">
         <button className="computer-roster-toggle" aria-expanded={!collapsed} data-computer-heading={id}
-          aria-label={`${store.hostName}, ${store.connectionLabel}`} title={`${store.hostName} · ${store.connectionLabel}. Drag to reorder.`}
+          aria-label={`${store.hostName}, ${store.connectionLabel}`} title={tr('{host} · {state}. Drag to reorder.').replaceAll('{host}', store.hostName).replaceAll('{state}', store.connectionLabel)}
           onClick={toggle}
           {...drag}
           onKeyDown={(event) => {

@@ -300,7 +300,7 @@ function UpdateSettings() {
           ...(updates.downloadPercent !== null
             ? [
                 <div key="progress" className="settings-row settings-appear">
-                  <ProgressBar value={updates.downloadPercent / 100} label={`Downloading Codync ${updates.availableVersion ?? ''}`} />
+                  <ProgressBar value={updates.downloadPercent / 100} label={tr('Downloading Codync {version}').replaceAll('{version}', updates.availableVersion ?? '')} />
                 </div>,
               ]
             : []),

@@ -24,6 +24,11 @@ const NOT_COPY = [
   /^[\d\s.,:/-]+$/,
   /^\{\{.*\}\}$/,
   /^--/,
+  // The product's own name is not translated, and neither is a shell command a person is told to run.
+  /^Codync$/,
+  /^[a-z0-9.-]+\.[a-z]{2,}\//,
+  /^(ssh|git|npm|cargo|node|brew|sudo)\s/,
+  /^[a-z-]+\s+-{1,2}/,
 ];
 
 const words = (text) => text.trim().split(/\s+/).filter((part) => /[A-Za-zÀ-ÿ]{2,}/.test(part)).length;

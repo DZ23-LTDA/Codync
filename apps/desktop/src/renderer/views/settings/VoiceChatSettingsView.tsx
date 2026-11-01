@@ -230,7 +230,7 @@ function ProviderVoiceSettings({ provider, dictationOnly = false }: { provider: 
           <Icon name="key.fill" size={13} color="var(--secondary)" />
           <VStack grow className="settings-stack">
             <Text tone="text" truncate>{tr(`Key saved`)}</Text>
-            <Text size="caption" tone="tertiary" truncate>Stays on {store.hostName}</Text>
+            <Text size="caption" tone="tertiary" truncate>{tr('Stays on {host}').replaceAll('{host}', store.hostName)}</Text>
           </VStack>
           {busy ? (
             <Spinner />
@@ -246,8 +246,8 @@ function ProviderVoiceSettings({ provider, dictationOnly = false }: { provider: 
         </div>
       ) : !canEditKey ? (
         <VStack gap={4} className="settings-row">
-          <Text>No {info.name} key on {store.hostName}</Text>
-          <Text size="footnote" tone="secondary">Add it in Codync on {store.hostName}: Settings → Voice chat, or connect to that computer over SSH.</Text>
+          <Text>{tr('No {provider} key on {host}').replaceAll('{provider}', info.name).replaceAll('{host}', store.hostName)}</Text>
+          <Text size="footnote" tone="secondary">{tr('Add it in Codync on {host}: Settings → Voice chat, or connect to that computer over SSH.').replaceAll('{host}', store.hostName)}</Text>
         </VStack>
       ) : (
         // Paste a key; the computer checks it with the provider before keeping it.
@@ -274,7 +274,7 @@ function ProviderVoiceSettings({ provider, dictationOnly = false }: { provider: 
           </HStack>
           <Text as="div" size="footnote" className="settings-row">
             <button className="settings-link" onClick={() => window.codync.app.openExternal(info.keyPage)}>
-              Get a key from {info.name}
+              {tr('Get a key from {provider}').replaceAll('{provider}', info.name)}
             </button>
             <Spacer />
             {replacing ? (
@@ -322,7 +322,7 @@ function ProviderVoiceSettings({ provider, dictationOnly = false }: { provider: 
                 </ValueRow>
               </div>,
               <div key="minutes" className={dimmed}>
-                <ValueRow label={tr('This month')}>≈ {voice.voiceMinutes(provider)} min</ValueRow>
+                <ValueRow label={tr('This month')}>≈ {tr('{minutes} min').replaceAll('{minutes}', String(voice.voiceMinutes(provider)))}</ValueRow>
               </div>,
             ]),
       ]}

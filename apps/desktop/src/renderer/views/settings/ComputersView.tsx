@@ -392,7 +392,7 @@ function SSHProfileEditor({ profile: initial, isNew }: { profile: SSHProfile; is
           {field('User', user, setUser, tr('From SSH config'))}
           {field(tr('SSH port'), port, setPort, tr('From SSH config'))}
           <div className="settings-row">
-            <span>Key</span>
+            <span>{tr('Key')}</span>
             <Spacer />
             <Text tone="secondary">{profile.identityFile?.split(/[\\/]/).pop() ?? tr(`ssh-agent / SSH config`)}</Text>
             <IconButton
