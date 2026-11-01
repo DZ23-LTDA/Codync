@@ -31,7 +31,7 @@ export function UpdateNeededCard() {
   const button =
     action === 'updateApp' ? updates && <UpdateButton updates={updates} kind="primary" />
     : action === 'restartHost' ? <Button onClick={() => window.codync.host.restart()}>{tr('Update now')}</Button>
-    : action === 'askHost' ? <Button onClick={() => store.requestHostUpdate()}>Update now</Button>
+    : action === 'askHost' ? <Button onClick={() => store.requestHostUpdate()}>{tr('Update now')}</Button>
     : null
   // With a button here, instructions for that computer would only confuse.
   const needs = updateNeededText.detail(mismatch, host, store.hostVersion?.version, store.hello?.os, action === null)

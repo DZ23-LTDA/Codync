@@ -6,7 +6,7 @@ import { findUnwrapped, withoutTranslations } from "./l10n-unwrapped.mjs";
 const kinds = (source) => findUnwrapped(source).map((entry) => `${entry.kind}:${entry.text}`);
 
 test("direct JSX text is reported", () => {
-  assert.deepEqual(kinds("<p>No bots yet</p>"), ["text:No bots yet"]);
+  assert.deepEqual(kinds("export function A() { return <p>No bots yet</p> }"), ["text:No bots yet"]);
 });
 
 test("a wrapped string is not reported", () => {
@@ -69,10 +69,10 @@ test("copy carried by footer, detail, empty, label and message is reported", () 
 });
 
 test("a text node is reported on the line the words are, not the line the element opened", () => {
-  const source = ["<Button", "  kind=\"secondary\"", ">", "  Apple", "</Button>"].join("\n");
+  const source = ["export function A() {", "  return <Button", "    kind=\"secondary\"", "  >", "    Apple", "  </Button>", "}"].join("\n");
   const [found] = findUnwrapped(source, "button.tsx");
   assert.equal(found.text, "Apple");
-  assert.equal(found.line, 4, "the words are on line 4, the element opened on line 1");
+  assert.equal(found.line, 5, "the words are on line 5, the element opened on line 2");
 });
 
 test("copy inside a JSX expression is reported, which the markup scan cannot see", () => {
@@ -84,5 +84,16 @@ test("copy inside a JSX expression is reported, which the markup scan cannot see
 test("a value inside an expression is not copy: an id, a class, a single word", () => {
   const source = "<div className={active ? 'card on' : 'card'}>{tab}</div>";
   assert.deepEqual(findUnwrapped(source, "row.tsx"), []);
+});
+
+test("a label in a module-level list is reported apart from copy inside a component", () => {
+  const source = [
+    "const tabs = [{ title: 'Computers & devices' }]",
+    "export function Row() {",
+    "  return <span>Update now</span>",
+    "}",
+  ].join("\n");
+  const kinds = findUnwrapped(source, "tabs.tsx").map((entry) => `${entry.kind}:${entry.text}`);
+  assert.deepEqual(kinds, ["module:Computers & devices", "text:Update now"]);
 });
 

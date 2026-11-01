@@ -158,7 +158,7 @@ function CreateLayout({ title, preview, name, placeholder, onName, canCreate, co
           </HStack>
         ) : null}
         <Spacer />
-        <Button kind="secondary" onClick={dismiss}>Cancel</Button>
+        <Button kind="secondary" onClick={dismiss}>{tr('Cancel')}</Button>
         <Button onClick={submit} disabled={!ready}>{saving ? <Spinner /> : 'Create'}</Button>
       </HStack>
     </VStack>

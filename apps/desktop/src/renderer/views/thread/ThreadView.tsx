@@ -43,6 +43,7 @@ const WIDE = 740
  * calls and thinking live in the "Full conversation" sheet. Replying to a message quotes it in the composer.
  */
 export const ThreadView = memo(function ThreadView({ botId }: { botId: string }) {
+  const tr = useTr()
   const store = useStore()
   const bot = store.bots.get(botId) ?? null
   const [showTrace, setShowTrace] = useState(false)
@@ -164,11 +165,11 @@ export const ThreadView = memo(function ThreadView({ botId }: { botId: string })
           <div className="top-chrome-row">
             <Spacer />
             {(!showSettings || !wide) && !compactDetails ? (
-              <MacChatButton className="ringed" title="Conversation details" icon="chevron.left.2" direction={[-1, 0]} onClick={toggleDetails} />
+              <MacChatButton className="ringed" title={tr('Conversation details')} icon="chevron.left.2" direction={[-1, 0]} onClick={toggleDetails} />
             ) : null}
           </div>
           {/* The call bar takes the pill's place; its frosted glass would show the name blurred. */}
-          <button className={`title-pill ${calling ? 'hidden-by-call' : ''}`} inert={calling} onClick={toggleDetails} aria-label={`${bot?.name ?? 'Conversation'}, view details`} title="View conversation details">
+          <button className={`title-pill ${calling ? 'hidden-by-call' : ''}`} inert={calling} onClick={toggleDetails} aria-label={`${bot?.name ?? 'Conversation'}, view details`} title={tr('View conversation details')}>
             <HStack as="span" gap={7}>
               {bot ? isGroup(bot) ? <GroupAvatar members={store.members(bot)} size={22} /> : <BotAvatar bot={bot} size={22} /> : null}
               <Text size="body" weight="medium" tone="text" truncate>{bot?.name ?? ''}</Text>

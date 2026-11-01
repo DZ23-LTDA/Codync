@@ -193,7 +193,7 @@ export function SetupTerminalView({ backend, step, method, back }: {
           </>
         )}
         <Spacer />
-        {exitCode !== null ? <Button className="fade-in" onClick={back}>Done</Button> : null}
+        {exitCode !== null ? <Button className="fade-in" onClick={back}>{tr('Done')}</Button> : null}
       </HStack>
     </SheetPage>
   )

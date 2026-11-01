@@ -65,7 +65,7 @@ export function GroupEditorView({ group }: { group: Bot }) {
             <AutoTextArea className="group-about" value={about} placeholder={tr('What this group works on')} minRows={1} maxRows={4} onChange={setAbout} />
           </div>
           <VStack>
-            <div className="group-section-title">Members</div>
+            <div className="group-section-title">{tr('Members')}</div>
             {picked.map((bot) => (
               <div key={bot.id} className="member-row fade-in">
                 <BotAvatar bot={bot} size={32} animated={false} />
