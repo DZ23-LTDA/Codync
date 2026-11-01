@@ -1,14 +1,59 @@
 {
   "note": "Written by hand in the PR that changes an item. The report prints these states and computes the numbers itself.",
   "items": [
-    { "id": 1, "item": "i18n scanner corrected and recounted", "state": "IMPLEMENTED", "evidence": "PR #46" },
-    { "id": 2, "item": "fork release separated from upstream", "state": "IMPLEMENTED", "evidence": "PR #47" },
-    { "id": 3, "item": "database: missing, empty, valid, damaged, migrated, interrupted, recovered", "state": "IN_PROGRESS", "evidence": "PRs #43, #48, #50 — downgrade still unrecorded" },
-    { "id": 4, "item": "clean install, update and rollback on three systems", "state": "NOT_STARTED", "evidence": "" },
-    { "id": 5, "item": "first use under 3 minutes, QR, reconnect, uninstall", "state": "NOT_STARTED", "evidence": "" },
-    { "id": 6, "item": "human errors, empty and offline states", "state": "IN_PROGRESS", "evidence": "PR #43 covers the damaged database" },
-    { "id": 7, "item": "pt-BR in the released scope, visually inspected", "state": "IN_PROGRESS", "evidence": "314 strings measured, 0 wrapped, 0 screens inspected" },
-    { "id": 8, "item": "performance measured", "state": "NOT_STARTED", "evidence": "open time not measured" },
-    { "id": 9, "item": "checkpoint, version bump, WhatsNew, tag", "state": "NOT_STARTED", "evidence": "" }
+    {
+      "id": 1,
+      "item": "i18n scanner corrected and recounted",
+      "state": "IMPLEMENTED",
+      "evidence": "PR #46"
+    },
+    {
+      "id": 2,
+      "item": "fork release separated from upstream",
+      "state": "IMPLEMENTED",
+      "evidence": "PR #47"
+    },
+    {
+      "id": 3,
+      "item": "database: missing, empty, valid, damaged, migrated, interrupted, recovered",
+      "state": "IN_PROGRESS",
+      "evidence": "PRs #43, #48, #50: 9 tests; downgrade still unrecorded"
+    },
+    {
+      "id": 4,
+      "item": "clean install, update and rollback on three systems",
+      "state": "NOT_STARTED",
+      "evidence": ""
+    },
+    {
+      "id": 5,
+      "item": "first use under 3 minutes, QR, reconnect, uninstall",
+      "state": "NOT_STARTED",
+      "evidence": ""
+    },
+    {
+      "id": 6,
+      "item": "human errors, empty and offline states",
+      "state": "IN_PROGRESS",
+      "evidence": "PRs #43, #53-#57: 0 stacks, 0 raw values printed; sentences not read, empty/offline states not audited"
+    },
+    {
+      "id": 7,
+      "item": "pt-BR in the released scope, visually inspected",
+      "state": "IN_PROGRESS",
+      "evidence": "314 strings measured, 0 wrapped, 0 screens inspected"
+    },
+    {
+      "id": 8,
+      "item": "performance measured",
+      "state": "NOT_STARTED",
+      "evidence": "open time not measured"
+    },
+    {
+      "id": 9,
+      "item": "checkpoint, version bump, WhatsNew, tag",
+      "state": "NOT_STARTED",
+      "evidence": ""
+    }
   ]
 }
