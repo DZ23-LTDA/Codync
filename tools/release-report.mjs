@@ -62,4 +62,16 @@ const token = measurements.firstTokenP95Ms === undefined
   : `p95 ${measurements.firstTokenP95Ms} ms, median ${measurements.firstTokenMedianMs} ms (${measurements.firstTokenWhere})`;
 console.log(`measured: strings outside the translation = ${strings ?? "unmeasurable"}; mascots with artwork = ${artwork ?? "unmeasurable"}`);
 console.log(`measured: app open = ${open}; first token = ${token}; screens inspected = ${measurements.screensInspected ?? "not measured"}`);
+// The first-use steps, from the same file: the runbook's budget means nothing without them.
+const use = measurements.firstUseCreateBotMs === undefined
+  ? "not measured"
+  : `createBot ${measurements.firstUseCreateBotMs} ms · first answer ${measurements.firstUseFirstAnswerMs} ms`;
+const approval = measurements.approvalCardMs === undefined
+  ? "not measured"
+  : `card ${measurements.approvalCardMs} ms · yes to turn end ${measurements.approvalYesMs} ms`;
+const pairing = measurements.pairingQrMs === undefined
+  ? "not measured"
+  : `QR ${measurements.pairingQrMs} ms · connect ${measurements.pairingConnectMs} ms · redeem ${measurements.pairingRedeemMs} ms`;
+console.log(`measured: first use = ${use}; approval = ${approval}; pairing = ${pairing}`);
+console.log(`measured: first use numbers are ${measurements.firstUseWhere ?? "of unknown origin"}`);
 process.exit(strings === 0 && artwork === 13 ? 0 : 1);

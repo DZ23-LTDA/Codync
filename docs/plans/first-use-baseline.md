@@ -1,33 +1,51 @@
-# Primeiro uso — a parte que é do host
+# Primeiro uso — todos os números num lugar só
 
-Medido em 01/11 com `host/tests/first_use_e2e.rs`: host real, agente de teste que responde na hora (para o modelo não
-entrar na conta).
+Antes disto, os números do primeiro uso estavam em quatro arquivos e cada um contava metade da história. Este é o único lugar:
+o que foi medido, com que teste, e o que **não** foi.
+
+A régua do goal (§18.5): **primeiro uso em menos de 3 minutos**, sem ajuda. Ninguém executou os três minutos ainda — o app
+instalado continua em **2.33.2** e o item 10 está bloqueado. O que existe é o tempo do **host** e do **renderer**, medido,
+com o teste que o produz.
+
+## As nove etapas do roteiro
+
+| # | Etapa | Medido | Como | O que ainda falta |
+|---|---|---|---|---|
+| 1 | abrir o app | **2204 ms** até o primeiro conteúdo | Playwright + `performance` no renderer em dev | o **app instalado** (Electron empacotado) |
+| 2 | detectar o agente | — | — | só o app instalado mostra a lista de agentes |
+| 3 | criar um bot | **4 ms** | `first_use_e2e.rs`, host real | — |
+| 4 | mensagem → primeira resposta | **569 ms** (processo do agente + handshake ACP) | `first_use_e2e.rs`, agente que responde na hora | — |
+| 5 | primeiro token | p95 **4 ms** · mediana **3 ms** · pior **587 ms** | `first_token_e2e.rs`, 20 rodadas | — |
+| 6 | aprovar uma ação | cartão **602–644 ms** · sim → turno **21–28 ms** | `approval_latency_e2e.rs` | a **decisão humana** (só no app) |
+| 7 | parear o celular | QR **3–75 ms** · connect **13 ms** · redeem **1 ms** | `pairing_latency_e2e.rs`, `e2e.rs` | **escanear o QR** (só no app) |
+| 8 | matar e reabrir | — | — | só o app instalado |
+| 9 | desinstalar sem serviço órfão | — | — | só o app instalado |
+
+**Do lado do host, as etapas 3–7 somam menos de 1,5 s.** O resto dos três minutos é humano: ler, digitar, escolher.
+
+## O que estes números são, e o que não são
+
+**São** medições reproduzíveis, cada uma com o teste que a produz e o ambiente descrito:
 
 ```
-createBot                      4 ms
-mensagem → primeira resposta  569 ms
-total do host                 573 ms
+host/tests/first_use_e2e.rs       createBot + primeira resposta
+host/tests/first_token_e2e.rs     primeiro token, 20 rodadas (ignored por padrão)
+host/tests/pairing_latency_e2e.rs QR de pareamento
+host/tests/e2e.rs                 connect + redeem do código
+host/tests/approval_latency_e2e.rs cartão de aprovação + sim
+demo + Playwright                 abertura do renderer
 ```
 
-O que são esses 569 ms: **o processo do agente nascendo e o handshake ACP** — o mesmo custo que apareceu como caso isolado no
-teste de primeiro token (587–678 ms). Não é o modelo, não é a rede: é subir um processo.
+**Não são** o tempo de uma pessoa no app instalado: este ambiente é Windows, com host de teste, agente de teste e renderer
+em modo dev. Um número do host não pode ser apresentado como "o primeiro uso leva X" — só como "o host gasta X".
 
-## O que isso quer dizer para os três minutos
+## Hardware e ambiente
 
-O roteiro de primeiro uso dá **três minutos** para a pessoa inteira: abrir o app, ver o agente, criar o bot, mandar a
-mensagem, receber a resposta e aprovar uma ação.
+Windows, build **debug** (`cargo test`), MSVC 14.44, Rust 1.99.0, Chromium via Playwright para o renderer. Máquina de
+desenvolvimento, não uma máquina limpa: os números de primeira execução (processo do agente nascendo) tendem a ser **piores**
+numa máquina recém-instalada, não melhores.
 
-O host gasta **573 ms** na parte que lhe cabe (criar o bot e conversar). O resto dos três minutos é humano: ler, digitar,
-escolher — e é isso que o app tem de manter curto.
+## Próximo passo, quando o item 10 destravar
 
-## O que não está neste número
-
-- a **abertura do app** (2204 ms no renderer em dev — não é o app instalado);
-- o **pareamento** (QR 3–75 ms · connect 13 ms · redeem 1 ms);
-- a **aprovação de uma ação**, que depende de o agente pedir permissão — o teste de primeiro uso não cobre;
-- e o **app instalado**, que continua em 2.33.2.
-
-## Pendência
-
-Um número por etapa já existe para o host; o item 5 só fecha quando alguém executar o roteiro no app instalado e disser
-onde os três minutos foram gastos de verdade.
+Executar `first-use-runbook.md` no app instalado, cronometrar as nove etapas, e só então dizer se os três minutos fecham. Até
+lá, o item 5 continua `IN_PROGRESS` — com números, não com adjetivos.
