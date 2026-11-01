@@ -1,0 +1,11 @@
+{
+  "appOpenMs": 2204,
+  "appOpenWhere": "renderer em dev (Chromium, host de memória) — não é o app instalado",
+  "firstTokenP95Ms": 4,
+  "firstTokenMedianMs": 3,
+  "firstTokenWorstMs": 587,
+  "firstTokenWhere": "host com agente local (first_token_e2e.rs, 20 rodadas)",
+  "screensInspected": 13,
+  "defectsFoundOnScreen": 8,
+  "installedAppVersion": "2.33.2"
+}

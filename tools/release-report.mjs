@@ -52,5 +52,14 @@ const counts = items.reduce((tally, entry) => ({ ...tally, [entry.state]: (tally
 const closed = (counts.VERIFIED ?? 0) + (counts.TESTED ?? 0) + (counts.IMPLEMENTED ?? 0);
 console.log("");
 console.log(`gate: ${closed}/${items.length} with implementation or better; ${counts.VERIFIED ?? 0} verified`);
-console.log(`measured: strings outside the translation = ${strings ?? "unmeasurable"}; mascots with artwork = ${artwork ?? "unmeasurable"}; app open time = not measured`);
+// The numbers the gate asks for, from the file the measurements are written to: a report that prints "not measured"
+// after it was measured is the same lie as printing a number that was never taken.
+const measurementsPath = `${process.cwd()}/docs/plans/measurements.json`;
+const measurements = existsSync(measurementsPath) ? JSON.parse(readFileSync(measurementsPath, "utf8")) : {};
+const open = measurements.appOpenMs === undefined ? "not measured" : `${measurements.appOpenMs} ms (${measurements.appOpenWhere})`;
+const token = measurements.firstTokenP95Ms === undefined
+  ? "not measured"
+  : `p95 ${measurements.firstTokenP95Ms} ms, median ${measurements.firstTokenMedianMs} ms (${measurements.firstTokenWhere})`;
+console.log(`measured: strings outside the translation = ${strings ?? "unmeasurable"}; mascots with artwork = ${artwork ?? "unmeasurable"}`);
+console.log(`measured: app open = ${open}; first token = ${token}; screens inspected = ${measurements.screensInspected ?? "not measured"}`);
 process.exit(strings === 0 && artwork === 13 ? 0 : 1);
