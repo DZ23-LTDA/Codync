@@ -47,9 +47,7 @@ pub async fn serve(home: &Path) -> (Child, String) {
             }
             tokio::time::sleep(Duration::from_millis(50)).await;
         }
-        if Instant::now() >= deadline {
-            panic!("{}", not_started(home, &log, &last));
-        }
+        assert!(Instant::now() < deadline, "{}", not_started(home, &log, &last));
     }
 }
 

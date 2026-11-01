@@ -87,7 +87,7 @@ mod tests {
     /// A directory link, or `false` when this account may not create one.
     ///
     /// Windows needs Developer Mode or an elevated account for a symlink: a plain developer
-    /// machine fails with ERROR_PRIVILEGE_NOT_HELD (1314), and the caller reports the case as
+    /// machine fails with `ERROR_PRIVILEGE_NOT_HELD` (1314), and the caller reports the case as
     /// skipped rather than failing a suite over a privilege it cannot grant itself.
     fn link_dir(target: &Path, link: &Path) -> bool {
         #[cfg(unix)]
