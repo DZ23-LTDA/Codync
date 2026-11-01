@@ -330,7 +330,7 @@ private fun stateWord(bot: WidgetBot): Pair<String, Ink> = when (bot.status) {
     val label = if (needs > 0) (if (needs == 1) "Needs you" else "Need you") else if (working > 0) "Working" else if (bots.isEmpty()) "No bots yet" else "All quiet"
     Column(GlanceModifier.fillMaxSize()) {
         Row(GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Text("Bots", GlanceModifier.defaultWeight(), style = style(13f, ink, FontWeight.Medium))
+            Text(phrase("Bots"), GlanceModifier.defaultWeight(), style = style(13f, ink, FontWeight.Medium))
             Image(ImageProvider(requireNotNull(com.codync.android.design.symbolRes("bubble.left.and.bubble.right"))), null, GlanceModifier.size(15.dp), colorFilter = ColorFilter.tint(secondary))
         }
         Spacer(GlanceModifier.height(10.dp))
@@ -338,7 +338,7 @@ private fun stateWord(bot: WidgetBot): Pair<String, Ink> = when (bot.status) {
             ProviderLayout.Large -> {
                 Row(GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.Bottom) {
                     Summary(count, label, needs > 0, GlanceModifier.defaultWeight())
-                    Text("${bots.size} total · $working working", style = style(11f, secondary))
+                    Text("${bots.size} ${phrase("total")} · $working ${phrase("working")}", style = style(11f, secondary))
                 }
                 Spacer(GlanceModifier.height(10.dp))
                 Box(GlanceModifier.fillMaxWidth().height(1.dp).background(divider)) {}
@@ -358,7 +358,7 @@ private fun stateWord(bot: WidgetBot): Pair<String, Ink> = when (bot.status) {
                 Row(GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     for (bot in bots.take(3)) Face(context, bot.avatarShape, bot.avatarColor, 23.dp, customIcon = bot.customIcon)
                     Spacer(GlanceModifier.defaultWeight())
-                    if (working > 0 && needs > 0) Text("$working working", style = style(9f, secondary))
+                    if (working > 0 && needs > 0) Text("$working ${phrase("working")}", style = style(9f, secondary))
                 }
             }
         }
