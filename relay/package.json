@@ -12,9 +12,9 @@
     "@fivesheepco/cloudflare-apns2": "^13.0.0"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "^4.20260317.1",
+    "@cloudflare/workers-types": "^5.20261101.1",
     "typescript": "^5.9.3",
-    "wrangler": "^4.75.0"
+    "wrangler": "^4.156.0"
   },
   "private": true,
   "license": "Apache-2.0"
