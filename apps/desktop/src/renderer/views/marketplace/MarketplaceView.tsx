@@ -192,7 +192,7 @@ export function MarketplaceView() {
       </div>
       {/* Dismissing slides the sheet away; clearing the caller's state would cut it off. */}
       <div className="market-close">
-        <IconButton title="Close" icon="xmark" onClick={dismiss} />
+        <IconButton title={tr('Close')} icon="xmark" onClick={dismiss} />
       </div>
     </div>
   )
@@ -257,19 +257,19 @@ function InstalledView({ back }: { back: () => void }) {
 
   return (
     <SheetPage>
-      <ScreenHeader title="Connectors & skills" onBack={back} />
+      <ScreenHeader title={tr('Connectors & skills')} onBack={back} />
       <div className="market-installed-body">
         <div className="market-scroll">
           <div className="market-page-content">
-            {empty ? <EmptyState icon="shippingbox" title="Nothing installed" detail="Connectors and skills you add show up here." /> : null}
+            {empty ? <EmptyState icon="shippingbox" title={tr('Nothing installed')} detail={tr(tr('Connectors and skills you add show up here.'))} /> : null}
             {plugins.installedConnectors.length ? (
-              <MarketSection title="Connectors">
+              <MarketSection title={tr('Connectors')}>
                 <ItemGrid>
                   {plugins.installedConnectors.map((c) => (
                     <ItemRow
                       key={c.id}
                       title={c.name}
-                      subtitle={needsSignIn(c) ? 'Sign in so bots can use it' : (c.command ?? c.url ?? c.description)}
+                      subtitle={needsSignIn(c) ? tr('Sign in so bots can use it') : (c.command ?? c.url ?? c.description)}
                       icon={c.kind === 'composio' ? <AppLogo url={c.logo} name={c.name} /> : <ServiceLogo name={c.name} registryName={c.registryName} />}
                       trailing={(
                         <>
@@ -283,7 +283,7 @@ function InstalledView({ back }: { back: () => void }) {
               </MarketSection>
             ) : null}
             {plugins.installedSkills.length ? (
-              <MarketSection title="Skills">
+              <MarketSection title={tr('Skills')}>
                 <ItemGrid>
                   {plugins.installedSkills.map((s) => (
                     <ItemRow
@@ -304,7 +304,7 @@ function InstalledView({ back }: { back: () => void }) {
       <Dialog
         open={removing !== null}
         title={tr('Remove {name}?').replaceAll('{name}', removing?.name ?? '')}
-        message={removing ? tr(removing.isSkill ? 'Bots stop using this skill.' : 'Bots lose this connector, and the keys saved for it are deleted.') : null}
+        message={removing ? tr(removing.isSkill ? tr('Bots stop using this skill.') : tr('Bots lose this connector, and the keys saved for it are deleted.')) : null}
         actions={removing ? [{ title: 'Remove', destructive: true, action: () => void remove(removing) }] : []}
         onClose={() => setRemoving(null)}
       />
