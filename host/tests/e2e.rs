@@ -355,10 +355,18 @@ async fn phone_pairs_and_chats_over_the_direct_channel() {
     assert_eq!(query_param(url, "id"), crypto::computer_id(&sk));
     let key = SigningKey::from_bytes(&crypto::random());
 
+    let connect_started = Instant::now();
     let mut phone = Phone::connect(&host, &key, &sk, true).await;
+    let connect_ms = connect_started.elapsed().as_millis();
     let code = query_param(url, "code");
+    // What the phone waits for after the code is typed: the answer that says it is in.
+    let redeem_started = Instant::now();
     phone.send(json!({"id": 1, "m": "pair", "b": {"code": code, "name": "Test iPhone", "platform": "ios"}})).await;
-    assert_eq!(phone.inner().await["ok"]["computerId"], crypto::computer_id(&sk));
+    let answer = phone.inner().await;
+    let redeem_ms = redeem_started.elapsed().as_millis();
+    println!("pairing channel: connect {connect_ms} ms · redeem {redeem_ms} ms");
+    assert!(redeem_ms < 2_000, "redeeming a pairing code took {redeem_ms} ms");
+    assert_eq!(answer["ok"]["computerId"], crypto::computer_id(&sk));
     assert!(matches!(phone.recv().await, Frame::Closed(4100)));
 
     let mut phone = Phone::connect(&host, &key, &sk, false).await;
