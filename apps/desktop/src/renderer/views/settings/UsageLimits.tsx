@@ -13,6 +13,12 @@ export function UsageLimits({ usage }: { usage: Usage }) {
   const [style] = usePref(prefs.usageIconStyle)
   const resetLine = useResetLine()
   const tr = useTr()
+  // A host with no usage yet (fresh install, an agent that never ran) would leave this section as a blank gap.
+  if (usage.providers.length === 0) {
+    return (
+      <Text size="callout" tone="secondary">{tr('No usage limits yet. Run a bot once and they show up here.')}</Text>
+    )
+  }
   return (
     <VStack gap={18}>
       {usage.providers.map((provider) => (
