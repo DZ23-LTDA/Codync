@@ -51,3 +51,26 @@ test("withoutTranslations keeps the file's line count", () => {
   const blanked = withoutTranslations(source);
   assert.equal(blanked.split("\n").length, source.split("\n").length);
 });
+
+
+test("copy carried by footer, detail, empty, label and message is reported", () => {
+  const source = [
+    "const a = (",
+    '  <CardSection footer="Lets you unfold a working bot\'s thinking.">',
+    '    <Row detail="Runs in the background." />',
+    '    <Row empty="Nothing here yet." />',
+    "  </CardSection>",
+    ")",
+  ].join("\n");
+  const found = findUnwrapped(source, "card.tsx").map((entry) => entry.text);
+  assert.ok(found.some((text) => text.startsWith("Lets you unfold")), "footer: " + found);
+  assert.ok(found.includes("Runs in the background."), "detail: " + found);
+  assert.ok(found.includes("Nothing here yet."), "empty: " + found);
+});
+
+test("a text node is reported on the line the words are, not the line the element opened", () => {
+  const source = ["<Button", "  kind=\"secondary\"", ">", "  Apple", "</Button>"].join("\n");
+  const [found] = findUnwrapped(source, "button.tsx");
+  assert.equal(found.text, "Apple");
+  assert.equal(found.line, 4, "the words are on line 4, the element opened on line 1");
+});

@@ -14,7 +14,9 @@ const root = "apps/desktop/src/renderer";
 // `tr('...')`, `tr("...")` or `tr(\`...\`)`, any of them possibly spanning lines.
 const trCall = /\btr\(\s*(?:'[^']*'|"[^"]*"|`[^`]*`|\{[^}]*\})\s*\)/gs;
 const visibleText = />\s*([A-Z][A-Za-z][^<>{}]{2,60})\s*</g;
-const visibleAttribute = /\b(placeholder|title|aria-label)="([^"]{2,60})"/g;
+// `footer`, `detail`, `empty`, `label` and `message` carry copy on the shared components and were invisible to an
+// earlier version of this scan: their text showed in English while the report said every string was covered.
+const visibleAttribute = /\b(placeholder|title|aria-label|footer|detail|empty|label|message)="([^"]{2,200})"/g;
 // Text that is not interface copy: a JSX expression producing a value, or a brand name.
 const ignoreText = /^(Promise|Codync|Math\.|B-3PO)/;
 const ignoreAttribute = /^(B-3PO|Codync)$/;
@@ -38,7 +40,9 @@ export function findUnwrapped(source, file = "") {
   for (const match of scanned.matchAll(visibleText)) {
     const text = match[1].trim();
     if (ignoreText.test(text)) continue;
-    found.push({ file, line: lineAt(scanned, match.index), kind: "text", text });
+    // The match starts at the `>`; report the line the words are on, not the line the element opened on.
+    const at = match.index + match[0].indexOf(match[1]);
+    found.push({ file, line: lineAt(scanned, at), kind: "text", text });
   }
   for (const match of scanned.matchAll(visibleAttribute)) {
     const text = match[2].trim();
