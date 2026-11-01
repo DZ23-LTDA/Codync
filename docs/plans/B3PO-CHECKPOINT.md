@@ -23,7 +23,7 @@
 | 2 | Release do fork ≠ upstream | IMPLEMENTED + TESTED | PR #47 · guarda aborta fora de `DZ23-LTDA/Codync` |
 | 3 | Banco em todos os estados | **TESTED** | PRs #43, #48, #50, #62 · 10 testes |
 | 6 | Erros humanos | IN_PROGRESS | PRs #53–#57, #64, #73, #75 · 0 stacks / 0 valores crus na tela; 3 vazamentos corrigidos e vistos no app |
-| 7 | pt-BR no escopo | IN_PROGRESS | PRs #71, #72, #73 · tela de acesso **0 inglês** verificado; `pt` 253/1468 na tabela compartilhada |
+| 7 | pt-BR no escopo | IN_PROGRESS | PRs #71, #72, #73, #95, #96, #99 · **0 de 303** frases `tr()` sem tradução (349 chaves) · **297** strings ainda fora do `tr()` · 3 telas vistas no app e 4 defeitos de idioma corrigidos |
 | 10 | Ciclo de entrega | **IN_PROGRESS** | release publicada; instalação e update in-app **não** |
 | 11 | Cancelar e destravar | IN_PROGRESS | `stop` existe (host, store, botão); falta **watchdog** e registro do motivo |
 | 4, 5, 8, 9 | instalação/primeiro uso/perf/release | NOT_STARTED / parcial | host pronto em 334 ms; resto depende de VM e app |
