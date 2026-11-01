@@ -20,23 +20,23 @@ export function AccessSteps({ access, selection }: { access: ComputerAccess; sel
   )
   return (
     <>
-      {windows ? <AccessRow large={selection !== undefined} title="Computer control" icon="cursorarrow.motionlines" detail="Bots can use apps on this computer. Remote screen viewing from your phone isn’t available on Windows yet." done={ready} /> : <>
-        {(!selection || selection === 'helper') ? <AccessRow large={selection !== undefined} title="Codync Screen" icon="desktopcomputer" detail="Runs in the background to share your screen and connect your controls." done={helperReady} active={['enable', 'helper', 'background'].includes(step)} status={step === 'background' ? 'Needs approval' : undefined}>
-          {['enable', 'helper'].includes(step) ? <Button disabled={busy !== null} onClick={() => void access.enable()}>{busy === 'enable' ? <><Spinner /> {tr('Starting…')}</> : step === 'helper' ? 'Start again' : 'Enable Codync Screen'}</Button> : null}
+      {windows ? <AccessRow large={selection !== undefined} title={tr('Computer control')} icon="cursorarrow.motionlines" detail={tr('Bots can use apps on this computer. Remote screen viewing from your phone isn’t available on Windows yet.')} done={ready} /> : <>
+        {(!selection || selection === 'helper') ? <AccessRow large={selection !== undefined} title={tr('Codync Screen')} icon="desktopcomputer" detail={tr('Runs in the background to share your screen and connect your controls.')} done={helperReady} active={['enable', 'helper', 'background'].includes(step)} status={step === 'background' ? 'Needs approval' : undefined}>
+          {['enable', 'helper'].includes(step) ? <Button disabled={busy !== null} onClick={() => void access.enable()}>{busy === 'enable' ? <><Spinner /> {tr('Starting…')}</> : step === 'helper' ? tr('Start again') : tr('Enable Codync Screen')}</Button> : null}
           {step === 'background' ? <><p className="computer-access-inline-note">{tr('Allow Codync to run in the background in Login Items.')}</p><Button onClick={() => access.openSettings('background')}>{tr('Open Login Items')} <Icon name="arrow.up.right.square" size={10} /></Button></> : null}
         </AccessRow> : null}
         {mac ? <>
-          {(!selection || selection === 'capture') ? <AccessRow large={selection !== undefined} title="Screen recording" icon="record.circle" detail="Lets Codync see your screen, including anything visible in your apps." done={screen?.capture === true} active={step === 'capture'}>
+          {(!selection || selection === 'capture') ? <AccessRow large={selection !== undefined} title={tr('Screen recording')} icon="record.circle" detail={tr('Lets Codync see your screen, including anything visible in your apps.')} done={screen?.capture === true} active={step === 'capture'}>
             {step === 'capture' ? <SettingsHint app={access.helperName} /> : null}
             {canRequest ? request('capture', 'Allow screen recording') : null}
             {access.requested.has('capture') ? <SettingsLink action={() => access.openSettings('capture')} /> : null}
           </AccessRow> : null}
-          {(!selection || selection === 'input') ? <AccessRow large={selection !== undefined} title="Control apps" icon="cursorarrow.motionlines" detail="Lets Codync click, type and interact with apps on your behalf." done={screen?.input === true} active={step === 'input'}>
+          {(!selection || selection === 'input') ? <AccessRow large={selection !== undefined} title={tr('Control apps')} icon="cursorarrow.motionlines" detail={tr('Lets Codync click, type and interact with apps on your behalf.')} done={screen?.input === true} active={step === 'input'}>
             {step === 'input' ? <SettingsHint app={access.helperName} control /> : null}
             {canRequest ? request('input', 'Allow computer control') : null}
             {access.requested.has('input') ? <SettingsLink action={() => access.openSettings('input')} /> : null}
           </AccessRow> : null}
-        </> : (!selection || selection === 'portal') ? <AccessRow large={selection !== undefined} title="Screen sharing & control" icon="cursorarrow.motionlines" detail="Choose a screen and allow mouse and keyboard access. You can stop sharing at any time." done={screen?.capture === true && screen.input} active={step === 'portal'}>
+        </> : (!selection || selection === 'portal') ? <AccessRow large={selection !== undefined} title={tr('Screen sharing & control')} icon="cursorarrow.motionlines" detail={tr('Choose a screen and allow mouse and keyboard access. You can stop sharing at any time.')} done={screen?.capture === true && screen.input} active={step === 'portal'}>
           {canRequest ? request('portal', 'Choose screen and allow control') : null}
         </AccessRow> : null}
       </>}

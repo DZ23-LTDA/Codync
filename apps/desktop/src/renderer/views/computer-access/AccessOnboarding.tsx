@@ -49,9 +49,9 @@ export function AccessOnboarding({ onContinue }: { onContinue: (ready: boolean) 
             <Text as="div" size="caption" tone="secondary">{tr(' (optional)').trim()}</Text>
           </div> : <>
             <AccessSteps access={access} selection={page.id} />
-            {access.step === 'host' ? <AccessNotice title="Waiting for your computer" icon="desktopcomputer">Start or restart the host from Codync’s menu to continue. We’ll check again automatically.</AccessNotice> : null}
-            {access.step === 'unavailable' ? <AccessNotice title="Codync Screen is missing" icon="desktopcomputer.trianglebadge.exclamationmark">Install the full Codync desktop app to finish setup.</AccessNotice> : null}
-            {access.error ? <AccessNotice title="Couldn’t finish setup" icon="exclamationmark.circle" error>{access.error}</AccessNotice> : null}
+            {access.step === 'host' ? <AccessNotice title={tr('Waiting for your computer')} icon="desktopcomputer">{tr('Start or restart the host from Codync’s menu to continue. We’ll check again automatically.')}</AccessNotice> : null}
+            {access.step === 'unavailable' ? <AccessNotice title={tr('Codync Screen is missing')} icon="desktopcomputer.trianglebadge.exclamationmark">{tr('Install the full Codync desktop app to finish setup.')}</AccessNotice> : null}
+            {access.error ? <AccessNotice title={tr('Couldn’t finish setup')} icon="exclamationmark.circle" error>{access.error}</AccessNotice> : null}
             {['capture', 'input', 'portal'].includes(page.id) && ['enable', 'helper', 'background'].includes(access.step)
               ? <div className="access-onboarding-prerequisite"><Button kind="secondary" onClick={() => setSelection('helper')}>{tr('Enable Codync Screen')}</Button></div> : null}
           </>}
@@ -60,7 +60,7 @@ export function AccessOnboarding({ onContinue }: { onContinue: (ready: boolean) 
       <footer className="access-onboarding-footer">
         <Text size="caption" tone="secondary" tabular>{index + 1} / {pages.length}</Text>
         <div className="access-onboarding-navigation">
-          {selection !== 'star' ? <IconButton title="Check again" icon="arrow.clockwise" onClick={() => void access.refresh()} /> : null}
+          {selection !== 'star' ? <IconButton title={tr('Check again')} icon="arrow.clockwise" onClick={() => void access.refresh()} /> : null}
           <Button kind="secondary" onClick={() => selection === 'star' ? finish() : setSelection(pages[index + 1]!.id)}>
             {tr(selection === 'star' ? 'Get started' : accessPageReady(selection, access.step, access.screen) ? 'Continue' : 'Set up later')}<Icon name="arrow.right" size={12} />
           </Button>
