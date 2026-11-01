@@ -41,7 +41,7 @@
       "id": 7,
       "item": "pt-BR in the released scope, visually inspected",
       "state": "IN_PROGRESS",
-      "evidence": "314 strings measured, 0 wrapped, 0 screens inspected"
+      "evidence": "PRs #71, #72, #73, #95, #96, #99: 0 of 303 tr() phrases lack a pt.json entry (349 keys); 297 strings still never reach tr(); 3 screens inspected in the running app and 4 language defects fixed there"
     },
     {
       "id": 8,
