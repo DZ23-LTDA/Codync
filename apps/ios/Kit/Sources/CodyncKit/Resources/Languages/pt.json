@@ -749,5 +749,13 @@
   "Who it belongs to": "A quem pertence",
   "Yellow": "Amarelo",
   "Your choice": "Sua escolha",
-  "Your own relay": "Seu próprio relay"
+  "Your own relay": "Seu próprio relay",
+  "Add Node.js": "Adicionar o Node.js",
+  "Add a fallback": "Adicionar um substituto",
+  "Keep this conversation": "Manter esta conversa",
+  "No usage yet.": "Nenhum uso ainda.",
+  "Put it first": "Colocar em primeiro",
+  "Switch back": "Voltar ao próprio agente",
+  "Trust and connect": "Confiar e conectar",
+  "Update now": "Atualizar agora"
 }

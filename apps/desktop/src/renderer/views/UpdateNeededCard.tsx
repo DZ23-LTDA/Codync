@@ -5,12 +5,14 @@ import { Text } from '../components/Text'
 import { updateNeededText } from '../lib/host-update'
 import { useApp, useStore } from '../store/context'
 import { UpdateButton, useUpdates } from './UpdateButton'
+import { useTr } from '../lib/use-language'
 
 /**
  * Says which side has to update before this app and a computer can work together, and offers
  * the update where this app can start it. Shown instead of the composer and above the bots.
  */
 export function UpdateNeededCard() {
+  const tr = useTr()
   const app = useApp()
   const store = useStore()
   const updates = useUpdates()
@@ -28,7 +30,7 @@ export function UpdateNeededCard() {
     : null
   const button =
     action === 'updateApp' ? updates && <UpdateButton updates={updates} kind="primary" />
-    : action === 'restartHost' ? <Button onClick={() => window.codync.host.restart()}>Update now</Button>
+    : action === 'restartHost' ? <Button onClick={() => window.codync.host.restart()}>{tr('Update now')}</Button>
     : action === 'askHost' ? <Button onClick={() => store.requestHostUpdate()}>Update now</Button>
     : null
   // With a button here, instructions for that computer would only confuse.

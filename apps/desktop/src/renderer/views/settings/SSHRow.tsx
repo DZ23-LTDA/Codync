@@ -61,8 +61,8 @@ export function SSHRow({ profile, status, edit, attached = true }: { profile: SS
               <Text key={f} size="caption" mono className="selectable">{f}</Text>
             ))}
             <HStack align="stretch" gap={8}>
-              <Button onClick={() => bridge.trustHostKey(profile.id)}>Trust and connect</Button>
-              <Button kind="secondary" onClick={() => bridge.disconnect(profile.id)}>Cancel</Button>
+              <Button onClick={() => bridge.trustHostKey(profile.id)}>{tr('Trust and connect')}</Button>
+              <Button kind="secondary" onClick={() => bridge.disconnect(profile.id)}>{tr('Cancel')}</Button>
             </HStack>
           </VStack>
         ) : null}

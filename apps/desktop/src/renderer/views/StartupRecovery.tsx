@@ -30,7 +30,7 @@ export function StartupRecovery({ manage }: { manage: () => void }) {
             <SSHRow key={p.id} profile={p} status={ssh.status(p.id)} attached={ssh.state.attachments.some((a) => a.profileId === p.id)} edit={manage} />
           ))}
         </div>
-        <Button kind="secondary" onClick={manage}>Manage computers</Button>
+        <Button kind="secondary" onClick={manage}>{tr('Manage computers')}</Button>
         {app.host.state.kind !== 'running' ? <HostStateView compact /> : null}
       </div>
     </div>
