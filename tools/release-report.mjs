@@ -1,5 +1,6 @@
 #!/usr/bin/env node
-// Prints the state of the Release 1 gate (goal v3.2, section 18) with the numbers this repository can compute.
+// Prints the state of the Release 1 gate (goal v3.2 section 18, items 10 and 11 from addendum v3.4) with the numbers
+// this repository can compute. The count comes from the file, so adding an item does not need a code change.
 // The states come from a file a person edits; the numbers are computed here, so nobody can declare a number that the
 // code does not produce.
 import { execFileSync } from "node:child_process";
@@ -50,6 +51,6 @@ for (const entry of items.slice().sort((a, b) => a.id - b.id)) {
 const counts = items.reduce((tally, entry) => ({ ...tally, [entry.state]: (tally[entry.state] ?? 0) + 1 }), {});
 const closed = (counts.VERIFIED ?? 0) + (counts.TESTED ?? 0) + (counts.IMPLEMENTED ?? 0);
 console.log("");
-console.log(`gate: ${closed}/9 with implementation or better; ${counts.VERIFIED ?? 0} verified`);
+console.log(`gate: ${closed}/${items.length} with implementation or better; ${counts.VERIFIED ?? 0} verified`);
 console.log(`measured: strings outside the translation = ${strings ?? "unmeasurable"}; mascots with artwork = ${artwork ?? "unmeasurable"}; app open time = not measured`);
 process.exit(strings === 0 && artwork === 13 ? 0 : 1);
