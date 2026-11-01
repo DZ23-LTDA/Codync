@@ -144,10 +144,10 @@ export function RoutineEditorView({ botId, routine, saved }: {
         return routine && routine.triggers.some((t) => t.type === 'webhook' || t.type === 'event') ? (
           <RoutineWebhookPanel botId={botId} routineId={routine.id} />
         ) : (
-          <Note icon="link" title="Runs each time something is posted to its URL." detail="Save to get the URL and key." />
+          <Note icon="link" title={tr('Runs each time something is posted to its URL.')} detail={tr('Save to get the URL and key.')} />
         )
       default:
-        return <Note icon="sparkles" title={routine?.triggerDescriptions.join(' · ') ?? ''} detail="Set up by the bot. Pick Schedule or Webhook to replace it." />
+        return <Note icon="sparkles" title={routine?.triggerDescriptions.join(' · ') ?? ''} detail={tr('Set up by the bot. Pick Schedule or Webhook to replace it.')} />
     }
   }
 
@@ -158,11 +158,11 @@ export function RoutineEditorView({ botId, routine, saved }: {
       <fieldset className="routine-form" disabled={busy || !loaded}>
         <VStack gap={24} className="routine-form-body">
           <VStack gap={16}>
-            <Field label="Name">
-              <input className="routine-input" value={name} placeholder="e.g. Morning summary" onChange={(e) => setName(e.target.value)} />
+            <Field label={tr('Name')}>
+              <input className="routine-input" value={name} placeholder={tr('e.g. Morning summary')} onChange={(e) => setName(e.target.value)} />
             </Field>
-            <Field label="Instruction">
-              <textarea className="routine-input" value={instruction} placeholder="Describe what this bot should do each time it runs." onChange={(e) => setInstruction(e.target.value)} />
+            <Field label={tr('Instruction')}>
+              <textarea className="routine-input" value={instruction} placeholder={tr('Describe what this bot should do each time it runs.')} onChange={(e) => setInstruction(e.target.value)} />
             </Field>
           </VStack>
           <VStack gap={10}>
@@ -175,13 +175,13 @@ export function RoutineEditorView({ botId, routine, saved }: {
             ) : (
               <HStack as="span" gap={6} className="routine-loading">
                 <Icon name="clock" size={12} />
-                Loading schedule…
+                {tr('Loading schedule…')}
               </HStack>
             )}
           </VStack>
           <VStack gap={10}>
             <button className="press routine-advanced" aria-expanded={advanced} onClick={() => setAdvanced((a) => !a)}>
-              Run settings
+              {tr('Run settings')}
               <span className={`routine-chevron ${advanced ? 'open' : ''}`}>
                 <Icon name="chevron.down" size={10} weight="semibold" />
               </span>
@@ -190,9 +190,9 @@ export function RoutineEditorView({ botId, routine, saved }: {
             </button>
             {advanced ? (
               <div className="routine-fade">
-                <CardSection footer="A run is stopped after this long. 1 second to 24 hours.">
-                  <LabeledRow label="Timeout">
-                    <input className="schedule-input routine-timeout" aria-label="Timeout in seconds" value={timeout} placeholder="3600" onChange={(e) => setTimeoutText(e.target.value)} />
+                <CardSection footer={tr('A run is stopped after this long. 1 second to 24 hours.')}>
+                  <LabeledRow label={tr('Timeout')}>
+                    <input className="schedule-input routine-timeout" aria-label={tr('Timeout in seconds')} value={timeout} placeholder={tr('3600')} onChange={(e) => setTimeoutText(e.target.value)} />
                     <Text size="callout" tone="secondary">{tr(`seconds`)}</Text>
                   </LabeledRow>
                 </CardSection>
@@ -205,12 +205,12 @@ export function RoutineEditorView({ botId, routine, saved }: {
       <VStack gap={12} className="routine-editor-footer">
         {previewError !== null ? (
           <button className="press routine-retry" disabled={store.isOffline} onClick={() => void checkSchedule()}>
-            Check schedule again
+            {tr('Check schedule again')}
           </button>
         ) : null}
         {!loaded && error !== null ? (
           <button className="press routine-retry" onClick={() => void loadSchedule()}>
-            Retry loading schedule
+            {tr('Retry loading schedule')}
           </button>
         ) : null}
         {schedule.kind !== 'cron' && previewError ? <Text size="caption" tone="danger">{previewError}</Text> : null}
@@ -223,13 +223,13 @@ export function RoutineEditorView({ botId, routine, saved }: {
         {store.isOffline ? (
           <HStack as="span" gap={6} className="routine-offline">
             <Icon name="wifi.slash" size={10} />
-            Connect to this computer to save your routine.
+            {tr('Connect to this computer to save your routine.')}
           </HStack>
         ) : null}
         <HStack gap={4}>
           {routine ? (
             <>
-              <IconButton title="Delete routine" icon="trash" onClick={() => setConfirmDelete(true)} />
+              <IconButton title={tr('Delete routine')} icon="trash" onClick={() => setConfirmDelete(true)} />
               <IconButton
                 title={started ? 'Started' : 'Test run'}
                 icon={started ? 'checkmark' : 'play.circle'}

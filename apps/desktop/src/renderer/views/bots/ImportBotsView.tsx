@@ -53,10 +53,10 @@ function Start({ model }: { model: BotImport }) {
   const tr = useTr()
   return (
     <CardForm>
-      <CardSection title="How it works" footer="Chats aren’t copied: the export keeps what matters in them as memories. Exports other apps make from Grok Bot work too.">
-        <RowLabel label="1. Add the Codync export skill to an agent in Grok Bot" detail="Copy it, then paste it as a new skill or into the agent’s instructions." />
-        <RowLabel label={`2. ${tr(`Send it: “Export my agents for Codync”`)}`} detail="It saves one .zip file to Downloads." />
-        <RowLabel label="3. Choose that file here" detail="Read on this computer; nothing is uploaded." />
+      <CardSection title={tr('How it works')} footer={tr('Chats aren’t copied: the export keeps what matters in them as memories. Exports other apps make from Grok Bot work too.')}>
+        <RowLabel label={tr('1. Add the Codync export skill to an agent in Grok Bot')} detail={tr('Copy it, then paste it as a new skill or into the agent’s instructions.')} />
+        <RowLabel label={`2. ${tr(`Send it: “Export my agents for Codync”`)}`} detail={tr('It saves one .zip file to Downloads.')} />
+        <RowLabel label={tr('3. Choose that file here')} detail={tr('Read on this computer; nothing is uploaded.')} />
       </CardSection>
       <HStack gap={8}>
         <Button kind="secondary" onClick={() => void model.copySkill()} disabled={model.busy}>{model.copied ? 'Copied' : 'Copy export skill'}</Button>
@@ -70,7 +70,7 @@ function Review({ model, plan, skipped }: { model: BotImport; plan: ImportPlan; 
   const notes = [...plan.warnings, ...skipped.map((path) => `${tr(`Left out`)} ${path}`)]
   return (
     <CardForm>
-      <CardSection title="Bots">
+      <CardSection title={tr('Bots')}>
         {plan.bots.map((bot) => (
           <Switch key={bot.key} on={model.picked(bot.key)} onChange={() => model.toggle(bot.key)}>
             <RowLabel label={bot.name} detail={summary(tr, bot.skills.length, bot.routines.length, bot.memories.length, bot.files !== null)} />
@@ -78,7 +78,7 @@ function Review({ model, plan, skipped }: { model: BotImport; plan: ImportPlan; 
         ))}
       </CardSection>
       {plan.groups.length ? (
-        <CardSection title="Group chats">
+        <CardSection title={tr('Group chats')}>
           {plan.groups.map((group) => (
             <Switch key={group.key} on={model.picked(group.key) && model.groupAvailable(group.members)} disabled={!model.groupAvailable(group.members)} onChange={() => model.toggle(group.key)}>
               <RowLabel label={group.name} detail={members(plan, group.members)} />
@@ -87,7 +87,7 @@ function Review({ model, plan, skipped }: { model: BotImport; plan: ImportPlan; 
         </CardSection>
       ) : null}
       {notes.length ? (
-        <CardSection title="Notes">
+        <CardSection title={tr('Notes')}>
           {notes.map((note) => <Text key={note} size="caption" tone="secondary">{note}</Text>)}
         </CardSection>
       ) : null}
@@ -99,12 +99,12 @@ function Done({ result }: { result: ImportResult }) {
   const tr = useTr()
   return (
     <CardForm>
-      <CardSection title="Imported">
+      <CardSection title={tr('Imported')}>
         {result.bots.map((bot) => <RowLabel key={bot.id} label={bot.name} detail={summary(tr, bot.skills, bot.routines, bot.memories, bot.files > 0)} />)}
-        {result.groups.map((group) => <RowLabel key={group.id} label={group.name} detail="Group chat" />)}
+        {result.groups.map((group) => <RowLabel key={group.id} label={group.name} detail={tr('Group chat')} />)}
       </CardSection>
       {result.warnings.length ? (
-        <CardSection title="Notes">
+        <CardSection title={tr('Notes')}>
           {result.warnings.map((note) => <Text key={note} size="caption" tone="secondary">{note}</Text>)}
         </CardSection>
       ) : null}
