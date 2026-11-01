@@ -513,6 +513,8 @@ fn cap_log() {
 async fn serve(bind: &str, port: u16) -> Result<()> {
     let _instance_lock = tokio::task::spawn_blocking(service::lock_host).await??;
     tokio::task::spawn_blocking(service::capture_binary_identity).await??;
+    // Nobody is waiting yet: read the Tailscale name now, so the first pairing code does not pay for it.
+    std::thread::spawn(service::warm_addresses);
     let listener =
         tokio::net::TcpListener::bind((bind, port)).await.with_context(|| format!("binding {bind}:{port}"))?;
     cap_log();
