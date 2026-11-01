@@ -104,7 +104,7 @@ export class BotStore extends BotSync {
     this.hostUpdate = { kind: 'requested', at: Date.now() }
     this.changed()
     void this.withLink((c) => c.call('installHostUpdate', {})).catch((error: unknown) => {
-      this.hostUpdate = { kind: 'failed', message: humanError(error) }
+      this.hostUpdate = { kind: 'failed', message: humanError(error, "The update didn't install. Try again.") }
       this.changed()
     })
   }
@@ -240,7 +240,7 @@ export class BotStore extends BotSync {
       try {
         await this.withLink(op, true)
       } catch (error) {
-        this.lastError = humanError(error)
+        this.lastError = humanError(error, "Your answer didn't reach the host. Try again.")
       }
       this.answering.delete(entry.id)
       this.changed()

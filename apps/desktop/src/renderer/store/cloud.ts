@@ -104,7 +104,7 @@ export class CloudModel extends Observable {
   /** What the user started shows its error; the app's own background calls (`quiet`) only log it. */
   private fail(error: unknown, quiet = false) {
     if (quiet) console.warn('Codync cloud:', error)
-    else this.app.setError(humanError(error))
+    else this.app.setError(humanError(error, "Codync Cloud didn't answer. Try again."))
   }
 
   private get userId() {
