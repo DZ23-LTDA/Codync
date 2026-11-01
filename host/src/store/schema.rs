@@ -341,6 +341,28 @@ mod tests {
     }
 
     #[test]
+    fn working_on_a_copy_leaves_the_damaged_file_for_whoever_repairs_it() {
+        let dir = std::env::temp_dir().join(format!("codync-recover-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let damaged = dir.join("t.db");
+        std::fs::write(&damaged, b"not a database").unwrap();
+        let before = std::fs::read(&damaged).unwrap();
+
+        // What the message tells a person to do: copy the file, then try with the copy.
+        let copy = dir.join("copy.db");
+        std::fs::copy(&damaged, &copy).unwrap();
+        let error = match Store::open(&copy) {
+            Ok(_) => panic!("the copy is damaged too"),
+            Err(error) => format!("{error:#}"),
+        };
+        assert!(error.contains(&copy.display().to_string()), "the message names the copy it tried: {error}");
+
+        assert_eq!(std::fs::read(&damaged).unwrap(), before, "the original is still exactly as it was");
+        assert_eq!(std::fs::read(&copy).unwrap(), before, "and so is the copy");
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
     fn a_damaged_database_says_so_and_is_left_alone() {
         let dir = std::env::temp_dir().join(format!("codync-corrupt-{}", uuid::Uuid::new_v4()));
         std::fs::create_dir_all(&dir).unwrap();
