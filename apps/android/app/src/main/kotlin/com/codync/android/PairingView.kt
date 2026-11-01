@@ -130,14 +130,14 @@ private enum class ComputerOS { Mac, Linux }
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     if (shown == ComputerOS.Mac) {
                         Hint("Install with Homebrew")
-                        CommandBlock("brew install --cask leepokai/codync/codync", records = OutboundLink.InstallCommand)
+                        CommandBlock("brew install --cask DZ23-LTDA/codync/codync", records = OutboundLink.InstallCommand)
                         Hint("or download the Mac app")
-                        CommandBlock("https://github.com/leepokai/Codync/releases/latest/download/codync-macos.dmg", records = OutboundLink.InstallCommand)
+                        CommandBlock("https://github.com/DZ23-LTDA/Codync/releases/latest/download/codync-macos.dmg", records = OutboundLink.InstallCommand)
                     } else {
                         Hint("Run the installer")
-                        CommandBlock("curl -fsSL https://raw.githubusercontent.com/leepokai/Codync/main/packaging/install.sh | sh\ncodync-host install", records = OutboundLink.InstallCommand)
+                        CommandBlock("curl -fsSL https://raw.githubusercontent.com/DZ23-LTDA/Codync/main/packaging/install.sh | sh\ncodync-host install", records = OutboundLink.InstallCommand)
                         Hint("or install with Homebrew")
-                        CommandBlock("brew install leepokai/codync/codync-host\ncodync-host install", records = OutboundLink.InstallCommand)
+                        CommandBlock("brew install DZ23-LTDA/codync/codync-host\ncodync-host install", records = OutboundLink.InstallCommand)
                     }
                     Text(tr(if (shown == ComputerOS.Mac) "Open Codync and it sets up the host on its own."
                         else "codync-host install keeps it running in the background."), style = Type.subheadline, color = Palette.secondary)

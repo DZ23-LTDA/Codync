@@ -114,14 +114,14 @@ private struct InstallPage: View {
                         // Copied here, pasted on the computer (Universal Clipboard or a message to yourself).
                         if os == .mac {
                             Hint("Install with Homebrew")
-                            CommandBlock("brew install --cask leepokai/codync/codync", records: .installCommand)
+                            CommandBlock("brew install --cask DZ23-LTDA/codync/codync", records: .installCommand)
                             Hint("or download the Mac app")
-                            CommandBlock("https://github.com/leepokai/Codync/releases/latest/download/codync-macos.dmg", records: .installCommand)
+                            CommandBlock("https://github.com/DZ23-LTDA/Codync/releases/latest/download/codync-macos.dmg", records: .installCommand)
                         } else {
                             Hint("Run the installer")
-                            CommandBlock("curl -fsSL https://raw.githubusercontent.com/leepokai/Codync/main/packaging/install.sh | sh\ncodync-host install", records: .installCommand)
+                            CommandBlock("curl -fsSL https://raw.githubusercontent.com/DZ23-LTDA/Codync/main/packaging/install.sh | sh\ncodync-host install", records: .installCommand)
                             Hint("or install with Homebrew")
-                            CommandBlock("brew install leepokai/codync/codync-host\ncodync-host install", records: .installCommand)
+                            CommandBlock("brew install DZ23-LTDA/codync/codync-host\ncodync-host install", records: .installCommand)
                         }
                         Text(L10n.tr(os == .mac
                              ? "Open Codync and it sets up the host on its own."
