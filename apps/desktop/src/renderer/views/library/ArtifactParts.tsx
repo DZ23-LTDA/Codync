@@ -5,6 +5,7 @@ import type { BotStore } from '../../store/bot-store'
 import type { ArtifactHTML } from '../../store/artifacts'
 import { useTr } from '../../lib/use-language'
 import './library.css'
+import { humanError } from '../../lib/human-error'
 
 /**
  * An artifact in a frame of its own origin (`main/artifacts.ts`): the whole artifact, or for a card its top, scaled down and
@@ -63,7 +64,7 @@ export function TitleField({ initial, className, done }: { initial: string; clas
   )
 }
 
-const errorText = (error: unknown) => (error instanceof Error ? error.message : String(error))
+const errorText = (error: unknown) => (humanError(error))
 
 /** Renames an artifact; what went wrong goes to `onError`. */
 export function renameArtifact(store: BotStore, artifact: Artifact, title: string | null, onError: (message: string | null) => void) {

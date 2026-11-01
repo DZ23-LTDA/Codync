@@ -3,6 +3,7 @@ import { VoiceKeyRouter, type VoiceKey } from '../../../shared/voice-shortcut.ts
 import { Observable } from '../../lib/observable.ts'
 import type { VoiceProvider } from '../settings/voice-settings.ts'
 import { inOrder, joinDictated, MIN_SAMPLES, pieces } from './dictation-pieces.ts'
+import { humanError } from '../../lib/human-error'
 
 /** The running dictation: one recognizer at a time, and a call stops dictation first. */
 let active: Dictation | null = null
@@ -43,7 +44,7 @@ interface Recording {
   stopMic: (() => void) | null
 }
 
-const messageOf = (e: unknown) => (e instanceof Error ? e.message : String(e))
+const messageOf = (e: unknown) => (humanError(e))
 
 /**
  * Dictation into a message box. With on-device speech (the speech helper; macOS), words reach

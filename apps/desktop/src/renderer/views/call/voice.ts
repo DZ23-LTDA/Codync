@@ -2,6 +2,7 @@ import type { HostClient } from '../../client/host-client'
 import type { VoiceFailure } from '@shared/analytics'
 import type { CallCue } from '@shared/calls'
 import { Observable } from '../../lib/observable'
+import { humanError } from '../../lib/human-error'
 import {
   addVoiceUsage,
   chosenModel,
@@ -171,7 +172,7 @@ export abstract class VoiceEngine extends Observable {
   }
 }
 
-export const errorMessage = (e: unknown) => (e instanceof Error ? e.message : String(e))
+export const errorMessage = (e: unknown) => (humanError(e))
 export const MIC_DENIED = 'Allow the microphone for Codync in Settings to talk to your bots.'
 
 /**

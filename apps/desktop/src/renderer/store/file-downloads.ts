@@ -1,6 +1,7 @@
 import type { SharedFile } from '@shared/models'
 import { decodeFileChunk, validateSharedFile } from '../../shared/files.ts'
 import type { HostClient } from '../client/host-client'
+import { humanError } from '../lib/human-error'
 
 export type DownloadState = { kind: 'downloading'; received: number } | { kind: 'saved' } | { kind: 'failed'; message: string }
 interface Job { cancelled: boolean; handle: string | null }
@@ -53,7 +54,7 @@ export class FileDownloads {
       await window.codync.files.finish(job.handle)
       if (alive()) this.states.set(file.id, { kind: 'saved' })
     } catch (error) {
-      if (alive()) this.states.set(file.id, { kind: 'failed', message: error instanceof Error ? error.message : String(error) })
+      if (alive()) this.states.set(file.id, { kind: 'failed', message: humanError(error) })
     } finally {
       if (job.handle) await window.codync.files.cancel(job.handle).catch(console.error)
       if (this.jobs.get(file.id) === job) {

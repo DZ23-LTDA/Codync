@@ -12,6 +12,7 @@ import { useStore } from '../../store/context'
 import { AttachmentImage, AttachmentViewer, attachmentSymbol, byteCount } from '../thread/Attachments'
 import { downloadAction, downloadDetail } from '../thread/FileDownloadCard'
 import { artifactShareItems, renameArtifact, TitleField } from './ArtifactParts'
+import { humanError } from '../../lib/human-error'
 
 /**
  * A chat's Library in its details panel (Grok Bot's): the artifacts its bot made and the files shared in it, newest
@@ -30,7 +31,7 @@ export function LibraryView({ botId, openArtifact }: { botId: string; openArtifa
     let live = true
     store.artifacts.library(store.client, botId).then(
       (items) => live && (setItems(items), setError(null)),
-      (e: unknown) => live && setError(e instanceof Error ? e.message : String(e)),
+      (e: unknown) => live && setError(humanError(e)),
     )
     return () => {
       live = false

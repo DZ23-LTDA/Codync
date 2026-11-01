@@ -2,6 +2,7 @@ import { computerAccessStep, computerPermissionSettings, type ComputerPermission
 import { normalizeScreen, type ScreenState } from '@shared/models'
 import { Observable } from '../lib/observable'
 import type { AppModel } from './app-model'
+import { humanError } from '../lib/human-error'
 
 /** Read-only checks are safe on launch. Requests happen only after an explicit setup action. */
 export class ComputerAccess extends Observable {
@@ -83,7 +84,6 @@ export class ComputerAccess extends Observable {
 }
 
 function message(error: unknown): string {
-  if (error instanceof Error) return error.message
-  if (error && typeof error === 'object' && 'message' in error) return String(error.message)
-  return String(error)
+  // One implementation of "turn a failure into a sentence": the shared one, so every screen reads the same way.
+  return humanError(error, 'Codync could not use this permission. Open the system settings and try again.')
 }
