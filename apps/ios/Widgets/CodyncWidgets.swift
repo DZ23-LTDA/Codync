@@ -93,12 +93,12 @@ struct BotsWidgetView: View {
         if !entry.paired {
             switch family {
             case .accessoryInline:
-                Text("Connect Codync to your computer")
+                Text(L10n.tr("Connect Codync to your computer"))
             case .accessoryCircular:
                 Image(systemName: "desktopcomputer")
-                    .accessibilityLabel("Connect Codync to your computer")
+                    .accessibilityLabel(L10n.tr("Connect Codync to your computer"))
             case .accessoryRectangular:
-                Label("Connect a computer", systemImage: "desktopcomputer")
+                Label(L10n.tr("Connect a computer"), systemImage: "desktopcomputer")
                     .font(.caption)
             default:
                 EmptyWidget(text: L10n.tr("Open Codync to pair with your computer."))
@@ -411,7 +411,7 @@ struct UsageWidgetView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
         } else if family == .accessoryInline || family == .accessoryCircular || family == .accessoryRectangular {
-            Text("No usage yet")
+            Text(L10n.tr("No usage yet"))
         } else {
             EmptyWidget(text: L10n.tr(SharedStore.activeContext.computers.isEmpty ? "Open Codync to pair with your computer." : "No usage reported yet."))
         }

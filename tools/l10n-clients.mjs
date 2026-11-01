@@ -55,7 +55,7 @@ function translatedKeys(source, file) {
 
 const report = { ios: { literals: [], keys: [] }, android: { literals: [], keys: [] } };
 
-for (const file of files("apps/ios/Kit/Sources", ".swift")) {
+for (const file of [...files("apps/ios/Kit/Sources", ".swift"), ...files("apps/ios/Widgets", ".swift")]) {
   const source = readFileSync(file, "utf8");
   source.split("\n").forEach((line, index) => {
     const literals = ["Text", "Button", "Label"].flatMap((call) => untranslatedLiteral(line, call));

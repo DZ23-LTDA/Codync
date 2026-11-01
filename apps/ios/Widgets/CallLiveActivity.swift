@@ -55,7 +55,7 @@ struct CallActivityViews {
                     .frame(width: size, height: size)
                     .background(Palette.danger, in: Circle())
             }
-            .accessibilityLabel("End call")
+            .accessibilityLabel(L10n.tr("End call"))
         }
         .buttonStyle(.plain)
     }

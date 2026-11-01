@@ -905,5 +905,10 @@
   "Live updates on your Lock Screen": "Atualizações ao vivo na tela de bloqueio",
   "Add to Home Screen": "Adicionar à tela inicial",
   "Your launcher couldn't add it. Add it from the Home Screen instead.": "Seu launcher não conseguiu adicionar. Adicione pela tela inicial.",
-  "Widgets show the latest report. Open Codync for live updates and approvals.": "Os widgets mostram o relatório mais recente. Abra o Codync para atualizações ao vivo e aprovações."
+  "Widgets show the latest report. Open Codync for live updates and approvals.": "Os widgets mostram o relatório mais recente. Abra o Codync para atualizações ao vivo e aprovações.",
+  "Connect Codync to your computer": "Conecte o Codync ao seu computador",
+  "Connect a computer": "Conectar um computador",
+  "No usage yet": "Sem uso ainda",
+  "Open Codync to pair with your computer.": "Abra o Codync para parear com seu computador.",
+  "Open Codync to connect a computer and check {provider} usage.": "Abra o Codync para conectar um computador e ver o uso de {provider}."
 }
