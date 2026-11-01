@@ -24,7 +24,7 @@ struct ArtifactRenameSheet: View {
                 if saving {
                     Spinner()
                 } else {
-                    IconButton("Save", systemImage: "checkmark", action: save)
+                    IconButton(L10n.tr("Save"), systemImage: "checkmark", action: save)
                         .disabled(trimmed.isEmpty || trimmed == artifact.title)
                 }
             }

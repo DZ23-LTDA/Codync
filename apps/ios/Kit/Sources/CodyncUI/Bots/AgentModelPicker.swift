@@ -166,7 +166,7 @@ struct AgentModelPicker: View {
         VStack(spacing: 4) {
             HStack(spacing: 6) {
                 if stage == .models, onAgentChange != nil {
-                    IconButton("Back", systemImage: "chevron.left") { open(.agents) }
+                    IconButton(L10n.tr("Back"), systemImage: "chevron.left") { open(.agents) }
                 }
                 TextField(stage == .agents ? "Search agents" : "Search models", text: $query).plainTextInput()
                 refreshControl
@@ -216,7 +216,7 @@ struct AgentModelPicker: View {
             .accessibilityHidden(loading)
             if loading {
                 Spinner(size: 12)
-                    .accessibilityLabel("Loading available models")
+                    .accessibilityLabel(L10n.tr("Loading available models"))
                     .transition(.opacity)
             }
         }

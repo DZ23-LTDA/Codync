@@ -73,10 +73,10 @@ struct FallbackList: View {
     private var header: some View {
         HStack(spacing: 4) {
             Text(L10n.tr("Fallbacks")).foregroundStyle(Palette.text)
-            IconButton("About fallbacks", systemImage: "info.circle") { explaining = true }
+            IconButton(L10n.tr("About fallbacks"), systemImage: "info.circle") { explaining = true }
             Spacer(minLength: 8)
             if fallbacks.count < BotFallback.limit, !choices.isEmpty {
-                IconButton("Add fallback", systemImage: "plus") { adding = true }
+                IconButton(L10n.tr("Add fallback"), systemImage: "plus") { adding = true }
             }
         }
     }
@@ -108,7 +108,7 @@ struct FallbackList: View {
                     .frame(width: 36, height: 36)
                     .contentShape(Rectangle())
             }
-            .accessibilityLabel("\(name) fallback actions")
+            .accessibilityLabel(L10n.tr("{name} fallback actions").replacingOccurrences(of: "{name}", with: name))
         }
     }
 
@@ -144,7 +144,7 @@ struct AddFallbackSheet: View {
     var body: some View {
         VStack(spacing: 0) {
             ModalHeader("Add fallback") {
-                IconButton("Add", systemImage: "checkmark") {
+                IconButton(L10n.tr("Add"), systemImage: "checkmark") {
                     add(fallback)
                     dismiss()
                 }
