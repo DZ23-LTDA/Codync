@@ -73,8 +73,8 @@ private enum class Surface { Widget, LiveUpdate, StatusBar }
 @Composable internal fun StateScreen(state: AppState, store: AppStore?, usage: () -> Unit, bottomInset: Dp, active: Boolean = true) {
     var surface by rememberSaveable { mutableStateOf(Surface.Widget) }
     Column(Modifier.fillMaxSize().background(Palette.background).statusBarsPadding()) {
-        ScreenHeader(title = { Text("State", style = Type.body.semibold, color = Palette.text) },
-            trailing = { IconButton("Usage limits", "chart.bar", action = usage) })
+        ScreenHeader(title = { Text(tr("State"), style = Type.body.semibold, color = Palette.text) },
+            trailing = { IconButton(tr("Usage limits"), "chart.bar", action = usage) })
         SegmentedChoice(surface, listOf(Surface.Widget to "Widget", Surface.LiveUpdate to "Live update", Surface.StatusBar to "Status bar"),
             { surface = it }, Modifier.padding(horizontal = 16.dp).padding(bottom = 8.dp))
         AnimatedContent(surface, Modifier.weight(1f), transitionSpec = { fadeIn(Motion.fade()) togetherWith fadeOut(Motion.fade()) },
@@ -134,8 +134,8 @@ internal fun openNotificationSettings(context: Context) = context.startActivity(
             CharacterAvatar("hex", "gray", 42.dp)
         }
         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text("Codync, at a glance.", style = Type.title3.semibold, color = Palette.text)
-            Text("Your bots and usage, on every surface.", style = Type.footnote, color = Palette.secondary)
+            Text(tr("Codync, at a glance."), style = Type.title3.semibold, color = Palette.text)
+            Text(tr("Your bots and usage, on every surface."), style = Type.footnote, color = Palette.secondary)
         }
     }
 
@@ -161,7 +161,7 @@ internal fun openNotificationSettings(context: Context) = context.startActivity(
     Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Box(Modifier.weight(1f)) { SectionLabel("Choose your widget") }
-            Text("Sample data", style = Type.caption2, color = Palette.secondary)
+            Text(tr("Sample data"), style = Type.caption2, color = Palette.secondary)
         }
         ChoicePicker(kind, listOf("usage" to "Provider usage", "limits" to "Usage limits", "bots" to "Bots", "team" to "Team"), { kind = it })
         val report = remember(state.usage) { runCatching { UsageReport.decode(state.usage) }.getOrNull() }
@@ -207,14 +207,14 @@ internal fun openNotificationSettings(context: Context) = context.startActivity(
         val revision by WidgetStore.changes.collectAsState()
         val original = remember(revision) { WidgetStore.originalIcons(context) }
         SegmentedChoice(original, listOf(false to "Character", true to "Original icon"), { WidgetStore.setOriginalIcons(context, it) })
-        Text("Applies to Usage in the app and in widgets.", style = Type.caption, color = Palette.secondary)
+        Text(tr("Applies to Usage in the app and in widgets."), style = Type.caption, color = Palette.secondary)
     }
 
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         SectionLabel("Keep tasks in view")
         Row(Modifier.plainButton(action = keepInView), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Symbol("lock.rectangle", size = 18.dp, tint = Palette.accent)
-            Text("Live updates on your Lock Screen", style = Type.subheadline, color = Palette.accent)
+            Text(tr("Live updates on your Lock Screen"), style = Type.subheadline, color = Palette.accent)
         }
     }
 
@@ -222,11 +222,11 @@ internal fun openNotificationSettings(context: Context) = context.startActivity(
         SectionLabel("Add a widget")
         val kindToPin = when (kind) { "usage" -> WidgetKind.Provider; "limits" -> WidgetKind.Usage; "team" -> WidgetKind.Team; else -> WidgetKind.Bots }
         if (AppWidgetManager.getInstance(context).isRequestPinAppWidgetSupported)
-            PrimaryButton("Add to Home Screen") { pinFailed = !CodyncWidgets.pin(context, kindToPin) }
-        if (pinFailed) Text("Your launcher couldn't add it. Add it from the Home Screen instead.", style = Type.footnote, color = Palette.danger)
+            PrimaryButton(tr("Add to Home Screen")) { pinFailed = !CodyncWidgets.pin(context, kindToPin) }
+        if (pinFailed) Text(tr("Your launcher couldn't add it. Add it from the Home Screen instead."), style = Type.footnote, color = Palette.danger)
         WidgetSetupDemo(active)
     }
-    Text("Widgets show the latest report. Open Codync for live updates and approvals.", style = Type.caption2, color = Palette.tertiary)
+    Text(tr("Widgets show the latest report. Open Codync for live updates and approvals."), style = Type.caption2, color = Palette.tertiary)
 }
 
 @Composable internal fun SectionLabel(title: String) =

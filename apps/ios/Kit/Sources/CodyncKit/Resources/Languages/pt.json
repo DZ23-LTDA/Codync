@@ -893,5 +893,17 @@
   "Waiting for approval…": "Aguardando aprovação…",
   "Cancel request": "Cancelar pedido",
   "Ask again": "Pedir de novo",
-  "Approve on {name}": "Aprovar em {name}"
+  "Approve on {name}": "Aprovar em {name}",
+  "total": "no total",
+  "working": "trabalhando",
+  "State": "Estado",
+  "Usage limits": "Limites de uso",
+  "Codync, at a glance.": "O Codync em resumo.",
+  "Your bots and usage, on every surface.": "Seus bots e seu uso, em toda superfície.",
+  "Sample data": "Dados de exemplo",
+  "Applies to Usage in the app and in widgets.": "Vale para o Uso no app e nos widgets.",
+  "Live updates on your Lock Screen": "Atualizações ao vivo na tela de bloqueio",
+  "Add to Home Screen": "Adicionar à tela inicial",
+  "Your launcher couldn't add it. Add it from the Home Screen instead.": "Seu launcher não conseguiu adicionar. Adicione pela tela inicial.",
+  "Widgets show the latest report. Open Codync for live updates and approvals.": "Os widgets mostram o relatório mais recente. Abra o Codync para atualizações ao vivo e aprovações."
 }

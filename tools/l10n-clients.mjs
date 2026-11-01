@@ -29,7 +29,9 @@ function files(dir, extension) {
   return found;
 }
 
-const hasWords = (text) => /[A-Za-zÀ-ÿ]{2,}/.test(text) && text.trim().split(/\s+/).length >= 1;
+// `${…}` and `\(…)` are values, not words: "\${(top.percent).roundToInt()}%" is a number on screen, not copy.
+const withoutValues = (text) => text.replace(/\$\{[^}]*\}/g, " ").replace(/\\\([^)]*\)/g, " ");
+const hasWords = (text) => /[A-Za-zÀ-ÿ]{2,}/.test(withoutValues(text)) && withoutValues(text).trim().split(/\s+/).length >= 1;
 const decoded = (raw) => raw.replace(/\\"/g, '"');
 
 /** Literal text handed to a view constructor without going through the translator. */
