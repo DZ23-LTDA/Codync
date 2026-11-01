@@ -110,15 +110,16 @@ export function Overview({ model }: { model: IslandModel }) {
 }
 
 export function Empty({ model }: { model: IslandModel }) {
+  const tr = useTr()
   const focus = model.focus
   return (
     <div className="island-card island-empty">
       {focus ? <BigCharacter bot={focus} size={62} mood="idle" badge={null} /> : null}
       <span className="island-empty-text">
-        <span className="island-title">Nothing running right now.</span>
-        <span className="island-subtitle">{focus ? 'Your bots are idle. Message one from here, or open Codync.' : 'Create a bot in Codync to get started.'}</span>
+        <span className="island-title">{tr('Nothing running right now.')}</span>
+        <span className="island-subtitle">{tr(focus ? 'Your bots are idle. Message one from here, or open Codync.' : 'Create a bot in Codync to get started.')}</span>
       </span>
-      {focus ? <Button onClick={() => model.setTab('message')}>Message a bot</Button> : <Button onClick={() => model.newBot()}>New bot</Button>}
+      {focus ? <Button onClick={() => model.setTab('message')}>{tr('Message a bot')}</Button> : <Button onClick={() => model.newBot()}>{tr('New bot')}</Button>}
     </div>
   )
 }
@@ -156,6 +157,7 @@ export function Approval({ model, card }: { model: IslandModel; card: IslandPerm
 
 /** A bot that just finished (for a moment) or failed (until dismissed). */
 export function Notice({ model, bot, failed }: { model: IslandModel; bot: IslandBot; failed: boolean }) {
+  const tr = useTr()
   const swap = useSwap(`${failed}:${bot.ref}`)
   return (
     <div className="island-with-minis">
@@ -173,7 +175,7 @@ export function Notice({ model, bot, failed }: { model: IslandModel; bot: Island
               <div className="island-title truncate">{bot.detail}</div>
             )}
             <div className="island-buttons start">
-              <Button onClick={() => model.openBot(bot.ref)}>Open conversation</Button>
+              <Button onClick={() => model.openBot(bot.ref)}>{tr('Open conversation')}</Button>
               <Button kind="secondary" onClick={() => model.dismissNotice()}>OK</Button>
             </div>
           </div>
