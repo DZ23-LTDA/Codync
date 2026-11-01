@@ -5,7 +5,7 @@
       "id": 1,
       "item": "i18n scanner corrected and recounted",
       "state": "IMPLEMENTED",
-      "evidence": "PR #46"
+      "evidence": "PRs #46, #71, #72, #73, #75, #76: scanner reports 298 visible strings; 0 screens fully verified"
     },
     {
       "id": 2,

@@ -36,7 +36,7 @@ ela vermelha.
 
 ### Números medidos
 
-- strings fora da tradução: **314**
+- strings fora da tradução: **298** (era 314; a queda maior que os lotes aplicados não está explicada)
 - stacks no renderer: **0** · valores crus impressos: **0**
 - testes: `store::schema` **10/10** · `l10n-unwrapped` **10/10** · `error-messages` **4/4** · `human-error` **5/5**
 - tempo de abertura: **não medido**
