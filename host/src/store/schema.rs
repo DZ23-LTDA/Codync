@@ -18,7 +18,15 @@ const SCHEMA: i64 = 6;
 fn migrate(c: &Connection) -> Result<()> {
     let version: i64 =
         c.query_row("SELECT CAST(v AS INTEGER) FROM kv WHERE k = 'schema'", [], |r| r.get(0)).optional()?.unwrap_or(0);
-    if version >= SCHEMA {
+    // A database written by a newer build has tables and columns this one does not know about. Opening it read-write
+    // would migrate nothing and let an older binary write into a newer shape, so it is refused with a message instead.
+    if version > SCHEMA {
+        anyhow::bail!(
+            "This database was written by a newer version of Codync (schema {version}, this build understands {SCHEMA}). \
+             Nothing was changed: open it with that newer version.",
+        );
+    }
+    if version == SCHEMA {
         return Ok(());
     }
     if version < 3 {
@@ -359,6 +367,24 @@ mod tests {
 
         assert_eq!(std::fs::read(&damaged).unwrap(), before, "the original is still exactly as it was");
         assert_eq!(std::fs::read(&copy).unwrap(), before, "and so is the copy");
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn a_database_from_a_newer_build_is_refused_not_opened() {
+        let dir = std::env::temp_dir().join(format!("codync-newer-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let file = dir.join("t.db");
+        {
+            let store = Store::open(&file).unwrap();
+            store.kv_set("schema", "99").unwrap();
+        }
+        let error = match Store::open(&file) {
+            Ok(_) => panic!("a newer schema must not open"),
+            Err(error) => format!("{error:#}"),
+        };
+        assert!(error.contains("newer version"), "says what happened: {error}");
+        assert!(error.contains("Nothing was changed"), "says nothing was touched: {error}");
         std::fs::remove_dir_all(&dir).ok();
     }
 
