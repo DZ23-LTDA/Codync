@@ -21,8 +21,15 @@ permissions:
 
 jobs:
   gate:
+    # Marks a release as GitHub's latest and points the Homebrew tap at it, so it may only run in
+    # the repository that owns those. That is DZ23-LTDA/Codync now; the previous condition named
+    # the upstream repository, which made the gate skip forever on this fork.
+    # RELEASE_GATE_ENABLED is a repository variable the owner sets once TAP_TOKEN and
+    # DZ23-LTDA/homebrew-codync are confirmed: until then the job stays skipped, so no release is
+    # marked and no tap is pushed by accident.
     if: >-
-      github.repository == 'leepokai/Codync' &&
+      github.repository == 'DZ23-LTDA/Codync' &&
+      vars.RELEASE_GATE_ENABLED == 'true' &&
       (github.event_name != 'workflow_run' || github.event.workflow_run.event == 'push')
     # In the job, so a run skipped by `if` (a pull request's release build) never queues here.
     concurrency:

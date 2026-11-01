@@ -31,7 +31,9 @@ env:
 
 jobs:
   check:
-    if: github.repository == 'leepokai/Codync'
+    # Uploads to Google Play need this repository's own account, keystore and the secrets below.
+    # Gated on a repository variable so a fork never tries the upstream's publishing path.
+    if: github.repository == 'DZ23-LTDA/Codync' && vars.PLAY_SUBMIT_ENABLED == 'true'
     runs-on: ubuntu-latest
     outputs:
       ship: ${{ steps.check.outputs.ship }}

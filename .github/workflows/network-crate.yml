@@ -41,7 +41,9 @@ jobs:
           fi
 
   mirror:
-    if: github.event_name == 'push'
+    # Mirrors the split crate to leepokai/codync-network, which this repository does not own: the
+    # job would fail without that deploy key. It stays upstream-only until the fork has its own.
+    if: github.event_name == 'push' && github.repository == 'leepokai/Codync'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

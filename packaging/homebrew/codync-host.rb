@@ -1,4 +1,4 @@
-# Homebrew formula template for the leepokai/homebrew-codync tap.
+# Homebrew formula template for the DZ23-LTDA/homebrew-codync tap.
 # tools/release-gate.py fills in the version and the four sha256 values (in this order: mac arm,
 # mac intel, linux arm, linux intel) of the release it marks latest.
 class CodyncHost < Formula
@@ -7,7 +7,7 @@ class CodyncHost < Formula
   version "0.0.0"
   license "Apache-2.0"
 
-  base = "https://github.com/leepokai/Codync/releases/download/v#{version}/codync-host"
+  base = "https://github.com/DZ23-LTDA/Codync/releases/download/v#{version}/codync-host"
 
   on_macos do
     on_arm do
