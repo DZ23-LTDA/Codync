@@ -51,7 +51,7 @@ export function BotEditorView({ draft: initial }: { draft: BotDraft }) {
     <SheetPage>
       <ModalHeader
         title={tr(`Settings`)}
-        trailing={saving ? <Spinner /> : <IconButton title="Save" icon="checkmark" disabled={!isValid(draft) || saving || !online} onClick={save} />}
+        trailing={saving ? <Spinner /> : <IconButton title={tr('Save')} icon="checkmark" disabled={!isValid(draft) || saving || !online} onClick={save} />}
       />
       <div className="bot-editor-body">
         <BotSettingsForm draft={draft} onChange={setDraft} error={error} plugins={plugins} />
@@ -103,7 +103,7 @@ function CreatedBy({ bot, creator }: { bot: Bot; creator: string }) {
   const store = useStore()
   const date = new Date(bot.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
   return (
-    <ValueRow label="Created by">
+    <ValueRow label={tr('Created by')}>
       <Text truncate>{`${store.bots.get(creator)?.name ?? tr(`A bot`)} · ${date}`}</Text>
     </ValueRow>
   )
@@ -136,8 +136,8 @@ function BotSettingsForm({ draft, onChange, error, plugins, part = 'all' }: {
   const skills = plugins?.skills ?? []
 
   const instructions = (
-    <Field label="Standing instructions" detail="Rules that always apply. Put task-specific requests in the chat instead.">
-      <AutoTextArea className="field-box" value={draft.description} placeholder="e.g. Reviews PRs. Never pushes without asking." minRows={3} maxRows={8} onChange={(v) => set('description', v)} />
+    <Field label={tr('Standing instructions')} detail={tr('Rules that always apply. Put task-specific requests in the chat instead.')}>
+      <AutoTextArea className="field-box" value={draft.description} placeholder={tr('e.g. Reviews PRs. Never pushes without asking.')} minRows={3} maxRows={8} onChange={(v) => set('description', v)} />
     </Field>
   )
   const ownRest = saved ? restOf(saved, draft.backend, Date.now()) : null
@@ -147,10 +147,10 @@ function BotSettingsForm({ draft, onChange, error, plugins, part = 'all' }: {
       agents={[...backends.map(agentChoice), { id: 'custom', label: 'Custom command', leading: <AgentIcon registry="custom" size={14} /> }]}
       onAgentChange={(id) => onChange((d) => withBackend(d, id))} fast={draft.fastMode ?? false}
       fastControl={((draft.backend !== 'custom' && models.catalog?.fastMode) || draft.fastMode || (saved?.backend === draft.backend && fastModeShown(saved))) ?
-        <SwitchRow title="Fast mode" detail={saved ? fastModeRefusal(saved) : null} on={draft.fastMode ?? false} onChange={(on) => set('fastMode', on)} /> : null}>
+        <SwitchRow title={tr('Fast mode')} detail={saved ? fastModeRefusal(saved) : null} on={draft.fastMode ?? false} onChange={(on) => set('fastMode', on)} /> : null}>
       {ownRest && <Text size="caption" tone="secondary">{restLine(ownRest, Date.now())}</Text>}
       {backend && !backend.available && <Text size="caption" tone="attention">{backend.installHint}</Text>}
-      {draft.backend === 'custom' && <input className="field-box bot-command" value={draft.command ?? ''} placeholder="ACP command, e.g. my-agent --acp" spellCheck={false} onChange={(e) => set('command', e.target.value || null)} />}
+      {draft.backend === 'custom' && <input className="field-box bot-command" value={draft.command ?? ''} placeholder={tr('ACP command, e.g. my-agent --acp')} spellCheck={false} onChange={(e) => set('command', e.target.value || null)} />}
     </AgentModelPicker>
   )
   // While the bot runs on a fallback, the Agent card starts with it.
@@ -160,8 +160,8 @@ function BotSettingsForm({ draft, onChange, error, plugins, part = 'all' }: {
     <FallbacksRow key="fallbacks" draft={draft} bot={saved} onChange={onChange} />,
     <SwitchRow
       key="self"
-      title="Let the bot change its fallbacks"
-      detail="It can set this list itself, for example when you ask it to."
+      title={tr('Let the bot change its fallbacks')}
+      detail={tr('It can set this list itself, for example when you ask it to.')}
       on={draft.selfFallbacks ?? true}
       onChange={(on) => set('selfFallbacks', on)}
     />,
@@ -171,8 +171,8 @@ function BotSettingsForm({ draft, onChange, error, plugins, part = 'all' }: {
     return (
       <div className="bot-form">
         <div className="bot-form-content">
-          <CardSection title="Instructions">{instructions}</CardSection>
-          <CardSection title="Agent">
+          <CardSection title={tr('Instructions')}>{instructions}</CardSection>
+          <CardSection title={tr('Agent')}>
             {step}
             {agent}
             {fallbacks}
@@ -186,9 +186,9 @@ function BotSettingsForm({ draft, onChange, error, plugins, part = 'all' }: {
   return (
     <div className="bot-form">
       <div className="bot-form-content">
-        <CardSection title="Profile">
-          <ValueRow label="Avatar">
-            <button ref={avatarRef} className="avatar-button small" title="Edit Bot avatar" aria-label="Edit Bot avatar" onClick={() => setPickingAvatar((p) => !p)}>
+        <CardSection title={tr('Profile')}>
+          <ValueRow label={tr('Avatar')}>
+            <button ref={avatarRef} className="avatar-button small" title={tr('Edit Bot avatar')} aria-label={tr('Edit Bot avatar')} onClick={() => setPickingAvatar((p) => !p)}>
               <CharacterAvatar shape={draft.avatarShape} color={draft.avatarColor} size={24} customIcon={draft.id ? store.icons[`bot:${draft.id}`] : undefined} />
             </button>
             <AnchoredPanel open={pickingAvatar} onClose={() => setPickingAvatar(false)} anchor={avatarRef}>
@@ -198,8 +198,8 @@ function BotSettingsForm({ draft, onChange, error, plugins, part = 'all' }: {
               </div>
             </AnchoredPanel>
           </ValueRow>
-          <Field label="Name">
-            <input className="field-box" value={draft.name} placeholder="Name" onChange={(e) => set('name', e.target.value)} />
+          <Field label={tr('Name')}>
+            <input className="field-box" value={draft.name} placeholder={tr('Name')} onChange={(e) => set('name', e.target.value)} />
           </Field>
           {part === 'all' ? instructions : null}
           {/* Only a row when a bot made it: CardSection gives every child a row. */}
@@ -209,13 +209,13 @@ function BotSettingsForm({ draft, onChange, error, plugins, part = 'all' }: {
         {/* In the inspector the agent and its model are on the Details tab; what's left is where it works. */}
         <CardSection title={part === 'all' ? 'Agent' : 'Workspace'}>
           {part === 'all' ? step : null}
-          <ValueRow label="Computer">
+          <ValueRow label={tr('Computer')}>
             <Text truncate>{store.hostName}</Text>
           </ValueRow>
           {part === 'all' ? agent : null}
           {part === 'all' ? fallbacks : null}
           <ValueRow
-            label="Workspace"
+            label={tr('Workspace')}
             detail={
               draft.cwd
                 ? 'This project is the default starting folder. The bot can work elsewhere when you ask.'
@@ -236,7 +236,7 @@ function BotSettingsForm({ draft, onChange, error, plugins, part = 'all' }: {
             </DropdownMenu>
           </ValueRow>
           <ValueRow
-            label="Permissions"
+            label={tr('Permissions')}
             detail={
               draft.permission === 'auto'
                 ? "Tool requests are approved automatically. Your agent's own settings (like Claude Code's permission rules) still apply."
@@ -254,11 +254,11 @@ function BotSettingsForm({ draft, onChange, error, plugins, part = 'all' }: {
           </ValueRow>
         </CardSection>
 
-        <CardSection title="Activity">
-          <SwitchRow title="Notifications" detail="Get notified when this bot finishes or needs you" on={draft.notify ?? true} onChange={(on) => set('notify', on)} />
+        <CardSection title={tr('Activity')}>
+          <SwitchRow title={tr('Notifications')} detail={tr('Get notified when this bot finishes or needs you')} on={draft.notify ?? true} onChange={(on) => set('notify', on)} />
           {store.screen && part === 'all' ? (
             <SwitchRow
-              title="Use the computer"
+              title={tr('Use the computer')}
               detail={
                 store.screen.platform !== 'windows' && !(store.screen.enabled && store.screen.connected && store.screen.capture && store.screen.input)
                   ? 'Let this bot use apps. On that computer, open Codync → Settings → Computer access to set up permissions first.'
@@ -275,8 +275,8 @@ function BotSettingsForm({ draft, onChange, error, plugins, part = 'all' }: {
           {/* Only from a host that has it (its bots say). */}
           {[...store.bots.values()].some((b) => b.manageTeam !== null) ? (
             <SwitchRow
-              title="Manage the team"
-              detail="Let this bot create bots and change any bot's setup, its own included. The bots it creates can too."
+              title={tr('Manage the team')}
+              detail={tr("Let this bot create bots and change any bot's setup, its own included. The bots it creates can too.")}
               on={draft.manageTeam ?? false}
               onChange={(on) => set('manageTeam', on)}
             />
@@ -285,15 +285,15 @@ function BotSettingsForm({ draft, onChange, error, plugins, part = 'all' }: {
         </CardSection>
 
         <PluginToggles
-          title="Connectors"
-          empty="No connectors yet. Add GitHub, Linear, Notion and more from Extensions."
+          title={tr('Connectors')}
+          empty={tr('No connectors yet. Add GitHub, Linear, Notion and more from Extensions.')}
           items={connectors.map((c) => ({ id: c.id, name: c.name, detail: c.command ?? c.url ?? '' }))}
           selection={draft.connectors ?? []}
           onChange={(ids) => set('connectors', ids)}
         />
         <PluginToggles
-          title="Skills"
-          empty="No skills yet. Get some from Extensions, or write your own."
+          title={tr('Skills')}
+          empty={tr('No skills yet. Get some from Extensions, or write your own.')}
           items={skills.map((s) => ({ id: s.id, name: s.name, detail: s.description }))}
           selection={draft.skills ?? []}
           onChange={(ids) => set('skills', ids)}
