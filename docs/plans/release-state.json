@@ -58,8 +58,8 @@
     {
       "id": 10,
       "item": "delivery cycle: bump, tag, publish, update in app",
-      "state": "IN_PROGRESS",
-      "evidence": "v2.34.0 published with a Windows installer; local install never returns in this sandbox; in-app update untested"
+      "state": "BLOCKED_BY_EXTERNAL_DEPENDENCY",
+      "evidence": "installer 2.34.0 built and published; installed app still 2.33.2. Three attempts to run it from the harness never returned and left no process behind: docs/plans/install-blocked.md. Owner action: run apps/desktop/dist/codync-windows-x64.exe by hand once."
     },
     {
       "id": 11,

@@ -48,7 +48,7 @@ export function RecordingPill({ startedAt, sample, onStop, transcribing = false,
         <Icon name="stop.fill" size={11} scaled={false} />
       </button>
       <Text tabular tone="text">{elapsed}</Text>
-      <LevelDots sample={sample} color={color} width={32} height={12} label="Listening" />
+      <LevelDots sample={sample} color={color} width={32} height={12} label={tr('Listening')} />
     </HStack>
   )
 }
