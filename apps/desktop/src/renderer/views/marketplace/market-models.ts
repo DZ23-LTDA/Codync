@@ -1,4 +1,5 @@
 import type { HostClient } from '../../client/host-client'
+import { humanError } from '../../lib/human-error'
 
 // Marketplace wire types (host/src/market/): connectors are MCP servers,
 // skills are instruction folders; agents come from `Hello.backends`. (kit Market.swift)
@@ -259,5 +260,5 @@ export const EXTENSION_SECTIONS: { id: ExtensionSection; label: string; source: 
   { id: 'skills', label: 'Skills', source: 'Skills come from Anthropic and install on {name}.' },
 ]
 
-export const errorText = (e: unknown) => (e instanceof Error ? e.message : String(e))
+export const errorText = (e: unknown) => (humanError(e))
 export const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))

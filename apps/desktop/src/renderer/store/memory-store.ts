@@ -1,5 +1,6 @@
 import type { HostClient } from '../client/host-client'
 import { Observable } from '../lib/observable'
+import { humanError } from '../lib/human-error'
 
 /** One memory entry (the host's `codync_mem::store::Entry`). */
 export interface MemoryEntry {
@@ -117,4 +118,4 @@ export function authorLabel(entry: MemoryEntry, botName: (id: string | null) => 
   }
 }
 
-function message(error: unknown) { return error instanceof Error ? error.message : String(error) }
+function message(error: unknown) { return humanError(error) }

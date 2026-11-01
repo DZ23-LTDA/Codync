@@ -2,6 +2,7 @@ import type { CallLine } from '@shared/calls'
 import { sleep } from '../../store/bot-sync'
 import type { BotStore } from '../../store/bot-store'
 import { PROGRESS_TAG, spokenText, type VoiceProvider } from './voice'
+import { humanError } from '../../lib/human-error'
 
 /** How long a tool call waits for the user's words that are still being written down. */
 const HEARING_PATIENCE_MS = 2_000
@@ -55,7 +56,7 @@ export class CallLink {
         return (await client.call<{ result: unknown }>('callTool', { callId: this.call, name, arguments: args ?? {}, lines }, 60_000)).result
       } catch (e) {
         this.restore(lines)
-        return { error: e instanceof Error ? e.message : String(e) }
+        return { error: humanError(e) }
       }
     })
   }

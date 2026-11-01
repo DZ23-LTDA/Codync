@@ -19,6 +19,7 @@ import { readSharedFile } from '../../shared/files.ts'
 import { FileDownloads } from './file-downloads'
 import { BotSections } from './bot-sections'
 import { BotSync, sleep } from './bot-sync'
+import { humanError } from '../lib/human-error'
 
 export { builtInBackendName, type Connection } from './bot-mirror'
 
@@ -103,7 +104,7 @@ export class BotStore extends BotSync {
     this.hostUpdate = { kind: 'requested', at: Date.now() }
     this.changed()
     void this.withLink((c) => c.call('installHostUpdate', {})).catch((error: unknown) => {
-      this.hostUpdate = { kind: 'failed', message: error instanceof Error ? error.message : String(error) }
+      this.hostUpdate = { kind: 'failed', message: humanError(error) }
       this.changed()
     })
   }
@@ -174,7 +175,7 @@ export class BotStore extends BotSync {
       const { entry } = await this.withLink((c) => c.call<{ entry: Entry | null }>('endCall', { botId, callId: call, seconds, lines }), true)
       if (entry) this.upsert(entry)
     } catch (error) {
-      this.lastError = error instanceof Error ? error.message : String(error)
+      this.lastError = humanError(error)
     }
   }
 
@@ -239,7 +240,7 @@ export class BotStore extends BotSync {
       try {
         await this.withLink(op, true)
       } catch (error) {
-        this.lastError = error instanceof Error ? error.message : String(error)
+        this.lastError = humanError(error)
       }
       this.answering.delete(entry.id)
       this.changed()
@@ -260,7 +261,7 @@ export class BotStore extends BotSync {
       await this.withLink((c) => c.call('editHandoff', { entryId: entry.id, text }), true)
       return true
     } catch (error) {
-      this.lastError = error instanceof Error ? error.message : String(error)
+      this.lastError = humanError(error)
       this.changed()
       return false
     }

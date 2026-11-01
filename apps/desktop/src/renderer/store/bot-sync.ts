@@ -5,6 +5,7 @@ import { undoOnFailure } from '../lib/undo-on-failure'
 import { BotMirror, type Connection } from './bot-mirror'
 import { Artifacts } from './artifacts'
 import type { CallCue } from '@shared/calls'
+import { humanError } from '../lib/human-error'
 
 const REFRESH_TIMEOUT = 20_000
 const DROP_GRACE = 5000
@@ -175,7 +176,7 @@ export class BotSync extends BotMirror {
         })
       } catch (error) {
         if (!alive()) return
-        const message = error instanceof Error ? error.message : String(error)
+        const message = humanError(error)
         this.finishRefresh?.(new Error(message))
         this.setConnection({ kind: 'offline', message })
         if (error instanceof HostError && error.status === 401) return

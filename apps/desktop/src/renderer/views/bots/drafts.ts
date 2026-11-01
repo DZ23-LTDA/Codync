@@ -3,6 +3,7 @@ import { rebase } from '@shared/draft-rebase'
 import { draftOf, type Bot, type BotDraft } from '@shared/models'
 import { AVATAR_COLORS, AVATAR_SHAPES } from '../../lib/theme'
 import type { BotStore } from '../../store/bot-store'
+import { humanError } from '../../lib/human-error'
 
 /** An installed connector (host `connectors`). */
 export interface InstalledConnector {
@@ -94,4 +95,4 @@ export function useFollowSaved(bot: Bot | undefined, change: (update: (d: BotDra
 
 export const lastPathComponent = (path: string) => path.split(/[\\/]/).filter(Boolean).pop() ?? path
 
-export const errorText = (e: unknown) => (e instanceof Error ? e.message : String(e))
+export const errorText = (e: unknown) => (humanError(e))

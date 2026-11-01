@@ -2,6 +2,7 @@ import { account } from './account'
 import type { CustomIcons } from '@shared/custom-icons'
 import { Observable } from '../lib/observable'
 import type { BotStore } from './bot-store'
+import { humanError } from '../lib/human-error'
 
 export class IconEditor extends Observable {
   busy = false
@@ -24,7 +25,7 @@ export class IconEditor extends Observable {
       const result = await client.call<{ icons: CustomIcons; iconsRevision: number }>('setIcon', { target: this.target, ...body, data }, 60_000)
       if (epoch === this.store.iconsEpoch) this.store.applyIcons(result.icons, result.iconsRevision)
     } catch (e) {
-      this.error = e instanceof Error ? e.message : String(e)
+      this.error = humanError(e)
     } finally {
       this.busy = false
       this.changed()

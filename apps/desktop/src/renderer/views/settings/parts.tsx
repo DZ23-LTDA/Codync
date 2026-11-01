@@ -4,6 +4,7 @@ import { Spacer } from '../../components/Stack'
 import { Text } from '../../components/Text'
 import type { BotStore } from '../../store/bot-store'
 import './settings.css'
+import { humanError } from '../../lib/human-error'
 
 export const isMac = window.codync.platform === 'darwin'
 /** "this Mac" on macOS; "this computer" elsewhere. */
@@ -26,7 +27,7 @@ export function SectionHeader({ title, children }: { title: string; children?: R
   )
 }
 
-export const errorText = (e: unknown) => (e instanceof Error ? e.message : typeof e === 'object' && e && 'message' in e ? String(e.message) : String(e))
+export const errorText = (e: unknown) => humanError(e)
 
 /** "3:27 PM", "Yesterday", "Monday" or "Sep 16" (kit's `RelativeTime.day`). */
 export function relativeDay(date: Date, now = new Date()) {

@@ -1,3 +1,4 @@
+import { humanError } from '../../lib/human-error'
 // Routines (kit Routine.swift, RoutineScheduleDraft.swift). The host hydrates, compiles,
 // validates and describes schedules; the app only keeps form values.
 
@@ -153,4 +154,4 @@ export function durationText(text: string) {
   return count(seconds, 'second')
 }
 
-export const errorText = (e: unknown) => (e instanceof Error ? e.message : String(e))
+export const errorText = (e: unknown) => (humanError(e))

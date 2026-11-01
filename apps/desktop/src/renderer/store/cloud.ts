@@ -7,6 +7,7 @@ import { pref, type Pref } from '../lib/prefs'
 import { account } from './account'
 import type { AppModel } from './app-model'
 import type { BotStore } from './bot-store'
+import { humanError } from '../lib/human-error'
 
 // Wire types of the Codync cloud (`/v1`, cloud/src/api.ts); times are epoch milliseconds.
 
@@ -103,7 +104,7 @@ export class CloudModel extends Observable {
   /** What the user started shows its error; the app's own background calls (`quiet`) only log it. */
   private fail(error: unknown, quiet = false) {
     if (quiet) console.warn('Codync cloud:', error)
-    else this.app.setError(error instanceof Error ? error.message : String(error))
+    else this.app.setError(humanError(error))
   }
 
   private get userId() {

@@ -1,4 +1,5 @@
 import { useEffect, useState, type DependencyList } from 'react'
+import { humanError } from '../lib/human-error'
 
 /**
  * What `load` resolves to, null while it loads (or when it has nothing to load); `error` says why it failed. An answer
@@ -17,7 +18,7 @@ export function useFetched<T>(load: () => Promise<T> | null, deps: DependencyLis
       },
       (reason: unknown) => {
         console.warn('load failed', reason)
-        if (current) setError(reason instanceof Error ? reason.message : String(reason))
+        if (current) setError(humanError(reason))
       },
     )
     return () => {
