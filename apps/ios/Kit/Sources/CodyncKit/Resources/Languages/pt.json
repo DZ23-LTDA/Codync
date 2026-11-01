@@ -272,5 +272,14 @@
   "Your edit wasn't saved on the host. Try again.": "Sua edição não foi salva no host. Tente de novo.",
   "The memory list couldn't be loaded. Try again.": "A lista de memória não carregou. Tente de novo.",
   "That folder couldn't be opened. Choose another one.": "Essa pasta não pôde ser aberta. Escolha outra.",
-  "No matching bots": "Nenhum bot encontrado"
+  "No matching bots": "Nenhum bot encontrado",
+  "Agents": "Agentes",
+  "Connectors": "Conectores",
+  "Skills": "Skills",
+  "Installed": "Instalado",
+  "Install": "Instalar",
+  "Agents come from the ACP registry and install on {name}.": "Agentes vêm do registro ACP e são instalados em {name}.",
+  "Connectors come from the official MCP Registry and install on {name}.": "Conectores vêm do MCP Registry oficial e são instalados em {name}.",
+  "Skills come from Anthropic and install on {name}.": "Skills vêm da Anthropic e são instaladas em {name}.",
+  "No connectors yet. Add GitHub, Linear, Notion and more from Extensions.": "Nenhum conector ainda. Adicione GitHub, Linear, Notion e outros em Extensões."
 }
