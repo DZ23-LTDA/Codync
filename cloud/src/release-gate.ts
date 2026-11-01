@@ -9,14 +9,14 @@
 
 import type { Env } from "./index";
 
-const DISPATCH = "https://api.github.com/repos/leepokai/Codync/actions/workflows/release-gate.yml/dispatches";
+const DISPATCH = "https://api.github.com/repos/DZ23-LTDA/Codync/actions/workflows/release-gate.yml/dispatches";
 // One small request a tick: the REST release list carries every asset (megabytes).
 const STATE = `{
-  codync: repository(owner: "leepokai", name: "Codync") {
+  codync: repository(owner: "DZ23-LTDA", name: "Codync") {
     latestRelease { tagName }
     releases(first: 10, orderBy: { field: CREATED_AT, direction: DESC }) { nodes { tagName isDraft isPrerelease } }
   }
-  tap: repository(owner: "leepokai", name: "homebrew-codync") {
+  tap: repository(owner: "DZ23-LTDA", name: "homebrew-codync") {
     cask: object(expression: "HEAD:Casks/codync.rb") { ... on Blob { text } }
   }
 }`;

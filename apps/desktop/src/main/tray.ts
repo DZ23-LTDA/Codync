@@ -107,7 +107,7 @@ export class Tray {
           break
         }
         items.push({ label: this.tr('Reinstall Codync or install the host with Homebrew.'), enabled: false })
-        items.push({ label: this.tr('Copy host install command'), icon: this.symbol('square.on.square'), click: () => clipboard.writeText('brew install leepokai/codync/codync-host') })
+        items.push({ label: this.tr('Copy host install command'), icon: this.symbol('square.on.square'), click: () => clipboard.writeText('brew install DZ23-LTDA/codync/codync-host') })
         break
       case 'notInstalled':
         items.push({ label: this.tr('Install host'), icon: this.symbol('arrow.down.circle'), click: () => void host.install() })

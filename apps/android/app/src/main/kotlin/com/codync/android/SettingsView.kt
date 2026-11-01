@@ -71,7 +71,7 @@ import com.codync.android.design.*
         }
         CardSection {
             row { ValueRow("App version", BuildConfig.VERSION_NAME) }
-            row { LinkButton("Source code") { uri.open("https://github.com/leepokai/Codync", OutboundLink.Github) } }
+            row { LinkButton("Source code") { uri.open("https://github.com/DZ23-LTDA/Codync", OutboundLink.Github) } }
         }
         CardSection {
             row {

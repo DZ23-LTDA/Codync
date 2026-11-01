@@ -31,7 +31,7 @@ pub fn require_standalone(executable: &Path) -> Result<()> {
         Method::Standalone => Ok(()),
         Method::AppBundle => bail!("this host belongs to the Codync app; update the app from Settings > Updates"),
         Method::Homebrew => bail!(
-            "this host belongs to Homebrew; run `brew upgrade leepokai/codync/codync-host`, then `codync-host install`"
+            "this host belongs to Homebrew; run `brew upgrade DZ23-LTDA/codync/codync-host`, then `codync-host install`"
         ),
         Method::Development => bail!("this is a development build; rebuild it instead of replacing it with a release"),
     }

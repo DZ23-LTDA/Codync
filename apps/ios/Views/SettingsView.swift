@@ -54,7 +54,7 @@ struct SettingsView: View {
                 .foregroundStyle(Palette.text)
                 Button {
                     Analytics.shared.capture(.linkOpened(.issues))
-                    openURL(URL(string: "https://github.com/leepokai/Codync/issues")!)
+                    openURL(URL(string: "https://github.com/DZ23-LTDA/Codync/issues")!)
                 } label: {
                     Text(L10n.tr("Report an issue"))
                 }
@@ -63,7 +63,7 @@ struct SettingsView: View {
                 ValueRow("App version", value: Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "")
                 Button {
                     Analytics.shared.capture(.linkOpened(.github))
-                    openURL(URL(string: "https://github.com/leepokai/Codync")!)
+                    openURL(URL(string: "https://github.com/DZ23-LTDA/Codync")!)
                 } label: {
                     Text(L10n.tr("Source code"))
                 }

@@ -39,7 +39,7 @@ describe("release gate nudge", () => {
     await nudgeReleaseGate(env);
     const [call] = dispatches();
     expect(dispatches()).toHaveLength(1);
-    expect(call.url).toBe("https://api.github.com/repos/leepokai/Codync/actions/workflows/release-gate.yml/dispatches");
+    expect(call.url).toBe("https://api.github.com/repos/DZ23-LTDA/Codync/actions/workflows/release-gate.yml/dispatches");
     expect(JSON.parse(call.init?.body as string)).toEqual({ ref: "main" });
     expect((call.init?.headers as Record<string, string>).Authorization).toBe("Bearer t");
   });

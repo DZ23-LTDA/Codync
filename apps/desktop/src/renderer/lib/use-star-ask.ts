@@ -2,7 +2,7 @@ import { prefs, usePref } from './prefs'
 import { afterStarAsk, dueStarAsk } from './star-ask'
 import { analytics } from '../store/analytics'
 
-export const STAR_REPO = 'https://github.com/leepokai/Codync'
+export const STAR_REPO = 'https://github.com/DZ23-LTDA/Codync'
 
 /** Setup and the later reminder share one persisted answer history. */
 export function useStarAsk() {

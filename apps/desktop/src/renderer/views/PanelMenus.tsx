@@ -69,8 +69,8 @@ export function AccountPanelLayer({ compact, approvals, onDismiss, onUsage, onSe
     page === 'support'
       ? [
           { title: 'Support', icon: 'chevron.left', action: () => setPage('main') },
-          { title: tr('Help & documentation'), icon: 'book', chevron: true, action: () => open('https://github.com/leepokai/codync#readme', 'docs') },
-          { title: tr('Report an issue'), icon: 'bubble.left', chevron: true, action: () => open('https://github.com/leepokai/codync/issues', 'issues') },
+          { title: tr('Help & documentation'), icon: 'book', chevron: true, action: () => open('https://github.com/DZ23-LTDA/Codync#readme', 'docs') },
+          { title: tr('Report an issue'), icon: 'bubble.left', chevron: true, action: () => open('https://github.com/DZ23-LTDA/Codync/issues', 'issues') },
         ]
       : [
           { title: 'Usage', icon: 'gauge.with.dots.needle.33percent', chevron: true, action: onUsage },

@@ -25,10 +25,10 @@ class OnboardingTest {
         var skipped = false
         compose.setContent { Hosted { PairingView(AppState(loading = false), viewModel(), onSkip = { skipped = true }) } }
         compose.onNodeWithText("Mac").assertIsSelected()
-        compose.onNodeWithText("brew install --cask leepokai/codync/codync").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("brew install --cask DZ23-LTDA/codync/codync").performScrollTo().assertIsDisplayed()
         compose.onNodeWithText("Linux").performClick().assertIsSelected()
         compose.onNodeWithText("codync-host install keeps it running in the background.").performScrollTo().assertIsDisplayed()
-        compose.onNodeWithText("brew install --cask leepokai/codync/codync").assertDoesNotExist()
+        compose.onNodeWithText("brew install --cask DZ23-LTDA/codync/codync").assertDoesNotExist()
         compose.onNodeWithText("Skip").assertDoesNotExist()
         compose.onNodeWithText("Continue").performClick()
         compose.onNodeWithText("Scan the pairing code").assertIsDisplayed()

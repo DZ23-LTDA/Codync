@@ -58,7 +58,7 @@ export function StarPrompt() {
           <Text as="div" size="body" tone="secondary" className="star-prompt-message">{text.message}</Text>
           <HStack gap={10}>
             <img src={appIcon} alt="" className="star-prompt-app-icon" draggable={false} />
-            <Text size="callout" tone="secondary">github.com/leepokai/Codync</Text>
+            <Text size="callout" tone="secondary">github.com/DZ23-LTDA/Codync</Text>
           </HStack>
           <HStack gap={8} justify="flex-end" wrap>
             <Button kind="secondary" onClick={() => finish(false)}>
