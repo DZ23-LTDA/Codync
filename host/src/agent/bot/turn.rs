@@ -319,8 +319,14 @@ impl Actor {
                 }
             }
             // A stopped turn says so even when its agent still ended it normally: its reply is withheld above.
-            (_, "cancelled") | (Err(_), _) => self.stop_notice("Stopped.", "cancelled"),
-            (Ok(_), _) if self.stop_requested => self.stop_notice("Stopped.", "cancelled"),
+            (_, "cancelled") | (Err(_), _) => {
+                let notice = self.stop_reason.clone().unwrap_or_else(|| "Stopped.".to_owned());
+                self.stop_notice(&notice, "cancelled");
+            }
+            (Ok(_), _) if self.stop_requested => {
+                let notice = self.stop_reason.clone().unwrap_or_else(|| "Stopped.".to_owned());
+                self.stop_notice(&notice, "cancelled");
+            }
             (_, "max_tokens") => self.stop_notice("The agent hit its output limit.", "max_tokens"),
             (_, "max_turn_requests") => {
                 self.stop_notice("The agent hit its step limit for this turn.", "max_turn_requests");

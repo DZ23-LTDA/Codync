@@ -175,6 +175,8 @@ impl Actor {
     }
 
     pub(super) async fn next_in_queue(&mut self, done_tx: &mpsc::UnboundedSender<Done>) {
+        self.last_event = Instant::now();
+        self.stop_reason = None;
         if self.turn.is_none() && std::mem::take(&mut self.restart_after_turn) {
             self.restart_agent().await;
         }

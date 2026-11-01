@@ -130,6 +130,8 @@ pub fn spawn(hub: Arc<Hub>, base: BotConfig) -> BotHandle {
         restart_after_turn: false,
         fast_support,
         idle_checked: Instant::now(),
+        last_event: Instant::now(),
+        stop_reason: None,
         relay: fallback::Relay::default(),
     };
     let task = tokio::spawn(actor.run(rx, interrupted));
@@ -327,6 +329,10 @@ struct Actor {
     /// When idle sessions and agents were last looked for.
     idle_checked: Instant,
     /// The running turn's place in the fallback chain (see `fallback`).
+    /// Quando o último `session/update` chegou. Um turno sem evento por `STALL_AFTER` está travado.
+    last_event: Instant,
+    /// Por que o turno foi interrompido: vai para a conversa em vez de um "Stopped." genérico.
+    stop_reason: Option<String>,
     relay: fallback::Relay,
 }
 
@@ -360,7 +366,10 @@ impl Actor {
                     if !self.on_cmd(cmd, &done_tx).await { break }
                 }
                 Some(file) = self.files.rx.recv() => self.finish_file(file),
-                inc = recv_incoming(&mut self.conn) => self.on_incoming(inc).await,
+                inc = recv_incoming(&mut self.conn) => {
+                    self.last_event = Instant::now();
+                    self.on_incoming(inc).await;
+                },
                 Some(done) = done_rx.recv() => {
                     // Updates sent before the prompt response are already queued; apply them first.
                     while let Some(inc) = self.conn.as_mut().and_then(|c| c.rx.try_recv().ok()) {
@@ -390,6 +399,13 @@ impl Actor {
                         self.routine_timed_out = true;
                         self.stop_requested = true;
                         if let Some(c) = self.conn.take() { c.acp.kill().await; }
+                    }
+                    // No event for `STALL_AFTER` means the turn is stuck: cancel it the same way the person's Stop does,
+                    // so the bot never stays "Working" forever.
+                    if self.turn.is_some() && !self.stop_requested && stalled(self.last_event.elapsed()) {
+                        tracing::warn!(bot = %self.cfg.id, seconds = STALL_AFTER.as_secs(), "turn stalled; cancelling it");
+                        self.stop_reason = Some(STALLED_NOTICE.to_owned());
+                        self.cancel_turn().await;
                     }
                     // The agent ignored the cancel: stop its process so the bot is free again.
                     if self.turn.is_some() && self.cancel_deadline.is_some_and(|deadline| Instant::now() >= deadline) {
@@ -458,7 +474,37 @@ impl Actor {
 const RESUME_PROMPT: &str = "[Codync restarted on this computer and interrupted you mid-task. You've been resumed with your full conversation intact. Continue exactly where you left off and finish what you were doing. If your previous step already completed an action, do NOT repeat it — just carry on from there.]";
 
 /// How long a cancelled turn may take to wind down before its agent process is stopped.
+/// A turn with no event for this long is stuck. Longer than any single tool call the supported agents make on their
+/// own, shorter than a person waits before deciding the app froze.
+pub(super) const STALL_AFTER: Duration = Duration::from_secs(180);
+
+/// What the conversation says when the watchdog, not the person, stopped the turn.
+pub(super) const STALLED_NOTICE: &str = "Stopped: the agent stopped answering.";
+
+/// Whether a turn with no event for `elapsed` is stuck. Pure, so the rule is testable without an agent.
+pub(super) fn stalled(elapsed: Duration) -> bool {
+    elapsed >= STALL_AFTER
+}
+
 const CANCEL_GRACE: Duration = Duration::from_secs(15);
+
+#[cfg(test)]
+mod stall_tests {
+    use super::{STALL_AFTER, stalled};
+    use std::time::Duration;
+
+    #[test]
+    fn a_turn_that_just_sent_an_event_is_not_stuck() {
+        assert!(!stalled(Duration::ZERO));
+        assert!(!stalled(STALL_AFTER - Duration::from_millis(1)));
+    }
+
+    #[test]
+    fn a_turn_with_no_event_for_the_whole_window_is_stuck() {
+        assert!(stalled(STALL_AFTER));
+        assert!(stalled(STALL_AFTER * 2));
+    }
+}
 
 /// An interrupted turn older than this isn't resumed.
 const STALE_RESUME_MS: i64 = 60 * 60 * 1000;
