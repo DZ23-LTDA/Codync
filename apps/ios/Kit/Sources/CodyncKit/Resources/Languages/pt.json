@@ -267,5 +267,9 @@
   "Codync couldn't reach the host. Check that it is running.": "O Codync não conseguiu falar com o host. Verifique se ele está rodando.",
   "Codync Cloud didn't answer. Try again.": "O Codync Cloud não respondeu. Tente de novo.",
   "That action didn't reach the host. Try again.": "Essa ação não chegou ao host. Tente de novo.",
-  "The handoff wasn't saved. Try again.": "O repasse não foi salvo. Tente de novo."
+  "The handoff wasn't saved. Try again.": "O repasse não foi salvo. Tente de novo.",
+  "The call couldn't be ended on the host. Try again.": "Não foi possível encerrar a chamada no host. Tente de novo.",
+  "Your edit wasn't saved on the host. Try again.": "Sua edição não foi salva no host. Tente de novo.",
+  "The memory list couldn't be loaded. Try again.": "A lista de memória não carregou. Tente de novo.",
+  "That folder couldn't be opened. Choose another one.": "Essa pasta não pôde ser aberta. Escolha outra."
 }

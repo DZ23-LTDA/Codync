@@ -64,4 +64,4 @@ export function useFolderPicker(onPick: (path: string) => void) {
     error, busy, saving, pathOpen, setPathOpen, input, setInput, online, open, confirm }
 }
 
-function errorText(error: unknown) { return humanError(error) }
+function errorText(error: unknown) { return humanError(error, "That folder couldn't be opened. Choose another one.") }

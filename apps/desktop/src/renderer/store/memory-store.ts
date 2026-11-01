@@ -118,4 +118,4 @@ export function authorLabel(entry: MemoryEntry, botName: (id: string | null) => 
   }
 }
 
-function message(error: unknown) { return humanError(error) }
+function message(error: unknown) { return humanError(error, "The memory list couldn't be loaded. Try again.") }
