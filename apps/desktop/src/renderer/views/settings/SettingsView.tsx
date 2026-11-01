@@ -1,4 +1,5 @@
 import { Fragment, useEffect, useState } from 'react'
+  const tr = useTr()
 import type { Screen } from '@shared/analytics'
 import { APPEARANCES, type Appearance } from '@shared/appearance'
 import { islandLabel } from '@shared/island'
@@ -33,10 +34,10 @@ export type SettingsPage = 'general' | 'computers' | 'network' | 'access' | 'voi
 const thisComputer = isMac ? 'This Mac' : 'This computer'
 const pages: { id: SettingsPage; title: string; label?: string; group: string; icon: string }[] = [
   { id: 'general', title: 'General', group: 'Personal', icon: 'gearshape' },
-  { id: 'computers', title: 'Computers & devices', label: 'Computers', group: thisComputer, icon: 'desktopcomputer' },
+  { id: 'computers', title: tr('Computers & devices'), label: 'Computers', group: thisComputer, icon: 'desktopcomputer' },
   { id: 'network', title: 'Network', group: thisComputer, icon: 'codync.network' },
-  { id: 'access', title: 'Computer access', group: thisComputer, icon: 'hand.raised' },
-  { id: 'voice', title: 'Voice chat', group: 'Personal', icon: 'waveform' },
+  { id: 'access', title: tr('Computer access'), group: thisComputer, icon: 'hand.raised' },
+  { id: 'voice', title: tr('Voice chat'), group: 'Personal', icon: 'waveform' },
   { id: 'usage', title: 'Usage', group: 'Personal', icon: 'gauge.with.dots.needle.33percent' },
   { id: 'updates', title: 'Updates', group: thisComputer, icon: 'arrow.down.circle' },
 ]
@@ -280,6 +281,7 @@ function UsageLimitsList() {
 
 /** The app's update check and preferences, the same as the menu bar's Updates menu. */
 function UpdateSettings() {
+  const tr = useTr()
   const updates = useUpdates()
   if (!updates) return null
   const footer = updates.supported ? null : 'Updates are available in release builds.'
@@ -290,7 +292,7 @@ function UpdateSettings() {
     <CardForm>
       <CardSection title="Codync" footer={footer}>
         {[
-          <ValueRow key="version" label="Version" detail={lastChecked}>
+          <ValueRow key="version" label={tr('Version')} detail={lastChecked}>
             <HStack as="span" gap={10}>
               <span>{window.codync.appVersion}</span>
               <UpdateButton updates={updates} />
@@ -304,17 +306,17 @@ function UpdateSettings() {
               ]
             : []),
           <Switch key="check" on={updates.autoCheck} onChange={(on) => window.codync.updates.setAutoCheck(on)} disabled={!updates.supported}>
-            Automatically check for updates
+            {tr('Automatically check for updates')}
           </Switch>,
           <Switch key="download" on={updates.autoDownload} onChange={(on) => window.codync.updates.setAutoDownload(on)} disabled={!updates.supported}>
-            Automatically download and install
+            {tr('Automatically download and install')}
           </Switch>,
           ...(updates.error
             ? [
                 <div key="error" className="settings-row settings-appear">
                   <Text tone="attention" grow>{updates.error}</Text>
                   <Button kind="secondary" onClick={() => window.codync.updates.check()} disabled={updates.checking}>
-                    Retry
+                    {tr('Retry')}
                   </Button>
                 </div>,
               ]
