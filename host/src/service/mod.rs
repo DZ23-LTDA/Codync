@@ -169,6 +169,21 @@ impl KeepAwake {
     }
 }
 
+/// This machine's Tailscale DNS name, asked once per process.
+///
+/// `tailscale status --json` starts a process, and on Windows that took two seconds: every caller of `addresses` paid it,
+/// and the pairing screen paid it with the phone in hand. The name is stable for the life of the process, so it is read
+/// once, the same way `CODYNC_EXTERNAL_URL` is.
+fn tailscale_dns() -> Option<&'static str> {
+    static DNS: LazyLock<Option<String>> = LazyLock::new(|| {
+        let out = Command::new("tailscale").args(["status", "--json"]).output().ok()?;
+        let v: Value = serde_json::from_slice(&out.stdout).ok()?;
+        let dns = v["Self"]["DNSName"].as_str()?.trim_end_matches('.');
+        (!dns.is_empty()).then(|| dns.to_owned())
+    });
+    DNS.as_deref()
+}
+
 /// Addresses the phone can try, best first: the ones set in `CODYNC_EXTERNAL_URL`, Tailscale, then LAN.
 pub fn addresses(port: u16) -> Vec<String> {
     // Read once: every hello asks, and a bad entry warns once.
@@ -190,14 +205,8 @@ pub fn addresses(port: u16) -> Vec<String> {
             }
         }
     }
-    if let Ok(out) = Command::new("tailscale").args(["status", "--json"]).output()
-        && let Ok(v) = serde_json::from_slice::<Value>(&out.stdout)
-        && let Some(dns) = v["Self"]["DNSName"].as_str()
-    {
-        let dns = dns.trim_end_matches('.');
-        if !dns.is_empty() {
-            tailscale.insert(0, format!("http://{dns}:{port}"));
-        }
+    if let Some(dns) = tailscale_dns() {
+        tailscale.insert(0, format!("http://{dns}:{port}"));
     }
     tailscale.sort();
     tailscale.dedup();
