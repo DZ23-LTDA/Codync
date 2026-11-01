@@ -21,7 +21,8 @@ export function phrasesIn(source) {
   // The literal never passes through tr() itself, so a missing key here showed as English while every counter said zero.
   for (const match of source.matchAll(/\b(?:title|label|detail|empty):\s*(['"])([^'"\n]{2,80})\1/g)) {
     const phrase = match[2].trim();
-    if (phrase !== "") found.add(phrase);
+    // A field that repeats its own name (`title: 'title'`) is metadata, not copy.
+    if (phrase !== "" && phrase !== "title" && phrase !== "label") found.add(phrase);
   }
   for (const pattern of patterns) {
     for (const match of source.matchAll(pattern)) {
@@ -52,7 +53,9 @@ function main() {
   const table = JSON.parse(readFileSync(`${base}/${PT}`, "utf8"));
   const used = new Set();
   for (const file of globSync(`${base}/${RENDERER}/**/*.{ts,tsx}`)) {
-    if (file.includes(".test.") || file.includes("/demo/")) continue;
+    // Windows paths come back with backslashes: normalise before the demo/test filter, or the demo story reads as copy.
+    const normalized = file.replaceAll("\\", "/");
+    if (normalized.includes(".test.") || normalized.includes("/demo/")) continue;
     for (const phrase of phrasesIn(readFileSync(file, "utf8"))) used.add(phrase);
   }
   const missing = missingFrom(used, table);
