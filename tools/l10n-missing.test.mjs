@@ -1,0 +1,23 @@
+import assert from "node:assert/strict";
+import { test } from "node:test";
+
+import { missingFrom, phrasesIn } from "./l10n-missing.mjs";
+
+test("literals handed to tr are collected, in every quote style", () => {
+  const source = `const a = tr('First'); const b = tr("Second"); const c = tr(\`Third\`)`;
+  assert.deepEqual([...phrasesIn(source)].sort(), ["First", "Second", "Third"]);
+});
+
+test("a phrase built with a placeholder is skipped, and so is a variable name", () => {
+  const source = "tr(`Hello ${name}`); tr(label); tr('')";
+  assert.deepEqual([...phrasesIn(source)], []);
+});
+
+test("what is missing is what the table has no key for", () => {
+  const phrases = new Set(["Present", "Absent"]);
+  assert.deepEqual(missingFrom(phrases, { Present: "Presente" }), ["Absent"]);
+});
+
+test("a table with every key reports nothing missing", () => {
+  assert.deepEqual(missingFrom(new Set(["A"]), { A: "A" }), []);
+});
