@@ -783,5 +783,16 @@
   "Remove {name}": "Remover {name}",
   "Add {name}": "Adicionar {name}",
   "About {name}": "Sobre {name}",
-  "Voice by {name}": "Voz de {name}"
+  "Voice by {name}": "Voz de {name}",
+  "{device} wants to use {host}": "{device} quer usar {host}",
+  "Signed in as {email}": "Conectado como {email}",
+  "Code {code}": "Código {code}",
+  "Approve only if {device} shows exactly this code. If it does not, deny: someone may be trying to get in.": "Aprove só se {device} mostrar exatamente este código. Se não mostrar, negue: alguém pode estar tentando entrar.",
+  "Waiting for {device} to show its code…": "Aguardando {device} mostrar o código…",
+  "{backend} is done": "{backend} terminou",
+  "{name} stopped.": "{name} parou.",
+  "Message {name}": "Mensagem para {name}",
+  "Message {name}…": "Mensagem para {name}…",
+  "Open {name}": "Abrir {name}",
+  "{count} working": "{count} trabalhando"
 }
