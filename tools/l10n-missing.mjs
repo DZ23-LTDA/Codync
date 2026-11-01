@@ -19,7 +19,8 @@ export function phrasesIn(source) {
   ];
   for (const pattern of patterns) {
     for (const match of source.matchAll(pattern)) {
-      const phrase = match[1].trim();
+      // A single-quoted string in the source keeps its escapes; the table has the text a reader sees.
+      const phrase = match[1].replaceAll("\\'", "'").replaceAll('\\"', '"').trim();
       // An empty literal is not a phrase. A bare identifier is not matched at all: every pattern here requires a quote,
       // so `tr(label)` never reaches this line -- filtering single words here would drop "Skills" and "Installed".
       if (phrase !== "") found.add(phrase);
