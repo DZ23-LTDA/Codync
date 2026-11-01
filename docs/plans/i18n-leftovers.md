@@ -39,3 +39,15 @@ Ação correta: um por um, olhando o componente. São 22 pequenas edições, nã
 1. Fechar as 22 à mão (uma por vez, `tsc` entre elas).
 2. Ensinar o scanner a reconhecer o caso 1, com teste — sem isso, o número nunca chega a zero honesto.
 3. Só então declarar o item 7 do desktop fechado **depois** de abrir as telas no demo.
+
+
+## Atualização: 84 strings de configuração (01/11)
+
+`tools/l10n-missing.mjs` passou a ler também `title:`/`label:`/`detail:`/`empty:` literais — o texto que chega à tela
+por uma lista de itens (`{ title: 'Support', … }` renderizado por `tr(item.title)`). O literal nunca passa por `tr()`,
+então **uma chave faltando ali aparecia em inglês com todos os contadores em zero** — foi assim que `Support` ficou meses
+em inglês no menu da conta.
+
+Resultado: **84 strings de configuração sem entrada no `pt.json`**. Muitas são rótulos reais (`Black`, `Blue`, `Brown`,
+`Allow`, `Approximate location`); outras são valores de unidade (`1 s`, `2.5 s`). É o quarto ponto cego do mesmo tipo:
+o texto mora fora do JSX e fora de `tr()`.

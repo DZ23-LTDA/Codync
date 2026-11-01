@@ -35,3 +35,8 @@ test("a cron expression is an example, not copy", () => {
   assert.deepEqual(missingFrom(new Set(["0 9 * * 1-5", "Repeat"]), {}), ["Repeat"]);
 });
 
+test("copy announced through a list of items is collected too", () => {
+  const source = "const items = [{ title: 'Support', icon: 'book' }, { label: 'Allow' }]";
+  assert.deepEqual([...phrasesIn(source)].sort(), ["Allow", "Support"]);
+});
+
