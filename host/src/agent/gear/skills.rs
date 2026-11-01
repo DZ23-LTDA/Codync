@@ -84,12 +84,25 @@ fn skill_item(path: &Path, folder: &str) -> Option<Named> {
 mod tests {
     use super::*;
 
-    /// A directory link. Windows has no `std::os::unix`.
-    fn link_dir(target: &Path, link: &Path) {
+    /// A directory link, or `false` when this account may not create one.
+    ///
+    /// Windows needs Developer Mode or an elevated account for a symlink: a plain developer
+    /// machine fails with `ERROR_PRIVILEGE_NOT_HELD` (1314), and the caller reports the case as
+    /// skipped rather than failing a suite over a privilege it cannot grant itself.
+    fn link_dir(target: &Path, link: &Path) -> bool {
         #[cfg(unix)]
-        std::os::unix::fs::symlink(target, link).expect("symlink");
+        {
+            std::os::unix::fs::symlink(target, link).expect("symlink");
+            true
+        }
         #[cfg(windows)]
-        std::os::windows::fs::symlink_dir(target, link).expect("symlink");
+        {
+            match std::os::windows::fs::symlink_dir(target, link) {
+                Ok(()) => true,
+                Err(error) if error.raw_os_error() == Some(1314) => false,
+                Err(error) => panic!("symlink: {error}"),
+            }
+        }
     }
 
     fn scratch() -> std::path::PathBuf {
@@ -110,7 +123,12 @@ mod tests {
             .expect("imported");
         std::fs::write(real.join("SKILL.md"), "---\nname: linked\ndescription: >\n  Review\n  a diff\n---\n# 说明\n")
             .expect("linked");
-        link_dir(&real, &home.join(".claude/skills/linked"));
+        if !link_dir(&real, &home.join(".claude/skills/linked")) {
+            // No symlink privilege (plain Windows account): nothing to assert about following one.
+            eprintln!("skipped: this account may not create a directory symlink");
+            let _ = std::fs::remove_dir_all(root);
+            return;
+        }
         let skills = list("claude", &home);
         assert_eq!(skills.iter().map(|s| s.name.as_str()).collect::<Vec<_>>(), ["linked"]);
         assert_eq!(skills[0].description, "Review a diff");

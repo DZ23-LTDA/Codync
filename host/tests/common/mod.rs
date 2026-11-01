@@ -12,17 +12,26 @@ use std::time::{Duration, Instant};
 pub async fn serve(home: &Path) -> (Child, String) {
     let deadline = Instant::now() + Duration::from_secs(30);
     let _ = std::fs::create_dir_all(home);
-    let log = home.join("host-stderr.log");
+    let log = home.join("host-test.log");
     let mut last = String::new();
     loop {
         let port = std::net::TcpListener::bind("127.0.0.1:0").expect("free port").local_addr().expect("port").port();
         let base = format!("http://127.0.0.1:{port}");
+        // Both streams go to the log: the host writes its startup to stdout, so keeping only
+        // stderr left every "it didn't come up" message with an empty tail and no clue.
+        let (output, errors) = match std::fs::File::create(&log) {
+            Ok(file) => match file.try_clone() {
+                Ok(clone) => (Stdio::from(file), Stdio::from(clone)),
+                Err(_) => (Stdio::from(file), Stdio::null()),
+            },
+            Err(_) => (Stdio::null(), Stdio::null()),
+        };
         let mut child = Command::new(env!("CARGO_BIN_EXE_codync-host"))
             .args(["serve", "--bind", "127.0.0.1", "--port", &port.to_string()])
             .env("CODYNC_HOME", home)
             .env("CODYNC_CLOUD", "off")
-            .stdout(Stdio::null())
-            .stderr(std::fs::File::create(&log).map_or_else(|_| Stdio::null(), Stdio::from))
+            .stdout(output)
+            .stderr(errors)
             .spawn()
             .expect("start the host");
         while child.try_wait().expect("host state").is_none() {
@@ -30,19 +39,24 @@ pub async fn serve(home: &Path) -> (Child, String) {
                 Ok(()) => return (child, base),
                 Err(e) => last = e,
             }
-            assert!(Instant::now() < deadline, "{}", not_started(&log, &last));
+            if Instant::now() >= deadline {
+                // A host that never answers is a failed test, not a leftover process to debug.
+                let _ = child.kill();
+                let _ = child.wait();
+                panic!("{}", not_started(home, &log, &last));
+            }
             tokio::time::sleep(Duration::from_millis(50)).await;
         }
-        assert!(Instant::now() < deadline, "{}", not_started(&log, &last));
+        assert!(Instant::now() < deadline, "{}", not_started(home, &log, &last));
     }
 }
 
-/// Why a test host didn't answer: the last readiness check's error and the end of the host's log.
-fn not_started(log: &Path, last: &str) -> String {
+/// Why a test host didn't answer: where its data lives, the last readiness error, and its log.
+fn not_started(home: &Path, log: &Path, last: &str) -> String {
     let text = std::fs::read_to_string(log).unwrap_or_default();
     let lines: Vec<&str> = text.lines().collect();
     let tail = lines[lines.len().saturating_sub(30)..].join("\n");
-    format!("host didn't start; last readiness check: {last}\n--- host log ---\n{tail}")
+    format!("host didn't start in {}\nlast readiness check: {last}\n--- host log ---\n{tail}", home.display())
 }
 
 /// Whether `base` is this home's host: on a reused port another test's host answers `/health` too.
@@ -62,7 +76,15 @@ pub async fn ready(base: &str, home: &Path) -> Result<(), String> {
 /// children: a SIGKILL would orphan whatever it had running, such as a harness
 /// sign-in check (`cursor-agent status` then spins forever). Kills it after 5 s.
 pub fn stop(child: &mut Child) {
+    // Windows has no SIGTERM, and `kill` does not exist there: the old line failed silently,
+    // every test host outlived its test, and the orphans held open the inherited pipes until
+    // the test run itself hung. `taskkill /T` takes the process tree, which is the closest the
+    // platform gets to "stop the host and whatever it started"; `/F` is how a console process
+    // actually receives it.
+    #[cfg(unix)]
     let _ = Command::new("kill").arg(child.id().to_string()).status();
+    #[cfg(windows)]
+    let _ = Command::new("taskkill").args(["/PID", &child.id().to_string(), "/T", "/F"]).status();
     let deadline = Instant::now() + Duration::from_secs(5);
     while Instant::now() < deadline {
         if let Ok(Some(_)) = child.try_wait() {
