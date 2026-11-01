@@ -86,9 +86,7 @@ pub fn stop(child: &mut Child) {
     #[cfg(unix)]
     let _ = Command::new("kill").arg(child.id().to_string()).status();
     #[cfg(windows)]
-    let _ = Command::new("taskkill")
-        .args(["/PID", &child.id().to_string(), "/T", "/F"])
-        .status();
+    let _ = Command::new("taskkill").args(["/PID", &child.id().to_string(), "/T", "/F"]).status();
     let deadline = Instant::now() + Duration::from_secs(5);
     while Instant::now() < deadline {
         if let Ok(Some(_)) = child.try_wait() {
