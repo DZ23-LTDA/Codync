@@ -184,6 +184,15 @@ fn tailscale_dns() -> Option<&'static str> {
     DNS.as_deref()
 }
 
+/// Reads the Tailscale name while nothing is waiting for it.
+///
+/// `addresses()` needs that name, and the process it starts cost two seconds on Windows: the first pairing code after a
+/// restart paid it with the phone in hand. Calling this once, in the background, when the host comes up moves that cost
+/// to where nobody is watching.
+pub fn warm_addresses() {
+    let _ = tailscale_dns();
+}
+
 /// Addresses the phone can try, best first: the ones set in `CODYNC_EXTERNAL_URL`, Tailscale, then LAN.
 pub fn addresses(port: u16) -> Vec<String> {
     // Read once: every hello asks, and a bad entry warns once.

@@ -34,3 +34,19 @@ um lote de tradução.
 Rodar `cargo clippy --all-targets -- -D warnings` reprovou **o meu próprio teste de primeiro token** (PR #132): três
 `cast` de `f64`/`usize` que o crate recusa. Corrigido com aritmética inteira (`div_ceil`). O `cargo test` passava — o lint
 não. Como o CI deste fork não roda, ninguém veria isso até alguém rodar clippy à mão.
+
+
+## Aquecendo na subida do host
+
+```
+[3, 3, 3, 3, 1830] ms
+```
+
+O primeiro toque deixou de pagar a leitura do Tailscale: os quatro primeiros ficam em 3 ms. Mas sobrou **um caso lento por
+execução**, sempre na **quinta** chamada — e ele **não** é o Tailscale:
+
+- se fosse a leitura preguiçosa do nome, a primeira chamada pagaria, não a quinta;
+- `issue()` só remove o código mais antigo quando passa de cinco, o que é uma operação de vetor;
+- o valor (~1,8 s) é estável entre execuções, então não é ruído.
+
+**Não sei o que é.** Fica medido, não explicado — e é o próximo passo antes de declarar o pareamento rápido.
