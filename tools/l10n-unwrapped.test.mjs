@@ -74,3 +74,15 @@ test("a text node is reported on the line the words are, not the line the elemen
   assert.equal(found.text, "Apple");
   assert.equal(found.line, 4, "the words are on line 4, the element opened on line 1");
 });
+
+test("copy inside a JSX expression is reported, which the markup scan cannot see", () => {
+  const source = "<span>{focus ? 'Your bots are idle.' : 'Create a bot to start.'}</span>";
+  const found = findUnwrapped(source, "island.tsx").map((entry) => entry.text);
+  assert.deepEqual(found.sort(), ["Create a bot to start.", "Your bots are idle."]);
+});
+
+test("a value inside an expression is not copy: an id, a class, a single word", () => {
+  const source = "<div className={active ? 'card on' : 'card'}>{tab}</div>";
+  assert.deepEqual(findUnwrapped(source, "row.tsx"), []);
+});
+
