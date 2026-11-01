@@ -1,5 +1,4 @@
 import { Fragment, useEffect, useState } from 'react'
-  const tr = useTr()
 import type { Screen } from '@shared/analytics'
 import { APPEARANCES, type Appearance } from '@shared/appearance'
 import { islandLabel } from '@shared/island'
@@ -34,10 +33,10 @@ export type SettingsPage = 'general' | 'computers' | 'network' | 'access' | 'voi
 const thisComputer = isMac ? 'This Mac' : 'This computer'
 const pages: { id: SettingsPage; title: string; label?: string; group: string; icon: string }[] = [
   { id: 'general', title: 'General', group: 'Personal', icon: 'gearshape' },
-  { id: 'computers', title: tr('Computers & devices'), label: 'Computers', group: thisComputer, icon: 'desktopcomputer' },
+  { id: 'computers', title: 'Computers & devices', label: 'Computers', group: thisComputer, icon: 'desktopcomputer' },
   { id: 'network', title: 'Network', group: thisComputer, icon: 'codync.network' },
-  { id: 'access', title: tr('Computer access'), group: thisComputer, icon: 'hand.raised' },
-  { id: 'voice', title: tr('Voice chat'), group: 'Personal', icon: 'waveform' },
+  { id: 'access', title: 'Computer access', group: thisComputer, icon: 'hand.raised' },
+  { id: 'voice', title: 'Voice chat', group: 'Personal', icon: 'waveform' },
   { id: 'usage', title: 'Usage', group: 'Personal', icon: 'gauge.with.dots.needle.33percent' },
   { id: 'updates', title: 'Updates', group: thisComputer, icon: 'arrow.down.circle' },
 ]
@@ -47,9 +46,9 @@ const pageScreens: Record<SettingsPage, Screen | null> = { general: 'settings', 
 
 /** `page` is the window's: a command (the menu bar's network rows) can turn the open sheet to another page. */
 export function SettingsView({ page, setPage }: { page: SettingsPage; setPage: (page: SettingsPage) => void }) {
+  const tr = useTr()
   const app = useApp()
   const dismiss = useDismiss()
-  const tr = useTr()
   const current = pages.find((p) => p.id === page)!
   useScreenViewed(pageScreens[page])
   return (
@@ -124,6 +123,7 @@ function PageContent({ page }: { page: SettingsPage }) {
 
 /** Account, window and app preferences. */
 function GeneralSettings() {
+  const tr = useTr()
   const account = useAccount()
   const [appearance, setAppearance] = useState<Appearance>('system')
   useEffect(() => void window.codync.app.appearance().then(setAppearance), [])
@@ -141,7 +141,6 @@ function GeneralSettings() {
   useEffect(() => void window.codync.island.enabled().then(setIsland), [])
   const [voiceShortcut, setVoiceShortcut] = useState<VoiceShortcut>('off')
   useEffect(() => void window.codync.speech.shortcut().then(setVoiceShortcut), [])
-  const tr = useTr()
 
   return (
     <CardForm>
@@ -235,11 +234,11 @@ function GeneralSettings() {
 
 /** Product analytics on this computer's host; only the computer itself may change it. */
 function PrivacySettings() {
+  const tr = useTr()
   const app = useApp()
   const local = useModel(app.local)
   const running = local !== null && local.connection.kind === 'online'
   const [about, setAbout] = useState(false)
-  const tr = useTr()
   const setShared = (on: boolean) => void local?.setAnalytics(on).catch((e: unknown) => app.setError(errorText(e)))
   return (
     <>
