@@ -768,5 +768,16 @@
   "Updates are available in release builds.": "As atualizações estão disponíveis nas versões de release.",
   "Check for updates": "Verificar atualizações",
   "Off: only Wi-Fi and Tailscale reach it, nothing goes through Cloudflare.": "Desligado: só Wi-Fi e Tailscale alcançam, nada passa pelo Cloudflare.",
-  "No usage limits yet. Run a bot once and they show up here.": "Nenhum limite de uso ainda. Rode um bot uma vez e eles aparecem aqui."
+  "No usage limits yet. Run a bot once and they show up here.": "Nenhum limite de uso ainda. Rode um bot uma vez e eles aparecem aqui.",
+  "Open {name}'s own chat": "Abrir a conversa de {name}",
+  "Remove {name} from the group": "Remover {name} do grupo",
+  "Add member": "Adicionar membro",
+  "Delete {name}?": "Apagar {name}?",
+  "Computers, ": "Computadores, ",
+  "Set up this ": "Configurar este ",
+  "Computers, {name}. Filter conversations": "Computadores, {name}. Filtrar conversas",
+  "Set up this {what}": "Configurar este {what}",
+  "Mac": "Mac",
+  "computer": "computador",
+  "Codync runs your coding agents through the host, a small background service. Install it once and your bots can work while this window is closed.": "O Codync roda seus agentes de código pelo host, um pequeno serviço em segundo plano. Instale uma vez e seus bots trabalham mesmo com a janela fechada."
 }

@@ -75,7 +75,7 @@ export function ComputerFilterHeader({ hidden, setHidden, manage, compact = fals
   }
   return (
     <DropdownMenu items={items} title={text} className={`computer-filter ${compact ? 'computer-filter-action' : ''}`}>
-      {compact ? <Icon name="desktopcomputer" size={12} weight="medium" /> : <Text truncate aria-label={`Computers, ${text}. Filter conversations`}>{text}</Text>}
+      {compact ? <Icon name="desktopcomputer" size={12} weight="medium" /> : <Text truncate aria-label={tr('Computers, {name}. Filter conversations').replaceAll('{name}', text)}>{text}</Text>}
       <Icon name="chevron.down" size={8} weight="semibold" />
     </DropdownMenu>
   )
