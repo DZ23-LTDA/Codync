@@ -5,6 +5,8 @@ import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { globSync } from "node:fs";
 
+import { isExample } from "./l10n-missing.mjs";
+
 const dir = "apps/ios/Kit/Sources/CodyncKit/Resources/Languages";
 const tables = new Map();
 for (const name of readdirSync(dir).filter((file) => file.endsWith(".json")).sort()) {
@@ -28,11 +30,17 @@ for (const [language, list] of tables) {
 // What the desktop app actually shows: the phrases it passes through tr(). A language can cover the whole table and
 // still leave this screen in English, or cover this screen and leave the iPhone app mostly English, so both numbers
 // are reported and both are decisions, not accidents.
+//
+// Values shown as an example of a format (a cron expression, a placeholder UUID, `https://`) are not copy and are
+// counted out here with the same rule the missing-key scanner uses, so the percentage describes the screen instead of
+// the placeholders on it.
 const renderer = "apps/desktop/src/renderer";
 const used = new Set();
 for (const file of globSync(`${renderer}/**/*.tsx`)) {
   const source = readFileSync(file, "utf8");
-  for (const match of source.matchAll(/tr\(\s*[`'"]([^`'"]{2,60})[`'"]\s*\)/g)) used.add(match[1]);
+  for (const match of source.matchAll(/tr\(\s*[`'"]([^`'"]{2,60})[`'"]\s*\)/g)) {
+    if (!isExample(match[1])) used.add(match[1]);
+  }
 }
 console.log(`\ndesktop shows ${used.size} distinct phrases through tr()`);
 for (const [language, list] of tables) {

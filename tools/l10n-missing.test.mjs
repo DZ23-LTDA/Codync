@@ -35,6 +35,21 @@ test("a cron expression is an example, not copy", () => {
   assert.deepEqual(missingFrom(new Set(["0 9 * * 1-5", "Repeat"]), {}), ["Repeat"]);
 });
 
+test("a long sentence is copy, not an example", () => {
+  // The rule that skipped cron expressions used to skip any phrase of five words or more, which hid
+  // exactly the sentences that needed translating.
+  const phrases = new Set([
+    "A live conversation. Talk over replies.",
+    "The first rule that matches decides.",
+    "Save",
+  ]);
+  assert.deepEqual(missingFrom(phrases, {}), [
+    "A live conversation. Talk over replies.",
+    "Save",
+    "The first rule that matches decides.",
+  ]);
+});
+
 test("copy announced through a list of items is collected too", () => {
   const source = "const items = [{ title: 'Support', icon: 'book' }, { label: 'Allow' }]";
   assert.deepEqual([...phrasesIn(source)].sort(), ["Allow", "Support"]);
