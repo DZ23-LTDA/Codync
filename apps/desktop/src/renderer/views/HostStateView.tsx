@@ -50,7 +50,7 @@ function hostFailure(message: string, tr: (text: string) => string): string {
 
 function FailedHost({ compact, message }: { compact: boolean; message: string }) {
   const tr = useTr()
-  return <EmptyState compact={compact} icon={<HostBot compact={compact} mood="failed" />} title="The host isn't running" message={hostFailure(message, tr)} action={['Try again', () => window.codync.host.restart()]} />
+  return <EmptyState compact={compact} icon={<HostBot compact={compact} mood="failed" />} title={tr("The host isn't running")} message={hostFailure(message, tr)} action={[tr('Try again'), () => window.codync.host.restart()]} />
 }
 
 /** The app-icon bot expresses progress or failure without replacing the recovery instructions. */
