@@ -16,8 +16,8 @@
     {
       "id": 3,
       "item": "database: missing, empty, valid, damaged, migrated, interrupted, recovered",
-      "state": "IN_PROGRESS",
-      "evidence": "PRs #43, #48, #50: 9 tests; downgrade still unrecorded"
+      "state": "TESTED",
+      "evidence": "PRs #43, #48, #50, #62: 10 tests — missing, empty, valid, damaged, truncated, recovery on a copy, newer schema refused"
     },
     {
       "id": 4,
