@@ -70,6 +70,7 @@ export function NodeNotice({ onAdd }: { onAdd: () => void }) {
 /** `recheck`: opened from a chat's sign-in request, whose agent refused a turn, so the agent is
  *  asked again however signed in it looked. */
 export function AgentSheet({ initial, recheck = false }: { initial: Backend; recheck?: boolean }) {
+  const tr = useTr()
   const store = useStore()
   const [route, setRoute] = useState<SetupRoute | null>(null)
   const [auth, setAuth] = useState<AgentAuth | null>(null)
@@ -197,7 +198,7 @@ export function AgentSheet({ initial, recheck = false }: { initial: Backend; rec
           <CardSection>
             <SetupStepRow
               number={1}
-              title="Install"
+              title={tr('Install')}
               detail={installed ? `Installed on ${host}.` : backend.canInstall ? `Runs the official installer on ${host}.` : backend.installHint}
               done={installed}
               action={installed || !backend.canInstall ? null : { label: 'Install', run: () => setRoute({ kind: 'install' }) }}
@@ -208,7 +209,7 @@ export function AgentSheet({ initial, recheck = false }: { initial: Backend; rec
           <CardSection>
             <SetupStepRow
               number={curated ? 2 : 1}
-              title="Node.js"
+              title={tr('Node.js')}
               detail={nodeMissing ? `${backend.name} runs on Node.js. Codync adds its own copy.` : `Added on ${host}.`}
               done={!nodeMissing}
               action={nodeMissing ? { label: 'Add', run: () => setRoute({ kind: 'node' }) } : null}
@@ -222,12 +223,12 @@ export function AgentSheet({ initial, recheck = false }: { initial: Backend; rec
         >
           <HStack>
             <VStack grow>
-              <SetupStepRow number={1 + Number(curated) + Number(Boolean(backend.node))} title="Sign in" detail={statusText} done={signedIn === true} action={null} />
+              <SetupStepRow number={1 + Number(curated) + Number(Boolean(backend.node))} title={tr('Sign in')} detail={statusText} done={signedIn === true} action={null} />
             </VStack>
             {checking ? (
               <ThinkingOrb state="connecting" size={16} color="var(--secondary)" />
             ) : (
-              <button title="Check again" aria-label="Check again" className="agent-check-again" onClick={() => void check()}>
+              <button title={tr('Check again')} aria-label={tr('Check again')} className="agent-check-again" onClick={() => void check()}>
                 <Icon name="arrow.clockwise" size={13} />
               </button>
             )}

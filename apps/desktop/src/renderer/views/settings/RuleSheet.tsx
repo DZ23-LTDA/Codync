@@ -8,6 +8,7 @@ import { ANY } from '../../lib/network-copy'
 import type { BotStore } from '../../store/bot-store'
 import { network } from '../../store/network'
 import { errorText } from './parts'
+import { useTr } from '../../lib/use-language'
 
 const ACCESS: { id: NetworkRule['access']; label: string }[] = [
   { id: 'allow', label: 'Allow' },
@@ -16,6 +17,7 @@ const ACCESS: { id: NetworkRule['access']; label: string }[] = [
 
 /** A new rule for `net`: who on its other computers may message which bot here. Saves the whole list. */
 export function RuleSheet({ store, net }: { store: BotStore; net: Network }) {
+  const tr = useTr()
   const dismiss = useDismiss()
   const [access, setAccess] = useState<NetworkRule['access']>('deny')
   const [fromComputer, setFromComputer] = useState(ANY)
@@ -53,23 +55,23 @@ export function RuleSheet({ store, net }: { store: BotStore; net: Network }) {
     <VStack className="network-sheet">
       <ModalHeader
         icon="list.bullet"
-        title="Add rule"
+        title={tr('Add rule')}
         subtitle={net.name}
-        trailing={busy ? <Spinner /> : <IconButton title="Add rule" icon="checkmark" onClick={() => void save()} />}
+        trailing={busy ? <Spinner /> : <IconButton title={tr('Add rule')} icon="checkmark" onClick={() => void save()} />}
       />
       <VStack gap={16} className="network-sheet-body">
         <CardSection>
           <ChoiceList selection={access} options={ACCESS} onChange={setAccess} />
         </CardSection>
-        <CardSection footer="The first rule that matches decides.">
-          <ValueRow label="From computer">
-            <ChoicePicker selection={fromComputer} options={[{ id: ANY, label: 'Any computer' }, ...others.map((c) => ({ id: c.name, label: c.name }))]} onChange={pickComputer} />
+        <CardSection footer={tr('The first rule that matches decides.')}>
+          <ValueRow label={tr('From computer')}>
+            <ChoicePicker selection={fromComputer} options={[{ id: ANY, label: tr('Any computer') }, ...others.map((c) => ({ id: c.name, label: c.name }))]} onChange={pickComputer} />
           </ValueRow>
-          <ValueRow label="From bot">
-            <ChoicePicker selection={fromAgent} options={[{ id: ANY, label: 'Any bot' }, ...(from?.agents ?? []).map((a) => ({ id: a.id, label: a.name }))]} onChange={setFromAgent} />
+          <ValueRow label={tr('From bot')}>
+            <ChoicePicker selection={fromAgent} options={[{ id: ANY, label: tr('Any bot') }, ...(from?.agents ?? []).map((a) => ({ id: a.id, label: a.name }))]} onChange={setFromAgent} />
           </ValueRow>
-          <ValueRow label="To bot">
-            <ChoicePicker selection={toAgent} options={[{ id: ANY, label: 'Any bot here' }, ...(me?.agents ?? []).map((a) => ({ id: a.id, label: a.name }))]} onChange={setToAgent} />
+          <ValueRow label={tr('To bot')}>
+            <ChoicePicker selection={toAgent} options={[{ id: ANY, label: tr('Any bot here') }, ...(me?.agents ?? []).map((a) => ({ id: a.id, label: a.name }))]} onChange={setToAgent} />
           </ValueRow>
           <Switch on={first} onChange={setFirst}>Put it first</Switch>
         </CardSection>

@@ -568,5 +568,15 @@
   "Search recent workspaces": "Buscar áreas de trabalho recentes",
   "Selected folder": "Pasta selecionada",
   "Sign out": "Sair",
-  "Skip the check": "Pular a verificação"
+  "Skip the check": "Pular a verificação",
+  "Any bot": "Qualquer bot",
+  "Any bot here": "Qualquer bot daqui",
+  "Any computer": "Qualquer computador",
+  "Computers & devices": "Computadores e aparelhos",
+  "From bot": "Do bot",
+  "From computer": "Do computador",
+  "Node.js": "Node.js",
+  "Sign in": "Entrar",
+  "To bot": "Para o bot",
+  "Version": "Versão"
 }
