@@ -522,5 +522,14 @@
   "Use ssh-agent": "Usar ssh-agent",
   "Custom icon": "Ícone personalizado",
   "Make admin": "Tornar admin",
-  "Open conversation": "Abrir conversa"
+  "Open conversation": "Abrir conversa",
+  "Upload from desktop": "Enviar do computador",
+  "Paste URL": "Colar URL",
+  "Use default": "Usar o padrão",
+  "PNG, JPEG, WebP up to 5 MiB; SVG up to 256 KiB.": "PNG, JPEG, WebP até 5 MiB; SVG até 256 KiB.",
+  "Saved immediately. Custom images stay still.": "Salvo na hora. Imagens personalizadas ficam paradas.",
+  "Nothing running right now.": "Nada rodando agora.",
+  "Your bots are idle. Message one from here, or open Codync.": "Seus bots estão ociosos. Mande uma mensagem daqui, ou abra o Codync.",
+  "Create a bot in Codync to get started.": "Crie um bot no Codync para começar.",
+  "Message a bot": "Mandar mensagem a um bot"
 }

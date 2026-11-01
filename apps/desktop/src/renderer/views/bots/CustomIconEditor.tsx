@@ -32,9 +32,9 @@ export function CustomIconEditor({ target }: { target: string }) {
     <Text size="subheadline" weight="semibold">{tr('Custom icon')}</Text>
     <HStack gap={8} wrap justify="center">
       <CustomIcon icon={icon} size={40} fallback={null} />
-      <Button kind="secondary" disabled={disabled} onClick={() => requireAccount(() => input.current?.click())}>Upload from desktop</Button>
-      <Button kind="secondary" disabled={disabled} onClick={() => requireAccount(() => setShowURL((shown) => !shown))}>Paste URL</Button>
-      {icon && <Button disabled={disabled} onClick={() => void editor.save({ remove: true })}>Use default</Button>}
+      <Button kind="secondary" disabled={disabled} onClick={() => requireAccount(() => input.current?.click())}>{tr('Upload from desktop')}</Button>
+      <Button kind="secondary" disabled={disabled} onClick={() => requireAccount(() => setShowURL((shown) => !shown))}>{tr('Paste URL')}</Button>
+      {icon && <Button disabled={disabled} onClick={() => void editor.save({ remove: true })}>{tr('Use default')}</Button>}
       {editor.busy && <Spinner />}
     </HStack>
     <input ref={input} type="file" hidden accept="image/png,image/jpeg,image/webp,image/svg+xml"
@@ -56,8 +56,8 @@ export function CustomIconEditor({ target }: { target: string }) {
     {icon && <SwitchRow title={tr('Tint icon')} detail={tr("Turn off to keep the image's original colors.")} on={icon.tinted}
       onChange={(tinted) => { if (!disabled) void editor.save({ tinted }) }} />}
     <VStack gap={2} className="custom-icon-help">
-      <Text size="caption" tone="secondary">PNG, JPEG, WebP up to 5 MiB; SVG up to 256 KiB.</Text>
-      <Text size="caption" tone="secondary">Saved immediately. Custom images stay still.</Text>
+      <Text size="caption" tone="secondary">{tr('PNG, JPEG, WebP up to 5 MiB; SVG up to 256 KiB.')}</Text>
+      <Text size="caption" tone="secondary">{tr('Saved immediately. Custom images stay still.')}</Text>
     </VStack>
     <Dialog open={needsSignIn} title={tr('Sign in required')} message={tr('Sign in to use custom images.')}
       onClose={() => setNeedsSignIn(false)} actions={[
