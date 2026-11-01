@@ -26,8 +26,13 @@ import time
 import urllib.request
 from pathlib import Path
 
-REPO = "leepokai/Codync"
-TAP = "leepokai/homebrew-codync"
+# The fork does not own these: pointing the mark at it would publish DZ23 builds as leepokai releases and push the
+# upstream Homebrew tap. The values are kept for reference; the guard below refuses to run anywhere but the original.
+UPSTREAM_REPO = "leepokai/Codync"
+UPSTREAM_TAP = "leepokai/homebrew-codync"
+# The repository this script is allowed to act on. Everything else aborts before touching the network.
+REPO = os.environ.get("RELEASE_GATE_REPO", "DZ23-LTDA/Codync")
+TAP = os.environ.get("RELEASE_GATE_TAP", "DZ23-LTDA/homebrew-codync")
 APP_STORE_LOOKUP = "https://itunes.apple.com/lookup?id=6760984418"
 DRY_RUN = os.environ.get("DRY_RUN") == "1"
 # In the order of the formula template's sha256 lines.
@@ -126,6 +131,13 @@ def tap(tag):
 
 
 def main():
+    # Running this from a fork would mark the upstream's releases as DZ23's and push to a tap that belongs to someone
+    # else. Refuse to go any further: no lookups, no clone, no push.
+    if REPO != "DZ23-LTDA/Codync":
+        raise SystemExit(
+            f"release-gate: refusing to run for {REPO!r}. This script acts only on DZ23-LTDA/Codync; the upstream "
+            f"repository ({UPSTREAM_REPO}) and its tap ({UPSTREAM_TAP}) are not ours to publish.",
+        )
     store = app_store_version()
     if not parse(store or ""):
         print(f"::warning::The App Store lookup gave no version ({store!r}); the latest release stays as it is")
