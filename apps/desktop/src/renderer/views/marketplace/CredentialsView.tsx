@@ -86,6 +86,7 @@ export function CredentialsView({ onBack }: { onBack: () => void }) {
 
 /** Website and app logins bots type through the computer tool; passwords stay hidden. */
 function LoginsSection() {
+  const tr = useTr()
   const store = useStore()
   const [logins, setLogins] = useState<SavedLogin[]>([])
   const [site, setSite] = useState('')
@@ -136,26 +137,27 @@ function LoginsSection() {
   }
 
   return (
-    <CardSection title="Sign-ins" footer="Bots type these into the matching website or app and never see the password. You can use an op:// reference.">
+    <CardSection title={tr('Sign-ins')} footer={tr('Bots type these into the matching website or app and never see the password. You can use an op:// reference.')}>
       {logins.map((login) => (
         <HStack key={login.id}>
           <VStack gap={2} grow>
             <span>{login.site}</span>
             {login.username ? <Text size="caption" tone="secondary">{login.username}</Text> : null}
           </VStack>
-          <IconButton title="Remove" icon="trash" onClick={() => void remove(login)} />
+          <IconButton title={tr('Remove')} icon="trash" onClick={() => void remove(login)} />
         </HStack>
       ))}
-      <CredentialField label="Website or app" value={site} onChange={setSite} placeholder="github.com" />
-      <CredentialField label="Username or email" value={username} onChange={setUsername} placeholder="name@example.com" />
-      <CredentialField label="Password" value={password} onChange={setPassword} placeholder="Password or op:// reference" secret />
-      <div><Button disabled={busy || !site || !password} onClick={() => void save()}>Save sign-in</Button></div>
+      <CredentialField label={tr('Website or app')} value={site} onChange={setSite} placeholder={tr('github.com')} />
+      <CredentialField label={tr('Username or email')} value={username} onChange={setUsername} placeholder={tr('name@example.com')} />
+      <CredentialField label={tr('Password')} value={password} onChange={setPassword} placeholder={tr('Password or op:// reference')} secret />
+      <div><Button disabled={busy || !site || !password} onClick={() => void save()}>{tr('Save sign-in')}</Button></div>
       {error ? <Text size="footnote" tone="danger">{error}</Text> : null}
     </CardSection>
   )
 }
 
 function ConnectorCredentialEditor({ connector }: { connector: InstalledConnector }) {
+  const tr = useTr()
   const store = useStore()
   const dismiss = useDismiss()
   const [fields, setFields] = useState<Record<string, string>>({})
@@ -182,10 +184,10 @@ function ConnectorCredentialEditor({ connector }: { connector: InstalledConnecto
       <ModalHeader
         icon="key"
         title={connector.name}
-        trailing={saving ? <Spinner /> : <IconButton title="Save credentials" icon="checkmark" disabled={Object.values(fields).every((v) => !v)} onClick={() => void save()} />}
+        trailing={saving ? <Spinner /> : <IconButton title={tr('Save credentials')} icon="checkmark" disabled={Object.values(fields).every((v) => !v)} onClick={() => void save()} />}
       />
       <CardForm>
-        <CardSection footer="Enter only the values you want to replace. You can use an op:// reference.">
+        <CardSection footer={tr('Enter only the values you want to replace. You can use an op:// reference.')}>
           {connector.keys.map((key) => (
             <Field key={key} label={key} value={fields[key] ?? ''} placeholder={key} secret onChange={(v) => setFields((old) => ({ ...old, [key]: v }))} />
           ))}
