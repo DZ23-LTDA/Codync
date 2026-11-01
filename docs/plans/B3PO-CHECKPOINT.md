@@ -3,9 +3,9 @@
 > Fonte de direção: **goal v3.2** + **adendos v3.3 e v3.4**. O gate do Release 1 tem **11 itens** (9 do v3.2 + 10 e 11 do
 > v3.4).
 
-## Sessão de 01/11/2026, 01:00Z
+## Sessão de 01/11/2026, 01:30Z
 
-`dev` = `ce8a690d`. PRs abertos: **0**. Árvore limpa (só `docs/plans/preview-window.md`, de outra sessão, intocado).
+`dev` = `0fc8e166`. PRs abertos: **0**. Árvore limpa (só `docs/plans/preview-window.md`, de outra sessão, intocado).
 
 ### Versão instalada — a regra 0 do v3.4
 
@@ -19,12 +19,12 @@
 
 | # | Item | Estado | Evidência |
 |---|---|---|---|
-| 1 | Scanner de i18n | **IMPLEMENTED + TESTED** | PRs #46, #76, #102, #112 · **45** strings visíveis fora do `tr()`; o scanner passou a ver `footer`/`detail`/`empty`/`label`/`message`, a linha real do nó de texto e expressões JSX · 14 testes |
+| 1 | Scanner de i18n | **IMPLEMENTED + TESTED** | PRs #46, #76, #102, #112, #127 · **0** strings em componente fora do `tr()` · **13** de escopo de módulo, consumidor verificado um por um · 15 testes |
 | 2 | Release do fork ≠ upstream | IMPLEMENTED + TESTED | PR #47 · guarda aborta fora de `DZ23-LTDA/Codync` |
 | 3 | Banco em todos os estados | **TESTED** | PRs #43, #48, #50, #62 · 10 testes |
-| 6 | Erros humanos | **IN_PROGRESS** | PRs #53–#57, #64, #73, #75, #91–#93, #101 · **0 chamadas de `humanError` no fallback genérico** (30 frases próprias, traduzidas); estados vazios: 36 no medidor heurístico, `NetworkSection` conferido e **tem** estado vazio — o medidor precisa de verificação na tela |
-| 7 | pt-BR no escopo | **IN_PROGRESS** | PRs #71–#73, #95–#99, #101, #103–#105, #111, #113, #114, #116, #118, #121 · **0 de 656** frases `tr()` sem tradução (669 chaves) · **45** strings fora do `tr()`, com causa escrita em `docs/plans/i18n-leftovers.md` · 5 defeitos de idioma achados só na tela |
-| 10 | Ciclo de entrega | **BLOCKED_BY_EXTERNAL_DEPENDENCY** | release 2.34.0 publicada; instalador construir OK; **3 tentativas de instalar não retornam** (nenhum processo, nenhum log) — `docs/plans/install-blocked.md`; ação do dono: rodar o .exe sem `/S` |
+| 6 | Erros humanos | **IN_PROGRESS** | PRs #53–#57, #64, #73, #75, #91–#93, #101 · **0 chamadas de `humanError` no fallback genérico**; estados vazios: medidor heurístico marca 36, `NetworkSection` conferido e **tem** estado vazio |
+| 7 | pt-BR no escopo | **IN_PROGRESS** | PRs #71–#73, #95–#99, #101, #103–#105, #111, #113–#116, #118, #121, #123, #127, #129, #133 · **0 de 756** frases `tr()` sem chave (769 no `pt.json`) · **0** strings em componente fora do `tr()` · **13 telas abertas no app** e **8 defeitos** que só elas revelaram |
+| 10 | Ciclo de entrega | **BLOCKED_BY_EXTERNAL_DEPENDENCY** | release 2.34.0 publicada; instalador 2.34.0 construído; **3 tentativas de instalar não retornam** — `install-blocked.md`; ação do dono: rodar o .exe sem `/S` |
 | 11 | Cancelar e destravar | IN_PROGRESS | `stop` existe (host, store, botão); falta **watchdog** e registro do motivo |
 | 4, 5, 8, 9 | instalação/primeiro uso/perf/release | NOT_STARTED / parcial | host pronto em 334 ms; resto depende de VM e app |
 
@@ -61,3 +61,16 @@ gravar o motivo real no turno. Teste: agente falso que aceita o turno e nunca re
 
 **Paridade pendente e declarada**: o aviso de turno longo existe só no desktop; iOS/Android e TUI não receberam — a regra
 de paridade do repositório exige a correspondente no mesmo tipo de entrega, e isso não foi feito.
+
+### Números medidos nesta série (reproduzíveis)
+
+| Medida | Valor | Como |
+|---|---|---|
+| Strings em componente fora do `tr()` | **0** | `node tools/l10n-unwrapped.mjs` |
+| Frases `tr()` sem entrada no `pt.json` | **0 de 756** | `node tools/l10n-missing.mjs` |
+| Chaves no `pt.json` | **769** | idem |
+| Telas abertas no app · defeitos só vistos nelas | **13 · 8** | `visual-inspection-04.md` |
+| Abertura até o primeiro conteúdo | **2204 ms** | Playwright + `performance` no renderer dev |
+| Primeiro token do host (p95 · mediana · pior) | **4 ms · 3 ms · 587 ms** | `first_token_e2e.rs`, 20 rodadas |
+| Suíte desktop | **313 passam · 13 falham** | as 13 são `host-update`, pré-existentes no Windows |
+| App instalado | **2.33.2** | não contém nada desta série |
