@@ -9,6 +9,7 @@ import { BotStore } from './bot-store'
 import { CloudModel } from './cloud'
 import { DeviceComputerOrder } from './computer-order'
 import { ComputerAccess } from './computer-access'
+import { humanError } from '../lib/human-error'
 
 /** A bot on a computer: bot ids are only unique per computer. */
 export interface BotRef {
@@ -249,7 +250,7 @@ export class AppModel extends Observable {
       await local.setScreenEnabled(on)
       this.screenError = null
     } catch (error) {
-      this.screenError = error instanceof Error ? error.message : String(error)
+      this.screenError = humanError(error, 'Could not turn Remote screen on. Try again.')
     }
     this.changed()
   }
@@ -262,7 +263,7 @@ export class AppModel extends Observable {
       this.screenNeedsApproval = r.needsApproval
       this.changed()
     }).catch((error: unknown) => {
-      this.screenError = error instanceof Error ? error.message : String(error)
+      this.screenError = humanError(error, 'Could not turn Remote screen on. Try again.')
       this.changed()
     })
   }
