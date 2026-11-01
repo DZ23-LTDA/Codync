@@ -95,7 +95,7 @@ for (const client of ["ios", "android"]) {
   console.log(`${client}: ${keys.length} translated keys · ${gaps.size} without a pt.json entry · ${composed(keys)} built at runtime · ${literals.length} literals straight to a view`);
   if (LIST) {
     for (const [key, file] of gaps) console.log(`  missing  ${key}   (${relative(".", file).split(sep).join("/")})`);
-    for (const { file, line, text } of literals.slice(0, 40)) {
+    for (const { file, line, text } of literals) {
       console.log(`  literal  ${relative(".", file).split(sep).join("/")}:${line}  ${text.slice(0, 70)}`);
     }
   }
