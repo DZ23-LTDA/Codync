@@ -105,7 +105,7 @@ export function TraceRow({ entry, unfolded }: { entry: Entry; unfolded: boolean 
       return (
         <VStack gap={6}>
           <Label icon={<Icon name="checklist" size={11} weight="bold" />} weight="bold">
-            Plan
+            {tr('Plan')}
           </Label>
           {(d.entries ?? []).map((item, i) => (
             <Label

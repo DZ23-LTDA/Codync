@@ -69,14 +69,14 @@ export function PairingCode({ name, cloudOn, requestCode, renew = 0 }: { name: s
                 Works once, until {new Date(expiresAt).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}
               </Text>
             ) : null}
-            <IconButton title="New code" icon="arrow.clockwise" onClick={() => void load()} />
-            <IconButton title="Copy pairing link" icon="doc.on.doc" onClick={() => window.codync.app.copy(code.info.pairingUrl)} />
+            <IconButton title={tr('New code')} icon="arrow.clockwise" onClick={() => void load()} />
+            <IconButton title={tr('Copy pairing link')} icon="doc.on.doc" onClick={() => window.codync.app.copy(code.info.pairingUrl)} />
           </HStack>
         </>
       ) : error ? (
         <>
           <Text as="div" size="caption" tone="danger" className="pairing-note fade-in">{error}</Text>
-          <IconButton title="Try again" icon="arrow.clockwise" onClick={() => void load()} />
+          <IconButton title={tr('Try again')} icon="arrow.clockwise" onClick={() => void load()} />
         </>
       ) : (
         <Spinner size={20} />

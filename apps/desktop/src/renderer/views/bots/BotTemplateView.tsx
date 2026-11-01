@@ -44,7 +44,7 @@ export function BotTemplateView({ draft }: { draft: BotDraft }) {
           <Text size="caption" tone="secondary" grow>{tr(`Includes workspace preferences and agent configuration.`)}</Text>
           <button className="press bot-template-copy" onClick={copy}>
             <Icon key={copied ? 'checkmark' : 'square.on.square'} name={copied ? 'checkmark' : 'square.on.square'} size={13} weight="semibold" className="fade-in" />
-            {tr(copied ? 'Copied' : 'Copy template')}
+            {tr(copied ? 'Copied' : tr('Copy template'))}
           </button>
         </HStack>
       </VStack>

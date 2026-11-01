@@ -15,6 +15,7 @@ import { useTr } from '../../lib/use-language'
 
 /** The compact chat row for bot-to-bot messages with one peer: who, never what. Opens the conversation. */
 export function BotMessageRow({ exchanges, open }: { exchanges: BotExchange[]; open: (peerId: string) => void }) {
+  const tr = useTr()
   const store = useStore()
   const { peerId, peerName, count, failed } = groupSummary(exchanges)
   const peer = store.bots.get(peerId)
@@ -24,7 +25,7 @@ export function BotMessageRow({ exchanges, open }: { exchanges: BotExchange[]; o
     <button
       className={failed ? 'press bot-message-row failed' : 'press bot-message-row'}
       onClick={() => open(peerId)}
-      title="Open conversation"
+      title={tr('Open conversation')}
       aria-label={`${lead} ${name}${failed ? ', failed' : ''}`}
     >
       {failed ? <Icon name="exclamationmark.triangle.fill" size={10} color="var(--danger)" /> : null}

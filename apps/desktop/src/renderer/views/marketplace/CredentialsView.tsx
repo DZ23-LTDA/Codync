@@ -54,7 +54,7 @@ export function CredentialsView({ onBack }: { onBack: () => void }) {
       <ScreenHeader title={tr('Credentials')} onBack={onBack} trailing={<IconButton title={tr('Close')} icon="xmark" onClick={dismiss} />} />
       <CardForm>
         <CardSection title={tr('Storage')}>
-          <div className="credential-storage"><Icon name="lock.shield" size={20} /><div><strong>{tr(status?.provider ?? 'System credential store')}</strong><p>{tr('Encrypted on the connected computer.')}</p></div></div>
+          <div className="credential-storage"><Icon name="lock.shield" size={20} /><div><strong>{tr(status?.provider ?? tr('System credential store'))}</strong><p>{tr('Encrypted on the connected computer.')}</p></div></div>
         </CardSection>
         <CardSection title={tr('Saved connections')}>
           {plugins.installedConnectors.filter((c) => c.keys.length > 0).map((c) => (
@@ -68,7 +68,7 @@ export function CredentialsView({ onBack }: { onBack: () => void }) {
         </CardSection>
         <LoginsSection />
         <CardSection title={tr('1Password')} footer={tr('Use a service account with read access only to a dedicated shared vault. The 1Password CLI must be installed on the computer.')}>
-          <span>{tr(status?.onePasswordConnected ? 'Connected' : 'Connect a shared vault')}</span>
+          <span>{tr(status?.onePasswordConnected ? 'Connected' : tr('Connect a shared vault'))}</span>
           <CredentialField label={tr('Service account token')} value={token} onChange={setToken} placeholder={tr('Paste your token')} secret />
           <div><Button disabled={busy || !token} onClick={() => void save(token)}>Connect</Button></div>
           {status?.onePasswordConnected ? <div><Button kind="secondary" disabled={busy} onClick={() => void save('')}>Disconnect</Button></div> : null}

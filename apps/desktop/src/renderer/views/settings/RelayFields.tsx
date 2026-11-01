@@ -30,12 +30,13 @@ function CommitField(props: { label: string; placeholder: string; defaultValue: 
 
 /** The computer's relay address. A new saved address resets the field; a refused one puts the saved one back. */
 export function RelayAddressRow({ url, disabled, save }: { url: string | null | undefined; disabled: boolean; save: (typed: string) => Promise<boolean> }) {
+  const tr = useTr()
   const saved = url ?? ''
   return (
     <CommitField
       key={saved}
-      label="Relay address"
-      placeholder="https://"
+      label={tr('Relay address')}
+      placeholder={tr('https://')}
       defaultValue={saved}
       disabled={disabled}
       commit={(input) =>
@@ -52,7 +53,7 @@ export function RelayTokenRow({ tokenSet, disabled, save }: { tokenSet: boolean;
   const tr = useTr()
   return (
     <CommitField
-      label="Relay token"
+      label={tr('Relay token')}
       password
       placeholder={tokenSet ? tr('Saved. Type a new one to replace it.') : tr("The token from the relay's setup")}
       defaultValue=""

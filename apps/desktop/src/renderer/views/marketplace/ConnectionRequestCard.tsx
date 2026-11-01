@@ -79,26 +79,26 @@ export function ConnectionRequestCard({ entry }: { entry: Entry }) {
           <HStack gap={6} className="request-card-trailing">
             {busy ? <Spinner /> : null}
             <Button disabled={busy || ((isSecret || isLogin) && !value)} onClick={() => void connect()}>
-              {isAgent ? 'Sign in' : isLogin ? 'Save' : 'Connect'}
+              {isAgent ? tr('Sign in') : isLogin ? 'Save' : 'Connect'}
             </Button>
           </HStack>
         ) : (
           <HStack as="span" gap={6} className="request-card-trailing request-card-status">
             {request.status === 'ready' ? <Icon name="checkmark" size={11} weight="semibold" /> : null}
-            {request.status === 'ready' ? (isAgent ? 'Signed in' : isLogin ? 'Saved' : 'Connected') : 'Cancelled'}
+            {request.status === 'ready' ? (isAgent ? tr('Signed in') : isLogin ? 'Saved' : 'Connected') : 'Cancelled'}
           </HStack>
         )}
       </HStack>
       {pending && isLogin ? (
         <>
-          <Field value={username} onChange={setUsername} placeholder="Username or email" />
-          <Field value={value} onChange={setValue} placeholder="Password or op:// reference" secret />
+          <Field value={username} onChange={setUsername} placeholder={tr('Username or email')} />
+          <Field value={value} onChange={setValue} placeholder={tr('Password or op:// reference')} secret />
           <Text size="caption" tone="secondary">{tr(`Saved securely on this computer. The bot types it into the sign-in page but never sees it.`)}</Text>
         </>
       ) : pending && isSecret ? (
         <>
           <Text size="caption" tone="secondary">{`${request.field ?? tr(`Credential`)} · ${request.location ?? ''}`}</Text>
-          <Field value={value} onChange={setValue} placeholder="Credential or op:// reference" secret />
+          <Field value={value} onChange={setValue} placeholder={tr('Credential or op:// reference')} secret />
           <Text size="caption" tone="secondary">{tr(`Saved securely on this computer. Never added to the conversation.`)}</Text>
         </>
       ) : null}

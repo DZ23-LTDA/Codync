@@ -62,7 +62,7 @@ export function AccessOnboarding({ onContinue }: { onContinue: (ready: boolean) 
         <div className="access-onboarding-navigation">
           {selection !== 'star' ? <IconButton title={tr('Check again')} icon="arrow.clockwise" onClick={() => void access.refresh()} /> : null}
           <Button kind="secondary" onClick={() => selection === 'star' ? finish() : setSelection(pages[index + 1]!.id)}>
-            {tr(selection === 'star' ? 'Get started' : accessPageReady(selection, access.step, access.screen) ? 'Continue' : 'Set up later')}<Icon name="arrow.right" size={12} />
+            {tr(selection === 'star' ? tr('Get started') : accessPageReady(selection, access.step, access.screen) ? 'Continue' : tr('Set up later'))}<Icon name="arrow.right" size={12} />
           </Button>
         </div>
       </footer>

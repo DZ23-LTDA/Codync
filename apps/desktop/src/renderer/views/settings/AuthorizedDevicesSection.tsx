@@ -62,7 +62,7 @@ export function AuthorizedDevicesSection({ store }: { store: BotStore }) {
                       <span>{device.name}</span>
                       <Text size="caption" tone="tertiary">{deviceDetail(device, tr)}</Text>
                     </VStack>
-                    <IconButton title="Revoke access" icon="xmark.circle" onClick={() => setConfirmRevoke(device)} />
+                    <IconButton title={tr('Revoke access')} icon="xmark.circle" onClick={() => setConfirmRevoke(device)} />
                   </HStack>
                 )),
               ]}
@@ -71,7 +71,7 @@ export function AuthorizedDevicesSection({ store }: { store: BotStore }) {
         open={confirmRevoke !== null}
         title={tr('Revoke {name}?').replaceAll('{name}', confirmRevoke?.name ?? 'device')}
         message={tr('It disconnects right away and has to pair or ask again.')}
-        actions={confirmRevoke ? [{ title: 'Revoke access', destructive: true, action: () => void revoke(confirmRevoke) }] : []}
+        actions={confirmRevoke ? [{ title: tr('Revoke access'), destructive: true, action: () => void revoke(confirmRevoke) }] : []}
         onClose={() => setConfirmRevoke(null)}
       />
     </>

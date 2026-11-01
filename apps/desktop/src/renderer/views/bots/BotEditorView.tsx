@@ -223,10 +223,10 @@ function BotSettingsForm({ draft, onChange, error, plugins, part = 'all' }: {
             }
           >
             <DropdownMenu
-              title={draft.cwd || 'A persistent workspace allocated for this bot'}
+              title={draft.cwd || tr('A persistent workspace allocated for this bot')}
               items={() => [
-                { title: 'Personal workspace', selected: !draft.cwd, action: () => set('cwd', '') },
-                { title: 'Choose project folder…', selected: !!draft.cwd, action: () => setPickingFolder(true) },
+                { title: tr('Personal workspace'), selected: !draft.cwd, action: () => set('cwd', '') },
+                { title: tr('Choose project folder…'), selected: !!draft.cwd, action: () => setPickingFolder(true) },
               ]}
             >
               <Pill outlined className="workspace-pill">
@@ -246,8 +246,8 @@ function BotSettingsForm({ draft, onChange, error, plugins, part = 'all' }: {
             <ChoicePicker
               selection={draft.permission}
               options={[
-                { id: 'ask', label: 'Ask me' },
-                { id: 'auto', label: 'Approve automatically' },
+                { id: 'ask', label: tr('Ask me') },
+                { id: 'auto', label: tr('Approve automatically') },
               ]}
               onChange={(id) => set('permission', id)}
             />

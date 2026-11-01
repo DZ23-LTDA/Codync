@@ -4,6 +4,7 @@ import { Icon } from '../../components/Icon'
 import { ModalHeader } from '../../components/Overlay'
 import type { MemoryFile, MemoryFileDetail, MemoryFiles, MemoryStore } from '../../store/memory-store'
 import { relativeTime } from '../thread/chat-items'
+import { useTr } from '../../lib/use-language'
 
 /** The note a sheet opens. */
 export interface FileTarget { name: string; shared: boolean }
@@ -32,6 +33,7 @@ function FileRow({ file, cap, tr, open }: { file: MemoryFile; cap: number; tr: (
 
 /** One note, to read. */
 export function MemoryFileSheet({ memory, target }: { memory: MemoryStore; target: FileTarget }) {
+  const tr = useTr()
   const [detail, setDetail] = useState<MemoryFileDetail | null>(null)
   useEffect(() => { void memory.file(target.name, target.shared).then(setDetail) }, [memory, target])
 
@@ -40,7 +42,7 @@ export function MemoryFileSheet({ memory, target }: { memory: MemoryStore; targe
     <CardForm>
       {memory.error ? <CardSection><p role="alert" className="memory-error">{memory.error}</p></CardSection> : null}
       {detail
-        ? <CardSection footer={detail.path}><pre className="memory-file-text">{detail.content ?? 'Deleted.'}</pre></CardSection>
+        ? <CardSection footer={detail.path}><pre className="memory-file-text">{detail.content ?? tr('Deleted.')}</pre></CardSection>
         : <CardSection><p className="memory-muted">Loading…</p></CardSection>}
     </CardForm>
   </div>

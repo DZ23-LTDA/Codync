@@ -73,9 +73,10 @@ export function renameArtifact(store: BotStore, artifact: Artifact, title: strin
 
 /** The artifact's share menu: Save as HTML (the native Save dialog) and Open in browser. */
 export function artifactShareItems(store: BotStore, artifact: Artifact, onError: (message: string | null) => void): MenuItem[] {
+  const tr = useTr()
   const run = (work: () => Promise<void>) => () => void work().then(() => onError(null), (e: unknown) => onError(errorText(e)))
   return [
-    { title: 'Save as HTML', icon: 'arrow.down.to.line', action: run(() => store.artifacts.save(store.client, artifact)) },
-    { title: 'Open in browser', icon: 'safari', action: run(() => store.artifacts.openInBrowser(store.client, artifact)) },
+    { title: tr('Save as HTML'), icon: 'arrow.down.to.line', action: run(() => store.artifacts.save(store.client, artifact)) },
+    { title: tr('Open in browser'), icon: 'safari', action: run(() => store.artifacts.openInBrowser(store.client, artifact)) },
   ]
 }

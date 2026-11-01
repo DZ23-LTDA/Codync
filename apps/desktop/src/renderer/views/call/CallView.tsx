@@ -22,6 +22,7 @@ import { OnDeviceEngine } from './OnDeviceEngine'
 import { OpenAIRealtimeEngine } from './OpenAIRealtimeEngine'
 import { countVoiceUsage, fromBase64, onDeviceAvailable, onDeviceUnavailableReason, providerName, transcribeOnHost, VoiceEngine, VoiceSettings, voiceSettingsClosed, type VoicePhase, type VoiceProvider } from './voice'
 import './call.css'
+import { useTr } from '../../lib/use-language'
 
 /** What the call bar says for `phase`. */
 function statusText(phase: VoicePhase | null, muted: boolean, working: boolean) {
@@ -58,6 +59,7 @@ export function CallView({ botId, onSpeaking, interrupt, onEnd }: {
   interrupt: { current: (() => void) | null }
   onEnd: () => void
 }) {
+  const tr = useTr()
   const store = useStore()
   const [session, setSession] = useState<VoiceEngine | null>(null)
   useModel(session)
@@ -258,7 +260,7 @@ export function CallView({ botId, onSpeaking, interrupt, onEnd }: {
             {providerName(session.provider)}
           </Text>
         ) : null}
-        <button className="call-round" title="Call settings" aria-label="Call settings" onClick={() => (openVoiceSettings ? openVoiceSettings() : setSettings(true))}>
+        <button className="call-round" title={tr('Call settings')} aria-label={tr('Call settings')} onClick={() => (openVoiceSettings ? openVoiceSettings() : setSettings(true))}>
           <Icon name="gearshape" size={16} weight="medium" scaled={false} />
         </button>
         <button
@@ -269,7 +271,7 @@ export function CallView({ botId, onSpeaking, interrupt, onEnd }: {
         >
           <Icon name={muted ? 'mic.slash' : 'mic'} size={16} weight="medium" scaled={false} />
         </button>
-        <button className="call-round end" title="End call" aria-label="End call" onClick={onEnd}>
+        <button className="call-round end" title={tr('End call')} aria-label={tr('End call')} onClick={onEnd}>
           <Icon name="xmark" size={16} weight="semibold" scaled={false} />
         </button>
       </div>

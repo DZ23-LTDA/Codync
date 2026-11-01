@@ -367,7 +367,7 @@ const Transcript = memo(function Transcript({ botId, openTrace, onReply, openRou
         className="transcript"
         ref={scroller}
         role="log"
-        aria-label="Messages"
+        aria-label={tr('Messages')}
         onScroll={(e) => {
           const el = e.currentTarget
           const atEnd = el.scrollHeight - el.scrollTop - el.clientHeight < 8
@@ -396,7 +396,7 @@ const Transcript = memo(function Transcript({ botId, openTrace, onReply, openRou
       {jump.mounted ? (
         <div className={`jump-to-latest ${jump.shown ? 'shown' : ''}`} inert={!jump.shown}>
           <MacChatButton
-            title="Jump to latest"
+            title={tr('Jump to latest')}
             icon="arrow.down"
             direction={[0, 1]}
             onClick={() => {

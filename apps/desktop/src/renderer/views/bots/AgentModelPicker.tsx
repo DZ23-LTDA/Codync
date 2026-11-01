@@ -78,7 +78,7 @@ export function AgentModelPicker({ backend, models, selection, onChange, options
         {browse && <VStack gap={4}>
           <HStack gap={6} className="agent-picker-search">
             {stage === 'models' && onAgentChange ? <IconButton title={tr('Back')} icon="chevron.left" onClick={() => open('agents')} /> : <Icon name="magnifyingglass" size={14} />}
-            <input aria-label={tr(stage === 'agents' ? tr(tr('Search agents')) : tr(tr('Search models')))} placeholder={tr(stage === 'agents' ? 'Search agents' : 'Search models')} value={query} onChange={(e) => setQuery(e.target.value)} />
+            <input aria-label={tr(stage === 'agents' ? tr(tr(tr('Search agents'))) : tr(tr(tr('Search models'))))} placeholder={tr(stage === 'agents' ? 'Search agents' : 'Search models')} value={query} onChange={(e) => setQuery(e.target.value)} />
             {loading ? <Spinner size={12} /> : <IconButton title={tr('Refresh model list')} icon="arrow.clockwise" onClick={models.reload} />}
           </HStack>
           <div className="agent-picker-list">

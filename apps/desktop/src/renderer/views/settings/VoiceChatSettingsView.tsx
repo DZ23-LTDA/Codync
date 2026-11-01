@@ -55,7 +55,7 @@ export function VoiceChatSettingsView({ showsHeader = true }: { showsHeader?: bo
               </ValueRow>,
               ...(provider
                 ? [
-                    <ValueRow key="mode" label={tr('Mode')} detail={mode === 'speech' ? 'Sent when you pause, replies read aloud.' : 'A live conversation. Talk over replies.'}>
+                    <ValueRow key="mode" label={tr('Mode')} detail={mode === 'speech' ? tr('Sent when you pause, replies read aloud.') : tr('A live conversation. Talk over replies.')}>
                       <ChoicePicker selection={mode} options={[{ id: 'realtime', label: 'Realtime' }, { id: 'speech', label: 'Speech' }]} onChange={setMode} />
                     </ValueRow>,
                     ...(mode === 'speech' ? [<PauseRow key="pause" />] : []),
@@ -193,7 +193,7 @@ function ProviderVoiceSettings({ provider, dictationOnly = false }: { provider: 
         if (dictationOnly) await voice.voiceModels(client, provider)
         else if (speechMode) await voice.voiceSpeak(client, provider, speechModel, chosenVoice, 'OK')
         else await voice.voiceSession(client, provider, model, chosenVoice)
-        setResult({ ok: true, text: 'Key works' })
+        setResult({ ok: true, text: tr('Key works') })
       } else {
         if (!(client.transport instanceof LoopbackTransport)) return
         setSaved(voice.configured(await voice.setVoiceKey(client, provider, typed), provider))
