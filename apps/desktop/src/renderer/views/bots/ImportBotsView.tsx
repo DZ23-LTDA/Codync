@@ -60,7 +60,7 @@ function Start({ model }: { model: BotImport }) {
         <RowLabel label={tr('3. Choose that file here')} detail={tr('Read on this computer; nothing is uploaded.')} />
       </CardSection>
       <HStack gap={8}>
-        <Button kind="secondary" onClick={() => void model.copySkill()} disabled={model.busy}>{model.copied ? 'Copied' : 'Copy export skill'}</Button>
+        <Button kind="secondary" onClick={() => void model.copySkill()} disabled={model.busy}>{model.copied ? 'Copied' : tr('Copy export skill')}</Button>
       </HStack>
     </CardForm>
   )

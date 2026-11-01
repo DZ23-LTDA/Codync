@@ -54,7 +54,7 @@ export function SSHConfigSuggestions({ add }: { add: (host: string) => void }) {
                 {[h.hostname && `${h.user ? `${h.user}@` : ''}${h.hostname}`, tr('In your SSH config')].filter(Boolean).join(' · ')}
               </Text>
             </VStack>
-            <IconButton title="Add" icon="plus" onClick={() => add(h.alias)} />
+            <IconButton title={tr('Add')} icon="plus" onClick={() => add(h.alias)} />
           </div>
         </div>
       ))}

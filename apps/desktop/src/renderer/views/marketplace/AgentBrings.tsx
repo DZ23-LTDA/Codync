@@ -47,7 +47,7 @@ export function AgentBrings({ backendId }: { backendId: string }) {
   ] as const
   if (rows.every(([, items]) => items.length === 0)) return null
   return (
-    <CardSection title="What the agent brings">
+    <CardSection title={tr('What the agent brings')}>
       {rows.filter(([, items]) => items.length > 0).map(([title, items]) => (
         <Disclosure
           key={title}

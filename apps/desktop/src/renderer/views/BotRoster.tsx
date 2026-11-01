@@ -14,6 +14,7 @@ import { BotRow } from './BotRow'
 import { ComputerHeadingLabel, ComputerRosterSection } from './ComputerRosterSection'
 import { SectionRoster } from './SectionRoster'
 import { UpdateNeededCard } from './UpdateNeededCard'
+import { useTr } from '../lib/use-language'
 
 /** A bot being dragged among its computer's bots, and the order it has made so far. */
 interface BotDrag {
@@ -44,6 +45,7 @@ export function BotRoster({ roster, compact, onContext, onSectionContext, openEx
   /** A computer's own Extensions, from its heading. */
   openExtensions: (computerId: string) => void
 }) {
+  const tr = useTr()
   const app = useApp()
   const selected = app.selection
   const [hovered, setHovered] = useState<string | null>(null)
@@ -229,7 +231,7 @@ export function BotRoster({ roster, compact, onContext, onSectionContext, openEx
         {/* The notice folds with its computer's bots; the heading still reads "Needs update". */}
         {notice}
         {rows}
-        {!items.length && !store.mismatch && !compact ? <div className="computer-roster-empty">{store.shownConnection.kind === 'online' ? 'No bots yet' : store.connectionLabel}</div> : null}
+        {!items.length && !store.mismatch && !compact ? <div className="computer-roster-empty">{store.shownConnection.kind === 'online' ? tr('No bots yet') : store.connectionLabel}</div> : null}
       </ComputerRosterSection>
     )
   })

@@ -137,7 +137,7 @@ export function NetworkSection({ store, heading }: { store: BotStore; /** The co
           removing
             ? [
                 { title: 'Remove', destructive: true, action: () => run(() => network.remove(store, removing.net.id, removing.computer.name, false)) },
-                { title: 'Remove with its invites', destructive: true, action: () => run(() => network.remove(store, removing.net.id, removing.computer.name, true)) },
+                { title: tr('Remove with its invites'), destructive: true, action: () => run(() => network.remove(store, removing.net.id, removing.computer.name, true)) },
               ]
             : []
         }

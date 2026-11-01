@@ -91,7 +91,7 @@ function ArtifactRow({ artifact, open, onError }: { artifact: Artifact; open: ()
       title={tr('More actions')}
       items={() => [
         { title: 'Open', icon: 'doc.text', action: open },
-        { title: 'Rename artifact', icon: 'pencil', action: () => setRenaming(true) },
+        { title: tr('Rename artifact'), icon: 'pencil', action: () => setRenaming(true) },
         ...artifactShareItems(store, artifact, onError),
       ]}
     >

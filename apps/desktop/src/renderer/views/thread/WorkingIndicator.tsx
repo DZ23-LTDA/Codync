@@ -22,7 +22,7 @@ export function WorkingIndicator({ bot, steps }: { bot: Bot; steps: Entry[] }) {
   const status = (
     <HStack as="span" gap={8}>
       <ThinkingOrb state={waiting ? 'listening' : 'working'} size={16} color={waiting ? 'var(--warning)' : 'var(--secondary)'} />
-      <Text size="subheadline" tone={waiting ? 'attention' : 'secondary'} truncate grow>{tr(bot.activity || 'Working…')}</Text>
+      <Text size="subheadline" tone={waiting ? 'attention' : 'secondary'} truncate grow>{tr(bot.activity || tr('Working…'))}</Text>
       {bot.startedAt ? <Timer since={bot.startedAt} /> : null}
       {details ? (
         <span className={`disclosure-chevron${open ? ' open' : ''}`}>
@@ -36,7 +36,7 @@ export function WorkingIndicator({ bot, steps }: { bot: Bot; steps: Entry[] }) {
       <div className={open ? 'working expanded' : 'working'}>
         {long ? <Text as="div" size="footnote" tone="tertiary">{tr('Taking longer than usual. You can stop it.')}</Text> : null}
         {details ? (
-          <button className="working-toggle" onClick={() => setExpanded((x) => !x)} aria-expanded={open} title={tr(open ? 'Hide steps' : 'Show steps')}>
+          <button className="working-toggle" onClick={() => setExpanded((x) => !x)} aria-expanded={open} title={tr(open ? tr('Hide steps') : tr('Show steps'))}>
             {status}
           </button>
         ) : (

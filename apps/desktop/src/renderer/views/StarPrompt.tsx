@@ -11,6 +11,7 @@ import { dueStarAsk } from '../lib/star-ask'
 import { useStarAsk } from '../lib/use-star-ask'
 import { useApp } from '../store/context'
 import './star-prompt.css'
+import { useTr } from '../lib/use-language'
 
 const copy = {
   first: {
@@ -29,6 +30,7 @@ const copy = {
  * Starring ends it.
  */
 export function StarPrompt() {
+  const tr = useTr()
   const app = useApp()
   const local = useModel(app.local)
   const [onboarded] = usePref(prefs.onboardingDone)
@@ -60,10 +62,10 @@ export function StarPrompt() {
           </HStack>
           <HStack gap={8} justify="flex-end" wrap>
             <Button kind="secondary" onClick={() => finish(false)}>
-              Not now
+              {tr('Not now')}
             </Button>
             <Button onClick={() => finish(true)}>
-              Star on GitHub
+              {tr('Star on GitHub')}
             </Button>
           </HStack>
         </VStack>

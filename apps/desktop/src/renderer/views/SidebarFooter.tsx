@@ -18,9 +18,9 @@ export function SidebarFooter({ accountOpen, onAccount, onExtensions }: {
       <div className="sidebar-footer-fade" aria-hidden />
       <button
         className={`sidebar-account ${accountOpen ? 'active' : ''}`}
-        aria-label="Open account menu for Account"
+        aria-label={tr('Open account menu for Account')}
         aria-expanded={accountOpen}
-        title="Account menu"
+        title={tr('Account menu')}
         onClick={onAccount}
       >
         <ProfileAvatar />

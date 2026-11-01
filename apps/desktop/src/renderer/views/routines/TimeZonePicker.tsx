@@ -5,6 +5,7 @@ import { Text } from '../../components/Text'
 import { AnchoredPanel } from '../bots/parts'
 import { currentZone, matchZones, timeZoneOptions, zoneLabel, zoneOffset } from './time-zones'
 import './routines.css'
+import { useTr } from '../../lib/use-language'
 
 /** The routine's time zone: a button that opens every zone, filtered as you type. */
 export function TimeZonePicker({ zone: saved, onChange }: { zone: string; onChange: (zone: string) => void }) {
@@ -40,6 +41,7 @@ export function TimeZonePicker({ zone: saved, onChange }: { zone: string; onChan
 
 /** The search box over the matching zones; ↑/↓ move, Return picks. */
 function ZoneList({ zone, pick }: { zone: string; pick: (zone: string) => void }) {
+  const tr = useTr()
   const zones = useMemo(() => timeZoneOptions(), [])
   const [query, setQuery] = useState('')
   const matches = useMemo(() => matchZones(zones, query), [zones, query])
@@ -74,7 +76,7 @@ function ZoneList({ zone, pick }: { zone: string; pick: (zone: string) => void }
           setHighlight(0)
         }}
       />
-      <div ref={list} className="zone-list" role="listbox" aria-label="Time zones">
+      <div ref={list} className="zone-list" role="listbox" aria-label={tr('Time zones')}>
         {matches.map((z, i) => (
           <button
             key={z.id}

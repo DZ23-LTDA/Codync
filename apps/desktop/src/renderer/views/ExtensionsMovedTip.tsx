@@ -22,7 +22,7 @@ export function ExtensionsMovedTip() {
           <Text size="callout" weight="medium">{tr('Extensions moved to each computer')}</Text>
           <Text size="caption" tone="secondary">{tr("Each computer has its own. Open them with the button on the computer's heading.")}</Text>
         </VStack>
-        <IconButton title="Dismiss" icon="xmark" size={24} onClick={() => setSeen(true)} />
+        <IconButton title={tr('Dismiss')} icon="xmark" size={24} onClick={() => setSeen(true)} />
       </div>
     </Reveal>
   )

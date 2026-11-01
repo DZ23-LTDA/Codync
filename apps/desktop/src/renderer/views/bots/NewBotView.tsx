@@ -74,7 +74,7 @@ export function NewGroupView({ computer }: { computer: ComputerChoice | null }) 
       title={tr('New group chat')}
       preview={<GroupAvatar members={picked} size={96} />}
       name={name}
-      placeholder={defaultName || 'Name your group'}
+      placeholder={defaultName || tr('Name your group')}
       onName={setName}
       canCreate={members.length > 0}
       computer={computer}

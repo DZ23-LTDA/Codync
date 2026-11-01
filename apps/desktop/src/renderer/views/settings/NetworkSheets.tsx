@@ -63,14 +63,14 @@ export function NetworkSetupSheet({ store, joining }: { store: BotStore; joining
     <VStack className="network-sheet" onKeyDown={(e) => e.key === 'Enter' && e.target instanceof HTMLInputElement && void save()}>
       <ModalHeader
         icon={NETWORK_ICON}
-        title={joining ? 'Join with invite' : 'Create network'}
+        title={joining ? tr('Join with invite') : tr('Create network')}
         trailing={busy ? <Spinner /> : <IconButton title={joining ? 'Join' : 'Create'} icon="checkmark" onClick={() => void save()} />}
       />
       <VStack gap={16} className="network-sheet-body">
-        <CardSection footer={joining ? null : 'This computer becomes the owner: it invites the others.'}>
+        <CardSection footer={joining ? null : tr('This computer becomes the owner: it invites the others.')}>
           {[
             ...(joining ? [<Field key="invite" label={tr('Invite')} value={invite} set={setInvite} placeholder={tr('codync-network:…')} mono />] : []),
-            <Field key="network" label={tr('Network name')} value={networkName} set={setNetworkName} placeholder={joining ? 'From the invite' : 'home'} />,
+            <Field key="network" label={tr('Network name')} value={networkName} set={setNetworkName} placeholder={joining ? tr('From the invite') : 'home'} />,
             <Field key="name" label={tr('Computer name')} value={name} set={setName} placeholder={tr('Host name')} />,
           ]}
         </CardSection>

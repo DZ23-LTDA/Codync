@@ -25,6 +25,7 @@ interface Props {
 }
 
 export function ComputerRosterSection({ store, compact, collapsed, previous, next, lifted, drag, toggle, move, openExtensions, children }: Props) {
+  const tr = useTr()
   const section = useRef<HTMLElement>(null)
   const id = store.computer.id
   useSlide(section)
@@ -44,7 +45,7 @@ export function ComputerRosterSection({ store, compact, collapsed, previous, nex
           }}>
           <ComputerHeadingLabel store={store} compact={compact} collapsed={collapsed} />
         </button>
-        {openExtensions && !compact ? <IconButton className="computer-roster-extensions" title="Extensions" icon="square.grid.2x2" size={24} onClick={openExtensions} /> : null}
+        {openExtensions && !compact ? <IconButton className="computer-roster-extensions" title={tr('Extensions')} icon="square.grid.2x2" size={24} onClick={openExtensions} /> : null}
       </div>
       <div className={`computer-roster-content ${collapsed ? 'collapsed' : ''}`} inert={collapsed} aria-hidden={collapsed}>
         <div>{children}</div>

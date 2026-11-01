@@ -127,6 +127,7 @@ export function SkeletonGrid() {
  * Try again, and asks again once it scrolls back into view.
  */
 export function LoadMoreRow({ cursor, failed, onLoad }: { cursor: string; failed: boolean; onLoad: () => void }) {
+  const tr = useTr()
   const end = useRef<HTMLDivElement>(null)
   const [inView, setInView] = useState(false)
   const load = useEffectEvent(onLoad)
@@ -142,7 +143,7 @@ export function LoadMoreRow({ cursor, failed, onLoad }: { cursor: string; failed
     <div ref={end} className="load-more">
       {failed ? (
         <HStack justify="center">
-          <IconButton title="Try again" icon="arrow.clockwise" onClick={onLoad} />
+          <IconButton title={tr('Try again')} icon="arrow.clockwise" onClick={onLoad} />
         </HStack>
       ) : <SkeletonGrid />}
     </div>
@@ -240,7 +241,7 @@ export function ScreenHeader({ title, onBack, trailing }: { title: string; onBac
   return (
     <HStack gap={6} className="market-screen-header">
       <Text as="div" size="compactBody" weight="semibold" tone="text" truncate className="market-screen-title">{tr(title)}</Text>
-      <IconButton title="Back" icon="chevron.left" onClick={onBack} />
+      <IconButton title={tr('Back')} icon="chevron.left" onClick={onBack} />
       <Spacer min={8} />
       {trailing}
     </HStack>

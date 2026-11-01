@@ -66,10 +66,10 @@ export function ApprovalSheet({ approval }: { approval: Approval }) {
         </Reveal>
         <HStack align="stretch" gap={12}>
           <Button kind="secondary" onClick={() => void decide(false)} disabled={busy}>
-            Deny
+            {tr('Deny')}
           </Button>
           <Button onClick={() => void decide(true)} disabled={busy || !request.code}>
-            Approve
+            {tr('Approve')}
           </Button>
         </HStack>
       </VStack>

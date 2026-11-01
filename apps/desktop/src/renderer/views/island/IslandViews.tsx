@@ -117,7 +117,7 @@ export function Empty({ model }: { model: IslandModel }) {
       {focus ? <BigCharacter bot={focus} size={62} mood="idle" badge={null} /> : null}
       <span className="island-empty-text">
         <span className="island-title">{tr('Nothing running right now.')}</span>
-        <span className="island-subtitle">{tr(focus ? 'Your bots are idle. Message one from here, or open Codync.' : 'Create a bot in Codync to get started.')}</span>
+        <span className="island-subtitle">{tr(focus ? tr('Your bots are idle. Message one from here, or open Codync.') : tr('Create a bot in Codync to get started.'))}</span>
       </span>
       {focus ? <Button onClick={() => model.setTab('message')}>{tr('Message a bot')}</Button> : <Button onClick={() => model.newBot()}>{tr('New bot')}</Button>}
     </div>

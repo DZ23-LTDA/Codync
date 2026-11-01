@@ -50,7 +50,7 @@ export function CallConversationView({ botId, lineId }: { botId: string; lineId:
   }, [messages.length])
   return (
     <div className="bot-conversation">
-      <ModalHeader title={tr(line?.data.text || 'Voice chat')} />
+      <ModalHeader title={tr(line?.data.text || tr('Voice chat'))} />
       <div className="bot-conversation-scroll" ref={scroller}>
         <VStack gap={10} className="bot-conversation-rows">
           {error ? <Text as="div" size="footnote" tone="danger" className="bot-conversation-note">{error}</Text> : null}
