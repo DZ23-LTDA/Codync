@@ -779,5 +779,9 @@
   "Set up this {what}": "Configurar este {what}",
   "Mac": "Mac",
   "computer": "computador",
-  "Codync runs your coding agents through the host, a small background service. Install it once and your bots can work while this window is closed.": "O Codync roda seus agentes de código pelo host, um pequeno serviço em segundo plano. Instale uma vez e seus bots trabalham mesmo com a janela fechada."
+  "Codync runs your coding agents through the host, a small background service. Install it once and your bots can work while this window is closed.": "O Codync roda seus agentes de código pelo host, um pequeno serviço em segundo plano. Instale uma vez e seus bots trabalham mesmo com a janela fechada.",
+  "Remove {name}": "Remover {name}",
+  "Add {name}": "Adicionar {name}",
+  "About {name}": "Sobre {name}",
+  "Voice by {name}": "Voz de {name}"
 }
