@@ -27,3 +27,7 @@ test("a value shown as an example of a format is not copy to translate", () => {
   assert.deepEqual(missingFrom(phrases, {}), ["Connect"]);
 });
 
+test("a plain number is a value, not copy", () => {
+  assert.deepEqual(missingFrom(new Set(["3600", "Save"]), {}), ["Save"]);
+});
+

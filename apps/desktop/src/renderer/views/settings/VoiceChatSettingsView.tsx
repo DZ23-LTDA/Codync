@@ -44,9 +44,9 @@ export function VoiceChatSettingsView({ showsHeader = true }: { showsHeader?: bo
       {showsHeader ? <ModalHeader icon="waveform" title={tr(`Voice chat`)} /> : null}
       <div className="settings-voice-body">
         <CardForm>
-          <CardSection title="Voice" footer={footer}>
+          <CardSection title={tr('Voice')} footer={footer}>
             {[
-              <ValueRow key="engine" label="Engine">
+              <ValueRow key="engine" label={tr('Engine')}>
                 <ChoicePicker
                   selection={engine}
                   options={voice.engineOptions()}
@@ -55,16 +55,16 @@ export function VoiceChatSettingsView({ showsHeader = true }: { showsHeader?: bo
               </ValueRow>,
               ...(provider
                 ? [
-                    <ValueRow key="mode" label="Mode" detail={mode === 'speech' ? 'Sent when you pause, replies read aloud.' : 'A live conversation. Talk over replies.'}>
+                    <ValueRow key="mode" label={tr('Mode')} detail={mode === 'speech' ? 'Sent when you pause, replies read aloud.' : 'A live conversation. Talk over replies.'}>
                       <ChoicePicker selection={mode} options={[{ id: 'realtime', label: 'Realtime' }, { id: 'speech', label: 'Speech' }]} onChange={setMode} />
                     </ValueRow>,
                     ...(mode === 'speech' ? [<PauseRow key="pause" />] : []),
                   ]
                 : [
-                    <ValueRow key="language" label="Language" detail="The language you speak in calls.">
+                    <ValueRow key="language" label={tr('Language')} detail={tr('The language you speak in calls.')}>
                       <ChoicePicker selection={language} options={languages} onChange={setLanguage} />
                     </ValueRow>,
-                    <ValueRow key="rate" label="Reading speed">
+                    <ValueRow key="rate" label={tr('Reading speed')}>
                       <ChoicePicker
                         selection={rate}
                         options={[{ id: 0.42, label: 'Slower' }, { id: voice.DEFAULT_RATE, label: 'Normal' }, { id: 0.56, label: 'Faster' }]}
@@ -235,10 +235,10 @@ function ProviderVoiceSettings({ provider, dictationOnly = false }: { provider: 
             <Spinner />
           ) : (
             <>
-              <IconButton title="Test key" icon="checkmark.seal" onClick={test} />
+              <IconButton title={tr('Test key')} icon="checkmark.seal" onClick={test} />
               {canEditKey ? <>
-                <IconButton title="Replace key" icon="pencil" onClick={() => { setReplacing(true); setResult(null) }} />
-                <IconButton title="Remove key" icon="trash" onClick={remove} />
+                <IconButton title={tr('Replace key')} icon="pencil" onClick={() => { setReplacing(true); setResult(null) }} />
+                <IconButton title={tr('Remove key')} icon="trash" onClick={remove} />
               </> : null}
             </>
           )}
@@ -254,7 +254,7 @@ function ProviderVoiceSettings({ provider, dictationOnly = false }: { provider: 
           <HStack gap={8} className="settings-row">
             <input
               type="password"
-              aria-label="API key"
+              aria-label={tr('API key')}
               placeholder={info.keyPrompt}
               value={key}
               spellCheck={false}
@@ -267,7 +267,7 @@ function ProviderVoiceSettings({ provider, dictationOnly = false }: { provider: 
               <Spinner />
             ) : (
               <Button onClick={test} disabled={!key.trim()}>
-                Save
+                {tr('Save')}
               </Button>
             )}
           </HStack>
@@ -278,7 +278,7 @@ function ProviderVoiceSettings({ provider, dictationOnly = false }: { provider: 
             <Spacer />
             {replacing ? (
               <button className="settings-quiet-button" onClick={() => { setReplacing(false); setKey(''); setResult(null) }}>
-                Cancel
+                {tr('Cancel')}
               </button>
             ) : null}
           </Text>
@@ -300,16 +300,16 @@ function ProviderVoiceSettings({ provider, dictationOnly = false }: { provider: 
       {[
         keyArea,
         ...(transcribes
-          ? [<div key="stt" className={dimmed}><ValueRow label="Speech to text">{picker(transcribeModel, models.transcribe, pick('transcribe', setTranscribeModel))}</ValueRow></div>]
+          ? [<div key="stt" className={dimmed}><ValueRow label={tr('Speech to text')}>{picker(transcribeModel, models.transcribe, pick('transcribe', setTranscribeModel))}</ValueRow></div>]
           : []),
         ...(dictationOnly
           ? []
           : [
               speechMode
-                ? <div key="tts" className={dimmed}><ValueRow label="Text to speech">{picker(speechModel, models.speech, pick('speech', setSpeechModel))}</ValueRow></div>
-                : <div key="model" className={dimmed}><ValueRow label="Model">{picker(model, models.models, pick('realtime', setModel))}</ValueRow></div>,
+                ? <div key="tts" className={dimmed}><ValueRow label={tr('Text to speech')}>{picker(speechModel, models.speech, pick('speech', setSpeechModel))}</ValueRow></div>
+                : <div key="model" className={dimmed}><ValueRow label={tr('Model')}>{picker(model, models.models, pick('realtime', setModel))}</ValueRow></div>,
               <div key="voice" className={dimmed}>
-                <ValueRow label="Voice">
+                <ValueRow label={tr('Voice')}>
                   <ChoicePicker
                     selection={chosenVoice}
                     options={info.voices.map((v) => ({ id: v, label: v }))}
@@ -321,7 +321,7 @@ function ProviderVoiceSettings({ provider, dictationOnly = false }: { provider: 
                 </ValueRow>
               </div>,
               <div key="minutes" className={dimmed}>
-                <ValueRow label="This month">≈ {voice.voiceMinutes(provider)} min</ValueRow>
+                <ValueRow label={tr('This month')}>≈ {voice.voiceMinutes(provider)} min</ValueRow>
               </div>,
             ]),
       ]}
