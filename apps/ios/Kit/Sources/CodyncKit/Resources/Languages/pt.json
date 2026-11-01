@@ -234,5 +234,16 @@
   "Continue": "Continuar",
   "Get started": "Começar",
   "Permissions stay on this computer. You can change them later in Settings → Computer access.": "As permissões ficam neste computador. Você pode mudá-las depois em Ajustes → Acesso ao computador.",
-  "GitHub Star": "Estrela no GitHub"
+  "GitHub Star": "Estrela no GitHub",
+  "The host is missing": "O host não está instalado",
+  "Rebuild Codync Dev with its development host, then open it again.": "Recompile o Codync Dev com o host de desenvolvimento e abra de novo.",
+  "This copy of Codync doesn't include codync-host. Download Codync again from codync.dev or GitHub.": "Esta cópia do Codync não inclui o codync-host. Baixe o Codync de novo em codync.dev ou no GitHub.",
+  "The host isn't running": "O host não está rodando",
+  "Starting the host…": "Iniciando o host…",
+  "This takes a few seconds.": "Isso leva alguns segundos.",
+  "Try again": "Tentar de novo",
+  "The background service didn't start.": "O serviço em segundo plano não iniciou.",
+  "The background service didn't start. Windows refused to register the automatic start.": "O serviço em segundo plano não iniciou. O Windows recusou registrar a inicialização automática.",
+  "Set up this computer": "Configurar este computador",
+  "Set up this Mac": "Configurar este Mac"
 }

@@ -34,6 +34,11 @@ function hostFailure(message: string, tr: (text: string) => string): string {
       ? tr("The background service didn't start. macOS couldn't load {path}.").replaceAll('{path}', path)
       : tr("The background service didn't start.")
   }
+  // Windows prints the command that failed (`reg add ... /f failed`) plus an OS error. The person needs the outcome and
+  // the next step, not the command line: the full message stays in the host log.
+  if (/reg add/i.test(message)) {
+    return tr("The background service didn't start. Windows refused to register the automatic start.")
+  }
   return tr(message)
 }
 
