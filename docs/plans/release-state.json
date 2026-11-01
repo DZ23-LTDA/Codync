@@ -54,6 +54,18 @@
       "item": "checkpoint, version bump, WhatsNew, tag",
       "state": "NOT_STARTED",
       "evidence": ""
+    },
+    {
+      "id": 10,
+      "item": "delivery cycle: bump, tag, publish, update in app",
+      "state": "IN_PROGRESS",
+      "evidence": "v2.34.0 published with a Windows installer; local install never returns in this sandbox; in-app update untested"
+    },
+    {
+      "id": 11,
+      "item": "cancel a stuck turn",
+      "state": "IN_PROGRESS",
+      "evidence": "stop exists in host, store and composer; watchdog and cancellation record with a reason missing"
     }
   ]
 }
