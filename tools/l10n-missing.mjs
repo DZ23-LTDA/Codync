@@ -34,7 +34,7 @@ export function phrasesIn(source) {
  * a scheme prefix, a plain number used as a default. Translating those would be wrong -- "Authorization: Bearer" stays as
  * it is in every language and 3600 is 3600.
  */
-const example = /^(?:[0-9a-f]{8}-|API_KEY=|Authorization: Bearer|codync-network:|https?:\/\/|[a-z-]+:|\d+$)/;
+const example = /^(?:[0-9a-f]{8}-|API_KEY=|Authorization: Bearer|codync-network:|https?:\/\/|[a-z-]+:|\d+$|name@example\.com)/;
 
 /** The phrases used in the renderer with no key in `table`. Pure, so the rule is testable on its own. */
 export function missingFrom(phrases, table) {

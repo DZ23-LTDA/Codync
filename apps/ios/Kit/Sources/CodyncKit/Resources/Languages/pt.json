@@ -471,5 +471,19 @@
   "Driving": "Dirigindo",
   "Import bots": "Importar bots",
   "Past": "Passado",
-  "Upcoming": "Próximos"
+  "Upcoming": "Próximos",
+  "Bots type these into the matching website or app and never see the password. You can use an op:// reference.": "Os bots digitam isso no site ou app correspondente e nunca veem a senha. Você pode usar uma referência op://.",
+  "Enter only the values you want to replace. You can use an op:// reference.": "Preencha só os valores que quer trocar. Você pode usar uma referência op://.",
+  "Password": "Senha",
+  "Password or op:// reference": "Senha ou referência op://",
+  "Remove": "Remover",
+  "Save credentials": "Salvar credenciais",
+  "Sign-ins": "Logins",
+  "Username or email": "Usuário ou e-mail",
+  "Website or app": "Site ou app",
+  "github.com": "github.com",
+  "name@example.com": "nome@exemplo.com",
+  "Save sign-in": "Salvar login",
+  "Connected": "Conectado",
+  "Connect a shared vault": "Conectar um vault compartilhado"
 }
