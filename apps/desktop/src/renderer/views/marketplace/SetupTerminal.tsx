@@ -189,7 +189,7 @@ export function SetupTerminalView({ backend, step, method, back }: {
         ) : (
           <>
             <ThinkingOrb size={14} color="var(--secondary)" />
-            <Text tone="secondary" lines={2}>Running on {store.hostName}. Links open on this device.</Text>
+            <Text tone="secondary" lines={2}>{tr('Running on {host}. Links open on this device.').replaceAll('{host}', store.hostName)}</Text>
           </>
         )}
         <Spacer />
