@@ -24,13 +24,13 @@ jobs:
       run:
         working-directory: host
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Install Rust (rust-toolchain.toml)
         run: rustup toolchain install
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
         with:
           workspaces: host
-      - uses: taiki-e/install-action@v2
+      - uses: taiki-e/install-action@1919c4a95903d2c33e4a221102edca87309fc14b # v2
         with:
           tool: cargo-nextest
       - run: cargo fmt --all --check
@@ -56,7 +56,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       # rustup reads the pin from the folder it runs in (host/rust-toolchain.toml).
       - name: Install Rust (host/rust-toolchain.toml)
         working-directory: host
@@ -105,14 +105,14 @@ jobs:
           "$RUNNER_TEMP/update-signing/bin/python" packaging/updates/sign-host-release.py \
             "codync-host-${{ matrix.name }}.tar.gz" \
             --version "$GITHUB_REF_NAME" --platform "${{ matrix.name }}"
-      - uses: softprops/action-gh-release@v2
+      - uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
         with:
           make_latest: false
           files: |
             codync-host-*.tar.gz
             codync-host-*.tar.gz.sha256
       # The update manifest last: the release gate takes a release with all its feeds as fully uploaded.
-      - uses: softprops/action-gh-release@v2
+      - uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
         with:
           make_latest: false
           files: |
