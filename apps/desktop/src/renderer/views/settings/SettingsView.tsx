@@ -162,38 +162,38 @@ function GeneralSettings() {
           ) : (
             <>
               <Button kind="secondary" onClick={() => void account.signIn('apple')} disabled={account.isBusy}>
-                Apple
+                {tr('Apple')}
               </Button>
               <Button kind="secondary" onClick={() => void account.signIn('google')} disabled={account.isBusy}>
-                Google
+                {tr('Google')}
               </Button>
             </>
           )}
         </div>
       </CardSection>
       <CardSection title={tr('Appearance')}>
-        <ValueRow label="Theme">
+        <ValueRow label={tr('Theme')}>
           <ChoicePicker selection={appearance} options={[...APPEARANCES]} onChange={(value) => void window.codync.app.setAppearance(value).then(setAppearance)} />
         </ValueRow>
-        <ValueRow label="Text size">
+        <ValueRow label={tr('Text size')}>
           <ChoicePicker
             selection={textSize}
             options={TEXT_SIZES.map((s) => ({ id: s, label: s === DEFAULT_TEXT_SIZE ? tr('{size} pt (Default)').replace('{size}', String(s)) : `${s} pt` }))}
             onChange={setTextSize}
           />
         </ValueRow>
-        <ValueRow label="Usage icons">
+        <ValueRow label={tr('Usage icons')}>
           <ChoicePicker selection={usageIconStyle} options={[{ id: 'character', label: 'Character' }, { id: 'original', label: 'Original' }]} onChange={setUsageIconStyle} />
         </ValueRow>
         <Switch on={compact} onChange={setCompact}>
-          Compact sidebar
+          {tr('Compact sidebar')}
         </Switch>
       </CardSection>
       <CardSection
         title={tr('Language')}
-        footer="Choose the language for this device. Unsupported system languages use English."
+        footer={tr('Choose the language for this device. Unsupported system languages use English.')}
       >
-        <ValueRow label="App language">
+        <ValueRow label={tr('App language')}>
           <ChoicePicker
             selection={language}
             options={appLanguages.map((id) => ({
@@ -204,9 +204,9 @@ function GeneralSettings() {
           />
         </ValueRow>
       </CardSection>
-      <CardSection title={tr('Chat')} footer="Lets you unfold a working bot's thinking and steps from its status in the chat. Only changes this device.">
+      <CardSection title={tr('Chat')} footer={tr("Lets you unfold a working bot's thinking and steps from its status in the chat. Only changes this device.")}>
         <Switch on={thinkingDetails} onChange={setThinkingDetails}>
-          Show thinking details
+          {tr('Show thinking details')}
         </Switch>
       </CardSection>
       <CardSection title={tr('System')}>
@@ -218,12 +218,12 @@ function GeneralSettings() {
         ) : null}
         {/* On-device speech, so macOS only. */}
         {window.codync.speech.available ? (
-          <ValueRow label="Voice input shortcut" detail="Talk to a bot from any app, then tap the key once more to send.">
+          <ValueRow label={tr('Voice input shortcut')} detail={tr('Talk to a bot from any app, then tap the key once more to send.')}>
             <ChoicePicker selection={voiceShortcut} options={VOICE_SHORTCUTS} onChange={(s) => void window.codync.speech.setShortcut(s).then(setVoiceShortcut)} />
           </ValueRow>
         ) : null}
         <Switch on={launchAtLogin} onChange={(on) => void window.codync.app.setLaunchAtLogin(on).then(setLaunchAtLogin)}>
-          Open at login
+          {tr('Open at login')}
         </Switch>
       </CardSection>
       <PrivacySettings />
@@ -242,11 +242,11 @@ function PrivacySettings() {
   const setShared = (on: boolean) => void local?.setAnalytics(on).catch((e: unknown) => app.setError(errorText(e)))
   return (
     <>
-      <CardSection title={tr('Privacy')} footer="Which features you use, never your messages, code or files. Helps us spot bugs sooner and make Codync better for you.">
+      <CardSection title={tr('Privacy')} footer={tr('Which features you use, never your messages, code or files. Helps us spot bugs sooner and make Codync better for you.')}>
         <HStack gap={4}>
           <span className={running ? undefined : 'settings-off'}>{tr('Share usage analytics')}</span>
           <IconButton title={tr('About usage analytics')} icon="info.circle" onClick={() => setAbout(true)} />
-          <Switch on={local?.analytics === true} onChange={setShared} disabled={!running} label="Share usage analytics" className="settings-privacy-switch" />
+          <Switch on={local?.analytics === true} onChange={setShared} disabled={!running} label={tr('Share usage analytics')} className="settings-privacy-switch" />
         </HStack>
       </CardSection>
       <FormSheet open={about} onClose={() => setAbout(false)}>

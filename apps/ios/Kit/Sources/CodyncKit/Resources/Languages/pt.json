@@ -365,5 +365,14 @@
   "Automatically download and install": "Baixar e instalar automaticamente",
   "Retry": "Tentar de novo",
   "Character": "Personagem",
-  "Original": "Original"
+  "Original": "Original",
+  "App language": "Idioma do app",
+  "Choose the language for this device. Unsupported system languages use English.": "Escolha o idioma deste aparelho. Idiomas do sistema sem suporte usam inglês.",
+  "Lets you unfold a working bot's thinking and steps from its status in the chat. Only changes this device.": "Deixa você abrir o raciocínio e os passos de um bot em trabalho pelo status dele na conversa. Muda só neste aparelho.",
+  "Talk to a bot from any app, then tap the key once more to send.": "Fale com um bot de qualquer app, e toque a tecla mais uma vez para enviar.",
+  "Text size": "Tamanho do texto",
+  "Theme": "Tema",
+  "Usage icons": "Ícones de uso",
+  "Voice input shortcut": "Atalho de entrada de voz",
+  "Which features you use, never your messages, code or files. Helps us spot bugs sooner and make Codync better for you.": "Quais recursos você usa, nunca suas mensagens, código ou arquivos. Ajuda a encontrar defeitos mais cedo e a deixar o Codync melhor para você."
 }
