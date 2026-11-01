@@ -21,7 +21,7 @@ jobs:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 0
       - name: A changed crate has a new version
@@ -46,7 +46,7 @@ jobs:
     if: github.event_name == 'push' && github.repository == 'leepokai/Codync'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 0
       - name: Split the crate's history
@@ -77,7 +77,7 @@ jobs:
       run:
         working-directory: host
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Is this version on crates.io yet?
         id: version
         run: |
@@ -92,7 +92,7 @@ jobs:
       - name: Install Rust (rust-toolchain.toml)
         if: steps.version.outputs.new == 'true'
         run: rustup toolchain install
-      - uses: rust-lang/crates-io-auth-action@v1
+      - uses: rust-lang/crates-io-auth-action@3268eb413133e2960fa4ae0e963ca76380c54cd9 # v1
         if: steps.version.outputs.new == 'true'
         id: auth
       - name: Publish
