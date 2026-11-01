@@ -119,7 +119,7 @@ export function ComposioConnectSheet({ app, requestId, done }: { app: ComposioAp
 
   return (
     <SheetPage>
-      <ModalHeader title={`Connect ${app.name}`} trailing={trailing} />
+      <ModalHeader title={tr('Connect {app}').replaceAll('{app}', app.name)} trailing={trailing} />
       <CardForm>
         <CardSection>
           <HStack gap={14} className="market-card-header">
@@ -131,14 +131,14 @@ export function ComposioConnectSheet({ app, requestId, done }: { app: ComposioAp
           </HStack>
         </CardSection>
         {connected ? (
-          <CardSection footer={`Turn ${app.name} on for a bot in the bot's settings, under Connectors.`}>
+          <CardSection footer={tr("Turn {app} on for a bot in the bot's settings, under Connectors.").replaceAll('{app}', app.name)}>
             <HStack as="span" gap={6} className="composio-connected">
               <Icon name="checkmark.circle.fill" size={12} />
               {tr('Connected')}
             </HStack>
           </CardSection>
         ) : needsFields ? (
-          <CardSection footer={`Sent to Composio, which keeps it for ${app.name}.`}>
+          <CardSection footer={tr('Sent to Composio, which keeps it for {app}.').replaceAll('{app}', app.name)}>
             {(plan?.fields ?? []).map((f) => (
               <VStack key={f.name} gap={4}>
                 <Field label={f.label} value={values[f.name] ?? ''} secret={f.secret} placeholder={f.label} onChange={(v) => setValues((old) => ({ ...old, [f.name]: v }))} />

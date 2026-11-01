@@ -794,5 +794,14 @@
   "Message {name}": "Mensagem para {name}",
   "Message {name}…": "Mensagem para {name}…",
   "Open {name}": "Abrir {name}",
-  "{count} working": "{count} trabalhando"
+  "{count} working": "{count} trabalhando",
+  "Pairing code for {name}": "Código de pareamento de {name}",
+  "Works once, until {time}": "Funciona uma vez, até {time}",
+  "Connect {app}": "Conectar {app}",
+  "Turn {app} on for a bot in the bot's settings, under Connectors.": "Ligue {app} para um bot nas configurações do bot, em Conectores.",
+  "Sent to Composio, which keeps it for {app}.": "Enviado para o Composio, que o guarda para {app}.",
+  "{count} notes, over the {cap}-note cap. Ask the bot to merge some.": "{count} notas, acima do limite de {cap}. Peça ao bot para juntar algumas.",
+  "{count} tokens": "{count} tokens",
+  ", over the {cap} cap": ", acima do limite de {cap}",
+  "Added to {name}": "Adicionado a {name}"
 }
