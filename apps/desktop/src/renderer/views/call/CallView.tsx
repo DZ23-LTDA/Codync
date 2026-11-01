@@ -256,7 +256,7 @@ export function CallView({ botId, onSpeaking, interrupt, onEnd }: {
         />
         {/* Audio leaves the computer: say where. */}
         {session?.provider ? (
-          <Text size="caption2" weight="semibold" tone="secondary" aria-label={`Voice by ${providerName(session.provider)}`}>
+          <Text size="caption2" weight="semibold" tone="secondary" aria-label={tr('Voice by {name}').replaceAll('{name}', providerName(session.provider))}>
             {providerName(session.provider)}
           </Text>
         ) : null}
