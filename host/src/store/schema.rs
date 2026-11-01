@@ -276,6 +276,71 @@ mod tests {
     }
 
     #[test]
+    fn a_missing_database_is_created() {
+        let dir = std::env::temp_dir().join(format!("codync-missing-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let file = dir.join("t.db");
+        assert!(!file.exists(), "nothing there yet");
+
+        let store = Store::open(&file).expect("a fresh path must open");
+
+        assert!(file.exists(), "the file appears once the store opens");
+        assert_eq!(store.kv_get("does.not.exist"), None, "and it is a working database");
+        drop(store);
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn an_empty_file_becomes_a_database() {
+        let dir = std::env::temp_dir().join(format!("codync-empty-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let file = dir.join("t.db");
+        std::fs::write(&file, b"").unwrap();
+        assert_eq!(std::fs::metadata(&file).unwrap().len(), 0, "a zero-byte file");
+
+        let store = Store::open(&file).expect("an empty file is a new database, not a damaged one");
+
+        store.kv_set("read.root", "0").unwrap();
+        assert_eq!(store.kv_get("read.root").as_deref(), Some("0"));
+        drop(store);
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn a_valid_database_reopens_with_its_data() {
+        let dir = std::env::temp_dir().join(format!("codync-reopen-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let file = dir.join("t.db");
+        {
+            let store = Store::open(&file).unwrap();
+            store.kv_set("read.root", "7").unwrap();
+        }
+        let again = Store::open(&file).expect("an existing database opens");
+        assert_eq!(again.kv_get("read.root").as_deref(), Some("7"), "what was written is still there");
+        drop(again);
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn a_truncated_database_is_reported_and_kept() {
+        let dir = std::env::temp_dir().join(format!("codync-truncated-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let file = dir.join("t.db");
+        // The start of a sqlite header and nothing else: what an interrupted write or a full disk leaves behind.
+        std::fs::write(&file, b"SQLite format 3\0").unwrap();
+        let before = std::fs::read(&file).unwrap();
+
+        let error = match Store::open(&file) {
+            Ok(_) => panic!("a truncated header must not open"),
+            Err(error) => format!("{error:#}"),
+        };
+
+        assert!(error.contains("may be damaged"), "the message is the damaged one: {error}");
+        assert_eq!(std::fs::read(&file).unwrap(), before, "the bytes are untouched, so a copy can still be taken");
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
     fn a_damaged_database_says_so_and_is_left_alone() {
         let dir = std::env::temp_dir().join(format!("codync-corrupt-{}", uuid::Uuid::new_v4()));
         std::fs::create_dir_all(&dir).unwrap();
