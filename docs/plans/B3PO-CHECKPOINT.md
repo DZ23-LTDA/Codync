@@ -1,7 +1,56 @@
 # B-3PO — checkpoint de continuidade
 
-Fonte de direção: o documento mestre *B-3PO BOT PLATFORM — goal único e definitivo* (mantido pelo proprietário).
-Este arquivo é o checkpoint operacional exigido pela seção 11 daquele documento: estado real, evidência e próxima tarefa.
+> Fonte de direção: **goal v3** (Release 1 obrigatório; o resto listado e bloqueado por decisão). Este arquivo é o
+> checkpoint operacional da seção 15: estado medido, evidência com URL/sha, o que não foi validado e por quê.
+
+## Sessão de 31/10/2026, 21:20Z — P0 do Release 1
+
+### Estado verificado agora (comandos rodados nesta sessão)
+
+| | |
+|---|---|
+| `dev` | **`68742951`** (PR #41) |
+| PRs abertos | **0** |
+| Strings fora da tradução | **271** (`node tools/l10n-unwrapped.mjs`) |
+| `pt` na superfície `tr()` | **214 chaves, 100,0% da tela do desktop**; 13,3% da tabela completa (1.468) |
+| Mascotes | **13 no catálogo, 0 com arte** (`node tools/mascot-assets.mjs`, exit 0) |
+| Testes que passaram (windows CI) | **821 de 821** (1 skipped), run 41252692797 |
+| Tempo de abertura do app | **NÃO MEDIDO** — é a tarefa P2 |
+
+### Entregas fechadas antes desta sessão (não reabrir)
+
+| Área | Evidência |
+|---|---|
+| Onda 1 | matriz de 30 harnesses, `session/resume`, orçamento de tokens com gate, fan-out e ledger — CI verde |
+| O2-A aprovação humana | selo + hash do payload + expiração + single-flight + `revoked`/`executed` + replay — PRs #10, #20, #21, #22, #24 |
+| O2-B limite financeiro | teto em dinheiro/dia, gate, uso por tipo de token — #11, #14; reserva atômica analisada em `o2b-reservation.md` |
+| O2-D host | `POST /hooks/bots/{secret}` (#18), HMAC de saída (#15), rate limit 30/min (#19), e2e 401/413/200 |
+| Identidade no host | `avatarId`/`roleTitle`/`team` opcionais (#16) |
+| Mascotes (pipeline) | `assets/mascots/` + `NOTICE` + `tools/mascot-assets.mjs` (#38) |
+| Distribuição não assinada | `release-desktop.yml` empacota macOS sem certificado, artefato `codync-macos-unsigned` (#41) — run 41254036197: check, macos, windows, linux x64/arm **success** |
+| CI e higiene | windows do host consertado (#39, run 41252692797), guards de triage e assinatura (#28, #31), phrase dump removido (#37), checkpoint corrigido (#40) |
+
+### O que NÃO foi validado
+
+- **Instalação limpa** em Windows/Linux/macOS: o artefato `-unsigned` foi construído e publicado pelo CI, mas não
+  instalado por mim nesta sessão.
+- **Primeiro uso, QR, reconexão, desinstalação, erros humanos, estados vazios**: são o P1 e exigem o app aberto.
+- **Inspeção visual de UI**: nenhuma nesta série desde o #33; toda alegação de tradução se limita ao que os contadores
+  provam.
+- **iOS/Android**: bloqueado (sem Xcode e sem Android SDK 37).
+
+### Bloqueios do dono (seção 4 do goal v3)
+
+Conectores (credenciais) · iOS/Android (ambiente) · elenco dos mascotes (decisão A/B, e o repositório é público) ·
+lançamento público (INPI + PI).
+
+### Próxima tarefa concreta
+
+**P1 — primeiro uso.** Começar pelos itens que se provam sem abrir a janela: mensagens de erro humanas (sem stack trace nem
+código interno) produzidas pelo host, e o aviso de banco corrompido que não apaga dados. Os itens que dependem de inspeção
+visual (onboarding, estados vazios, QR, reconexão) ficam registrados como pendentes até haver app aberto.
+
+
 
 ## Onda e fase atuais
 
