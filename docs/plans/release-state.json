@@ -64,8 +64,8 @@
     {
       "id": 11,
       "item": "cancel a stuck turn",
-      "state": "IN_PROGRESS",
-      "evidence": "stop exists in host, store and composer; watchdog and cancellation record with a reason missing"
+      "state": "TESTED",
+      "evidence": "PRs #86, #87, #88: watchdog of 180s, decision covered by 6 tests, and an end-to-end test where a silent agent is stopped with 'Stopped: the agent stopped answering.' and the bot leaves Working; UI stop not exercised in a running app; iOS/Android/TUI hint missing"
     }
   ]
 }
