@@ -1,5 +1,6 @@
 import { Observable } from '../lib/observable'
 import type { BotStore } from './bot-store'
+import { humanError } from '../lib/human-error'
 
 /** What an export file holds, as the host reads it (`previewImport`). */
 export interface ImportPlan {
@@ -88,7 +89,7 @@ export class BotImport extends Observable {
     try {
       await work()
     } catch (e) {
-      this.error = e instanceof Error ? e.message : String(e)
+      this.error = humanError(e, 'The file could not be imported. Try again.')
     } finally {
       this.busy = false
       this.changed()

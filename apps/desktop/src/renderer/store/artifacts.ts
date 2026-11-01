@@ -1,6 +1,7 @@
 import { readArtifactHTML, type Artifact, type LibraryItem } from '@shared/artifacts'
 import { FILE_CHUNK_SIZE } from '../../shared/files.ts'
 import type { HostClient } from '../client/host-client'
+import { humanError } from '../lib/human-error'
 
 /** An artifact's HTML as last read; `updatedAt` and `sha256` name the version it is. */
 export interface ArtifactHTML { updatedAt: number; sha256: string; bytes: Uint8Array }
@@ -37,7 +38,7 @@ export class Artifacts {
     if (this.current(id, updatedAt) || this.reading.has(id) || !client) return
     this.failed.delete(id)
     this.fetch(client, botId, id).catch((error: unknown) => {
-      this.failed.set(id, error instanceof Error ? error.message : String(error))
+      this.failed.set(id, humanError(error, 'Could not open this artifact. Try again.'))
       this.changed()
     })
   }
