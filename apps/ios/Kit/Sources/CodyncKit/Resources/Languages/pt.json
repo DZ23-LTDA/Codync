@@ -762,5 +762,10 @@
   "Members": "Membros",
   "View conversation details": "Ver detalhes da conversa",
   "This Mac": "Este Mac",
-  "Follow system": "Seguir o sistema"
+  "Follow system": "Seguir o sistema",
+  "Work in your apps with a bot, or access your screen from your phone. You choose which bots can use this computer.": "Trabalhe nos seus apps com um bot, ou acesse a tela deste computador pelo celular. Você escolhe quais bots podem usar este computador.",
+  "Let a bot work in your apps. You choose which bots can use this computer.": "Deixe um bot trabalhar nos seus apps. Você escolhe quais bots podem usar este computador.",
+  "Updates are available in release builds.": "As atualizações estão disponíveis nas versões de release.",
+  "Check for updates": "Verificar atualizações",
+  "Off: only Wi-Fi and Tailscale reach it, nothing goes through Cloudflare.": "Desligado: só Wi-Fi e Tailscale alcançam, nada passa pelo Cloudflare."
 }
