@@ -76,3 +76,29 @@ os endereços de IP que já tinha. O teste agora exige **< 500 ms por chamada**,
 
 O que se perde: por alguns instantes depois de subir, a URL do QR usa IP em vez do nome do Tailscale. Quem tem Tailscale
 costuma alcançar pelo IP da rede CGNAT do mesmo jeito, e um QR que aparece na hora vale mais que um nome bonito.
+
+
+## O outro lado: do código aceito ao aparelho dentro
+
+Medido no teste que já existia (`e2e.rs`, `phone_pairs_and_chats_over_the_direct_channel`), com o host real e o canal E2E de
+verdade:
+
+```
+pairing channel: connect 13 ms · redeem 1 ms
+```
+
+- **conectar** o canal de pareamento (handshake E2E, chaves, assinatura): **13 ms**;
+- **resgatar** o código (`pair` → dispositivo autorizado → resposta): **1 ms**.
+
+O teste agora falha se o resgate passar de 2 s, para que uma regressão aqui não passe despercebida.
+
+## O passo 7 do roteiro de primeiro uso, medido
+
+| Etapa | Número |
+|---|---|
+| mostrar o QR no computador | **3–75 ms** |
+| conectar o canal | **13 ms** |
+| resgatar o código | **1 ms** |
+
+Total do lado do host: **menos de 100 ms**. O que falta para o passo 7 inteiro é o que só o app instalado faz: escanear o QR
+e abrir a câmera.
