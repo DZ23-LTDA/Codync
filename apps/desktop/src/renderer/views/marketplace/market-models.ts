@@ -1,5 +1,5 @@
 import type { HostClient } from '../../client/host-client'
-import { humanError } from '../../lib/human-error'
+import { humanError } from '../../lib/human-error.ts'
 
 // Marketplace wire types (host/src/market/): connectors are MCP servers,
 // skills are instruction folders; agents come from `Hello.backends`. (kit Market.swift)

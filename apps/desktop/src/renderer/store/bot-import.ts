@@ -1,6 +1,6 @@
 import { Observable } from '../lib/observable'
 import type { BotStore } from './bot-store'
-import { humanError } from '../lib/human-error'
+import { humanError } from '../lib/human-error.ts'
 
 /** What an export file holds, as the host reads it (`previewImport`). */
 export interface ImportPlan {

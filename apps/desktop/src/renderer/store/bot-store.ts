@@ -19,7 +19,7 @@ import { readSharedFile } from '../../shared/files.ts'
 import { FileDownloads } from './file-downloads'
 import { BotSections } from './bot-sections'
 import { BotSync, sleep } from './bot-sync'
-import { humanError } from '../lib/human-error'
+import { humanError } from '../lib/human-error.ts'
 
 export { builtInBackendName, type Connection } from './bot-mirror'
 

@@ -2,7 +2,7 @@ import { computerAccessStep, computerPermissionSettings, type ComputerPermission
 import { normalizeScreen, type ScreenState } from '@shared/models'
 import { Observable } from '../lib/observable'
 import type { AppModel } from './app-model'
-import { humanError } from '../lib/human-error'
+import { humanError } from '../lib/human-error.ts'
 
 /** Read-only checks are safe on launch. Requests happen only after an explicit setup action. */
 export class ComputerAccess extends Observable {

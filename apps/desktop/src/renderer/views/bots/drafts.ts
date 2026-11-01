@@ -3,7 +3,7 @@ import { rebase } from '@shared/draft-rebase'
 import { draftOf, type Bot, type BotDraft } from '@shared/models'
 import { AVATAR_COLORS, AVATAR_SHAPES } from '../../lib/theme'
 import type { BotStore } from '../../store/bot-store'
-import { humanError } from '../../lib/human-error'
+import { humanError } from '../../lib/human-error.ts'
 
 /** An installed connector (host `connectors`). */
 export interface InstalledConnector {

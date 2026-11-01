@@ -1,4 +1,4 @@
-import { humanError } from '../../lib/human-error'
+import { humanError } from '../../lib/human-error.ts'
 // Routines (kit Routine.swift, RoutineScheduleDraft.swift). The host hydrates, compiles,
 // validates and describes schedules; the app only keeps form values.
 

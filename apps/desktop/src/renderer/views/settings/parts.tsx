@@ -4,7 +4,7 @@ import { Spacer } from '../../components/Stack'
 import { Text } from '../../components/Text'
 import type { BotStore } from '../../store/bot-store'
 import './settings.css'
-import { humanError } from '../../lib/human-error'
+import { humanError } from '../../lib/human-error.ts'
 
 export const isMac = window.codync.platform === 'darwin'
 /** "this Mac" on macOS; "this computer" elsewhere. */

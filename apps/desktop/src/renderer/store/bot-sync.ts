@@ -5,7 +5,7 @@ import { undoOnFailure } from '../lib/undo-on-failure'
 import { BotMirror, type Connection } from './bot-mirror'
 import { Artifacts } from './artifacts'
 import type { CallCue } from '@shared/calls'
-import { humanError } from '../lib/human-error'
+import { humanError } from '../lib/human-error.ts'
 
 const REFRESH_TIMEOUT = 20_000
 const DROP_GRACE = 5000

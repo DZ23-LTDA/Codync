@@ -2,7 +2,7 @@ import type { HostClient } from '../../client/host-client'
 import type { VoiceFailure } from '@shared/analytics'
 import type { CallCue } from '@shared/calls'
 import { Observable } from '../../lib/observable'
-import { humanError } from '../../lib/human-error'
+import { humanError } from '../../lib/human-error.ts'
 import {
   addVoiceUsage,
   chosenModel,

@@ -12,7 +12,7 @@ import { useStore } from '../../store/context'
 import { AttachmentImage, AttachmentViewer, attachmentSymbol, byteCount } from '../thread/Attachments'
 import { downloadAction, downloadDetail } from '../thread/FileDownloadCard'
 import { artifactShareItems, renameArtifact, TitleField } from './ArtifactParts'
-import { humanError } from '../../lib/human-error'
+import { humanError } from '../../lib/human-error.ts'
 
 /**
  * A chat's Library in its details panel (Grok Bot's): the artifacts its bot made and the files shared in it, newest

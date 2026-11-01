@@ -2,7 +2,7 @@ import type { CallLine } from '@shared/calls'
 import { sleep } from '../../store/bot-sync'
 import type { BotStore } from '../../store/bot-store'
 import { PROGRESS_TAG, spokenText, type VoiceProvider } from './voice'
-import { humanError } from '../../lib/human-error'
+import { humanError } from '../../lib/human-error.ts'
 
 /** How long a tool call waits for the user's words that are still being written down. */
 const HEARING_PATIENCE_MS = 2_000
