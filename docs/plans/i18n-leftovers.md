@@ -51,3 +51,18 @@ em inglês no menu da conta.
 Resultado: **84 strings de configuração sem entrada no `pt.json`**. Muitas são rótulos reais (`Black`, `Blue`, `Brown`,
 `Allow`, `Approximate location`); outras são valores de unidade (`1 s`, `2.5 s`). É o quarto ponto cego do mesmo tipo:
 o texto mora fora do JSX e fora de `tr()`.
+
+
+## Fechado em 01/11 — os 14 de módulo são anunciados, e um defecto real apareceu na verificação
+
+Verifiquei cada um dos **14** strings de escopo de módulo em vez de supor:
+
+| Arquivo | Como chega à tela | Estado |
+|---|---|---|
+| `AnalyticsSheet.tsx` (6) | `tr(d.title)` / `tr(d.detail)` no `.map` | traduzido |
+| `SettingsView.tsx` (3) | `tr(item.label ?? item.title)` | traduzido |
+| `MemoryInfoSheet.tsx` (4) | `fill()` → `tr(template)` | traduzido |
+| `IslandWindow.tsx` (1) | `title={t.label}` / `aria-label={t.label}` — **sem `tr`** | **defeito**, corrigido |
+
+O único que não era anunciado era a linha `TABS` do notch: os rótulos iam crus para `title` e `aria-label`. Agora passam
+por `tr`. Ou seja: "todo mundo é traduzido pelo consumidor" era **quase** verdade — a suposição valia 13 de 14.

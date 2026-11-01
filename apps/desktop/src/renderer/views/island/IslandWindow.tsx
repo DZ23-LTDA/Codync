@@ -113,7 +113,7 @@ function Header({ model, mode }: { model: IslandModel; mode: IslandMode }) {
     <div className="island-header">
       <div className="island-tabs">
         {TABS.map((t) => (
-          <button key={t.tab} className={`island-tab ${selected === t.tab ? 'selected' : ''}`} title={t.label} aria-label={t.label} onClick={() => model.setTab(t.tab)}>
+          <button key={t.tab} className={`island-tab ${selected === t.tab ? 'selected' : ''}`} title={tr(t.label)} aria-label={tr(t.label)} onClick={() => model.setTab(t.tab)}>
             <Icon name={t.icon} size={13} scaled={false} />
           </button>
         ))}
