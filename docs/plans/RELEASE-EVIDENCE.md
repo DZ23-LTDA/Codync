@@ -28,6 +28,7 @@ Canonical source per kind of fact:
 | Android | `cd apps/android && ./gradlew :core:test :app:testDebugUnitTest :app:assembleDebug :app:lintDebug` | BUILD SUCCESSFUL |
 | Android instrumented | `cd apps/android && ./gradlew :app:connectedDebugAndroidTest` | **127 tests, 0 real failures**, 24 *assumption* skips (need a live host, camera or speech). The XML says `failures="24"`: every one of those is `org.junit.AssumptionViolatedException`, an `assumeTrue` skip that AGP counts under failures. Re-run on `b3905bca` (02/11): BUILD SUCCESSFUL in 3m15s |
 | Cloud / relay / private relay | `cd cloud && npm ci && npm test && npm run typecheck` (and the same in `relay`, `private-relay`) | tests pass |
+| Website | `cd web && npm ci && npm run build`, then serve `out/` | build 200 in 6.5 s; `/`, `/download/mac.html`, `/download/windows.html`, `/docs.html`, `/compare/grok-bot.html`, `/privacy.html` all 200 (02/11, `9a48e7bb`, next 16.4.3) |
 | Scanners (i18n) | `node tools/l10n-missing.mjs && node tools/l10n-unwrapped.mjs && node tools/l10n-coverage.mjs` | 815 phrases / 0 missing; 0 unwrapped; pt 1673 keys, 100% |
 | Tools' own tests | `node --test tools/*.test.mjs && python tools/release-gate-test.py` | 41 passed; `ok` |
 
@@ -96,3 +97,29 @@ number is 0.
 
 The suite exists in CI as a nightly job (`.github/workflows/android-instrumented.yml`, #176) because the
 Android workflow only compiled the APK; this run is the local proof that it passes on the current tree.
+
+## Website build and smoke (02/11)
+
+`web/` had never been built in this session, and the dependency work in #159 (Next.js off 16.2.1) had never been
+proven to install and build. It now has:
+
+```
+cd web && npm ci            # next 16.4.3, from the lockfile
+npm run build               # ✓ Compiled successfully in 6.5 s · 43 static pages
+python -m http.server       # serving out/
+```
+
+| Path | Status |
+|---|---|
+| `/` | 200, 1 200 979 bytes |
+| `/download/mac.html` | 200 |
+| `/download/windows.html` | 200 |
+| `/docs.html` | 200 |
+| `/compare/grok-bot.html` | 200 |
+| `/privacy.html` | 200 |
+
+**A trap worth writing down:** before `npm ci`, this checkout's `web/node_modules` still held **next 16.2.1**
+while `package.json` and `package-lock.json` said 16.4.3 — the first build here ran the vulnerable version and
+reported "Compiled successfully". Nothing on screen says which version ran; the log's `▲ Next.js 16.4.3` line
+is the only tell. Anyone verifying a dependency fix locally must `npm ci` first, or they are verifying the
+previous tree.
