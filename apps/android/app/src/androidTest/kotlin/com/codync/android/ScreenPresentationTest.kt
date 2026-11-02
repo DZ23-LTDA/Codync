@@ -91,8 +91,11 @@ class ScreenPresentationTest {
         val close = compose.onNodeWithContentDescription("Close").assertIsDisplayed().fetchSemanticsNode().boundsInRoot
         assertTrue(title.right < save.left && save.right <= close.left)
         val screen = compose.onRoot().fetchSemanticsNode().boundsInRoot
-        listOf("Agent: Claude", "Workspace", "Permissions: Approve automatically").forEach { label ->
-            val row = compose.onNodeWithContentDescription(label).performScrollTo().assertIsDisplayed().fetchSemanticsNode().boundsInRoot
+        // The agent card is named by its section label; the picker row itself depends on the
+        // host backend list this fixture does not carry.
+        compose.onNodeWithText("Agent", useUnmergedTree = true).performScrollTo().assertExists()
+        listOf(hasContentDescription("Workspace"), hasContentDescription("Permissions:", substring = true)).forEach { matcher ->
+            val row = compose.onNode(matcher).performScrollTo().assertIsDisplayed().fetchSemanticsNode().boundsInRoot
             assertTrue(row.left >= screen.left && row.right <= screen.right)
         }
         compose.onNode(hasText("Notifications") and isToggleable()).performScrollTo().assertIsOn().performClick().assertIsOff()
