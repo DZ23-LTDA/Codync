@@ -15,7 +15,7 @@ instrumentada), #174 (reconciliação GitGuard), #175 (teclado ao tocar na conve
 | 4 | Instalação/update/rollback em 3 sistemas | `BLOCKED_BY_EXTERNAL_DEPENDENCY` | — | `codync-windows-x64.exe` publicado, instalar, abrir, atualizar, desinstalar — ação do dono |
 | 5 | Primeiro uso em 3 min, QR, reconexão | `IN_PROGRESS` | onboarding do Android percorrido no emulador (1/2 → 2/2 → permissão de câmera negada → campo para colar `codync-dev://pair`); desktop: 2 passos até a janela, com host real | cronometrar o fluxo inteiro com host pareado, nos dois clientes |
 | 6 | Erros humanos, vazios e offline | `IN_PROGRESS` | suíte de UI do desktop (127 testes) + passeio com app real (02/11, `tools/e2e-desktop/e2e-states.cjs`): vazio ("Seus agentes de código, como colegas de equipe." + "Novo bot"), falha ("O host não está rodando" / "O host não está respondendo. Veja o log para detalhes." + "Tentar de novo", depois de ~30 s em "Iniciando o host…"), offline ("Offline" na linha do bot ao usar a janela) e volta ao normal quando o host retorna. Nenhuma das telas mostra stack trace, caminho interno ou segredo | metade celular (precisa de pareamento — firewall) e TUI |
-| 7 | pt-BR no escopo liberado | `TESTED` | #166, #178, #179 (catálogo 1673 chaves, 0 faltando) + inspeção com app real (02/11): onboarding (2 passos, "Acesso ao computador", "Dar estrela no GitHub", "Começar"), janela vazia, erro de host, offline, Extensões ("Não instalado"), conversa e Stop — todas em português. Emulador Android: boas-vindas e passo de instalação em português | telas internas do celular (pareamento bloqueado pelo firewall) e iOS (só CI, sem Mac) |
+| 7 | pt-BR no escopo liberado | `TESTED` | #166, #178, #179 (catálogo 1673 chaves, 0 faltando) + inspeção com app real, duas rodadas: onboarding (2 passos), janela vazia, erro de host, offline, conversa, Stop, **Extensões nas três abas** ("Conectores vêm do MCP Registry oficial e são instalados em Dz23.", "Skills vêm da Anthropic e são instaladas em Dz23.", "Conector personalizado", "Adicionar", "Não instalado") e o **menu do bot** ("Fixar", "Mover para a seção", "Marcar como lida", "Editar perfil…", "Copiar o ID da conversa", "Apagar"). Emulador Android: boas-vindas e passo de instalação | telas internas do celular (pareamento bloqueado pelo firewall) e iOS (só CI, sem Mac) |
 | 8 | Performance medida | `VERIFIED` | API (p50 0,9 ms / p95 1,3 ms), memória (50 MB), Android a frio (2,3–2,6 s), **primeiro token** p95 **17 ms** num bot e **1212 ms** com 8 bots juntos, **CPU do host sob carga 28,6% de um núcleo** (0,89% da máquina, janela de 1,91 s, 8 turnos), **resposta longa** de 62 KB em 0,68 s e a janela abrindo a conversa em **39 ms** | 20 turnos numa mesma conversa não medidos (ver nota) |
 | 9 | Checkpoint, bump, WhatsNew, tag | `NOT_STARTED` | `B3PO-CHECKPOINT.md` atualizado nesta sessão | bump + WhatsNew + tag (é a publicação: exige autorização do dono) |
 | 10 | Ciclo de entrega | `BLOCKED_BY_EXTERNAL_DEPENDENCY` | — | depende do 4 e da autorização de publicação |
@@ -191,3 +191,23 @@ O que **não** foi medido: vinte turnos na mesma conversa (200 entradas). Minha 
 um erro meu — o laço esperava o número de mensagens do assistente crescer por um critério que nunca casava,
 e cada turno queimava o limite inteiro. O caminho para medir é o mesmo script com o critério certo (contar
 entradas, não o tipo), e fica registrado como o único buraco do item.
+
+## Telas internas do desktop (itens 6 e 7) — segunda passada
+
+`tools/e2e-desktop/e2e-inner.cjs`, capturas em `reports/desktop-e2e/inner/`, host real e identidade dev.
+
+| Tela | O que está em português |
+|---|---|
+| Extensões → **Agentes** | "Agentes vêm do registro ACP e são instalados em Dz23.", "Instalado" / "Não instalado" |
+| Extensões → **Conectores** | "Conectores vêm do MCP Registry oficial e são instalados em Dz23.", "Conector personalizado · Qualquer servidor MCP: um comando ou uma URL", "Adicionar", "Novo" |
+| Extensões → **Skills** | "Skills vêm da Anthropic e são instaladas em Dz23.", "Sua própria skill" |
+| Menu do bot | "Fixar", "Mover para a seção", "Marcar como lida", "Editar perfil…", "Copiar o ID da conversa", "Apagar" |
+| Diálogo de apagar | "Apagar Codync?" · "Os arquivos que ele alterou no seu computador ficam como estão." · "Cancelar" · "Excluir o bot e a conversa dele" |
+
+O que **continua em inglês é conteúdo de terceiro**, de propósito: as descrições dos conectores ("Connect AI
+agents to 1000+ apps with manage…") e os nomes dos produtos vêm do registry, não do nosso catálogo.
+
+Uma observação registrada, **não reproduzida**: numa das passadas a janela registrou 12 respostas 404 no
+console enquanto o diálogo de apagar estava aberto. Duas tentativas depois (perfil novo e o mesmo perfil, com
+Extensões aberta) deram **zero** respostas >= 400. Sem repro, não vira defeito — fica anotado para quem
+mexer nessa tela.
