@@ -40,8 +40,8 @@
     {
       "id": 7,
       "item": "pt-BR in the released scope, visually inspected",
-      "state": "IN_PROGRESS",
-      "evidence": "PRs #71, #72, #73, #95, #96, #99: 0 of 303 tr() phrases lack a pt.json entry (349 keys); 297 strings still never reach tr(); 3 screens inspected in the running app and 4 language defects fixed there"
+      "state": "TESTED",
+      "evidence": "PR #166 corrected the scanner and turned 27 phrases into tr() calls; #178 made Portuguese a language the apps offer and bundled the iOS catalog; #179 completed it — 1673 keys, every key the source has plus 205 the apps ask for that zh-Hans never had. Re-counted 02/11: 815 phrases reach tr() in the renderer and 0 lack a pt.json entry; 0 visible strings inside a component bypass the translation. Screens inspected in the running app: onboarding (both steps), empty roster, host error, offline, Extensions (agents, connectors, skills), a bot menu, the delete dialog, the conversation and Stop — all Portuguese; third-party registry descriptions stay English on purpose. Not inspected: the phone app inner screens, which need pairing, and iOS, which only runs in CI here",
     },
     {
       "id": 8,
@@ -52,8 +52,8 @@
     {
       "id": 9,
       "item": "checkpoint, version bump, WhatsNew, tag",
-      "state": "NOT_STARTED",
-      "evidence": ""
+      "state": "IN_PROGRESS",
+      "evidence": "PR #190 bumped dev to 2.34.1 (host + desktop + apps/project.yml), wrote the 2.34.1 notes for both phone apps (zh-Hant + en-US) and brought B3PO-CHECKPOINT.md up to date; docs/plans/RELEASE-EVIDENCE.md now indexes how to re-run every gate item. Not done: the tag, which is the release trigger and needs the owner authorisation, and the committed project.pbxproj, which needs xcodegen on a Mac to carry 2.34.1",
     },
     {
       "id": 10,
