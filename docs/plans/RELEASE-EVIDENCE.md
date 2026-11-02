@@ -80,11 +80,10 @@ duplicate one of these.
 | Account devices need a synced live lease | `account_devices_need_a_synced_live_lease` | `channel.rs:849` |
 | An unknown protocol version is refused over a real socket (426) | `phone_pairs_and_chats_over_the_direct_channel` | `host/tests/e2e.rs:346` |
 | A real phone pairs over the socket, then chats and subscribes | same test — `Phone::connect` drives the real X25519/signature handshake | `host/tests/e2e.rs:340` |
-| A plain HTTP request never gets a socket; 25 refusals leave the host healthy | `channel_surface_e2e` (2 tests) | `host/tests/channel_surface_e2e.rs` |
+| A plain HTTP request never gets a socket; 25 refusals leave the host healthy; a 2 MiB frame costs only the sender his channel | `channel_surface_e2e` (3 tests) | `host/tests/channel_surface_e2e.rs` |
 
-Still **not covered at the socket level**: oversized frames (`MAX_WS_MESSAGE` is 1 MiB, set on the upgrade but not
-exercised from outside) and rate limiting against a caller opening many channels in a row. Both are worth a test;
-neither is a known hole.
+Still **not covered at the socket level**: rate limiting against a caller opening many channels in a row. It is
+worth a test; it is not a known hole.
 
 ## Known gaps, stated rather than hidden
 
