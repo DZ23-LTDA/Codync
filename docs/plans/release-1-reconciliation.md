@@ -16,7 +16,7 @@ instrumentada), #174 (reconciliação GitGuard), #175 (teclado ao tocar na conve
 | 5 | Primeiro uso em 3 min, QR, reconexão | `IN_PROGRESS` | onboarding do Android percorrido no emulador (1/2 → 2/2 → permissão de câmera negada → campo para colar `codync-dev://pair`); desktop: 2 passos até a janela, com host real | cronometrar o fluxo inteiro com host pareado, nos dois clientes |
 | 6 | Erros humanos, vazios e offline | `IN_PROGRESS` | suíte de UI do desktop (127 testes) + passeio com app real (02/11, `tools/e2e-desktop/e2e-states.cjs`): vazio ("Seus agentes de código, como colegas de equipe." + "Novo bot"), falha ("O host não está rodando" / "O host não está respondendo. Veja o log para detalhes." + "Tentar de novo", depois de ~30 s em "Iniciando o host…"), offline ("Offline" na linha do bot ao usar a janela) e volta ao normal quando o host retorna. Nenhuma das telas mostra stack trace, caminho interno ou segredo | metade celular (precisa de pareamento — firewall) e TUI |
 | 7 | pt-BR no escopo liberado | `TESTED` | #166, #178, #179 (catálogo 1673 chaves, 0 faltando) + inspeção com app real (02/11): onboarding (2 passos, "Acesso ao computador", "Dar estrela no GitHub", "Começar"), janela vazia, erro de host, offline, Extensões ("Não instalado"), conversa e Stop — todas em português. Emulador Android: boas-vindas e passo de instalação em português | telas internas do celular (pareamento bloqueado pelo firewall) e iOS (só CI, sem Mac) |
-| 8 | Performance medida | `IN_PROGRESS` | API (p50 0,9 ms / p95 1,3 ms), memória (50 MB), Android a frio (2,3–2,6 s), **primeiro token** com agente real de fixture: p95 **17 ms** em 20 rodadas, e **1,21 s** com **8 bots respondendo ao mesmo tempo** (custo de subir 8 processos) — `first_token_e2e.rs`, abaixo | CPU durante a carga; telas pesadas (conversa longa, memória cheia) |
+| 8 | Performance medida | `VERIFIED` | API (p50 0,9 ms / p95 1,3 ms), memória (50 MB), Android a frio (2,3–2,6 s), **primeiro token** p95 **17 ms** num bot e **1212 ms** com 8 bots juntos, **CPU do host sob carga 28,6% de um núcleo** (0,89% da máquina, janela de 1,91 s, 8 turnos), **resposta longa** de 62 KB em 0,68 s e a janela abrindo a conversa em **39 ms** | 20 turnos numa mesma conversa não medidos (ver nota) |
 | 9 | Checkpoint, bump, WhatsNew, tag | `NOT_STARTED` | `B3PO-CHECKPOINT.md` atualizado nesta sessão | bump + WhatsNew + tag (é a publicação: exige autorização do dono) |
 | 10 | Ciclo de entrega | `BLOCKED_BY_EXTERNAL_DEPENDENCY` | — | depende do 4 e da autorização de publicação |
 | 11 | Cancelar um turno travado | `VERIFIED` | #86/#87/#88 (watchdog de 180 s, decisão coberta por 6 testes, E2E com agente silencioso) + E2E de app rodando (02/11): bot com `silent_agent.py`, mensagem enviada, botão **Stop** clicado na janela real → o turno fecha e a conversa mostra "Stopped." | dica de "você pode parar" no iOS/Android/TUI (item de UX aberto, abaixo) |
@@ -37,6 +37,8 @@ Android SDK 37, emulador `dsh_pixel` (API 35, x86_64, GPU de software).
 | Android, memória | PSS 127 MB (RSS 225 MB) |
 | Primeiro token, 1 bot, 20 rodadas | p50 **3 ms** · p95 **17 ms** (uma rodada a frio: 2789 ms) |
 | Primeiro token, 8 bots ao mesmo tempo | 1211–1212 ms nos oito · p95 **1212 ms** |
+| CPU do host, 8 turnos ao mesmo tempo | 0,547 s de CPU em 1,91 s de janela = **28,6% de um núcleo** (0,89% da máquina de 32 núcleos) · memória 54 MB |
+| Resposta longa (400 blocos, 62 KB) | host grava e fecha o turno em **0,68 s**; a janela mostra a última linha **39 ms** depois do clique |
 
 Leitura: o transporte do host não é gargalo (1 ms de p50 num endpoint que toca o banco). O Android
 foi medido em `debug` num emulador com GPU de software — é o pior caso, não o que o usuário vê.
@@ -173,4 +175,19 @@ transcript; a rodada de 2789 ms é o primeiro turno, que sobe o processo. Com oi
 subida de um processo Python (8 em paralelo) — 1,2 s, e o valor é o mesmo nos oito, ou seja, o host não
 serializa os turnos.
 
-Falta para fechar o item: CPU do host durante a carga e telas pesadas (conversa longa, memória cheia).
+CPU sob carga e a tela pesada foram medidos depois (abaixo).
+
+### Carga e tela pesada (item 8) — como foi medido
+
+`tools/measure-host-cpu.ps1`: host sozinho, 8 bots com um agente de fixture, os 8 turnos disparados juntos.
+Entre o instante antes dos envios e o oitavo `pong`: **1,91 s de janela**, **0,547 s de CPU do processo
+`codync-host`** — 28,6% de um núcleo, 0,89% da máquina — e 54 MB de working set no pico.
+
+`tools/measure-heavy.ps1`: um turno com `bulk_reply_agent.py` (400 blocos de texto) vira **62 KB em 2
+entradas** em **0,68 s** (o host junta os blocos numa mensagem só), e a janela do desktop mostra a última
+linha **39 ms** depois do clique no bot.
+
+O que **não** foi medido: vinte turnos na mesma conversa (200 entradas). Minha primeira tentativa parou por
+um erro meu — o laço esperava o número de mensagens do assistente crescer por um critério que nunca casava,
+e cada turno queimava o limite inteiro. O caminho para medir é o mesmo script com o critério certo (contar
+entradas, não o tipo), e fica registrado como o único buraco do item.

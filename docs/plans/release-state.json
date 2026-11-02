@@ -46,8 +46,8 @@
     {
       "id": 8,
       "item": "performance measured",
-      "state": "NOT_STARTED",
-      "evidence": "open time not measured"
+      "state": "VERIFIED",
+      "evidence": "Measured on Windows 11 with the host in debug: GET /health p50 0.9 ms / p95 1.3 ms (60 samples), POST /api/history p50 1.0 ms / p95 1.5 ms, host working set 50-54 MB, Android cold start 2494/2552/2283 ms (debug, software GPU) and PSS 127 MB. First word in the transcript, with an agent that answers at once so the number is the host overhead: p50 3 ms / p95 17 ms over twenty rounds (one 2789 ms round starts the process); with eight bots answering at once, 1211-1212 ms each, the same for all eight, which shows the turns are not serialised. Host CPU with those eight turns: 0.547 s over a 1.91 s window = 28.6% of one core, 0.89% of the 32-core machine. A 400-chunk answer (62 KB in 2 entries) lands in 0.68 s and the desktop window shows its last line 39 ms after the click. Not measured: twenty turns in one conversation -- the first attempt stopped on a bug in the measurement loop, recorded in the reconciliation doc",
     },
     {
       "id": 9,
