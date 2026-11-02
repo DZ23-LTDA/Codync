@@ -127,10 +127,9 @@ Detalhes e limites em `release-1-reconciliation.md`.
 ### Gate
 
 A tabela item por item, com evidência e o que falta, está em
-[`release-1-reconciliation.md`](release-1-reconciliation.md) é a fonte canônica. Em **02/11**, cinco
+[`release-1-reconciliation.md`](release-1-reconciliation.md), que é a fonte canônica. Em **02/11**, cinco
 itens estão `VERIFIED` (1, 2, 3, 8, 11); 6 e 7 têm a metade desktop provada; 4, 5, 9 e 10 dependem do
 dono liberar o firewall, o tap ou a publicação.
-10 dependem do dono publicar/instalar; o 2 depende do tap e do secret do gate.
 
 ## Sessão de 02/11/2026 — o que mudou
 
@@ -169,3 +168,85 @@ vazio/erro/offline do desktop.
    WAL intacto ainda abre com os dados. Para testar corrupção de verdade, dobre o WAL primeiro.
 2. O app fica ~30 s tentando subir o host antes de mostrar "O host não está rodando" com "Tentar de novo" —
    não é travamento, é a espera dele.
+
+## Sessão de 03/11/2026 (rodadas 7–43 do goal) — o app no Windows, o primeiro uso e os stores testáveis
+
+`dev` = `cb5fa01b`. PRs abertos: **0**. Nada publicado. 37 PRs entraram nesta sessão (#183–#219).
+
+### Windows: instalado, aberto, desinstalado
+
+O maior achado da sessão foi **um erro meu**, e vale como aviso. A rodada 36 registrou "o app empacotado instala e
+sai na hora"; não sai. `ELECTRON_RUN_AS_NODE=1` está no ambiente que as shells deste agente herdam, e com ela **todo**
+binário Electron roda como Node puro e morre na primeira linha de API (`Cannot read properties of undefined (reading
+'isPackaged')`) — sem janela, sem `userData`, sem log, indistinguível de um pacote quebrado. Limpando a variável, o
+mesmo build abre.
+
+Com isso, a cadeia inteira ficou medida em `39def8c5` (#212):
+
+| Passo | Resultado |
+|---|---|
+| constrói | `codync-dev-windows-x64.exe` 140,5 MB, nsis, sem assinatura, **sem `latest.yml`** |
+| instala | `/S` → `%LOCALAPPDATA%\Programs\codync-desktop-dev`, **Codync Dev 2.34.1** |
+| abre | 4 processos, janela **"Codync Dev"**, e o host embutido `codync-host`/`codync-dev-hostw` junto |
+| desinstala | `/S` → pasta, entrada e processos fora; sobram `%APPDATA%\Codync Dev` e o cache do updater |
+
+A falha intermitente de build tinha causa simples: um **override de diretório do rustup** prendia `host/` no
+toolchain gnu, e `native-host.mjs` compila para msvc. `rustup override unset` resolve; o erro `can't find crate for
+core` parece host quebrado.
+
+### Primeiro uso, cronometrado (#213)
+
+Instalador `/S` **14,4 s**; janela **3,4 s** depois; **22,8 s** do instalador à janela usável. O host embutido sobe
+como `codync-host install --port 19223` e `/health` responde `ok: true`, `2.34.1`, `environment dev`. O QR é
+**emitido** (`codync-dev://pair?v=3&…`). Desinstalar leva **6,3 s**.
+
+Não medido, e nomeado como tal: **ler o QR** (precisa de celular *e* do firewall liberando `codync-host`) e **a
+primeira resposta** (precisa de um agente CLI — nenhum está instalado nesta máquina).
+
+### O desktop ganhou a camada de stores (#214–#219)
+
+Nenhum store do renderer podia ser carregado pelo `node --test`: todos usavam **parameter property** do TypeScript
+(sintaxe que o strip-only recusa) ou **import sem extensão**. Quatro ficaram testáveis, cada um fixando uma
+comportamento, não uma tela:
+
+| Store | O que ficou provado |
+|---|---|
+| conexão | queda de `online` segura 5 s, primeira falha 1 s, **nada** para reconexão ou recusa |
+| memória | loading, falha que mantém a tela, retry, **resposta velha descartada**, host antigo |
+| downloads | progresso → salvo, falha cancela o arquivo pela metade, nome hostil recusado **antes** do disco |
+| importação | seletor cancelado sem chamada, grupo só com seu bot, uma importação por clique |
+
+E um defeito apareceu enquanto o teste da memória era escrito: `humanError` mostrava **`connect ECONNREFUSED
+127.0.0.1:19222`** numa tela. Agora os formatos de conexão recusada viram a frase do chamador (#215).
+
+`npm test` no desktop: **373 testes, 354 passando, 0 falhando**; `npm run typecheck` limpo.
+
+### Gate (11 itens), em `cb5fa01b`
+
+A fonte canônica continua sendo [`release-1-reconciliation.md`](release-1-reconciliation.md).
+
+| # | Estado | O que falta |
+|---|---|---|
+| 1, 2, 3, 8, 11 | **VERIFIED** | — |
+| 4 | **TESTED** | Windows provado ponta a ponta; **update e rollback não** (não há feed: sem `latest.yml`); macOS/Linux não mensuráveis aqui |
+| 7 | TESTED | metade celular |
+| 5 | IN_PROGRESS | 22,8 s medidos; QR não lido (firewall) e primeira resposta não produzida (sem agente CLI) |
+| 6 | IN_PROGRESS | telas do desktop e TUI cobertas por teste; telas dos apps de celular só por captura |
+| 9 | IN_PROGRESS | tag `v2.34.1` e `project.pbxproj` em 2.34.0 — precisa de `xcodegen` num Mac e de autorização |
+| 10 | BLOCKED_BY_EXTERNAL_DEPENDENCY | publicação; a `v2.34.0` está com upload incompleto |
+
+### Bloqueios com ação do dono
+
+| Bloqueio | Ação que libera |
+|---|---|
+| Firewall bloqueando `codync-host` (itens 5 e 7) | liberar as duas regras de entrada para o `codync-host.exe` |
+| Nenhum agente CLI instalado (item 5) | instalar um (Claude Code, Codex, Gemini, Qwen…) para haver primeira resposta |
+| Tag `v2.34.1`, publicação e upload completo da `v2.34.0` (itens 9 e 10) | autorização explícita de publicação |
+| 31 moderates dev-only no `npm audit` | aceitação formal do dono |
+| iOS (build, testes, telas) | macOS + Xcode |
+
+### Próxima tarefa concreta
+
+Os stores que faltam — `bot-store.ts`, `bot-sync.ts`, `bot-mirror.ts`, `cloud.ts` — carregam o mesmo par de hábitos e
+a lógica de sincronização e reconexão. Torná-los carregáveis é mecânico, mas amplo: vale um PR próprio, com o
+`bot-sync.ts` (`ready()`/`withLink()`) como primeiro alvo, porque é onde o desktop decide reconectar e desistir.
