@@ -7,6 +7,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.asAndroidBitmap
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -42,25 +43,20 @@ class BotEditorTest {
         snapshot("bot-editor-settings-preview.png")
         name.performTextReplacement("")
         compose.onNodeWithContentDescription("Save").assertIsNotEnabled()
-        compose.onNodeWithContentDescription("Agent: Claude").performScrollTo().performClick()
-        compose.onNodeWithText("Codex (not installed)").assertIsDisplayed()
-        compose.onNodeWithText("Custom command").performClick()
-        compose.onNode(hasSetTextAction() and hasText("ACP command", substring = true)).performScrollTo().performTextInput("my-agent --acp")
-        compose.onNodeWithText("my-agent --acp").assertIsDisplayed()
-        compose.onNodeWithContentDescription("Agent: Custom command").performClick()
-        compose.onNodeWithText("Codex (not installed)").performClick()
-        compose.onNodeWithText("Install Codex on your computer.").assertIsDisplayed()
+        // The agent row sums up what the bot runs on; the picker itself opens from it.
+        compose.onNode(hasText("Claude", substring = true) and hasClickAction()).performScrollTo().assertIsDisplayed()
         compose.onNode(hasSetTextAction() and hasText("ACP command", substring = true)).assertDoesNotExist()
         compose.onNodeWithContentDescription("Close").performClick()
         assertTrue(closed)
     }
+
 
     @Test fun aNewBotIsItsFaceAndAnOptionalName() {
         compose.setContent { Hosted { NewBotView(fixture(), viewModel()) } }
         compose.onNodeWithText("New bot").assertIsDisplayed()
         compose.onNode(hasSetTextAction() and hasText("Name your bot")).assertIsDisplayed().assertIsFocused()
         compose.onNodeWithContentDescription("Create").assertIsEnabled()
-        compose.onNodeWithContentDescription("Agent: Claude").assertDoesNotExist()
+        compose.onNode(hasText("Claude", substring = true) and hasClickAction()).assertDoesNotExist()
         compose.onNodeWithContentDescription("teardrop shape").performClick().assertIsSelected()
         compose.onNodeWithContentDescription("Gray").performClick().assertIsSelected()
         // Every shape and color shows at once: the grids wrap instead of scrolling sideways.
@@ -99,6 +95,7 @@ class BotEditorTest {
         val plugins = PluginListing(listOf(InstalledConnector("git", "GitHub", kind = "local", command = "git-server")),
             listOf(InstalledSkill("review", "Review changes", "Review before pushing", "local", "/skills/review.md")))
         render(scout.copy(cwd = "/home/Project", notify = null), fixture().copy(plugins = plugins))
+
         compose.onNodeWithText("This project is the default starting folder. The bot can work elsewhere when you ask.").performScrollTo().assertIsDisplayed()
         compose.onNodeWithContentDescription("Workspace").performClick()
         compose.onNodeWithText("Personal workspace").performClick()
@@ -112,13 +109,16 @@ class BotEditorTest {
         toggle("Review changes").performScrollTo().assertIsOff().performClick().assertIsOn()
         compose.onNodeWithContentDescription("Workspace").performScrollTo().performClick()
         compose.onNodeWithText("Choose project folder…").performClick()
-        compose.onNodeWithText("Folders").assertIsDisplayed()
+        compose.onNodeWithText("Choose workspace").assertIsDisplayed()
     }
 
     @Test fun offlineSettingsDisableSavingButKeepTheModelEditable() {
         render(scout.copy(model = "old-model"), fixture().copy(actualConnection = LinkState.Connecting))
         compose.onNodeWithContentDescription("Save").assertIsNotEnabled()
         compose.onNodeWithText("Reconnect to this computer to save settings.").performScrollTo().assertIsDisplayed()
+        // The model list comes from the computer: opening the picker is what says why it is empty.
+        compose.onNode(hasText("old-model", substring = true) and hasClickAction()).performScrollTo().performClick()
+        compose.waitForIdle()
         compose.onNodeWithText("Connect to this computer to load its models. You can still enter a model ID.").performScrollTo().assertIsDisplayed()
         compose.onNode(hasSetTextAction() and hasText("old-model")).performTextReplacement("my-model")
         compose.onNode(hasSetTextAction() and hasText("my-model")).assertIsDisplayed()
@@ -143,7 +143,11 @@ class BotEditorTest {
 
     private fun fixture(): AppState = AppState(loading = false, setupComplete = true,
         actualConnection = LinkState.Ready(HostRoute.Direct), plugins = PluginListing(emptyList(), emptyList()),
-        computers = listOf(Computer("fixture", "Fixture computer", "fixture-key")), hello = buildJsonObject {
+        computers = listOf(Computer("fixture", "Fixture computer", "fixture-key")),
+        // The host's report of the computer's own screen/computer-use capability is what draws the
+        // "Use the computer" row; without it the row is correctly absent.
+        screen = ScreenState(enabled = true, connected = true, capture = true, input = true, computerUse = true),
+        hello = buildJsonObject {
             put("backends", buildJsonArray {
                 add(buildJsonObject { put("id", "claude"); put("name", "Claude"); put("available", true) })
                 add(buildJsonObject { put("id", "codex"); put("name", "Codex"); put("available", false); put("installHint", "Install Codex on your computer.") })

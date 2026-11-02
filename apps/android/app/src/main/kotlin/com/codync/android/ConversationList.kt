@@ -9,6 +9,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.DragInteraction
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
@@ -31,6 +32,8 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.input.pointer.PointerEventType
+import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.codync.android.design.*
@@ -53,9 +56,9 @@ import kotlinx.coroutines.launch
     Box(Modifier.fillMaxSize().pointerInput(focus) {
         detectTapGestures { focus.clearFocus() }
     }) {
-        if (refresh == null) LazyColumn(Modifier.fillMaxSize(), state = list, contentPadding = padding, content = content)
+        if (refresh == null) LazyColumn(Modifier.fillMaxSize(), state = list, contentPadding = padding, verticalArrangement = Arrangement.Bottom, content = content)
         else PullToRefresh(refresh, Modifier.fillMaxSize(), indicatorTop) {
-            LazyColumn(Modifier.fillMaxSize(), state = list, contentPadding = padding, content = content)
+            LazyColumn(Modifier.fillMaxSize(), state = list, contentPadding = padding, verticalArrangement = Arrangement.Bottom, content = content)
         }
         // 10 above the composer, as on iOS: the list already keeps 8 under its last row.
         JumpToLatest(!following.value && last != null, Modifier.align(Alignment.BottomCenter).padding(bottom = bottom + 2.dp)) {

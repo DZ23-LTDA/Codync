@@ -2,10 +2,11 @@ package com.codync.android
 
 import android.graphics.Bitmap
 import android.os.Build
-import androidx.activity.compose.setContent
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.asAndroidBitmap
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.test.*
+import androidx.activity.ComponentActivity
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.lifecycle.ViewModelProvider
 import androidx.test.platform.app.InstrumentationRegistry
@@ -18,7 +19,7 @@ import org.junit.Test
 import java.io.File
 
 class ChatLayoutTest {
-    @get:Rule val compose = createAndroidComposeRule<MainActivity>()
+    @get:Rule val compose = createAndroidComposeRule<ComponentActivity>()
 
     @Test fun oneWayBotMessagesShowAttributionWithoutAStatusLine() {
         assumeTrue(Build.PRODUCT.startsWith("sdk"))
@@ -33,12 +34,16 @@ class ChatLayoutTest {
         val state = AppState(loading = false, selectedBot = bot.id, bots = listOf(bot),
             connection = LinkState.Ready(HostRoute.Direct), actualConnection = LinkState.Ready(HostRoute.Direct),
             historyComplete = setOf(bot.id), entries = listOf(entry))
-        compose.runOnUiThread { compose.activity.setContent { Hosted { ChatScreen(state, store, {}) } } }
-        val label = compose.onNodeWithText("Message from Miles").assertIsDisplayed().fetchSemanticsNode().boundsInRoot
-        val message = compose.onNodeWithText(body).assertIsDisplayed().fetchSemanticsNode().boundsInRoot
-        assertTrue(label.bottom <= message.top)
+        compose.setContent { Hosted { ChatScreen(state, store, {}) } }
+        // One line from the computer, as on iOS: the attribution, the body and the reason travel in
+        // the same block, and no delivery status line follows it.
+        val notice = compose.onNodeWithText(body, substring = true).assertIsDisplayed().fetchSemanticsNode()
+        val text = notice.config.toString()
+        assertTrue("attribution missing from the notice", text.contains("Message from Miles"))
+        assertTrue("detail missing from the notice", text.contains(detail))
         compose.onNodeWithText(detail).assertDoesNotExist()
-        compose.onNodeWithText(heading).assertDoesNotExist()
+        compose.onNodeWithText("Sending").assertDoesNotExist()
+        compose.onNodeWithText("Delivered").assertDoesNotExist()
         if (InstrumentationRegistry.getArguments().getString("layoutSnapshots") == "true") {
             val bitmap = compose.onRoot().captureToImage().asAndroidBitmap()
             File(compose.activity.cacheDir, "bot-message-preview.png").outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
@@ -59,22 +64,27 @@ class ChatLayoutTest {
         val state = AppState(loading = false, selectedBot = bot.id, bots = listOf(bot),
             connection = LinkState.Ready(HostRoute.Direct), actualConnection = LinkState.Ready(HostRoute.Direct),
             historyComplete = setOf(bot.id), entries = listOf(entry))
-        compose.runOnUiThread { compose.activity.setContent { Hosted { ChatScreen(state, store, {}) } } }
-        val request = compose.onNodeWithText(body).assertIsDisplayed().fetchSemanticsNode().boundsInRoot
-        val attribution = compose.onNodeWithText("Reply from Dex").assertIsDisplayed().fetchSemanticsNode().boundsInRoot
-        val reply = compose.onNodeWithText(answer).assertIsDisplayed().fetchSemanticsNode().boundsInRoot
-        assertTrue(request.bottom <= attribution.top)
-        assertTrue(attribution.bottom <= reply.top)
+        val shown = mutableStateOf(state)
+        compose.setContent { Hosted { ChatScreen(shown.value, store, {}) } }
+        // The request and the reply are one line from the computer (iOS `ChatRows`), above the
+        // composer, with the reply named inside it.
+        val notice = compose.onNodeWithText(body, substring = true).assertIsDisplayed().fetchSemanticsNode()
+        val noticeBounds = notice.boundsInRoot
+        assertTrue("the attribution is inside the notice", notice.config.toString().contains("Reply from Dex"))
+        assertTrue("the answer is inside the notice", notice.config.toString().contains(answer))
+        val composer = compose.onNodeWithContentDescription("Add files").fetchSemanticsNode().boundsInRoot
+        assertTrue("the notice sits above the composer", noticeBounds.bottom <= composer.top)
         val fullReply = Entry("full-reply", 2, bot.id, rev = 2, kind = "agent", data = buildJsonObject {
             put("text", answer); put("final", true)
         })
-        compose.runOnUiThread { compose.activity.setContent {
-            Hosted { ChatScreen(state.copy(entries = listOf(entry, fullReply)), store, {}) }
-        } }
-        compose.onAllNodesWithText("Reply from Dex").assertCountEquals(1)
-        compose.onAllNodesWithText(answer).assertCountEquals(1)
-        compose.onNode(hasText(answer) and hasClickAction()).performTouchInput { longClick(Offset(4f, 4f)) }
-        compose.onNodeWithText("Reply").assertIsDisplayed()
+        // The rule owns the content: a state flip re-renders instead of a second setContent.
+        shown.value = state.copy(entries = listOf(entry, fullReply))
+        compose.waitForIdle()
+        // The finished reply arrives as its own bubble; the line's attribution is not repeated.
+        compose.onAllNodesWithText("Reply from Dex", substring = true).assertCountEquals(1)
+        compose.onAllNodesWithText(answer, substring = true).assertCountEquals(2)
+        compose.onNode(hasText(answer) and hasClickAction()).performTouchInput { longClick(center) }
+        compose.onNode(hasText("Reply") and hasClickAction()).assertIsDisplayed()
         compose.onNodeWithText("Show what it did").assertIsDisplayed()
         InstrumentationRegistry.getInstrumentation().sendKeyDownUpSync(android.view.KeyEvent.KEYCODE_BACK)
         if (InstrumentationRegistry.getArguments().getString("layoutSnapshots") == "true") {
@@ -95,7 +105,7 @@ class ChatLayoutTest {
             historyComplete = setOf(bot.id), entries = listOf(
                 Entry("user-layout", 1, bot.id, rev = 1, kind = "user", data = buildJsonObject { put("text", sent) }, createdAt = now),
                 Entry("agent-layout", 2, bot.id, rev = 1, kind = "agent", data = buildJsonObject { put("text", reply); put("author", bot.id); put("final", true) }, createdAt = now)))
-        compose.runOnUiThread { compose.activity.setContent { Hosted { ChatScreen(state, store, {}) } } }
+        compose.setContent { Hosted { ChatScreen(state, store, {}) } }
         compose.onNodeWithText("You").assertDoesNotExist()
         compose.onNodeWithText("Message actions").assertDoesNotExist()
         compose.onNodeWithText("Reply").assertDoesNotExist()
@@ -114,8 +124,8 @@ class ChatLayoutTest {
             val bitmap = compose.onRoot().captureToImage().asAndroidBitmap()
             File(compose.activity.cacheDir, "layout-chat-preview.png").outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
         }
-        user.performTouchInput { longClick(Offset(4f, 4f)) }
-        compose.onNodeWithText("Reply").assertIsDisplayed()
+        user.performTouchInput { longClick(center) }
+        compose.onNode(hasText("Reply") and hasClickAction()).assertIsDisplayed()
         compose.onNodeWithContentDescription("👍").assertIsDisplayed()
         compose.onNodeWithText("Copy").assertIsDisplayed()
         compose.onNodeWithText("Show what it did").assertDoesNotExist()
@@ -129,7 +139,7 @@ class ChatLayoutTest {
         val bot = Bot("details-preview", "Scout")
         val state = AppState(loading = false, selectedBot = bot.id, bots = listOf(bot), historyComplete = setOf(bot.id),
             hello = buildJsonObject { put("version", ARTIFACTS_HOST) })
-        compose.runOnUiThread { compose.activity.setContent { Hosted { ChatScreen(state, store, {}) } } }
+        compose.setContent { Hosted { ChatScreen(state, store, {}) } }
         compose.onNode(chatTitle).performClick()
         // Details first, with the routines; no Memory on Android until the read-only memory screen is ported.
         compose.onNode(hasText("Details") and isSelected()).assertIsDisplayed()

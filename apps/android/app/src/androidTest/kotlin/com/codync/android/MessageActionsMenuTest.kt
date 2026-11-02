@@ -69,7 +69,8 @@ class MessageActionsMenuTest {
         })
         val state = AppState(loading = false, selectedBot = bot.id, bots = listOf(bot), connection = LinkState.Ready(HostRoute.Direct),
             historyComplete = setOf(bot.id), entries = listOf(reply, quoted))
-        compose.setContent { Hosted { ChatScreen(state, viewModel(), {}) } }
+        val shown = mutableStateOf(state)
+        compose.setContent { Hosted { ChatScreen(shown.value, viewModel(), {}) } }
         // The sent reply shows what it quotes.
         compose.onNodeWithText("“$text”").assertIsDisplayed()
         compose.onNode(hasText(text) and hasClickAction()).performTouchInput { longClick() }
@@ -80,7 +81,8 @@ class MessageActionsMenuTest {
         compose.onAllNodesWithText("“$text”").assertCountEquals(1)
         compose.onNodeWithContentDescription("Cancel reply").assertDoesNotExist()
         // An older host can't quote: no Reply.
-        compose.setContent { Hosted { ChatScreen(state.copy(hello = buildJsonObject { put("version", "2.20.0") }), viewModel(), {}) } }
+        shown.value = state.copy(hello = buildJsonObject { put("version", "2.20.0") })
+        compose.waitForIdle()
         compose.onNode(hasText(text) and hasClickAction()).performTouchInput { longClick() }
         compose.onNodeWithText("Copy").assertIsDisplayed()
         compose.onNodeWithText("Reply").assertDoesNotExist()
@@ -122,7 +124,8 @@ class MessageActionsMenuTest {
             CompositionLocalProvider(LocalUriHandler provides object : UriHandler {
                 override fun openUri(uri: String) { urls.add(uri) }
             }) {
-                Box(Modifier.safeDrawingPadding().contextActions { listOf(MenuItem("Copy")) }) {
+                // A full-size box, so the menu opens inside the window instead of off its edge.
+                Box(Modifier.fillMaxSize().safeDrawingPadding().padding(120.dp).contextActions { listOf(MenuItem("Copy")) }) {
                     MarkdownText("[Visit Codync](https://codync.dev)", selectable = false)
                 }
             }
@@ -131,8 +134,13 @@ class MessageActionsMenuTest {
         link.performTouchInput { click() }
         compose.onNodeWithText("Copy").assertDoesNotExist()
         assertEquals(listOf("https://codync.dev"), urls)
-        link.performTouchInput { longClick() }
-        compose.onNodeWithText("Copy").assertIsDisplayed()
+        // Holding the paragraph (the merged node the reader actually presses), not the link span.
+        compose.onNodeWithText("Visit Codync").performTouchInput { longClick() }
+        val copyNode = compose.onNodeWithText("Copy").fetchSemanticsNode()
+        assertTrue(
+            "Copy at ${copyNode.boundsInRoot} (root ${compose.onRoot().fetchSemanticsNode().boundsInRoot}, displayed ${compose.onNodeWithText("Copy").isDisplayed()})",
+            compose.onNodeWithText("Copy").isDisplayed(),
+        )
         assertEquals(1, urls.size)
     }
 }

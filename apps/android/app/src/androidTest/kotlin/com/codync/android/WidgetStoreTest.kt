@@ -30,7 +30,13 @@ class WidgetStoreTest {
         assertNull(PushPreferences.activeUser(context))
         val originalFile = AtomicFile(File(context.noBackupFilesDir, "widget-owner.json"))
         val original = if (originalFile.baseFile.exists()) originalFile.readFully() else null
-        val computer = LocalStore(context).computers().single()
+        val store = LocalStore(context)
+        // A real computer needs a valid base64url sign key (32 bytes), as the store validates.
+        val fixtureKey = android.util.Base64.encodeToString(ByteArray(32), android.util.Base64.URL_SAFE or android.util.Base64.NO_PADDING or android.util.Base64.NO_WRAP)
+        // The test brings its own computer when the device has none: it must not write into the
+        // app's own store, only into the two temporary ones below.
+        val computer = store.computers().firstOrNull()
+            ?: Computer(RelayCrypto.computerId(ByteArray(32)), "Fixture computer", fixtureKey)
         val first = LocalStore(context, "widget-test-a-" + UUID.randomUUID())
         val second = LocalStore(context, "widget-test-b-" + UUID.randomUUID())
         try {
