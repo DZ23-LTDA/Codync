@@ -2,14 +2,15 @@
 //! the handshake authenticates instead. That makes its front the most exposed surface the host has, so what it
 //! answers to a caller who is not a phone is worth pinning down.
 //!
-//! What this covers: the protocol version is demanded, a plain HTTP request is not enough to get a socket, and a
-//! burst of refusals does not take the host down. What it does not cover: the handshake itself (pairing code,
-//! keys, replay), which the channel's own tests drive with the real cryptography.
+//! What this covers: a plain HTTP request never gets a socket, a burst of refusals does not take the host down, and
+//! a frame bigger than the 1 MiB limit costs only the sender his channel. What it does not cover: the handshake
+//! itself (pairing code, keys, replay), which the channel's own tests drive with the real cryptography.
 
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
 mod common;
 
+use futures::{SinkExt, StreamExt};
 use reqwest::StatusCode;
 use std::process::Child;
 
@@ -115,4 +116,35 @@ async fn a_burst_against_the_channel_does_not_take_the_host_down() {
     assert_eq!(refused, 25, "{} of 25 unauthenticated channel requests were answered", 25 - refused);
     assert!(host.healthy().await, "the host stopped answering /health after 25 refused channel requests");
     assert!(host.api_still_works().await, "the loopback API stopped working after the burst");
+}
+
+/// A frame bigger than the host accepts closes that one connection, and only that one.
+///
+/// The upgrade sets `max_message_size` to `MAX_WS_MESSAGE` (1 MiB). A caller that ignores it must lose its own
+/// socket -- not the host, and not anyone else's channel.
+#[tokio::test(flavor = "multi_thread")]
+async fn a_frame_over_the_limit_costs_only_the_sender_his_channel() {
+    let host = Host::start().await;
+    let url = format!("{}/channel?v=1", host.base.replace("http://", "ws://"));
+    let (mut ws, _) = tokio_tungstenite::connect_async(url).await.unwrap();
+
+    // 2 MiB of text: twice what the upgrade allows, in one message so it cannot be split into legal frames.
+    let oversized = "x".repeat(2 << 20);
+    let sent = ws.send(tokio_tungstenite::tungstenite::Message::text(oversized)).await;
+
+    // Either the send itself fails, or the host closes on us: a silent acceptance would be the bug.
+    let closed = if sent.is_err() {
+        true
+    } else {
+        let next = tokio::time::timeout(std::time::Duration::from_secs(15), ws.next()).await;
+        // The stream ending, an error, or a close all mean the host refused the frame; any other answer is the
+        // failure this test exists for.
+        !matches!(next, Ok(Some(Ok(message))) if !matches!(message, tokio_tungstenite::tungstenite::Message::Close(_)))
+    };
+    assert!(closed, "the host accepted a 2 MiB frame after setting a 1 MiB limit");
+    drop(ws);
+
+    // The host, and everyone else, carries on.
+    assert!(host.healthy().await, "the host stopped answering /health after an oversized frame");
+    assert!(host.api_still_works().await, "the loopback API stopped working after an oversized frame");
 }
