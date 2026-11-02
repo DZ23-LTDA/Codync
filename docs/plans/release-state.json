@@ -64,8 +64,8 @@
     {
       "id": 11,
       "item": "cancel a stuck turn",
-      "state": "TESTED",
-      "evidence": "PRs #86, #87, #88: watchdog of 180s, decision covered by 6 tests, and an end-to-end test where a silent agent is stopped with 'Stopped: the agent stopped answering.' and the bot leaves Working; UI stop not exercised in a running app; iOS/Android/TUI hint missing"
+      "state": "VERIFIED",
+      "evidence": "PRs #86, #87, #88: 180 s watchdog, the decision covered by 6 tests, and an end-to-end test where a silent agent is stopped with 'Stopped: the agent stopped answering.' and the bot leaves Working. Verified in a running app on 02/11: the desktop window sent a message to a bot running the silent agent fixture and pressed Stop — the turn closed with a Stopped notice and the stop control went away (17 s, the host's cancel grace before it kills the agent). Open UX, not part of this item: the window gives no sign during those seconds, and the notice text is English inside a pt-BR conversation",
     }
   ]
 }

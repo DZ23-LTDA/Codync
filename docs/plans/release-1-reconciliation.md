@@ -19,7 +19,7 @@ instrumentada), #174 (reconciliação GitGuard), #175 (teclado ao tocar na conve
 | 8 | Performance medida | `IN_PROGRESS` | primeiras medições reais (abaixo) | primeiro token com agente real; carga/concorrência |
 | 9 | Checkpoint, bump, WhatsNew, tag | `NOT_STARTED` | `B3PO-CHECKPOINT.md` atualizado nesta sessão | bump + WhatsNew + tag (é a publicação: exige autorização do dono) |
 | 10 | Ciclo de entrega | `BLOCKED_BY_EXTERNAL_DEPENDENCY` | — | depende do 4 e da autorização de publicação |
-| 11 | Cancelar um turno travado | `TESTED` | #86/#87/#88: watchdog de 180 s, decisão coberta por 6 testes, E2E com agente silencioso ("Stopped: the agent stopped answering.", o bot sai de Working) | parar pela UI num app rodando; dica no iOS/Android/TUI |
+| 11 | Cancelar um turno travado | `VERIFIED` | #86/#87/#88 (watchdog de 180 s, decisão coberta por 6 testes, E2E com agente silencioso) + E2E de app rodando (02/11): bot com `silent_agent.py`, mensagem enviada, botão **Stop** clicado na janela real → o turno fecha e a conversa mostra "Stopped." | dica de "você pode parar" no iOS/Android/TUI (item de UX aberto, abaixo) |
 
 Nota do item 7: o catálogo zh-Hans (a referência) **não tem 205 strings** que os apps pedem — por isso elas aparecem em inglês para todo mundo menos o português, que as carrega. Corrigir isso exige traduzir as 205 para as outras seis línguas; está registrado no teste de catálogo.
 
@@ -111,3 +111,23 @@ lugar.
 Detalhe que os testes descobriram: matar o host deixa um `codync.db-wal` cheio, e o SQLite **reproduz o
 WAL** — com o `codync.db` destruído e o WAL intacto, o banco ainda abre com os dados. Para o cenário de
 "arquivo danificado" ser real, o WAL tem de ser dobrado de volta antes (o teste faz `wal_checkpoint`).
+
+## Parar um turno travado (item 11) — o que o E2E de app rodando mostrou
+
+Feito com a janela real (`tools/e2e-desktop/e2e-stop.cjs`, capturas em `reports/desktop-e2e/stop/`):
+
+1. Um bot roda `silent_agent.py`, um agente ACP que aceita o prompt e **nunca responde**.
+2. A mensagem é enviada pela própria janela; o bot entra em "Pensando…".
+3. O botão **Stop** é clicado na interface.
+4. O turno fecha e a conversa mostra **"Stopped."** (`stopReason: "cancelled"`); o botão de parar desaparece.
+
+### Dois achados que ficam registrados (não corrigidos aqui)
+
+- **São 17 segundos** entre clicar em Stop e o turno realmente fechar quando o agente ignora o
+  `session/cancel`: o host espera a janela de cancelamento antes de matar o processo. Durante esse tempo
+  a janela **não dá nenhum sinal** — continua "Pensando…". Para quem clica, parece que o botão não
+  funcionou. Mudança sugerida (decisão do dono, é produto): um aviso imediato "Parando…" ou o botão em
+  estado de espera.
+- **"Stopped." é texto do host, em inglês**, como "Created routine: Check in". A conversa em pt-BR mistura
+  os dois idiomas. É conteúdo gerado pelo host, não interface — corrigir exige decidir se o texto dessas
+  linhas vem traduzido do host ou se o cliente formata a partir do `stopReason`.
