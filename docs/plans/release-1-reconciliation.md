@@ -19,7 +19,7 @@ instrumentada), #174 (reconciliação GitGuard), #175 (teclado ao tocar na conve
 | 8 | Performance medida | `IN_PROGRESS` | primeiras medições reais (abaixo) | primeiro token com agente real; carga/concorrência |
 | 9 | Checkpoint, bump, WhatsNew, tag | `NOT_STARTED` | `B3PO-CHECKPOINT.md` atualizado nesta sessão | bump + WhatsNew + tag (é a publicação: exige autorização do dono) |
 | 10 | Ciclo de entrega | `BLOCKED_BY_EXTERNAL_DEPENDENCY` | — | depende do 4 e da autorização de publicação |
-| 11 | Recuperação após encerramento abrupto | `TESTED` | #158: mata o host, confere dois bots e histórico após reinício | interrupção em ponto de escrita determinístico, downgrade de schema, corrupção real |
+| 11 | Recuperação após encerramento abrupto | `TESTED` | #158 (mata o host, confere dois bots e histórico após reinício), #181 (duas provas novas: morte com a escrita travada por outro processo, e rajada de escritas morta no meio — o arquivo abre, `integrity_check` = ok, toda escrita respondida sobrevive e nenhum bot pela metade aparece) | downgrade de schema, corrupção real do arquivo |
 
 Nota do item 7: o catálogo zh-Hans (a referência) **não tem 205 strings** que os apps pedem — por isso elas aparecem em inglês para todo mundo menos o português, que as carrega. Corrigir isso exige traduzir as 205 para as outras seis línguas; está registrado no teste de catálogo.
 
@@ -88,3 +88,20 @@ Dois achados do passeio:
 2. **Linhas do histórico geradas pelo host continuam em inglês** ("Created routine: Check in"). É
    conteúdo, não interface — mas é visível ao usuário e não passa por `tr()`. Fica registrado como
    decisão de produto, não como bug de tradução.
+
+## Item 11 — o que as provas novas mostram
+
+`write_interruption_e2e.rs` acrescenta duas propriedades que faltavam:
+
+1. **Morte com a escrita impossível de commitar**: outro processo segura o `BEGIN IMMEDIATE` do SQLite, o
+   host tenta gravar (fica preso no caminho de escrita) e é morto com `kill` seco. Depois: o arquivo abre,
+   `PRAGMA integrity_check` = `ok`, o bot que já tinha sido gravado está lá, o que nunca commitou não
+   aparece, e o host sobe de novo na mesma pasta sem pôr nada "de lado" como corrompido.
+2. **Rajada de escritas + morte no meio**: as escritas são disparadas em sequência e o processo morre no
+   meio da rajada; ao voltar, toda escrita que o cliente recebeu como sucesso está no arquivo, nenhum bot
+   que ninguém pediu apareceu, toda linha tem config JSON válida e o host lista exatamente o que o arquivo
+   tem.
+
+Continua faltando para `VERIFIED`: **downgrade de schema** (um banco de versão mais nova aberto por um
+host mais antigo precisa recusar, não migrar para trás) e **corrupção real do arquivo** (bytes trocados no
+meio do banco). Ambos são cenários separados do próximo ciclo.
