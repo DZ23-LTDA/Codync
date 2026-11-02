@@ -9,8 +9,11 @@
 mod common;
 
 use reqwest::StatusCode;
-use serde_json::json;
+use serde_json::{Value, json};
 use std::process::Child;
+
+/// The routes that can act on the computer. Every one of these exists: the test fails on an unknown method.
+const ROUTES: [&str; 6] = ["send", "history", "createBot", "setScreenEnabled", "screenOffer", "setVoiceKey"];
 
 struct Host {
     child: Child,
@@ -27,15 +30,23 @@ impl Host {
         Self { child, base, token }
     }
 
-    /// One API call with the given header value, returning the status it answered with.
-    async fn status(&self, method: &str, header: Option<&str>) -> StatusCode {
+    /// One API call with the given header value: the status, and the body when it was JSON.
+    async fn call(&self, method: &str, header: Option<&str>) -> (StatusCode, Option<Value>) {
         let mut request = reqwest::Client::new()
             .post(format!("{}/api/{method}", self.base))
             .json(&json!({"botId": "nobody", "text": "hello"}));
         if let Some(value) = header {
             request = request.header("authorization", value);
         }
-        request.send().await.unwrap().status()
+        let response = request.send().await.unwrap();
+        let status = response.status();
+        let body = response.json::<Value>().await.ok();
+        (status, body)
+    }
+
+    /// The status only, for the cases where the body is not the point.
+    async fn status(&self, method: &str, header: Option<&str>) -> StatusCode {
+        self.call(method, header).await.0
     }
 
     async fn events_status(&self, header: Option<&str>) -> StatusCode {
@@ -64,7 +75,7 @@ async fn every_loopback_route_wants_the_token() {
     let right = format!("Bearer {}", host.token);
 
     // Routes a local helper could reach: they read or act on the computer.
-    for method in ["send", "history", "createBot", "setScreenEnabled", "screenOffer", "vaultGet"] {
+    for method in ROUTES {
         assert_eq!(host.status(method, None).await, StatusCode::UNAUTHORIZED, "{method} answered without a token");
         assert_eq!(
             host.status(method, Some(&wrong)).await,
@@ -82,12 +93,19 @@ async fn every_loopback_route_wants_the_token() {
     );
 
     // And the real token is not refused: the gate is the header, not the route. The body above is nonsense
-    // (`botId: "nobody"`), so a 4xx is the right answer here -- what would be wrong is 401 or a crash.
-    for method in ["send", "history", "createBot", "setScreenEnabled", "screenOffer", "vaultGet"] {
-        let status = host.status(method, Some(&right)).await;
+    // (`botId: "nobody"`), so a 4xx is the right answer for most of them; what would be wrong is 401 or a crash.
+    //
+    // The envelope matters as much as the status: an unknown method answers 404 with `{"error":"unknown method"}`,
+    // so a list naming a method this host never had would pass a status-only check. That is not hypothetical --
+    // this test used to name `vaultGet`, which does not exist, and it passed.
+    for method in ROUTES {
+        let (status, body) = host.call(method, Some(&right)).await;
         assert_ne!(status, StatusCode::UNAUTHORIZED, "{method} refused the real token");
         assert!(!status.is_server_error(), "{method} failed with the real token: {status}");
+        let body = body.unwrap_or_else(|| panic!("{method} answered {status} with something that is not JSON"));
+        assert_ne!(body["error"], "unknown method", "{method} is not a method this host has");
     }
+
     let events = host.events_status(Some(&right)).await;
     assert_ne!(events, StatusCode::UNAUTHORIZED, "/events refused the real token");
     assert!(!events.is_server_error(), "/events failed with the real token: {events}");

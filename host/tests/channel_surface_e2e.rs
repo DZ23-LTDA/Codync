@@ -136,10 +136,13 @@ async fn a_frame_over_the_limit_costs_only_the_sender_his_channel() {
     let closed = if sent.is_err() {
         true
     } else {
-        let next = tokio::time::timeout(std::time::Duration::from_secs(15), ws.next()).await;
-        // The stream ending, an error, or a close all mean the host refused the frame; any other answer is the
-        // failure this test exists for.
-        !matches!(next, Ok(Some(Ok(message))) if !matches!(message, tokio_tungstenite::tungstenite::Message::Close(_)))
+        match tokio::time::timeout(std::time::Duration::from_secs(15), ws.next()).await {
+            // The stream ended, the transport broke, or the host closed: all refusals.
+            Ok(None | Some(Err(_) | Ok(tokio_tungstenite::tungstenite::Message::Close(_)))) => true,
+            // No answer at all is a hang, not a refusal; any other frame is an answer that should have been one. A
+            // timeout counted as "closed" would have made this test pass against a host that simply hung.
+            Err(_) | Ok(Some(Ok(_))) => false,
+        }
     };
     assert!(closed, "the host accepted a 2 MiB frame after setting a 1 MiB limit");
     drop(ws);
