@@ -217,6 +217,29 @@ update feed to check (`latest.yml` is not produced), and **rollback** has nothin
 Two leftovers named on purpose: the app's data folder is the app's to keep, and the updater cache is the one an
 uninstaller should sweep and does not.
 
+### First use on Windows, measured (03/11, `39def8c5`)
+
+Item 5 asks for "first use under 3 minutes, QR, reconnect, uninstall". Two of its four words can be measured on this
+machine; the other two cannot, and this is the split.
+
+| Segment | Measured |
+|---|---|
+| installer `/S`, double-click to done | **14.4 s** |
+| launching `Codync Dev.exe` to a window titled "Codync Dev" | **3.4 s** |
+| **installer to usable window** | **22.8 s** — well inside the three minutes |
+| the bundled host it starts | `codync-host install --port 19223`, `/health` → `ok: true`, `version 2.34.1`, `environment dev`, with a `binaryHash` |
+| the QR a phone would scan | **issued**: `pairingUrl codync-dev://pair?v=3&name=Dz23&id=…&sk…`, expiring ten minutes later (`/api/pairing`) |
+| uninstall `/S` | **6.3 s** → folder, uninstall entry and every process gone |
+
+**What is not measured, and why.** *Scanning* that QR needs a phone and the Windows Firewall to allow
+`codync-host` — the firewall still blocks it (see the pairing section above), so the phone half stays blocked. The
+*first answer* needs an agent CLI on this computer, and none is installed (Claude Code, Codex, Gemini, Qwen, OpenCode
+and Cursor Agent are all absent; only Copilot CLI is present and signed out). A first answer produced by a test
+fixture would be a fixture talking, not a person.
+
+So "under three minutes" is answered for the part a person does before the phone appears — **22.8 seconds** — and
+the rest is named as blocked rather than estimated.
+
 ## Known gaps, stated rather than hidden
 
 - **v2.34.0's upload is incomplete**: `tools/release-gate.py` in a dry run reports the release is missing
