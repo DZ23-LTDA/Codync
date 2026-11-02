@@ -136,22 +136,41 @@ codync-dev-windows-x64.exe /S        exit 0
 Uninstall entry: "Codync Dev 2.34.1"
 ```
 
-### The app exits immediately
+### The app "exits immediately" — retracted: that was this agent's shell, not the product
 
-| Started | Result |
-|---|---|
-| `Codync Dev.exe` (installed) | exits at once, code 0, no window, no process, nothing written |
-| `dist\win-unpacked\Codync Dev.exe` | same — so it is not the installer's layout |
-| with `--user-data-dir=<empty dir>` | exits at once, **code 9**, still writes nothing |
-| with `--enable-logging --log-file=…` | no log file is produced at all |
+The first version of this section said the packaged app could not start. It **could**; the mistake was mine, and it
+is worth writing down because the next person will hit it too.
 
-The sources give two early exits — `yieldsToInstall()` (`app.exit(0)`, an update marker in prefs) and
-`!app.requestSingleInstanceLock()` (`app.quit()`) — and neither leaves anything behind to inspect, because the
-app's `userData` folder is never created. `npm run dev` in this same checkout does start the app, so the difference
-is packaging, not the code.
+**`ELECTRON_RUN_AS_NODE=1` is set in the environment this agent's shells inherit** (the harness hosting the agent is
+itself an Electron app). With it set, every Electron binary launched from a shell runs as plain Node instead of
+running the app, and the main bundle dies at its first line of Electron API:
 
-That is a **defect to chase, not a conclusion**: the next step is to run the packaged `out/main/index.js` under the
-bundled Electron with stdout attached, or add a one-line marker at the top of `main`, and see which exit is taken.
+```
+TypeError: Cannot read properties of undefined (reading 'isPackaged')
+    at Module.<anonymous> (out/main/index.js:64:27)
+```
+
+That reads exactly like a broken package — no window, no `userData`, no log, exit 0 or 9 — which is how it was
+recorded. Clearing the variable and running the same build:
+
+```
+set ELECTRON_RUN_AS_NODE= && npm run dev
+starting electron app...
+electron ×4, one window titled "Codync Dev"
+```
+
+So the desktop app starts from source on this machine. What is **still unproven** is the *installed* build: the
+retest needs a rebuilt installer, and `npm run dist:win:dev` currently fails in this checkout at
+
+```
+cargo build --profile dev-app --target x86_64-pc-windows-gnu
+error[E0463]: can't find crate for `core`
+```
+
+while the same command run by hand compiles. That is the next thing to fix, and until it is, item 4's "runs" stays
+unproven rather than claimed either way.
+
+Lesson for any agent driving Electron here: check `ELECTRON_RUN_AS_NODE` before believing a packaged app is broken.
 
 ### It uninstalls — and leaves 140 MB behind
 
