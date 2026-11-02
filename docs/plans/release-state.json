@@ -11,7 +11,7 @@
       "id": 2,
       "item": "fork release separated from upstream",
       "state": "VERIFIED",
-      "evidence": "PR #164 kept the fork out of upstream URLs, the tap and the gate. Now also the tap: tools/release-gate.py refused a foreign repository before and refuses a foreign tap too (it commits and pushes to that remote). Probes on 02/11: RELEASE_GATE_REPO=leepokai/Codync exits 1, RELEASE_GATE_TAP=leepokai/homebrew-codync exits 1, the defaults go on to the version lookup. The workflow condition names DZ23-LTDA/Codync and stays skipped until vars.RELEASE_GATE_ENABLED is set"
+      "evidence": "PR #164 pointed the fork's release URLs and feeds at the fork; the repository guard came in #47 and the tap guard in #184. Now also the tap: tools/release-gate.py refused a foreign repository before and refuses a foreign tap too (it commits and pushes to that remote). Probes on 02/11: RELEASE_GATE_REPO=leepokai/Codync exits 1, RELEASE_GATE_TAP=leepokai/homebrew-codync exits 1, the defaults go on to the version lookup. The workflow condition names DZ23-LTDA/Codync and stays skipped until vars.RELEASE_GATE_ENABLED is set"
     },
     {
       "id": 3,
@@ -29,7 +29,7 @@
       "id": 5,
       "item": "first use under 3 minutes, QR, reconnect, uninstall",
       "state": "IN_PROGRESS",
-      "evidence": "Windows (39def8c5): installer /S 14.4 s, app window 'Codync Dev' 3.4 s after launch -- 22.8 s from installer to usable window. The bundled host starts as 'codync-host install --port 19223' and /health answers ok:true, version 2.34.1, environment dev, with a binaryHash. The pairing QR is issued (codync-dev://pair?v=3&...) through /api/pairing. Uninstall /S 6.3 s, folder and entry gone, no process left; it leaves %APPDATA%\\Codync Dev (20.2 MB, the app's data), %LOCALAPPDATA%\\codync-desktop-dev-updater (140.5 MB installer cache) and %USERPROFILE%\\.codync-dev. NOT measured: scanning the QR (needs a phone and the Windows Firewall to allow codync-host, still blocked) and the first answer (needs an agent CLI; none installed)."
+      "evidence": "Windows (39def8c5, PR #212): installer /S 14.4 s, then a 5 s wait, then 3.4 s to the window -- 22.8 s of wall clock from installer to usable window. The bundled host starts as 'codync-host install --port 19223' and /health answers ok:true, version 2.34.1, environment dev, with a binaryHash. The pairing QR is issued (codync-dev://pair?v=3&...) through /api/pairing. Uninstall /S 6.3 s, folder and entry gone, no process left; it leaves %APPDATA%\\Codync Dev (20.2 MB, the app's data), %LOCALAPPDATA%\\codync-desktop-dev-updater (140.5 MB installer cache) and %USERPROFILE%\\.codync-dev. NOT measured: scanning the QR (needs a phone and the Windows Firewall to allow codync-host, still blocked) and the first answer (needs an agent CLI; none installed)."
     },
     {
       "id": 6,

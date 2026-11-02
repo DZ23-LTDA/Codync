@@ -63,7 +63,7 @@ Relatório completo em `projects/b3po-codync/reports/SECURITY-TRIAGE.md` (worksp
 
 | # | Item | Estado | Evidência desta sessão |
 |---|---|---|---|
-| 1 | Scanner de i18n | IMPLEMENTED | o scanner **estava errado** (descartava toda frase de 5+ palavras); corrigido + 27 traduções (PR #166). `pt` = 100% da tela do desktop |
+| 1 | Scanner de i18n | IMPLEMENTED | o scanner **estava errado** (descartava toda frase de 5+ palavras); corrigido + 27 traduções (PR #166). `pt` cobre a tela do desktop com **1 frase em aberto** (o scanner imprime 99,8%): `"Your coding agents,\nas teammates."` está no `pt.json` e o `l10n-coverage` compara a barra crua |
 | 2 | Release do fork ≠ upstream | IMPLEMENTED | PR #164 (URLs, tap e gate) |
 | 3 | Banco em todos os estados | TESTED | suíte do host verde nas 3 OSes da CI (PR #161) |
 | 4 | Instalação/update/rollback em 3 sistemas | BLOCKED_BY_EXTERNAL_DEPENDENCY | precisa do app instalado (§ abaixo) |
@@ -196,7 +196,7 @@ core` parece host quebrado.
 
 ### Primeiro uso, cronometrado (#213)
 
-Instalador `/S` **14,4 s**; janela **3,4 s** depois; **22,8 s** do instalador à janela usável. O host embutido sobe
+Instalador `/S` **14,4 s**, espera de 5 s, janela em **3,4 s**; **22,8 s** de relógio do instalador à janela usável. O host embutido sobe
 como `codync-host install --port 19223` e `/health` responde `ok: true`, `2.34.1`, `environment dev`. O QR é
 **emitido** (`codync-dev://pair?v=3&…`). Desinstalar leva **6,3 s**.
 
@@ -250,3 +250,28 @@ A fonte canônica continua sendo [`release-1-reconciliation.md`](release-1-recon
 Os stores que faltam — `bot-store.ts`, `bot-sync.ts`, `bot-mirror.ts`, `cloud.ts` — carregam o mesmo par de hábitos e
 a lógica de sincronização e reconexão. Torná-los carregáveis é mecânico, mas amplo: vale um PR próprio, com o
 `bot-sync.ts` (`ready()`/`withLink()`) como primeiro alvo, porque é onde o desktop decide reconectar e desistir.
+
+## Adendo v4.0 (02/11/2026) — autonomia operacional
+
+O proprietário enviou o **Adendo Consolidado Final v4.0**, que concede autorização operacional permanente para o
+ciclo normal: ler e modificar o projeto, criar testes, rodar builds, criar branches, commitar, **fazer push**, abrir e
+integrar PRs, corrigir CI, atualizar documentação e **publicar releases** que passem nos gates — sem pedir aprovação a
+cada passo.
+
+O que continua exigindo confirmação: apagar dados de produção, migração destrutiva sem rollback, force push que
+sobrescreva trabalho alheio, apagar branches/repositório, **rotação ou revogação de credenciais**, gasto relevante e
+operação financeira. Nada disso bloqueia o resto: isola-se a ação dependente, registra-se, e o trabalho continua.
+
+Consequências práticas adotadas nesta sessão:
+
+- **D2** (decisão de escopo da Release 1) está em [`release-1-d2-decision.md`](release-1-d2-decision.md), item por
+  item, com estado, evidência, dependência, impacto de adiar, risco e recomendação. Continua pendente da decisão do
+  dono, e não bloqueia o desenvolvimento independente.
+- **D3** (credenciais): nenhuma rotação ou revogação autorizada. A triagem existente vale: nenhuma credencial real
+  encontrada, as chaves PostHog/Clerk são públicas por desenho. Rotação fica registrada como bloqueada, nada mais.
+- **Subagentes**: SA-01 (continuidade) e SA-02 (segurança e dependências) rodaram nesta sessão, somente leitura, no
+  SHA `1f63bb3a`. Resultados: nenhum P0/P1 confirmado no HEAD; 17 contradições de documento encontradas e
+  corrigidas; um P2 novo (`usesCleartextTraffic` global no Android) registrado.
+- **Auditoria independente** (`b3po-fase0`, 68/100, `RECOMMEND_CODEYNC_WITH_REMEDIATION`): lida e usada como pista,
+  não como prova. O achado "processo filho herda ambiente do host" foi **confirmado no código** e corrigido no
+  PR #223 (`market::child_env`).
