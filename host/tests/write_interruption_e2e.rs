@@ -133,6 +133,9 @@ async fn a_kill_while_the_store_cannot_write_leaves_a_database_that_opens() {
 
     let host = Host::start(home.clone()).await;
     host.call("createBot", bot_body("Before the lock", &home)).await;
+    // The lead bot the host makes on its own may land before or after this point, so the assertion
+    // below compares against what was there when the lock was taken, not against a fixed list.
+    let baseline = bot_names(&home);
     assert_eq!(integrity(&home), "ok");
 
     // Hold the write lock from the test, so the host's next write cannot reach a commit.
@@ -163,7 +166,7 @@ async fn a_kill_while_the_store_cannot_write_leaves_a_database_that_opens() {
 
     // The file is still a valid database with what was committed, and nothing was set aside.
     assert_eq!(integrity(&home), "ok", "the database is damaged after a write interrupted by the lock");
-    assert_eq!(bot_names(&home), vec!["Before the lock".to_owned()], "the uncommitted bot reached the file");
+    assert_eq!(bot_names(&home), baseline, "the uncommitted bot reached the file");
 
     // And the host comes back on it.
     let host = Host::start(home.clone()).await;
