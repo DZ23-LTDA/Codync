@@ -63,6 +63,7 @@ class MessageActionsMenuTest {
     @Test fun replyQuotesTheMessageInTheComposerUntilCancelled() {
         val bot = Bot("reply-preview", "Scout")
         val text = "The saved route works."
+        val quotedText = "“$text”"
         val reply = Entry("reply", 1, bot.id, rev = 1, kind = "agent", data = buildJsonObject { put("text", text); put("final", true) })
         val quoted = Entry("quoted", 2, bot.id, rev = 2, kind = "user", data = buildJsonObject {
             put("text", "Ship it"); put("replyTo", buildJsonObject { put("id", reply.id); put("author", bot.id); put("text", text) })
@@ -75,11 +76,12 @@ class MessageActionsMenuTest {
         compose.onNodeWithText("“$text”").assertIsDisplayed()
         compose.onNode(hasText(text) and hasClickAction()).performTouchInput { longClick() }
         compose.onNodeWithText("Reply").performClick()
-        compose.onAllNodesWithText("“$text”").assertCountEquals(2)
+        // The composer quote follows the state: wait for it instead of sampling the tree once.
+        compose.waitUntil(3_000) { compose.onAllNodesWithText(quotedText).fetchSemanticsNodes().size == 2 }
         compose.onNodeWithText("Reply…").assertIsDisplayed()
         compose.onNodeWithContentDescription("Cancel reply").performClick()
-        compose.onAllNodesWithText("“$text”").assertCountEquals(1)
-        compose.onNodeWithContentDescription("Cancel reply").assertDoesNotExist()
+        compose.waitUntil(3_000) { compose.onAllNodesWithText(quotedText).fetchSemanticsNodes().size == 1 }
+        compose.waitUntil(3_000) { compose.onAllNodesWithContentDescription("Cancel reply").fetchSemanticsNodes().isEmpty() }
         // An older host can't quote: no Reply.
         shown.value = state.copy(hello = buildJsonObject { put("version", "2.20.0") })
         compose.waitForIdle()
