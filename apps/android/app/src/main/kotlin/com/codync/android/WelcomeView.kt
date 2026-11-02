@@ -42,6 +42,7 @@ import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -73,6 +74,12 @@ import kotlin.math.sin
                 Column(Modifier.padding(top = 24.dp)) {
                     ChatGlimpse(beat >= 2, Modifier.padding(bottom = 24.dp))
                     Column(Modifier.rise(beat >= 3), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Image(
+                            painter = painterResource(R.drawable.b3po_wordmark),
+                            contentDescription = null,
+                            modifier = Modifier.fillMaxWidth(0.72f).heightIn(max = 150.dp).padding(bottom = 6.dp),
+                            contentScale = ContentScale.Fit,
+                        )
                         Text(tr("Your coding agents,\nas teammates."), style = Type.system(34f, FontWeight.SemiBold).copy(letterSpacing = (-0.6).sp),
                             color = Palette.text)
                         Text(tr("Give each one a name and a project. They work on your computer while you're away."), style = Type.body, color = Palette.secondary)

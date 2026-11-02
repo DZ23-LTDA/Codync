@@ -42,6 +42,12 @@ struct WelcomeView: View {
                 .padding(.bottom, 24)
 
             VStack(alignment: .leading, spacing: 10) {
+                Image("B3POWordmark")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(maxWidth: 260, maxHeight: 140)
+                    .accessibilityHidden(true)
+                    .padding(.bottom, 6)
                 Text(L10n.tr("Your coding agents,\nas teammates."))
                     .font(.system(size: 34, weight: .semibold))
                     .tracking(-0.6)
