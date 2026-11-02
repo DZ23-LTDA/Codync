@@ -14,8 +14,8 @@ instrumentada), #174 (reconciliação GitGuard), #175 (teclado ao tocar na conve
 | 3 | Banco em todos os estados | `VERIFIED` | #43/#48/#50/#62 (store: ausente, vazio, válido, danificado, truncado, migrações, cópia) + #181 (interrupção de escrita determinística, rajada morta no meio) + #182 (processo recusa schema mais novo e arquivo danificado/truncado, sem tocar no arquivo nem criar um vazio no lugar) | — |
 | 4 | Instalação/update/rollback em 3 sistemas | `BLOCKED_BY_EXTERNAL_DEPENDENCY` | — | `codync-windows-x64.exe` publicado, instalar, abrir, atualizar, desinstalar — ação do dono |
 | 5 | Primeiro uso em 3 min, QR, reconexão | `IN_PROGRESS` | onboarding do Android percorrido no emulador (1/2 → 2/2 → permissão de câmera negada → campo para colar `codync-dev://pair`); desktop: 2 passos até a janela, com host real | cronometrar o fluxo inteiro com host pareado, nos dois clientes |
-| 6 | Erros humanos, vazios e offline | `IN_PROGRESS` | telas de erro/offline exercitadas pela suíte de UI (127 testes); `error-messages`: 0 stack traces; `empty-states`: 28 de 63 views | inspeção visual com captura, por cliente |
-| 7 | pt-BR no escopo liberado | `TESTED` | #166 (scanner + 27 frases), #178 (português virou idioma de verdade nos apps, com o catálogo empacotado no iOS), #179 (catálogo completo: 1673 chaves, 0 faltando; tela de instalação e boas-vindas conferidas no emulador em pt-BR) | inspeção humana das telas internas (com host pareado) |
+| 6 | Erros humanos, vazios e offline | `IN_PROGRESS` | suíte de UI do desktop (127 testes) + passeio com app real (02/11, `tools/e2e-desktop/e2e-states.cjs`): vazio ("Seus agentes de código, como colegas de equipe." + "Novo bot"), falha ("O host não está rodando" / "O host não está respondendo. Veja o log para detalhes." + "Tentar de novo", depois de ~30 s em "Iniciando o host…"), offline ("Offline" na linha do bot ao usar a janela) e volta ao normal quando o host retorna. Nenhuma das telas mostra stack trace, caminho interno ou segredo | metade celular (precisa de pareamento — firewall) e TUI |
+| 7 | pt-BR no escopo liberado | `TESTED` | #166, #178, #179 (catálogo 1673 chaves, 0 faltando) + inspeção com app real (02/11): onboarding (2 passos, "Acesso ao computador", "Dar estrela no GitHub", "Começar"), janela vazia, erro de host, offline, Extensões ("Não instalado"), conversa e Stop — todas em português. Emulador Android: boas-vindas e passo de instalação em português | telas internas do celular (pareamento bloqueado pelo firewall) e iOS (só CI, sem Mac) |
 | 8 | Performance medida | `IN_PROGRESS` | primeiras medições reais (abaixo) | primeiro token com agente real; carga/concorrência |
 | 9 | Checkpoint, bump, WhatsNew, tag | `NOT_STARTED` | `B3PO-CHECKPOINT.md` atualizado nesta sessão | bump + WhatsNew + tag (é a publicação: exige autorização do dono) |
 | 10 | Ciclo de entrega | `BLOCKED_BY_EXTERNAL_DEPENDENCY` | — | depende do 4 e da autorização de publicação |
@@ -131,3 +131,27 @@ Feito com a janela real (`tools/e2e-desktop/e2e-stop.cjs`, capturas em `reports/
 - **"Stopped." é texto do host, em inglês**, como "Created routine: Check in". A conversa em pt-BR mistura
   os dois idiomas. É conteúdo gerado pelo host, não interface — corrigir exige decidir se o texto dessas
   linhas vem traduzido do host ou se o cliente formata a partir do `stopReason`.
+
+## Estados vazios, de erro e offline no desktop (item 6) — o que o passeio mostrou
+
+Roteiro `tools/e2e-desktop/e2e-states.cjs`, capturas em `reports/desktop-e2e/states/`:
+
+| Situação | O que a janela mostra | Quando |
+|---|---|---|
+| Host ainda subindo | "Iniciando o host… Isso leva alguns segundos." | imediato |
+| Host que nunca sobe | "O host não está rodando" · "O host não está respondendo. Veja o log para detalhes." · botão **Tentar de novo** | ~30 s |
+| Host no ar, nada criado | "Seus agentes de código, como colegas de equipe." · "Escolha um bot, ou crie um para cada tipo de trabalho e aponte para um projeto." · **Novo bot** | imediato |
+| Host morto com a janela aberta (parada) | nada muda | 10 s |
+| Host morto, depois de clicar | **"Offline"** na linha do bot; a conversa em cache continua legível | ~6 s após o clique |
+| Host de volta | "Offline" some e a conversa volta | ~8 s |
+
+Nenhuma dessas telas mostra stack trace, caminho interno, nome de arquivo ou segredo — o filtro do roteiro
+procura `at Object.`, `node_modules`, `C:\`, `/home/` e `/Users/` em tudo o que aparece na tela e não achou
+nada.
+
+Duas observações, não defeitos:
+
+- são ~30 s até a janela desistir do host; quem olha não sabe se está lento ou quebrado. O botão "Tentar
+  de novo" resolve, então é espera, não beco.
+- a mensagem manda "ver o log" mas não diz onde; o log está no menu da bandeja ("Open log"). Um link na
+  própria mensagem fecharia o caminho.
