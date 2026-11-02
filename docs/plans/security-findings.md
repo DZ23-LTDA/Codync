@@ -22,13 +22,14 @@ Independent evidence (the `npm audit` database, not the scan):
 ```
 web            critical=0 high=0 moderate=16 low=0
 apps/desktop   critical=0 high=0 moderate=15 low=0
-cloud          critical=0 high=0 moderate=2  low=0
+cloud          critical=0 high=0 moderate=0  low=0   (after #195)
 relay          critical=0 high=0 moderate=0  low=0
 private-relay  critical=0 high=0 moderate=0  low=0
 ```
 
-The 33 moderates are build/test tooling (`eslint-*`, `electron-builder` and its
-`app-builder-lib`/`dmg-builder`/`ejs`, `vitest`), not code that ships to a user. **No known CRITICAL
+The 31 remaining moderates are build/test tooling only:
+`app-builder-lib`/`dmg-builder`/`ejs`/`glob`/`minimatch`) and the web app's lint chain (`eslint`,
+`typescript-eslint`, `@next/eslint-plugin-next`). None of them ships to a user. **No known CRITICAL
 or HIGH on `dev` today.** Status: `VERIFIED_FIXED` for CRITICAL/HIGH.
 
 ## Secrets — 6 `generic-api-key` findings
@@ -69,3 +70,26 @@ No value was printed, logged or committed. Status: `FALSE_POSITIVE_WITH_EVIDENCE
   search plus `npm audit`. A real rescan on the merge commit is the next step.
 - `cargo audit` did not run (the tool is not installed here).
 - Counts per file are this document's reproduction, not the scanner's.
+
+### Re-run at `2d08fdda` (02/11, after #195)
+
+| Workspace | critical | high | moderate | what the moderates are |
+|---|---|---|---|---|
+| web | 0 | 0 | **16** | `eslint`, `typescript-eslint`, `@next/eslint-plugin-next` — the lint chain |
+| apps/desktop | 0 | 0 | **15** | `electron-builder` and its packaging chain (`app-builder-lib`, `dmg-builder`, `ejs`, `glob`, `minimatch`…) |
+| cloud | 0 | 0 | **0** | was 2 through `vitest`'s mocker; #195 took `vitest 4.1.11 → 4.1.12` (lockfile only) |
+| relay | 0 | 0 | **0** | — |
+| private-relay | 0 | 0 | **0** | — |
+
+`npm audit fix` was tried **without `--force`** and applied only where it stayed inside the declared range;
+cloud's tests (125) and both `tsc` runs were green after it.
+
+**The 31 that remain are `ACCEPTED_RISK_WITH_OWNER_APPROVAL`**, and the basis for the owner's decision is that
+the fix npm proposes for each of them is a **downgrade**:
+
+- web: `eslint 4.0.0`, `eslint-config-next 12.0.4` — undoing years of linting to satisfy a counter;
+- desktop: `electron-builder 20.23.1` — a major downgrade of the packaging tool.
+
+Upgrading either properly is its own change with its own risk (lint-rule fallout; packaging behaviour) and does
+not belong in a patch release. Nothing in the two packages ships to a user: the web bundle and a packaged app
+contain neither.
