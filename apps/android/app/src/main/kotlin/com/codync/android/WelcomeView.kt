@@ -153,7 +153,7 @@ private val CREW = listOf(
     Row(modifier.plainButton { uri.open("https://youtube.com/shorts/xtZ5WeyOewU", OutboundLink.Demo) }, verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(6.dp)) {
         Symbol("play.circle.fill", size = 17.dp, tint = Palette.text)
-        Text("Watch the demo", style = Type.subheadline.medium, color = Palette.text)
+        Text(tr("Watch the demo"), style = Type.subheadline.medium, color = Palette.text)
     }
 }
 
