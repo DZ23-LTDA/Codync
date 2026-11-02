@@ -475,4 +475,7 @@ pub(in crate::tui) fn test_app() -> App {
 }
 
 #[cfg(test)]
+mod states_tests;
+
+#[cfg(test)]
 mod tests;
