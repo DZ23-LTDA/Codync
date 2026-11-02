@@ -12,6 +12,10 @@ const BODY: &str =
 
 pub(super) async fn collect() -> Option<Vec<Window>> {
     let target = tokio::task::spawn_blocking(find_server).await.ok().flatten()?;
+    // The language server serves HTTPS with a certificate it made for itself, and this client talks
+    // to nothing else: both URLs below are 127.0.0.1 with a port discovered from the running process,
+    // redirects are refused, and the request body is a fixed quota query. Loosening that check is
+    // how the local quota is read at all (SAST flags it; the risk is a local process, not the wire).
     let client = reqwest::Client::builder()
         .danger_accept_invalid_certs(true)
         .redirect(reqwest::redirect::Policy::none())
