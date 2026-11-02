@@ -285,6 +285,16 @@ documentos do gate. Nenhuma era de código: todas eram de **registro**. Corrigid
 - **`tools/l10n-coverage.mjs`** não decodifica escapes como o `l10n-missing` faz. Enquanto não for corrigido, todo
   relatório de cobertura subconta uma frase do desktop. É o próximo item P2 de código, não de documentação.
 
+### A referência visual do proprietário (02/11)
+
+Duas imagens enviadas pelo dono passam a valer como **referência visual oficial e critério de aceitação de UI/UX**:
+a marca B-3PO e o app desktop no estado vazio. Estão em [`docs/design/reference/`](../design/reference), e o
+documento que as transforma em critério — o que a marca pede, a composição da tela vazia, a paridade entre os quatro
+clientes e a diferença medida contra o código de hoje — é
+[`docs/design/b3po-visual-reference.md`](../design/b3po-visual-reference.md).
+
+Nada ali muda arquitetura, API ou persistência: é composição de tela e texto, e a marca já é o ícone do app
+(`apps/desktop/resources/icon.png` é o mesmo arquivo de `assets/brand/b3po-icon-1024.png`).
 ## Known gaps, stated rather than hidden
 
 - **v2.34.0's upload is incomplete**: `tools/release-gate.py` in a dry run reports the release is missing
