@@ -64,8 +64,14 @@ impl Phone {
             match msg.unwrap().unwrap() {
                 Message::Text(t) => {
                     let f: Value = serde_json::from_str(t.as_str()).unwrap();
-                    if let Some(bytes) = self.opener.open(&f).unwrap() {
+                    if let Some(bytes) = self.opener.open(&f).ok().flatten() {
                         return Frame::Inner(serde_json::from_slice(&bytes).unwrap());
+                    }
+                    // Not sealed: the host answers some refusals (`reject`, before any pairing) in the open, so
+                    // the person -- or the client -- can read why without keys. Anything else that will not
+                    // open is a frame this client cannot use and is skipped.
+                    if f.get("t").is_some() {
+                        return Frame::Inner(f);
                     }
                 }
                 Message::Close(c) => return Frame::Closed(c.map_or(1005, |c| c.code.into())),
