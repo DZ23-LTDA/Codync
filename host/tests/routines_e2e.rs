@@ -95,7 +95,7 @@ impl Host {
     }
 
     async fn wait_status(&self, bot: &str, routine: &str, status: &str) -> Value {
-        tokio::time::timeout(Duration::from_secs(25), async {
+        tokio::time::timeout(Duration::from_secs(60), async {
             loop {
                 let listing = self.call("routines", json!({"botId":bot})).await;
                 if let Some(run) = listing["runs"]
@@ -122,7 +122,10 @@ impl Host {
     }
 
     async fn wait_event(&self, name: &str, event: &str, contains: &str) -> Value {
-        tokio::time::timeout(Duration::from_secs(25), async {
+        // A routine resumed after a host restart has to start the agent again, and a loaded Windows runner
+        // took more than 25 s to get there: the queue test timed out three times in the 2.34.1 run and passed
+        // on a fresh job with nothing changed. The event is still required -- only the patience grew.
+        tokio::time::timeout(Duration::from_secs(60), async {
             loop {
                 if let Some(e) = self
                     .agent_events(name)
