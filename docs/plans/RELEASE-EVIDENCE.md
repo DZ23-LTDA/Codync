@@ -186,6 +186,37 @@ The updater's cache survives. electron-updater keeps its downloads there by desi
 140 MB installer behind is the kind of "orphan" item 4 names. Removed by hand here (it came from this test), and
 recorded so it is not mistaken for the machine's own data.
 
+### It installs, opens, and uninstalls — the whole chain, 03/11
+
+The retraction above cleared the way; this is the chain measured end to end after it, at `3b3007d4`.
+
+**Why the rebuild failed and how it was fixed.** `apps/desktop/tools/native-host.mjs` builds the bundled host for
+`x86_64-pc-windows-msvc`, but this checkout's `host/` had a **rustup directory override** forcing
+`1.99.0-x86_64-pc-windows-gnu`, whose msvc standard library is not installed:
+
+```
+error[E0463]: can't find crate for `core`
+```
+
+`rustup override unset` in `host/` puts it back on the pinned toolchain (`1.99.0-x86_64-pc-windows-msvc`, whose
+`x86_64-pc-windows-msvc` target is installed), and `npm run dist:win:dev` completes. Anyone meeting that error in
+this checkout should check `rustup override list` before believing the host is broken.
+
+| Step | Result |
+|---|---|
+| builds | `codync-dev-windows-x64.exe` 140.5 MB, nsis, unsigned, **no `latest.yml`** |
+| installs | `/S` → `%LOCALAPPDATA%\Programs\codync-desktop-dev`, **Codync Dev 2.34.1**, bundled `codync-host.exe` |
+| **opens** | 4 app processes, a window titled **"Codync Dev"**, and the bundled **`codync-host` + `codync-dev-hostw`** running beside it |
+| closes | every process ends when asked |
+| uninstalls | `/S` → program folder gone, uninstall entry gone, no process, **no scheduled task or service** left |
+| leaves behind | `%APPDATA%\Codync Dev` (the app's own data) and `%LOCALAPPDATA%\codync-desktop-dev-updater\installer.exe` (140.5 MB of updater cache) |
+
+So on Windows: **install, open, close and uninstall are demonstrated**; **update is not**, because the build has no
+update feed to check (`latest.yml` is not produced), and **rollback** has nothing to roll back from.
+
+Two leftovers named on purpose: the app's data folder is the app's to keep, and the updater cache is the one an
+uninstaller should sweep and does not.
+
 ## Known gaps, stated rather than hidden
 
 - **v2.34.0's upload is incomplete**: `tools/release-gate.py` in a dry run reports the release is missing

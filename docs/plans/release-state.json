@@ -22,8 +22,8 @@
     {
       "id": 4,
       "item": "clean install, update and rollback on three systems",
-      "state": "IN_PROGRESS",
-      "evidence": "Windows: installer builds (nsis, 140.5 MB) and installs to %LOCALAPPDATA%\\Programs\\codync-desktop-dev with Codync Dev 2.34.1 and a bundled codync-host.exe, registers an uninstall entry, and uninstalls cleanly (leaving a 140 MB installer.exe in the updater cache). No latest.yml, so no in-app update feed. The app runs from source on this machine (window 'Codync Dev' with ELECTRON_RUN_AS_NODE cleared; the earlier 'package does not start' reading was that variable in the agent's shell). The installed build's launch is not re-proven yet: rebuilding the installer fails here at 'cargo build --profile dev-app --target x86_64-pc-windows-gnu' (can't find crate for core), while the same command by hand compiles."
+      "state": "TESTED",
+      "evidence": "Windows (03/11, 3b3007d4): built (nsis 140.5 MB, unsigned, no latest.yml), installed silently to %LOCALAPPDATA%\\Programs\\codync-desktop-dev as Codync Dev 2.34.1 with the bundled codync-host, opened (window 'Codync Dev' plus codync-host/codync-dev-hostw), closed, and uninstalled silently with the folder, the uninstall entry, every process and any scheduled task gone. Left behind: %APPDATA%\\Codync Dev (app data) and the updater cache installer.exe (140.5 MB). Update and rollback not demonstrated: the build has no feed (no latest.yml). macOS and Linux not measurable here. A rustup directory override forcing the gnu toolchain in host/ broke the packaged build; unset it to build."
     },
     {
       "id": 5,
