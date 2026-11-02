@@ -133,7 +133,7 @@ struct AppLanguageTests {
 
 extension AppLanguageTests {
 @Test func additionalLanguagesResolveRegionsAndLoadBundledCatalogs() {
-    for language in [AppLanguage.ja, .ko, .fr, .de, .es] {
+    for language in [AppLanguage.ja, .ko, .fr, .de, .es, .pt] {
         #expect(AppLanguage.resolved(preference: .system, languages: [language.rawValue + "-XX"]) == language)
         #expect(AppLanguage.resolved(preference: language, languages: ["zh-TW"]) == language)
         let translated = L10n.tr("Settings", preference: language, systemIsChinese: false)
@@ -142,7 +142,7 @@ extension AppLanguageTests {
         #expect(L10n.tr("An unknown phrase", preference: language) == "An unknown phrase")
         #expect(AppLanguage.locale(preference: language, systemIsChinese: true).language.languageCode?.identifier == language.rawValue)
     }
-    #expect(AppLanguage.resolved(preference: .system, languages: ["pt-BR"]) == .en)
+    // Portuguese is one of the offered languages now, not an English fallback.
 }
 
 }
