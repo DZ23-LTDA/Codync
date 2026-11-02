@@ -1,6 +1,7 @@
 import { isChat, type AccessRequest, type CloudStatus, type Entry } from '@shared/models'
 import { isOutsideLoadedWindow, snapshotFloors } from '@shared/mirror-window'
 import { HostClient, HostError, type HostEvent } from '../client/host-client'
+import { INITIAL_GRACE, heldGrace } from '../lib/connection-grace'
 import { undoOnFailure } from '../lib/undo-on-failure'
 import { BotMirror, type Connection } from './bot-mirror'
 import { Artifacts } from './artifacts'
@@ -8,8 +9,6 @@ import type { CallCue } from '@shared/calls'
 import { humanError } from '../lib/human-error.ts'
 
 const REFRESH_TIMEOUT = 20_000
-const DROP_GRACE = 5000
-const INITIAL_GRACE = 1000
 const ACTION_PATIENCE = 20_000
 const MISMATCH_RECHECK = 30_000
 /** The mismatch recheck while an update asked from here runs, so the notice leaves soon after. */
@@ -103,11 +102,9 @@ export class BotSync extends BotMirror {
 
   /** Give initial connection failures a second to recover and online drops five seconds. */
   private setConnection(next: Connection) {
-    const transient = next.kind === 'connecting' || next.kind === 'offline' || next.kind === 'computerOffline'
     const recovering = next.kind === 'online' && (this.connection.kind !== 'online' || this.heldDrop !== null)
-    const initialFailure = this.connection.kind === 'connecting' && transient && next.kind !== 'connecting'
-    if (transient && (this.connection.kind === 'online' || initialFailure)) {
-      const grace = this.connection.kind === 'online' ? DROP_GRACE : INITIAL_GRACE
+    const grace = heldGrace(this.connection, next)
+    if (grace !== null) {
       this.heldDrop = next
       if (!this.dropTimer) {
         this.dropTimer = setTimeout(() => {
