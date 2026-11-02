@@ -39,7 +39,7 @@ pub(super) fn roster(buf: &mut Buffer, r: Rect, app: &mut App, narrow: bool) {
         } else if !app.online {
             vec![("Connecting…".into(), t.secondary)]
         } else {
-            vec![("No bots yet.".into(), t.text), ("n creates one.".into(), t.dim)]
+            vec![("B-3PO".into(), t.bold), ("No bots yet.".into(), t.text), ("n creates one.".into(), t.dim)]
         };
         let mut y = top + 1;
         for (m, s) in &msg {

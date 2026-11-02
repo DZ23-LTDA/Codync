@@ -41,6 +41,7 @@ async fn an_empty_host_says_there_are_no_bots_and_what_makes_one() {
     let mut app = test_app();
     app.online = true;
     let text = screen(&mut app, 100, 30);
+    assert!(text.contains("B-3PO"), "the empty roster carries the product's name:\n{text}");
     assert!(text.contains("No bots yet."), "the empty roster should say so:\n{text}");
     assert!(text.contains("n creates one."), "and what to do about it:\n{text}");
 }
