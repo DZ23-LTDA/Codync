@@ -26,7 +26,7 @@ Canonical source per kind of fact:
 | Desktop | `cd apps/desktop && npm ci && npm run typecheck && npm test && npm run build` | typecheck clean, tests pass, build ok |
 | iOS package | `cd apps/ios/Kit && xcodebuild test -scheme CodyncKit-Package -destination 'platform=iOS Simulator,name=iPhone 16'` | macOS only |
 | Android | `cd apps/android && ./gradlew :core:test :app:testDebugUnitTest :app:assembleDebug :app:lintDebug` | BUILD SUCCESSFUL |
-| Android instrumented | `cd apps/android && ./gradlew :app:connectedDebugAndroidTest` | 127 tests, 0 failed (24 skipped: need a live host, camera or speech) |
+| Android instrumented | `cd apps/android && ./gradlew :app:connectedDebugAndroidTest` | **127 tests, 0 real failures**, 24 *assumption* skips (need a live host, camera or speech). The XML says `failures="24"`: every one of those is `org.junit.AssumptionViolatedException`, an `assumeTrue` skip that AGP counts under failures. Re-run on `b3905bca` (02/11): BUILD SUCCESSFUL in 3m15s |
 | Cloud / relay / private relay | `cd cloud && npm ci && npm test && npm run typecheck` (and the same in `relay`, `private-relay`) | tests pass |
 | Scanners (i18n) | `node tools/l10n-missing.mjs && node tools/l10n-unwrapped.mjs && node tools/l10n-coverage.mjs` | 815 phrases / 0 missing; 0 unwrapped; pt 1673 keys, 100% |
 | Tools' own tests | `node --test tools/*.test.mjs && python tools/release-gate-test.py` | 41 passed; `ok` |
@@ -71,3 +71,28 @@ Canonical source per kind of fact:
   happened here, because this machine is Windows.
 - **Item 8**: twenty turns in one conversation were not measured; the first attempt stopped on a bug in the
   measurement loop (recorded in the reconciliation doc).
+
+## Android instrumented suite — re-run on 02/11
+
+`./gradlew :app:connectedDebugAndroidTest` on the emulator `dsh_pixel` (Android 15, x86_64, software GPU) at
+`b3905bca`, the tree that already carries the keyboard fix (#175) and the list-arrangement change (#173):
+
+```
+tests = 127 · failures = 24 · errors = 0 · BUILD SUCCESSFUL in 3m 15s
+```
+
+**All 24 are `org.junit.AssumptionViolatedException`** — `assumeTrue` guards for tests that need a live host,
+a camera or speech on the device — and **not one is an assertion failure**:
+
+| Class | Skips |
+|---|---|
+| LiveRosterTest | 3 |
+| LiveTerminalTest, LiveCredentialsTest, CameraScannerTest, WidgetSystemTest | 2 each |
+| LiveDraft, LiveManagement, LiveMemory, LivePlugins, LiveRoutines, LiveRouting, LiveSettings, LiveChat, LiveVoice, LiveVoiceSpeech, PlatformSpeech, NativeVoice, ComputerNotifications | 1 each |
+
+AGP writes those under `<failure>` in `TEST-*.xml`, so `failures="24"` reads like a red suite when it is not.
+Anyone re-running this should count `<failure>` blocks that are **not** `AssumptionViolatedException`: that
+number is 0.
+
+The suite exists in CI as a nightly job (`.github/workflows/android-instrumented.yml`, #176) because the
+Android workflow only compiled the APK; this run is the local proof that it passes on the current tree.
