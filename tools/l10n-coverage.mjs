@@ -5,7 +5,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { globSync } from "node:fs";
 
-import { isExample } from "./l10n-missing.mjs";
+import { decoded, isExample } from "./l10n-missing.mjs";
 
 const dir = "apps/ios/Kit/Sources/CodyncKit/Resources/Languages";
 const tables = new Map();
@@ -39,7 +39,9 @@ const used = new Set();
 for (const file of globSync(`${renderer}/**/*.tsx`)) {
   const source = readFileSync(file, "utf8");
   for (const match of source.matchAll(/tr\(\s*[`'"]([^`'"]{2,60})[`'"]\s*\)/g)) {
-    if (!isExample(match[1])) used.add(match[1]);
+    // The same decoding the missing-key scanner does: a literal written with `\n` is the key with a real newline in
+    // the table, and comparing the raw literal counts a translated phrase as missing.
+    if (!isExample(match[1])) used.add(decoded(match[1]));
   }
 }
 console.log(`\ndesktop shows ${used.size} distinct phrases through tr()`);
