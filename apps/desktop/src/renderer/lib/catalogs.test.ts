@@ -7,22 +7,24 @@ const read = (language: string): Record<string, string> => JSON.parse(readFileSy
 
 test('all shipped catalogs have the same keys and preserve interpolation tokens', () => {
   const source = read('zh-Hans')
-  // Portuguese is still short of the full table (944 of 1468 keys, tracked in
-  // docs/plans/release-1-reconciliation.md): until it catches up it is held to the same shape — real
-  // newlines, values present, no key the source does not have — but not to completeness.
+  // Portuguese covers every key the source has, plus 205 the source itself lacks: strings the apps
+  // ask for that zh-Hans never picked up, which is why the source reads short in English. It is held
+  // to the shape (real newlines, values present, tokens preserved) without the "same keys" rule,
+  // which would delete those translations to please the comparison.
   const partial = new Set(['pt'])
   for (const locale of ['zh-Hant', 'ja', 'ko', 'fr', 'de', 'es', 'pt']) {
     const catalog = read(locale)
+    assert.equal(catalog.English, 'English', `${locale}: English keeps its native name in language menus`)
     if (partial.has(locale)) {
-
+      const absent = Object.keys(source).filter((key) => !(key in catalog))
+      assert.deepEqual(absent, [], `${locale}: keys the source has that this catalog lacks`)
       for (const [key, value] of Object.entries(catalog)) {
-        assert.doesNotMatch(key, /\\n/, `${locale}: ${key} keeps a literal backslash`)
         assert.ok(value.trim(), `${locale}: ${key}`)
-        assert.ok(!value.includes('\\n'), `${locale}: ${value} keeps a literal backslash`)
+        assert.ok(!key.includes('\\n') && !value.includes('\\n'), `${locale}: ${key} keeps a literal backslash`)
+        assert.deepEqual((value.match(/\{[A-Za-z0-9]+\}/g) ?? []).sort(), (key.match(/\{[A-Za-z0-9]+\}/g) ?? []).sort(), `${locale}: ${key}`)
       }
       continue
     }
-    assert.equal(catalog.English, "English", `${locale}: English keeps its native name in language menus`)
     assert.deepEqual(Object.keys(catalog).sort(), Object.keys(source).sort(), locale)
     for (const [key, value] of Object.entries(catalog)) {
       assert.ok(value.trim(), `${locale}: ${key}`)

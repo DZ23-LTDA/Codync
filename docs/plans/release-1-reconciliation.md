@@ -15,11 +15,13 @@ instrumentada), #174 (reconciliação GitGuard), #175 (teclado ao tocar na conve
 | 4 | Instalação/update/rollback em 3 sistemas | `BLOCKED_BY_EXTERNAL_DEPENDENCY` | — | `codync-windows-x64.exe` publicado, instalar, abrir, atualizar, desinstalar — ação do dono |
 | 5 | Primeiro uso em 3 min, QR, reconexão | `IN_PROGRESS` | onboarding do Android percorrido no emulador (1/2 → 2/2 → permissão de câmera negada → campo para colar `codync-dev://pair`); desktop: 2 passos até a janela, com host real | cronometrar o fluxo inteiro com host pareado, nos dois clientes |
 | 6 | Erros humanos, vazios e offline | `IN_PROGRESS` | telas de erro/offline exercitadas pela suíte de UI (127 testes); `error-messages`: 0 stack traces; `empty-states`: 28 de 63 views | inspeção visual com captura, por cliente |
-| 7 | pt-BR no escopo liberado | `IN_PROGRESS` | #166 (scanner + 27 frases); iOS/Android sem chave faltando | 297 strings ainda fora de `tr()`; inspeção humana |
+| 7 | pt-BR no escopo liberado | `TESTED` | #166 (scanner + 27 frases), #178 (português virou idioma de verdade nos apps, com o catálogo empacotado no iOS), #179 (catálogo completo: 1673 chaves, 0 faltando; tela de instalação e boas-vindas conferidas no emulador em pt-BR) | inspeção humana das telas internas (com host pareado) |
 | 8 | Performance medida | `IN_PROGRESS` | primeiras medições reais (abaixo) | primeiro token com agente real; carga/concorrência |
 | 9 | Checkpoint, bump, WhatsNew, tag | `NOT_STARTED` | `B3PO-CHECKPOINT.md` atualizado nesta sessão | bump + WhatsNew + tag (é a publicação: exige autorização do dono) |
 | 10 | Ciclo de entrega | `BLOCKED_BY_EXTERNAL_DEPENDENCY` | — | depende do 4 e da autorização de publicação |
 | 11 | Recuperação após encerramento abrupto | `TESTED` | #158: mata o host, confere dois bots e histórico após reinício | interrupção em ponto de escrita determinístico, downgrade de schema, corrupção real |
+
+Nota do item 7: o catálogo zh-Hans (a referência) **não tem 205 strings** que os apps pedem — por isso elas aparecem em inglês para todo mundo menos o português, que as carrega. Corrigir isso exige traduzir as 205 para as outras seis línguas; está registrado no teste de catálogo.
 
 ## Performance (item 8) — primeira medição real
 
