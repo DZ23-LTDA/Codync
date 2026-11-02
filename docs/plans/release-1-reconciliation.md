@@ -39,6 +39,7 @@ Android SDK 37, emulador `dsh_pixel` (API 35, x86_64, GPU de software).
 | Primeiro token, 8 bots ao mesmo tempo | 1211–1212 ms nos oito · p95 **1212 ms** |
 | CPU do host, 8 turnos ao mesmo tempo | 0,547 s de CPU em 1,91 s de janela = **28,6% de um núcleo** (0,89% da máquina de 32 núcleos) · memória 54 MB |
 | Resposta longa (400 blocos, 62 KB) | host grava e fecha o turno em **0,68 s**; a janela mostra a última linha **39 ms** depois do clique |
+| Desktop, janela → primeiro conteúdo (5ª execução, perfil quente) | janela em **922 ms** (pior 955) · primeiro conteúdo em **1060 ms** (pior 1086) |
 
 Leitura: o transporte do host não é gargalo (1 ms de p50 num endpoint que toca o banco). O Android
 foi medido em `debug` num emulador com GPU de software — é o pior caso, não o que o usuário vê.
@@ -211,3 +212,16 @@ Uma observação registrada, **não reproduzida**: numa das passadas a janela re
 console enquanto o diálogo de apagar estava aberto. Duas tentativas depois (perfil novo e o mesmo perfil, com
 Extensões aberta) deram **zero** respostas >= 400. Sem repro, não vira defeito — fica anotado para quem
 mexer nessa tela.
+
+### Abertura do desktop (item 8) — como foi medido
+
+`tools/e2e-desktop/measure-open.cjs`, cinco execuções num perfil já configurado, host no ar, Windows 11:
+
+| Medida | Mediana | Pior |
+|---|---|---|
+| Janela na tela | **922 ms** | 955 ms |
+| Primeiro conteúdo legível | **1060 ms** | 1086 ms |
+
+É o app **desempacotado** (`npm run build` + Electron local), não o instalador assinado — o número mede o
+carregamento do renderer e a primeira resposta do host, não a verificação de assinatura do pacote. A primeira
+execução num perfil novo levou **2644 ms** porque passa pelo onboarding.
