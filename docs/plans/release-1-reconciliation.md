@@ -11,7 +11,7 @@ instrumentada), #174 (reconciliação GitGuard), #175 (teclado ao tocar na conve
 |---|---|---|---|---|
 | 1 | Scanner de i18n | `IMPLEMENTED` | #166: o scanner descartava toda frase de 5+ palavras; corrigido, 27 traduções entraram, `pt` em 100% da tela do desktop conferida | inspeção visual das telas restantes, por cliente |
 | 2 | Release do fork ≠ upstream | `IMPLEMENTED` | #164 (URLs/tap/gate recusam outro repositório) e #171 (clientes, tray, SSH, cloud) | o **workflow** ainda tem `github.repository == 'leepokai/Codync'`; vira VERIFIED quando o job rodar no fork (depende do tap e do secret) |
-| 3 | Banco em todos os estados | `TESTED` | 10 testes (#43/#48/#50/#62), suíte do host verde nas 3 OSes da CI | restore real de backup, não só validar o arquivo gerado |
+| 3 | Banco em todos os estados | `VERIFIED` | #43/#48/#50/#62 (store: ausente, vazio, válido, danificado, truncado, migrações, cópia) + #181 (interrupção de escrita determinística, rajada morta no meio) + #182 (processo recusa schema mais novo e arquivo danificado/truncado, sem tocar no arquivo nem criar um vazio no lugar) | — |
 | 4 | Instalação/update/rollback em 3 sistemas | `BLOCKED_BY_EXTERNAL_DEPENDENCY` | — | `codync-windows-x64.exe` publicado, instalar, abrir, atualizar, desinstalar — ação do dono |
 | 5 | Primeiro uso em 3 min, QR, reconexão | `IN_PROGRESS` | onboarding do Android percorrido no emulador (1/2 → 2/2 → permissão de câmera negada → campo para colar `codync-dev://pair`); desktop: 2 passos até a janela, com host real | cronometrar o fluxo inteiro com host pareado, nos dois clientes |
 | 6 | Erros humanos, vazios e offline | `IN_PROGRESS` | telas de erro/offline exercitadas pela suíte de UI (127 testes); `error-messages`: 0 stack traces; `empty-states`: 28 de 63 views | inspeção visual com captura, por cliente |
@@ -19,7 +19,7 @@ instrumentada), #174 (reconciliação GitGuard), #175 (teclado ao tocar na conve
 | 8 | Performance medida | `IN_PROGRESS` | primeiras medições reais (abaixo) | primeiro token com agente real; carga/concorrência |
 | 9 | Checkpoint, bump, WhatsNew, tag | `NOT_STARTED` | `B3PO-CHECKPOINT.md` atualizado nesta sessão | bump + WhatsNew + tag (é a publicação: exige autorização do dono) |
 | 10 | Ciclo de entrega | `BLOCKED_BY_EXTERNAL_DEPENDENCY` | — | depende do 4 e da autorização de publicação |
-| 11 | Recuperação após encerramento abrupto | `TESTED` | #158 (mata o host, confere dois bots e histórico após reinício), #181 (duas provas novas: morte com a escrita travada por outro processo, e rajada de escritas morta no meio — o arquivo abre, `integrity_check` = ok, toda escrita respondida sobrevive e nenhum bot pela metade aparece) | downgrade de schema, corrupção real do arquivo |
+| 11 | Cancelar um turno travado | `TESTED` | #86/#87/#88: watchdog de 180 s, decisão coberta por 6 testes, E2E com agente silencioso ("Stopped: the agent stopped answering.", o bot sai de Working) | parar pela UI num app rodando; dica no iOS/Android/TUI |
 
 Nota do item 7: o catálogo zh-Hans (a referência) **não tem 205 strings** que os apps pedem — por isso elas aparecem em inglês para todo mundo menos o português, que as carrega. Corrigir isso exige traduzir as 205 para as outras seis línguas; está registrado no teste de catálogo.
 
@@ -89,7 +89,7 @@ Dois achados do passeio:
    conteúdo, não interface — mas é visível ao usuário e não passa por `tr()`. Fica registrado como
    decisão de produto, não como bug de tradução.
 
-## Item 11 — o que as provas novas mostram
+## Banco em todos os estados (item 3) — o que as provas novas mostram
 
 `write_interruption_e2e.rs` acrescenta duas propriedades que faltavam:
 
@@ -102,6 +102,12 @@ Dois achados do passeio:
    que ninguém pediu apareceu, toda linha tem config JSON válida e o host lista exatamente o que o arquivo
    tem.
 
-Continua faltando para `VERIFIED`: **downgrade de schema** (um banco de versão mais nova aberto por um
-host mais antigo precisa recusar, não migrar para trás) e **corrupção real do arquivo** (bytes trocados no
-meio do banco). Ambos são cenários separados do próximo ciclo.
+Nível de processo (o que a pessoa vê quando o host sobe numa pasta que não consegue ler), testado em
+`database_damage_e2e.rs`: schema mais novo → o processo **sai com erro** e diz "written by a newer version…
+Nothing was changed"; arquivo com header destruído → sai e diz "may be damaged… Nothing was deleted";
+arquivo truncado → recusa. Nos três, o arquivo fica **byte a byte igual** e nenhum banco vazio é criado no
+lugar.
+
+Detalhe que os testes descobriram: matar o host deixa um `codync.db-wal` cheio, e o SQLite **reproduz o
+WAL** — com o `codync.db` destruído e o WAL intacto, o banco ainda abre com os dados. Para o cenário de
+"arquivo danificado" ser real, o WAL tem de ser dobrado de volta antes (o teste faz `wal_checkpoint`).

@@ -16,8 +16,8 @@
     {
       "id": 3,
       "item": "database: missing, empty, valid, damaged, migrated, interrupted, recovered",
-      "state": "TESTED",
-      "evidence": "PRs #43, #48, #50, #62: 10 tests — missing, empty, valid, damaged, truncated, recovery on a copy, newer schema refused"
+      "state": "VERIFIED",
+      "evidence": "PRs #43, #48, #50, #62: 10 store tests — missing, empty, valid, damaged, truncated, migrations, working on a copy, newer schema refused. #181: a kill while the write cannot commit, and a kill mid-burst, both leaving integrity_check ok with every answered write present. #182: the process refuses a newer schema and a damaged or truncated file, byte for byte untouched, with no empty database put in its place",
     },
     {
       "id": 4,
