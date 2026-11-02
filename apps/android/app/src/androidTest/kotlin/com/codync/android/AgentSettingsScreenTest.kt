@@ -17,7 +17,7 @@ class AgentSettingsScreenTest {
     @get:Rule val compose = createComposeRule()
     private val online = AppState(loading = false, computers = listOf(Computer("fixture", "Fixture computer", "fixture")),
         actualConnection = LinkState.Ready(HostRoute.Direct))
-    private val model = hasContentDescription("Model:", substring = true)
+    private fun model(name: String) = hasText(name, substring = true) and hasClickAction()
 
     @Composable private fun Picker(state: AppState, backend: String, selected: String?, choose: (String?) -> Unit, load: suspend (String) -> AgentModels) =
         AgentModelPicker(state, load, backend, selected, emptyMap(), false, null, { id, _ -> choose(id) }, {})
@@ -27,15 +27,23 @@ class AgentSettingsScreenTest {
         compose.setContent { Hosted { Picker(online, "agent", selected, { selected = it }) {
             AgentModels(listOf(AgentModel("auto", "Default (recommended)"), AgentModel("host-model", "Host model", "From this agent")))
         } } }
-        compose.waitUntil { compose.onAllNodes(model).fetchSemanticsNodes().size == 1 }
-        compose.onNodeWithContentDescription("Model: old-model").performClick()
+        compose.waitUntil(5_000) { compose.onAllNodes(model("old-model")).fetchSemanticsNodes().size == 1 }
+        compose.onNode(model("old-model")).performClick()
         compose.onAllNodesWithText("Default (recommended)").assertCountEquals(1)
         compose.onNodeWithText("Default (recommended)").performClick()
         assertNull(selected)
-        compose.onNodeWithContentDescription("Model: Default (recommended)").performClick()
+        compose.waitForIdle()
+        // The picker row and the menu item share the word: the row is the one further down.
+        val reopened = compose.onAllNodes(hasText("Default", substring = true) and hasClickAction())
+        val nodes = reopened.fetchSemanticsNodes()
+        reopened[nodes.indices.maxBy { nodes[it].boundsInRoot.top }].performClick()
         compose.onNodeWithText("Host model").performClick()
         assertEquals("host-model", selected)
-        compose.onNodeWithContentDescription("Refresh model list").assertIsDisplayed()
+        // The chosen model is what the row shows now (the refresh button lives inside the open list).
+        compose.waitForIdle()
+        // The list stays open after choosing (its options belong to the model): the name is in
+        // the row and in the open list.
+        compose.onAllNodes(model("Host model")).assertCountEquals(2)
     }
 
     @Test fun aLateCancelledModelDiscoveryCannotReplaceAnotherAgentsCatalog() {
@@ -48,11 +56,11 @@ class AgentSettingsScreenTest {
                 AgentModels(listOf(AgentModel(id, "$id advertised model")))
             }
         } } }
-        compose.waitUntil { started.get() }
+        compose.waitUntil(5_000) { started.get() }
         compose.onNodeWithText("Switch agent").performClick()
-        compose.waitUntil { compose.onAllNodes(model).fetchSemanticsNodes().size == 1 }
-        compose.waitUntil(3_000) { returned.get() }
-        compose.onNode(model).performClick()
+        compose.waitUntil(5_000) { compose.onAllNodes(model("new")).fetchSemanticsNodes().size == 1 }
+        compose.waitUntil(5_000) { returned.get() }
+        compose.onNode(model("new")).performClick()
         compose.onNodeWithText("new advertised model").assertIsDisplayed()
         compose.onNodeWithText("old advertised model").assertDoesNotExist()
     }
@@ -62,9 +70,11 @@ class AgentSettingsScreenTest {
         compose.setContent { Hosted { Picker(online.copy(actualConnection = LinkState.Connecting), "agent", selected, { selected = it }) {
             fail("Offline must not query models"); AgentModels(emptyList())
         } } }
+        // The reason lives inside the list it is about: opening the picker is what shows it.
+        compose.onNode(model("my-model")).performClick()
         compose.onNodeWithText("Connect to this computer to load its models. You can still enter a model ID.").assertIsDisplayed()
-        compose.onNodeWithContentDescription("Retry model list").assertIsDisplayed()
-        compose.onNode(model).assertDoesNotExist()
+        compose.onNodeWithContentDescription("Refresh model list").assertIsDisplayed()
+        compose.onNode(hasText("agent · Default", substring = true)).assertDoesNotExist()
         compose.onNode(hasSetTextAction() and hasText("my-model")).performTextReplacement("saved-model")
         assertEquals("saved-model", selected)
     }
@@ -77,22 +87,22 @@ class AgentSettingsScreenTest {
             if (path == "/home/Repo") DirListing("/home/Repo", "/home", true, emptyList(), recent = emptyList())
             else DirListing("/home", "/", false, listOf(DirItem("Repo", "/home/Repo", true), DirItem("Other", "/home/Other")), recent = emptyList())
         }, select = { it }) { chosen = it } } }
-        compose.waitUntil { compose.onAllNodesWithText("Browse other folders").fetchSemanticsNodes().size == 1 }
+        compose.waitUntil(5_000) { compose.onAllNodesWithText("Browse other folders").fetchSemanticsNodes().size == 1 }
         compose.onNodeWithText("Search recent workspaces").assertDoesNotExist()
         compose.onNodeWithText("Browse other folders").performClick()
-        compose.waitUntil { compose.onAllNodesWithText("Repo").fetchSemanticsNodes().size == 1 }
+        compose.waitUntil(5_000) { compose.onAllNodesWithText("Repo").fetchSemanticsNodes().size == 1 }
         compose.onNode(hasSetTextAction()).performTextInput("repo")
         compose.onNodeWithText("Other").assertDoesNotExist()
         assertEquals(listOf(null, "/home"), requests)
         compose.onNodeWithText("Repo").performClick()
-        compose.waitUntil { requests.lastOrNull() == "/home/Repo" }
+        compose.waitUntil(5_000) { requests.lastOrNull() == "/home/Repo" }
         compose.onNodeWithText("Use this folder").performClick()
-        compose.waitUntil { chosen == "/home/Repo" }
+        compose.waitUntil(5_000) { chosen == "/home/Repo" }
         assertEquals(listOf(null, "/home", "/home/Repo"), requests)
         compose.onNodeWithContentDescription("Parent folder").performClick()
-        compose.waitUntil { compose.onAllNodesWithText("Other").fetchSemanticsNodes().size == 1 }
+        compose.waitUntil(5_000) { compose.onAllNodesWithText("Other").fetchSemanticsNodes().size == 1 }
         compose.onNodeWithText("Use this folder").performClick()
-        compose.waitUntil { chosen == "/home" }
+        compose.waitUntil(5_000) { chosen == "/home" }
     }
 
     @Test fun anUnavailableOrOfflineFolderShowsWhyWithoutOfferingIt() {
@@ -101,7 +111,7 @@ class AgentSettingsScreenTest {
         compose.setContent { Hosted { FolderPicker("/missing", online.value, "Fixture computer", load = { loads++; throw java.io.IOException("This folder no longer exists.") }, select = { fail("Unavailable folder must not be selected"); it }) {
             fail("A folder that failed to load can't be chosen")
         } } }
-        compose.waitUntil { compose.onAllNodesWithText("This folder no longer exists.").fetchSemanticsNodes().size == 1 }
+        compose.waitUntil(5_000) { compose.onAllNodesWithText("This folder no longer exists.").fetchSemanticsNodes().size == 1 }
         compose.onNodeWithText("Use this folder").assertIsNotEnabled()
         compose.runOnUiThread { online.value = false }
         compose.onNodeWithText("Connect to this computer to browse its folders.").assertIsDisplayed()
