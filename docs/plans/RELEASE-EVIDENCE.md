@@ -61,6 +61,31 @@ Canonical source per kind of fact:
 3. **The Homebrew tap and the gate**: `TAP_TOKEN` and `vars.RELEASE_GATE_ENABLED` exist only when the owner
    creates them; without them the gate stays skipped by design and no tap is pushed.
 
+## The remote channel's security tests — what exists, and where
+
+`GET /channel` is the one route with no bearer token: the handshake authenticates. Before adding a test there,
+read this list — **the handshake is already covered from both sides**, and a new negative test may only
+duplicate one of these.
+
+| What | Test | Where |
+|---|---|---|
+| An unknown device cannot connect | `unknown_device_is_rejected` | `host/src/remote/channel.rs:719` |
+| A `pair` hello without a code is refused before any crypto | `pair_hello_without_a_code_is_refused_before_any_crypto` | `channel.rs:763` |
+| The pairing channel only takes `pair`, and a code works once | `pairing_channel_only_takes_pair_and_codes_are_single_use` | `channel.rs:781` |
+| Replayed or malformed frames close the channel | `replayed_or_bad_frames_close_the_channel` | `channel.rs:892` |
+| Revoking a device closes the channel and its subscription | `revoking_closes_the_channel_and_its_subscription` | `channel.rs:803` |
+| A relay link's hello must match its open | `relay_link_hello_must_match_open` | `channel.rs:878` |
+| A cancelled subscription ends | `cancelled_subscription_ends` | `channel.rs:905` |
+| A device that stops reading ends the channel cleanly | `a_device_that_stops_reading_ends_the_channel_cleanly` | `channel.rs:941` |
+| Account devices need a synced live lease | `account_devices_need_a_synced_live_lease` | `channel.rs:849` |
+| An unknown protocol version is refused over a real socket (426) | `phone_pairs_and_chats_over_the_direct_channel` | `host/tests/e2e.rs:346` |
+| A real phone pairs over the socket, then chats and subscribes | same test — `Phone::connect` drives the real X25519/signature handshake | `host/tests/e2e.rs:340` |
+| A plain HTTP request never gets a socket; 25 refusals leave the host healthy | `channel_surface_e2e` (2 tests) | `host/tests/channel_surface_e2e.rs` |
+
+Still **not covered at the socket level**: oversized frames (`MAX_WS_MESSAGE` is 1 MiB, set on the upgrade but not
+exercised from outside) and rate limiting against a caller opening many channels in a row. Both are worth a test;
+neither is a known hole.
+
 ## Known gaps, stated rather than hidden
 
 - **v2.34.0's upload is incomplete**: `tools/release-gate.py` in a dry run reports the release is missing
