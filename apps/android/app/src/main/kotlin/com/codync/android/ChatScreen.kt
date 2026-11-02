@@ -48,6 +48,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
@@ -208,7 +209,10 @@ import com.kyant.shapes.Capsule
     val more = bot.id !in state.historyComplete
     val details by ThinkingDetails.enabled.collectAsStateWithLifecycle()
     // Pull to refresh reconnects, like Reconnect in the roster's computer menu, until the link is back.
-    ConversationList(items.lastOrNull()?.id, entries.lastOrNull()?.rev, working, padding, store::refreshConnection, indicatorTop) {
+    // A plain tap on the conversation puts the keyboard away; the list clears the focus too.
+    val keyboard = LocalSoftwareKeyboardController.current
+    ConversationList(items.lastOrNull()?.id, entries.lastOrNull()?.rev, working, padding, store::refreshConnection, indicatorTop,
+        onBackgroundTap = { keyboard?.hide() }) {
         if (more) item("earlier") {
             Box(Modifier.fillMaxWidth().padding(vertical = 14.dp).clearAndSetSemantics { contentDescription = "Loading earlier messages" },
                 contentAlignment = Alignment.Center) { Spinner(14.dp) }

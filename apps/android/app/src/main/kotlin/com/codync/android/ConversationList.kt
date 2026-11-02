@@ -46,15 +46,22 @@ import kotlinx.coroutines.launch
  * leads back down. With `refresh`, a pull past the top runs it, its indicator at `indicatorTop`.
  */
 @Composable internal fun ConversationList(last: String?, rev: Long?, working: Boolean, padding: PaddingValues,
-    refresh: (suspend () -> Unit)? = null, indicatorTop: Dp = 0.dp, content: LazyListScope.() -> Unit) {
+    refresh: (suspend () -> Unit)? = null, indicatorTop: Dp = 0.dp, onBackgroundTap: (() -> Unit)? = null,
+    content: LazyListScope.() -> Unit) {
     val list = rememberLazyListState()
     val bottom = padding.calculateBottomPadding()
     val following = rememberFollowing(list, last, rev, working, bottom)
     val scope = rememberCoroutineScope()
     val focus = LocalFocusManager.current
     // Child controls consume their taps; only a plain conversation tap clears the composer.
-    Box(Modifier.fillMaxSize().pointerInput(focus) {
-        detectTapGestures { focus.clearFocus() }
+    // `onBackgroundTap` is what the composer hangs its own dismissal on, so a test can prove the
+    // tap reached here without depending on Compose focus semantics (which a window without
+    // focus never flips).
+    Box(Modifier.fillMaxSize().pointerInput(focus, onBackgroundTap) {
+        detectTapGestures {
+            focus.clearFocus()
+            onBackgroundTap?.invoke()
+        }
     }) {
         if (refresh == null) LazyColumn(Modifier.fillMaxSize(), state = list, contentPadding = padding, verticalArrangement = Arrangement.Bottom, content = content)
         else PullToRefresh(refresh, Modifier.fillMaxSize(), indicatorTop) {
