@@ -11,13 +11,13 @@ import {
 } from '@shared/models'
 import type { NetworkView, RecoveryCode } from '@shared/network'
 import type { HostClient, HostRoute, HostTransport } from '../client/host-client'
-import { rosterOrder } from '../lib/computer-roster'
-import { HOST_UPDATE_WAIT, hostVersionLine, offerHostUpdate, type HostUpdate, type HostUpdateOffer, type HostVersionLine } from '../lib/host-update'
-import { Observable } from '../lib/observable'
-import { hostHasSections } from '../lib/roster-sections'
+import { rosterOrder } from '../lib/computer-roster.ts'
+import { HOST_UPDATE_WAIT, hostVersionLine, offerHostUpdate, type HostUpdate, type HostUpdateOffer, type HostVersionLine } from '../lib/host-update.ts'
+import { Observable } from '../lib/observable.ts'
+import { hostHasSections } from '../lib/roster-sections.ts'
 import { ComposerDrafts } from '@shared/composer-drafts'
 import { canLoadHistory } from '@shared/mirror-window'
-import { loadIconCache, saveIconCache } from '../lib/icon-cache'
+import { loadIconCache, saveIconCache } from '../lib/icon-cache.ts'
 
 /** The first host where the user picks the lead and may delete it. */
 const LEAD_CHOICE_HOST = '2.33.0'
@@ -103,14 +103,25 @@ export class BotMirror extends Observable {
   protected saveTimer: ReturnType<typeof setTimeout> | null = null
   protected cacheStamp: string | null = null
 
+  readonly isLoopback: boolean
+  protected makeTransport: () => HostTransport
+  protected appVersion: string
+  readonly contextId: string
+
+  // Plain fields, not parameter properties: `node --test` strips types without compiling them, and a parameter
+  // property is syntax it refuses, which keeps every store built on this one out of reach of a unit test.
   constructor(
     computer: Computer,
-    readonly isLoopback: boolean,
-    protected makeTransport: () => HostTransport,
-    protected appVersion = window.codync.appVersion,
-    readonly contextId = 'local',
+    isLoopback: boolean,
+    makeTransport: () => HostTransport,
+    appVersion = window.codync.appVersion,
+    contextId = 'local',
   ) {
     super()
+    this.isLoopback = isLoopback
+    this.makeTransport = makeTransport
+    this.appVersion = appVersion
+    this.contextId = contextId
     this.computer = computer
     this.composerDrafts = new ComposerDrafts(localStorage, `codync-drafts-v1-${JSON.stringify([contextId, computer.id])}`,
       () => this.setError("Couldn't save the draft on this device. Your text is still here; keep this window open until you send or copy it."))
