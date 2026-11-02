@@ -16,7 +16,7 @@ instrumentada), #174 (reconciliação GitGuard), #175 (teclado ao tocar na conve
 | 5 | Primeiro uso em 3 min, QR, reconexão | `IN_PROGRESS` | onboarding do Android percorrido no emulador (1/2 → 2/2 → permissão de câmera negada → campo para colar `codync-dev://pair`); desktop: 2 passos até a janela, com host real | cronometrar o fluxo inteiro com host pareado, nos dois clientes |
 | 6 | Erros humanos, vazios e offline | `IN_PROGRESS` | suíte de UI do desktop (127 testes) + passeio com app real (02/11, `tools/e2e-desktop/e2e-states.cjs`): vazio ("Seus agentes de código, como colegas de equipe." + "Novo bot"), falha ("O host não está rodando" / "O host não está respondendo. Veja o log para detalhes." + "Tentar de novo", depois de ~30 s em "Iniciando o host…"), offline ("Offline" na linha do bot ao usar a janela) e volta ao normal quando o host retorna. Nenhuma das telas mostra stack trace, caminho interno ou segredo | metade celular (precisa de pareamento — firewall) e TUI |
 | 7 | pt-BR no escopo liberado | `TESTED` | #166, #178, #179 (catálogo 1673 chaves, 0 faltando) + inspeção com app real (02/11): onboarding (2 passos, "Acesso ao computador", "Dar estrela no GitHub", "Começar"), janela vazia, erro de host, offline, Extensões ("Não instalado"), conversa e Stop — todas em português. Emulador Android: boas-vindas e passo de instalação em português | telas internas do celular (pareamento bloqueado pelo firewall) e iOS (só CI, sem Mac) |
-| 8 | Performance medida | `IN_PROGRESS` | primeiras medições reais (abaixo) | primeiro token com agente real; carga/concorrência |
+| 8 | Performance medida | `IN_PROGRESS` | API (p50 0,9 ms / p95 1,3 ms), memória (50 MB), Android a frio (2,3–2,6 s), **primeiro token** com agente real de fixture: p95 **17 ms** em 20 rodadas, e **1,21 s** com **8 bots respondendo ao mesmo tempo** (custo de subir 8 processos) — `first_token_e2e.rs`, abaixo | CPU durante a carga; telas pesadas (conversa longa, memória cheia) |
 | 9 | Checkpoint, bump, WhatsNew, tag | `NOT_STARTED` | `B3PO-CHECKPOINT.md` atualizado nesta sessão | bump + WhatsNew + tag (é a publicação: exige autorização do dono) |
 | 10 | Ciclo de entrega | `BLOCKED_BY_EXTERNAL_DEPENDENCY` | — | depende do 4 e da autorização de publicação |
 | 11 | Cancelar um turno travado | `VERIFIED` | #86/#87/#88 (watchdog de 180 s, decisão coberta por 6 testes, E2E com agente silencioso) + E2E de app rodando (02/11): bot com `silent_agent.py`, mensagem enviada, botão **Stop** clicado na janela real → o turno fecha e a conversa mostra "Stopped." | dica de "você pode parar" no iOS/Android/TUI (item de UX aberto, abaixo) |
@@ -35,6 +35,8 @@ Android SDK 37, emulador `dsh_pixel` (API 35, x86_64, GPU de software).
 | Host, working set | 50 MB |
 | Android, abertura a frio (3×) | 2494 / 2552 / 2283 ms |
 | Android, memória | PSS 127 MB (RSS 225 MB) |
+| Primeiro token, 1 bot, 20 rodadas | p50 **3 ms** · p95 **17 ms** (uma rodada a frio: 2789 ms) |
+| Primeiro token, 8 bots ao mesmo tempo | 1211–1212 ms nos oito · p95 **1212 ms** |
 
 Leitura: o transporte do host não é gargalo (1 ms de p50 num endpoint que toca o banco). O Android
 foi medido em `debug` num emulador com GPU de software — é o pior caso, não o que o usuário vê.
@@ -155,3 +157,20 @@ Duas observações, não defeitos:
   de novo" resolve, então é espera, não beco.
 - a mensagem manda "ver o log" mas não diz onde; o log está no menu da bandeja ("Open log"). Um link na
   própria mensagem fecharia o caminho.
+
+### Primeiro token (item 8) — o que foi medido e com o que
+
+`cargo test --test first_token_e2e -- --ignored --nocapture` (host `debug`, Windows 11, agente de fixture
+`fast_reply_agent.py`, que responde no mesmo instante: o número é **overhead do host**, não do modelo).
+
+| Medida | Resultado |
+|---|---|
+| 1 bot, 20 rodadas | `[3 ×18, 4 ×2, 17, 2789]` ms · **p95 17 ms** |
+| 8 bots ao mesmo tempo | `[1211, 1211, 1211, 1211, 1211, 1212, 1212, 1212]` ms · **p95 1212 ms** |
+
+Leitura: com o processo do agente já quente, o host leva **3 ms** para pôr a primeira palavra no
+transcript; a rodada de 2789 ms é o primeiro turno, que sobe o processo. Com oito bots, cada turno paga a
+subida de um processo Python (8 em paralelo) — 1,2 s, e o valor é o mesmo nos oito, ou seja, o host não
+serializa os turnos.
+
+Falta para fechar o item: CPU do host durante a carga e telas pesadas (conversa longa, memória cheia).

@@ -11,6 +11,7 @@ mod common;
 use serde_json::json;
 use std::path::PathBuf;
 use std::process::Child;
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 struct Host {
@@ -109,4 +110,61 @@ async fn first_word_p95_over_twenty_rounds() {
     let index = (all.len() * 95).div_ceil(100).saturating_sub(1);
     let p95 = all[index.min(all.len() - 1)];
     println!("first word (ms), 20 rounds: {all:?} · p95 {p95}");
+}
+
+/// How the first word behaves when eight bots answer at the same time.
+///
+/// One bot's latency says nothing about a machine running a team: every bot is its own process and its own
+/// actor, and they all write into the same store. The gate asks for load, so this measures the moment the first
+/// word of eight concurrent turns reaches the transcript:
+/// `cargo test --test first_token_e2e -- --ignored --nocapture`.
+///
+/// No ceiling is asserted: the numbers belong in the report, and a slow CI runner is not a regression. What must
+/// hold is that every one of them answers.
+#[tokio::test(flavor = "multi_thread")]
+#[ignore = "eight bots at once: run it to publish the baseline"]
+async fn first_word_with_eight_bots_answering_at_once() {
+    let host = Arc::new(Host::start().await);
+    let agent = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/fast_reply_agent.py");
+    let mut bots = Vec::new();
+    for index in 0..8 {
+        let created = host
+            .call(
+                "createBot",
+                json!({
+                    "name": format!("Twin {index}"),
+                    "backend": "custom",
+                    "cwd": host.home,
+                    "command": common::python_agent(&agent),
+                    "connectors": [],
+                    "notify": false,
+                }),
+            )
+            .await;
+        bots.push(created["bot"]["id"].as_str().unwrap().to_owned());
+    }
+
+    let started = Instant::now();
+    let first_words = futures::future::join_all(bots.into_iter().map(|bot| {
+        let host = Arc::clone(&host);
+        async move {
+            host.call("send", json!({"botId": bot, "text": "at once"})).await;
+            let deadline = Instant::now() + Duration::from_secs(120);
+            loop {
+                let entries = host.entries(&bot).await;
+                if entries.iter().any(|e| e["data"]["text"] == json!("pong")) {
+                    return started.elapsed().as_millis();
+                }
+                assert!(Instant::now() < deadline, "bot {bot} never answered under load");
+                tokio::time::sleep(Duration::from_millis(20)).await;
+            }
+        }
+    }))
+    .await;
+
+    let mut all = first_words;
+    all.sort_unstable();
+    let index = (all.len() * 95).div_ceil(100).saturating_sub(1);
+    let p95 = all[index.min(all.len() - 1)];
+    println!("first word under load (ms), 8 bots at once: {all:?} · p95 {p95}");
 }
