@@ -59,7 +59,7 @@ Levantado no código em `3ff0a6d7`, não por impressão:
 
 | Item | Hoje | Referência | Ação |
 |---|---|---|---|
-| Marca na tela vazia do desktop | **não aparece**: o estado vazio mostra três avatares de personagem (`ChatWindow.tsx:357-361`) | a marca, ao centro | trocar os três avatares pela marca |
+| Marca na tela vazia do desktop | **não aparece**: o estado vazio mostra três avatares de personagem (`ChatWindow.tsx:357-361`) | a marca, ao centro | **feito** (#226): a marca substituiu os avatares |
 | Título | `Your coding agents, as teammates.` já existe | igual | nenhuma |
 | Apoio | `Your bots will…` / `Give each one a name and a project…` | "Pick a bot, or create one for each kind of work and point it at a project." | alinhar o texto |
 | Botão | `New bot` | `New Bot` | capitalização |
@@ -76,3 +76,20 @@ Nada nesta lista exige mudar arquitetura, API, host ou persistência. É composi
   outras.
 - Uma mudança de UI entra nos quatro clientes na mesma entrega, como manda o `AGENTS.md`; onde não se aplica, o
   resumo do PR diz por quê.
+
+### Como medir esta tela (e por que a captura engana)
+
+O app roda com `devicePixelRatio` **1,5** nesta máquina, então uma janela de 1086 CSS px ocupa **1629 px** de tela. Se a
+tela for menor que isso, o Windows corta a janela **sem avisar o renderer**: o layout continua correto, mas a captura
+mostra só a parte esquerda.
+
+Medido por dentro do app (console do renderer, `npm run dev`):
+
+```
+innerWidth 1086 · devicePixelRatio 1.5
+.empty-detail  x:267  width:819  right:1086   ← encaixa exatamente no viewport
+```
+
+Ou seja: o painel de detalhe começa depois da barra lateral (267) e termina na borda (1086); o conteúdo é centralizado
+nele. **A captura em `desktop-empty-state-with-mark.png` mostra a janela cortada pela tela, não um erro de layout.**
+Para conferir com o olho, a janela precisa caber na tela — ou o zoom tem de descer até caber.
