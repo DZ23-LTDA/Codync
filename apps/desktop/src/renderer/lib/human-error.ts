@@ -9,6 +9,9 @@ import { translate, type AppLanguage } from "./l10n.ts";
 
 const MAX = 200;
 
+/** The shapes a refused connection arrives in: fetch, Node's socket errors, a name that does not resolve. */
+const PLUMBING = /ECONNREFUSED|ECONNRESET|ENOTFOUND|EHOSTUNREACH|ETIMEDOUT|EPIPE|fetch failed|socket hang up|network error/i;
+
 const GENERIC = "Something went wrong. Try again — if it keeps happening, check that the host is running.";
 
 /** The language saved in Settings (`prefs` cannot be imported here: it touches `window` when it loads). */
@@ -32,6 +35,9 @@ export function humanErrorIn(language: AppLanguage, error: unknown, fallback = G
   const first = raw.split("\n")[0]?.trim() ?? "";
   // A thrown value with no message tells a person nothing, so the caller's sentence is better.
   if (first === "" || first === "undefined" || first === "null") return translate(fallback, language, navigator?.language ?? "en");
+  // A socket or a name lookup is plumbing, not something a person can act on: the caller's sentence says what to
+  // try, and the technical detail belongs in the log the caller keeps.
+  if (PLUMBING.test(first)) return translate(fallback, language, navigator?.language ?? "en");
   // Strip the "Error: " prefix a wrapped value keeps.
   const withoutPrefix = first.replace(/^(?:Error|TypeError|RangeError|SyntaxError):\s*/i, "");
   return withoutPrefix.length > MAX ? `${withoutPrefix.slice(0, MAX - 1)}…` : withoutPrefix;
