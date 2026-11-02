@@ -75,7 +75,6 @@ Relatório completo em `projects/b3po-codync/reports/SECURITY-TRIAGE.md` (worksp
 | 10 | Ciclo de entrega | BLOCKED_BY_EXTERNAL_DEPENDENCY | além do instalador, o app publicado buscaria update no upstream até o PR #164 entrar |
 | 11 | Cancelar/destravar turno | TESTED | PRs #86–#88 + E2E de host |
 
-**Nenhum item VERIFIED.** Itens 4, 5, 8 e 10 dependem de rodar o app instalado.
 
 ### Bloqueios com ação do dono
 
@@ -128,5 +127,45 @@ Detalhes e limites em `release-1-reconciliation.md`.
 ### Gate
 
 A tabela item por item, com evidência e o que falta, está em
-[`release-1-reconciliation.md`](release-1-reconciliation.md). **Nenhum item VERIFIED.** Itens 4, 9 e
+[`release-1-reconciliation.md`](release-1-reconciliation.md) é a fonte canônica. Em **02/11**, cinco
+itens estão `VERIFIED` (1, 2, 3, 8, 11); 6 e 7 têm a metade desktop provada; 4, 5, 9 e 10 dependem do
+dono liberar o firewall, o tap ou a publicação.
 10 dependem do dono publicar/instalar; o 2 depende do tap e do secret do gate.
+
+## Sessão de 02/11/2026 — o que mudou
+
+Cinco itens do gate saíram de `IMPLEMENTED`/`TESTED` para `VERIFIED`, cada um com o teste que o mostra:
+
+- **item 1 (scanner de i18n)**: o `l10n-missing` comparava o literal do código com a chave da tabela sem
+  decodificar escapes, e uma frase traduzida em oito línguas aparecia como faltando. Corrigido e recontado:
+  815 frases no `tr()`, **0** sem tradução; **0** strings visíveis fora do `tr()`.
+- **item 2 (release do fork)**: o `release-gate.py` recusava repositório de terceiro mas **não tap de
+  terceiro**, e o tap é um remote para o qual ele faz push. Os dois estão pinados agora.
+- **item 3 (banco)**: `write_interruption_e2e.rs` mata o host com a escrita travada por outro processo e no
+  meio de uma rajada; `database_damage_e2e.rs` prova que o processo **recusa** schema mais novo e arquivo
+  danificado/truncado, deixando o arquivo byte a byte igual.
+- **item 8 (performance)**: primeiro token p95 **17 ms** (um bot) e **1211–1212 ms** (oito bots juntos, custo
+  de subir oito processos); CPU do host **28,6% de um núcleo** nesses oito turnos; resposta de 62 KB gravada
+  em 0,68 s e aberta na janela em 39 ms.
+- **item 11 (cancelar turno travado)**: o **Stop** foi exercitado numa janela real com um agente que nunca
+  responde — o turno fecha e a conversa mostra "Stopped." (17 s, a janela de cancelamento do host).
+
+Também entrou, sem mover item: o catálogo **português completo** (1673 chaves, todas as do source mais 205 que
+o source não tem), o workflow `tools` que roda os testes dos scanners, e o passeio de estados
+vazio/erro/offline do desktop.
+
+### O que continua aberto
+
+- **Itens 6 e 7**: a metade desktop está provada; as telas internas do celular dependem de **pareamento**, que
+  está bloqueado por duas regras de firewall do Windows que só o dono pode liberar.
+- **Itens 4, 5, 9 e 10**: instalação/atualização, primeiro uso, versão/tag e entrega — precisam da autorização
+  de publicação do dono. A `v2.34.0` publicada está com **upload incompleto** (faltam `latest.yml`,
+  `latest-mac.yml` e os quatro `codync-host-*.update.json`), o que explica por que atualização in-app nunca
+  foi demonstrada.
+
+### Duas coisas que os testes ensinaram e valem para quem continuar
+
+1. Matar o host deixa um `codync.db-wal` cheio e o SQLite **reproduz o WAL**: um `codync.db` destruído com o
+   WAL intacto ainda abre com os dados. Para testar corrupção de verdade, dobre o WAL primeiro.
+2. O app fica ~30 s tentando subir o host antes de mostrar "O host não está rodando" com "Tentar de novo" —
+   não é travamento, é a espera dele.
