@@ -1,4 +1,4 @@
-import { Observable } from '../lib/observable'
+import { Observable } from '../lib/observable.ts'
 import type { BotStore } from './bot-store'
 import { humanError } from '../lib/human-error.ts'
 
@@ -30,7 +30,14 @@ export class BotImport extends Observable {
   copied = false
   error: string | null = null
 
-  constructor(private store: BotStore) { super() }
+  private store: BotStore
+
+  // Plain fields, not a parameter property: `node --test` strips types without compiling them, and a parameter
+  // property is syntax it refuses.
+  constructor(store: BotStore) {
+    super()
+    this.store = store
+  }
 
   /** The skill that writes the export in Grok Bot, on the clipboard. */
   async copySkill() {
