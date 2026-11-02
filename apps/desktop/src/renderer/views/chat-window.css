@@ -310,6 +310,8 @@ html[data-platform="darwin"] .sidebar-header {
   height: 54px;
 }
 .empty-detail {
+  width: 100%;
+  box-sizing: border-box;
   height: 100%;
   padding: 32px;
   display: flex;
@@ -317,9 +319,20 @@ html[data-platform="darwin"] .sidebar-header {
   align-items: center;
   justify-content: center;
   gap: 14px;
+  overflow: hidden;
 }
-.empty-detail-crew > :not(:first-child) {
-  margin-left: -10px;
+/* The B-3PO mark, sized like the reference: about a third of the content column, never taller than a third of a
+   short window. The art already carries its own glow on the dark background. */
+.empty-detail-mark {
+  /* A fixed width, not a percentage: the art is 1536 px wide, so a percentage of a content-sized column feeds back
+     into the column's own width and pushes the whole block off the pane. */
+  width: 340px;
+  max-width: 60%;
+  height: auto;
+  max-height: 34vh;
+  object-fit: contain;
+  user-select: none;
+  -webkit-user-drag: none;
 }
 .empty-detail-message {
   max-width: 420px;
