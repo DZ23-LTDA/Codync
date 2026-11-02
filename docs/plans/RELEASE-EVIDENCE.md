@@ -240,6 +240,27 @@ fixture would be a fixture talking, not a person.
 So "under three minutes" is answered for the part a person does before the phone appears — **22.8 seconds** — and
 the rest is named as blocked rather than estimated.
 
+### What the desktop app tests now cover (four stores, 03/11)
+
+The renderer's stores are where a screen's state comes from, and until this week none of them could be loaded by
+`node --test` at all: every one used either a **TypeScript parameter property** (syntax Node's strip-only mode
+refuses outright) or **extensionless relative imports** (which its ESM resolver cannot find). Both habits are
+invisible until someone tries to test the file.
+
+Four stores now carry tests, none of them re-testing what the views already showed:
+
+| Store | Test file | What it pins |
+|---|---|---|
+| connection state | `connection-grace.test.ts` | 5 s for a drop from online, 1 s for a first failure, **nothing** for a reconnect or a refusal (#214) |
+| memory | `memory-store.test.ts` | loading, failure that keeps what was on screen, retry, the **stale-answer guard**, an old host's "update your computer" (#215) |
+| downloads | `file-downloads.test.ts` | progress → saved, a failure that cancels the half-written file, cancel, a retired store, one job per file, a hostile file name refused **before** anything opens on disk (#216) |
+| bot import | `bot-import.test.ts` | a cancelled picker making **no host call**, a group travelling only with one of its bots, one import per click, the clipboard skill (#218) |
+
+`npm test` on this branch: **373 tests, 354 pass, 0 fail**; `npm run typecheck` clean.
+
+The stores still out of reach — `bot-store.ts`, `bot-sync.ts`, `bot-mirror.ts`, `cloud.ts`, `app-model.ts` — are the
+next layer: each carries the same two habits and real behaviour (sync, reconnection, account state).
+
 ## Known gaps, stated rather than hidden
 
 - **v2.34.0's upload is incomplete**: `tools/release-gate.py` in a dry run reports the release is missing
