@@ -15,6 +15,13 @@ struct AppLanguageTests {
         #expect(L10n.tr("Pair a computer", preference: AppLanguage.preference(in: suite), systemIsChinese: false) == "配对一台电脑")
     }
 
+    @Test func portugueseIsALanguageTheAppOffers() {
+        #expect(AppLanguage.resolved(preference: .system, languages: ["pt-BR", "en"]) == .pt)
+        #expect(AppLanguage.resolved(preference: .system, languages: ["pt-PT"]) == .pt)
+        #expect(L10n.tr("Pair a computer", preference: .pt, systemIsChinese: false) == "Parear um computador")
+        #expect(AppLanguage.menuTitle(.pt, preference: .en, systemIsChinese: false) == "Português (Brasil)")
+    }
+
     @Test func theSharedLanguageStoreIsTheAppGroup() {
         let probe = "appLanguageProbe.\(UUID().uuidString)"
         defer { AppLanguage.defaults.removeObject(forKey: probe) }
