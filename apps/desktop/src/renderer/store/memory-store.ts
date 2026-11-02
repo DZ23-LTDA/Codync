@@ -1,5 +1,5 @@
 import type { HostClient } from '../client/host-client'
-import { Observable } from '../lib/observable'
+import { Observable } from '../lib/observable.ts'
 import { humanError } from '../lib/human-error.ts'
 
 /** One memory entry (the host's `codync_mem::store::Entry`). */
@@ -78,7 +78,16 @@ export class MemoryStore extends Observable {
   error: string | null = null
   private request = 0
 
-  constructor(readonly botId: string, private readonly client: () => Promise<HostClient>) { super() }
+  readonly botId: string
+  private readonly client: () => Promise<HostClient>
+
+  // Plain fields, not parameter properties: `node --test` strips types without compiling them, and a parameter
+  // property is syntax it refuses, which keeps every store using one out of reach of a unit test.
+  constructor(botId: string, client: () => Promise<HostClient>) {
+    super()
+    this.botId = botId
+    this.client = client
+  }
 
   async load() {
     const request = ++this.request

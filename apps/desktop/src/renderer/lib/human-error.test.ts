@@ -35,3 +35,23 @@ test("the default sentence tells the person what to check, not just that it fail
   assert.ok(sentence.includes("Try again"), "asks for a retry");
   assert.ok(sentence.includes("host is running"), "and names the thing to check");
 });
+
+test("a refused connection is the caller's sentence, not the socket's error", () => {
+  // The detail a person can do nothing with: the caller knows what it was trying to do and says what to try.
+  const fallback = 'The memory list could not be loaded. Try again.'
+  for (const plumbing of [
+    'connect ECONNREFUSED 127.0.0.1:19222',
+    'Error: getaddrinfo ENOTFOUND relay.example',
+    'fetch failed',
+    'socket hang up',
+    'read ECONNRESET',
+  ]) {
+    assert.equal(humanError(new Error(plumbing), fallback), fallback, plumbing)
+  }
+})
+
+test("a message that merely mentions a network word is still shown", () => {
+  // Only the shapes a failed connection arrives in are replaced; a sentence about being offline is a sentence.
+  assert.equal(humanError(new Error('Your computer is offline.')), 'Your computer is offline.')
+  assert.equal(humanError(new Error('Reconnect it and try again.')), 'Reconnect it and try again.')
+})
