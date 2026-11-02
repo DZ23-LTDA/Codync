@@ -9,6 +9,16 @@ import { pathToFileURL } from "node:url";
 const RENDERER = "apps/desktop/src/renderer";
 const PT = "apps/ios/Kit/Sources/CodyncKit/Resources/Languages/pt.json";
 
+/**
+ * The text a reader sees, from the literal as it is written in the source. Only the escapes that change what is on
+ * screen are decoded: a newline, a tab, a carriage return, the quotes and the backslash itself. `\\n` stays a
+ * backslash and an `n`, which is what it means in the source.
+ */
+export const decoded = (literal) =>
+  literal.replace(/\\(\\|n|t|r|'|")/g, (_, escape) =>
+    escape === "n" ? "\n" : escape === "t" ? "\t" : escape === "r" ? "\r" : escape,
+  );
+
 /** Every literal handed to `tr(...)`: single quotes, double quotes and template literals without placeholders. */
 export function phrasesIn(source) {
   const found = new Set();
@@ -26,8 +36,10 @@ export function phrasesIn(source) {
   }
   for (const pattern of patterns) {
     for (const match of source.matchAll(pattern)) {
-      // A single-quoted string in the source keeps its escapes; the table has the text a reader sees.
-      const phrase = match[1].replaceAll("\\'", "'").replaceAll('\\"', '"').trim();
+      // The source keeps its escapes; the table has the text a reader sees. Decoding them matters: a key written
+      // `'Your coding agents,\nas teammates.'` is the two-line title in every table, and comparing the raw `\n`
+      // against it reported a translated phrase as missing.
+      const phrase = decoded(match[1]).trim();
       // An empty literal is not a phrase. A bare identifier is not matched at all: every pattern here requires a quote,
       // so `tr(label)` never reaches this line -- filtering single words here would drop "Skills" and "Installed".
       if (phrase !== "") found.add(phrase);
