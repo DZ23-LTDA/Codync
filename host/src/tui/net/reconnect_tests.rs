@@ -16,7 +16,7 @@ use std::time::{Duration, Instant};
 /// `cargo test --bin` builds the test binary and not this one, so a run that never built the host cannot drive this
 /// test; it says so and returns instead of failing on an absent file. A workspace run (`cargo nextest run
 /// --workspace`, which is what CI does) builds every binary, so there it does run.
-fn host_binary() -> Option<PathBuf> {
+pub(super) fn host_binary() -> Option<PathBuf> {
     let mut dir = std::env::current_exe().expect("this test binary");
     dir.pop(); // the test binary lives in `deps/`
     if dir.ends_with("deps") {
@@ -29,7 +29,7 @@ fn host_binary() -> Option<PathBuf> {
 
 /// A host on `port` for `home`: the same start `common::serve` does, but with the port chosen here so a restart can
 /// use the same one.
-fn serve_on(bin: &Path, home: &Path, port: u16) -> Child {
+pub(super) fn serve_on(bin: &Path, home: &Path, port: u16) -> Child {
     Command::new(bin)
         .args(["serve", "--bind", "127.0.0.1", "--port", &port.to_string()])
         .env("CODYNC_HOME", home)
@@ -40,7 +40,7 @@ fn serve_on(bin: &Path, home: &Path, port: u16) -> Child {
         .expect("start the host")
 }
 
-async fn wait_ready(base: &str) {
+pub(super) async fn wait_ready(base: &str) {
     let deadline = Instant::now() + Duration::from_secs(30);
     while Instant::now() < deadline {
         if crate::http().get(format!("{base}/health")).send().await.is_ok() {

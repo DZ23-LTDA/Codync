@@ -369,3 +369,6 @@ mod tests {
 
 #[cfg(test)]
 mod reconnect_tests;
+
+#[cfg(test)]
+mod stream_tests;
