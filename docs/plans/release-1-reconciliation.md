@@ -55,3 +55,36 @@ Nenhum item subiu para `VERIFIED`. Duas coisas mudaram de fato:
 | 4, 9, 10 | publicar/apontar o instalador e autorizar a publicação da release |
 | 2 | criar o tap `DZ23-LTDA/homebrew-codync`, o secret `TAP_TOKEN` e a variável `RELEASE_GATE_ENABLED` |
 | parte de 4/5/7 | conta Apple + Mac com Xcode (não existem nesta máquina) |
+
+## Pareamento de celular — bloqueado nesta máquina (02/11/2026)
+
+O host sobe e responde em `127.0.0.1:19223`, e `codync-host pair --json` entrega o link
+`codync-dev://pair?...` com os endereços de LAN (`192.168.100.3`, `172.20.16.1`). O emulador **não
+alcança** o host porque o Windows Firewall tem duas regras de entrada para `codync-host.exe` com ação
+**Block** (criadas por um "Bloquear" no aviso do firewall, perfis privado/público, TCP e UDP).
+
+Consequência: o item 5 (pareamento por QR, primeiro uso) e a inspeção visual das telas internas do
+celular ficam **BLOCKED_BY_EXTERNAL_DEPENDENCY** até o dono liberar:
+
+> Windows Security → Firewall e proteção de rede → Permitir um aplicativo → marcar `codync-host` nas
+> redes privada e pública (ou remover as duas regras "codync-host" de bloqueio no firewall avançado).
+
+Não alterei as regras: mudar permissão de firewall exige autorização explícita.
+
+O que **foi** verificado sem pareamento, no desktop (que fala com o host por loopback):
+
+- Tela **Extensões** em pt-BR: "Extensões", "Credenciais", "Buscar agentes, conectores e skills",
+  "Agentes vêm do registro ACP e são instalados em Dz23.", "Não instalado", "Instalado".
+- Conversa: "Carregar mensagens anteriores", "Hoje", "Perguntar a Codync".
+- 0 erros de console e 0 de página no passeio inteiro.
+
+Dois achados do passeio:
+
+1. **O desktop empacota os catálogos no build** (`import … with { type: 'json' }`). Uma build antiga
+   mostrava uma string misturada ("Not instalados"); depois de reconstruir com o catálogo atual, a
+   mesma linha lê "Não instalado". Consequência prática: mudança de catálogo exige rebuild do desktop
+   para validação visual (o site e os apps de celular não têm esse passo de build para o catálogo, o
+   iOS sim: é recurso empacotado).
+2. **Linhas do histórico geradas pelo host continuam em inglês** ("Created routine: Check in"). É
+   conteúdo, não interface — mas é visível ao usuário e não passa por `tr()`. Fica registrado como
+   decisão de produto, não como bug de tradução.
