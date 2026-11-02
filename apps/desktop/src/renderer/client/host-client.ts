@@ -18,11 +18,13 @@ import type { NetworkView } from '@shared/network'
 export type HostRoute = 'loopback' | 'direct' | 'relay'
 
 export class HostError extends Error {
-  constructor(
-    readonly status: number,
-    message: string,
-  ) {
+  readonly status: number
+
+  // A plain field, not a parameter property: `node --test` strips types without compiling them, and a parameter
+  // property is syntax it refuses, which keeps every module that imports this error out of reach of a test.
+  constructor(status: number, message: string) {
     super(message)
+    this.status = status
   }
 
   static unreachable() {
@@ -42,10 +44,13 @@ export interface HostTransport {
 }
 
 export class LoopbackTransport implements HostTransport {
-  constructor(
-    readonly baseURL: string,
-    private token: string,
-  ) {}
+  readonly baseURL: string
+  private token: string
+
+  constructor(baseURL: string, token: string) {
+    this.baseURL = baseURL
+    this.token = token
+  }
 
   async call(method: string, body: unknown, timeoutMs: number) {
     try {
@@ -161,7 +166,13 @@ export class HostClient {
     return this.call('renameArtifact', { botId, artifactId, title })
   }
 
-  constructor(readonly transport: HostTransport) {}
+  readonly transport: HostTransport
+
+  // A plain field, not a parameter property: `node --test` strips types without compiling them, and a parameter
+  // property is syntax it refuses, which keeps every store built on this client out of reach of a unit test.
+  constructor(transport: HostTransport) {
+    this.transport = transport
+  }
 
   call<T>(method: string, body: unknown = {}, timeoutMs = 20_000): Promise<T> {
     return this.transport.call(method, body, timeoutMs) as Promise<T>
