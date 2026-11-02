@@ -73,3 +73,34 @@ async fn a_window_too_small_to_use_asks_for_room_instead_of_drawing_over_itself(
     let text = screen(&mut app, 30, 10);
     assert!(text.contains("Make the window bigger"), "a tiny terminal gets one useful line:\n{text}");
 }
+
+/// The screen recovers by itself when the host answers: `Connecting…` becomes the empty roster.
+///
+/// This is the retry half of the same state, and it is worth pinning because a client that needed a restart to
+/// find a host it had already lost would look broken on every laptop that sleeps.
+#[tokio::test]
+async fn the_screen_recovers_when_the_host_answers() {
+    let mut app = test_app();
+    app.online = false;
+    let before = readable(&mut app, 100, 30);
+    assert!(before.contains("Connecting…"), "before the host answers:\n{before}");
+
+    app.on_msg(Msg::Online(true));
+    let after = readable(&mut app, 100, 30);
+    assert!(after.contains("No bots yet."), "once it answers, the empty roster:\n{after}");
+    assert!(!after.contains("Connecting…"), "and the waiting line is gone:\n{after}");
+    assert!(!after.contains("offline"), "and the status line says online again:\n{after}");
+}
+
+/// A host that goes away is not left looking alive.
+#[tokio::test]
+async fn the_screen_says_offline_again_when_the_host_goes_away() {
+    let mut app = test_app();
+    app.online = true;
+    assert!(readable(&mut app, 100, 30).contains("No bots yet."), "online and empty to start with");
+
+    app.on_msg(Msg::Online(false));
+    let after = readable(&mut app, 100, 30);
+    assert!(after.contains("offline"), "the status line should say so:\n{after}");
+    assert!(!after.contains("No bots yet."), "a host that went away is not an empty host:\n{after}");
+}
