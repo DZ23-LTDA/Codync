@@ -4,14 +4,14 @@
     {
       "id": 1,
       "item": "i18n scanner corrected and recounted",
-      "state": "IMPLEMENTED",
-      "evidence": "PRs #46, #71, #72, #73, #75, #76: scanner reports 298 visible strings; 0 screens fully verified"
+      "state": "VERIFIED",
+      "evidence": "Re-run on 02/11 after the scanner was corrected: l10n-missing now decodes the escapes in a literal, so the two-line welcome title written with a \\n no longer counts as untranslated — 815 phrases reach tr() in the renderer and 0 have no pt.json entry. l10n-unwrapped: 0 visible strings inside a component never reach the translation (14 at module scope, announced by the component that renders them). l10n-coverage: pt 1673 keys/100%, the other six 1468/87.7% (the 205 strings the source itself lacks)",
     },
     {
       "id": 2,
       "item": "fork release separated from upstream",
-      "state": "IMPLEMENTED",
-      "evidence": "PR #47"
+      "state": "VERIFIED",
+      "evidence": "PR #164 kept the fork out of upstream URLs, the tap and the gate. Now also the tap: tools/release-gate.py refused a foreign repository before and refuses a foreign tap too (it commits and pushes to that remote). Probes on 02/11: RELEASE_GATE_REPO=leepokai/Codync exits 1, RELEASE_GATE_TAP=leepokai/homebrew-codync exits 1, the defaults go on to the version lookup. The workflow condition names DZ23-LTDA/Codync and stays skipped until vars.RELEASE_GATE_ENABLED is set",
     },
     {
       "id": 3,

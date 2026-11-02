@@ -138,6 +138,13 @@ def main():
             f"release-gate: refusing to run for {REPO!r}. This script acts only on DZ23-LTDA/Codync; the upstream "
             f"repository ({UPSTREAM_REPO}) and its tap ({UPSTREAM_TAP}) are not ours to publish.",
         )
+    # The repository guard alone would still let a release be pushed into someone else's tap: the tap is a git
+    # remote this script commits and pushes to, and a mistyped or borrowed RELEASE_GATE_TAP is enough to do it.
+    if TAP != "DZ23-LTDA/homebrew-codync":
+        raise SystemExit(
+            f"release-gate: refusing to run against the tap {TAP!r}. This script pushes only to "
+            f"DZ23-LTDA/homebrew-codync; {UPSTREAM_TAP} belongs to the upstream and is never ours to write.",
+        )
     store = app_store_version()
     if not parse(store or ""):
         print(f"::warning::The App Store lookup gave no version ({store!r}); the latest release stays as it is")

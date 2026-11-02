@@ -3,6 +3,19 @@ import { test } from "node:test";
 
 import { missingFrom, phrasesIn } from "./l10n-missing.mjs";
 
+test("a key written with escapes matches the text on screen", () => {
+  // `'Your coding agents,\nas teammates.'` is the two-line welcome title, and every table keys it with a real
+  // newline. Comparing the raw `\n` against it reported a translated phrase as missing.
+  const phrases = phrasesIn("tr('Your coding agents,\\nas teammates.')");
+  assert.deepEqual([...phrases], ["Your coding agents,\nas teammates."]);
+  assert.deepEqual(missingFrom(phrases, { "Your coding agents,\nas teammates.": "Seus agentes…" }), []);
+});
+
+test("a backslash that is really a backslash stays one", () => {
+  // Two backslashes in the source mean a literal `\n` on screen, not a newline.
+  assert.deepEqual([...phrasesIn("tr('a\\\\nb')")], ["a\\nb"]);
+});
+
 test("literals handed to tr are collected, in every quote style", () => {
   const source = `const a = tr('First'); const b = tr("Second"); const c = tr(\`Third\`)`;
   assert.deepEqual([...phrasesIn(source)].sort(), ["First", "Second", "Third"]);
