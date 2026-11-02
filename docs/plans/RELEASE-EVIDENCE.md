@@ -107,6 +107,66 @@ alone is the shape of the fix, and it changes behaviour for anyone reconnecting,
 Still **not covered at the socket level**: the pairing-attempt limiter (its wiring is called at
 `channel.rs:535`, but nothing outside sends four `pair` hellos and watches the fourth be refused).
 
+## Windows: what an install actually does (measured 03/11, at `cc078c15`)
+
+Item 4 asks for "clean install, update and rollback on three systems". Only one of the three can be measured here —
+this machine is Windows and there is no Mac or Linux — so this is the Windows half, and it is **half done**: the
+installer builds, installs, registers and uninstalls cleanly; **the installed app does not stay running**.
+
+### It builds
+
+```
+cd apps/desktop && npm ci && npm run dist:win:dev
+  • packaging  platform=win32 arch=x64 electron=44.10.1 appOutDir=dist\win-unpacked
+  • building   target=nsis file=dist\codync-dev-windows-x64.exe archs=x64 oneClick=true perMachine=false
+  • no code signing certificate configured, signing is skipped
+exit 0 · dist\codync-dev-windows-x64.exe 140.5 MB · .blockmap 0.1 MB
+```
+
+`latest.yml` is **not** produced, so there is no update feed for the app to check — the Windows build cannot
+update itself as packaged today.
+
+### It installs
+
+```
+codync-dev-windows-x64.exe /S        exit 0
+%LOCALAPPDATA%\Programs\codync-desktop-dev\
+  Codync Dev.exe                     product 2.34.1.0, file 2.34.1, Authenticode NotSigned (expected: no certificate)
+  resources\codync-host.exe          43.6 MB — the host travels with the app
+Uninstall entry: "Codync Dev 2.34.1"
+```
+
+### The app exits immediately
+
+| Started | Result |
+|---|---|
+| `Codync Dev.exe` (installed) | exits at once, code 0, no window, no process, nothing written |
+| `dist\win-unpacked\Codync Dev.exe` | same — so it is not the installer's layout |
+| with `--user-data-dir=<empty dir>` | exits at once, **code 9**, still writes nothing |
+| with `--enable-logging --log-file=…` | no log file is produced at all |
+
+The sources give two early exits — `yieldsToInstall()` (`app.exit(0)`, an update marker in prefs) and
+`!app.requestSingleInstanceLock()` (`app.quit()`) — and neither leaves anything behind to inspect, because the
+app's `userData` folder is never created. `npm run dev` in this same checkout does start the app, so the difference
+is packaging, not the code.
+
+That is a **defect to chase, not a conclusion**: the next step is to run the packaged `out/main/index.js` under the
+bundled Electron with stdout attached, or add a one-line marker at the top of `main`, and see which exit is taken.
+
+### It uninstalls — and leaves 140 MB behind
+
+```
+"Uninstall Codync Dev.exe" /S     exit 0
+%LOCALAPPDATA%\Programs\codync-desktop-dev\   gone
+Uninstall entry                                gone
+processes                                      none
+%LOCALAPPDATA%\codync-desktop-dev-updater\installer.exe   140.5 MB, still there
+```
+
+The updater's cache survives. electron-updater keeps its downloads there by design; an uninstaller that leaves a
+140 MB installer behind is the kind of "orphan" item 4 names. Removed by hand here (it came from this test), and
+recorded so it is not mistaken for the machine's own data.
+
 ## Known gaps, stated rather than hidden
 
 - **v2.34.0's upload is incomplete**: `tools/release-gate.py` in a dry run reports the release is missing
