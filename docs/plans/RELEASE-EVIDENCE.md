@@ -82,8 +82,30 @@ duplicate one of these.
 | A real phone pairs over the socket, then chats and subscribes | same test — `Phone::connect` drives the real X25519/signature handshake | `host/tests/e2e.rs:340` |
 | A plain HTTP request never gets a socket; 25 refusals leave the host healthy; a 2 MiB frame costs only the sender his channel | `channel_surface_e2e` (3 tests) | `host/tests/channel_surface_e2e.rs` |
 
-Still **not covered at the socket level**: rate limiting against a caller opening many channels in a row. It is
-worth a test; it is not a known hole.
+## Channel limits: what is capped, and what is not (measured 02/11)
+
+Two different things get called "rate limiting" on the channel, and they are not in the same state:
+
+**Pairing attempts are capped.** `PER_SOURCE_PER_MINUTE = 3`, `TOTAL_PER_MINUTE = 10` (`host/src/api/devices.rs:172`),
+counted per source IP or relay link, pruned to a one-minute window, and wired into the `pair` command at
+`host/src/remote/channel.rs:535` — over the limit the channel answers `RejectCode::RateLimited` (close code 4008)
+with "Too many pairing attempts. Wait a minute and try again." The limiter itself has a unit test
+(`attempts_are_limited_per_source_and_in_total`); **what has no test is the wiring** — nothing outside sends four
+`pair` hellos and watches the fourth be refused.
+
+**Concurrent connections are not capped at all.** Measured against a scratch host on 02/11:
+
+| Connections opened at once | Refused | Host afterwards |
+|---|---|---|
+| 100 | **0** | 63 MB RSS, 62 threads, `/health` 200 |
+
+Each unauthenticated connection holds a socket and a task until the handshake completes or the peer goes away,
+and the pairing limit does not count them — a caller who never sends `hello` never touches it. That is a
+resource-exhaustion surface (E3: *resource exhaustion, DoS*), not a known breach: nothing behind it can be
+reached without the handshake. Putting a cap on **unauthenticated** connections while leaving established ones
+alone is the shape of the fix, and it changes behaviour for anyone reconnecting, so it is the owner's call.
+Still **not covered at the socket level**: the pairing-attempt limiter (its wiring is called at
+`channel.rs:535`, but nothing outside sends four `pair` hellos and watches the fourth be refused).
 
 ## Known gaps, stated rather than hidden
 
