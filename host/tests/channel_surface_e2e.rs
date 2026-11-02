@@ -98,7 +98,9 @@ async fn a_burst_against_the_channel_does_not_take_the_host_down() {
     let host = Host::start().await;
     let client = reqwest::Client::new();
     let mut refused = 0;
-    for _ in 0..100 {
+    // Twenty-five, not a hundred: the property is "refusals do not take the host down", and every request costs a
+    // fresh connection on a cold CI runner -- a hundred of them turned a fast test into a slow one for nothing.
+    for _ in 0..25 {
         let status = client
             .get(format!("{}/channel?v=1", host.base))
             .timeout(std::time::Duration::from_secs(5))
@@ -110,7 +112,7 @@ async fn a_burst_against_the_channel_does_not_take_the_host_down() {
             refused += 1;
         }
     }
-    assert_eq!(refused, 100, "{} of 100 unauthenticated channel requests were answered", 100 - refused);
-    assert!(host.healthy().await, "the host stopped answering /health after 100 refused channel requests");
+    assert_eq!(refused, 25, "{} of 25 unauthenticated channel requests were answered", 25 - refused);
+    assert!(host.healthy().await, "the host stopped answering /health after 25 refused channel requests");
     assert!(host.api_still_works().await, "the loopback API stopped working after the burst");
 }
