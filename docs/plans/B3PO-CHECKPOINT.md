@@ -95,3 +95,38 @@ Relatório completo em `projects/b3po-codync/reports/SECURITY-TRIAGE.md` (worksp
    (itens 4, 5, 8). É o único caminho para sair de NOT_STARTED/BLOCKED nesses quatro itens.
 3. Sem a instalação: traduzir as 115 frases que faltam nas outras seis línguas e conferir os
    estados vazios apontados por `tools/empty-states.mjs` (triagem manual, o medidor é heurístico).
+
+## Sessão de 02/11/2026 (rodadas 4–6 do goal) — suíte instrumentada, marca e segurança
+
+`dev` = `00ab59532062`. PRs abertos: **#176** (job noturno de instrumentação). Nada publicado.
+
+### O que entrou
+
+| PR | Conteúdo |
+|---|---|
+| #172 | Marca B-3PO aplicada nos ícones (Android adaptativo, iOS, desktop, web), `assets/brand/`, `docs/design/brand.md`. Identificadores de instalação intactos (bundle ids, `~/.codync`, `codync://`, productName, URLs) |
+| #173 | Suíte instrumentada do Android voltou a rodar: 127 testes, 126 verdes, 24 pulados por ambiente. Corrigiu uma regressão real: conversa curta não ficava junto ao compositor (iOS usa `.defaultScrollAnchor(.bottom)`) |
+| #174 | GitGuard reconciliado (ver `docs/plans/security-findings.md`): 0 CRITICAL / 0 HIGH conhecidos no `dev` |
+| #175 | Tocar na conversa fecha o teclado, com o contrato do gesto exposto e testado |
+
+### Achados que valem registro
+
+- **A CI compilava o APK de teste e nunca executava.** Por isso 14 expectativas envelheceram em
+  silêncio (rótulos que a UI já tinha mudado, um `setContent` duplicado, esperas de 1 s). O job
+  noturno do #176 fecha essa lacuna.
+- **O scanner de i18n escondia 27 frases** (corrigido no #166): toda frase com 5+ palavras era tratada
+  como exemplo.
+- **O gate do GitGuard rodou em `main`**, que está atrás do `dev`: as cinco dependências citadas já
+  estavam atualizadas aqui, e o `npm audit` não acusa critical/high em nenhum workspace.
+
+### Performance (primeira medição real)
+
+Host `GET /health` p50 0,9 ms / p95 1,3 ms; `POST /api/history` p50 1,0 ms / p95 1,5 ms; 50 MB de
+working set. Android abertura a frio 2,3–2,6 s (`debug`, emulador com GPU de software), PSS 127 MB.
+Detalhes e limites em `release-1-reconciliation.md`.
+
+### Gate
+
+A tabela item por item, com evidência e o que falta, está em
+[`release-1-reconciliation.md`](release-1-reconciliation.md). **Nenhum item VERIFIED.** Itens 4, 9 e
+10 dependem do dono publicar/instalar; o 2 depende do tap e do secret do gate.
