@@ -23,6 +23,8 @@ pub async fn verify(store: &Store, id: &str, port: u16) -> Result<Value> {
     let mut command = if let Some(exe) = &c.command {
         let mut command = Command::new(exe);
         command.args(&c.args);
+        // A connector is third-party code: it gets the environment its own definition names, not this process's.
+        super::child_env::apply(&mut command);
         for (name, value) in &c.env {
             command.env(name, super::passwords::resolve(store, value).await?);
         }
@@ -30,6 +32,7 @@ pub async fn verify(store: &Store, id: &str, port: u16) -> Result<Value> {
     } else {
         let mut command = Command::new(std::env::current_exe()?);
         command.args(["mcp", "remote", "--connector", id, "--port", &port.to_string()]);
+        super::child_env::apply(&mut command);
         command
     };
     let mut child = command
