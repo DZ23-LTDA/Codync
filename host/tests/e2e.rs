@@ -9,12 +9,10 @@ mod common;
 mod wire_shape;
 
 /// The host's wire crypto doubles as this test's device implementation.
-#[path = "../src/remote/crypto.rs"]
-#[allow(dead_code)]
-mod crypto;
+use common::phone::crypto;
 
 use ed25519_dalek::SigningKey;
-use futures::{SinkExt as _, StreamExt as _};
+use futures::StreamExt as _;
 use serde_json::{Value, json};
 use std::path::PathBuf;
 use std::process::{Child, Command};
@@ -253,88 +251,7 @@ async fn rejects_requests_without_the_token() {
     assert_eq!(res.status(), 401);
 }
 
-type Ws = tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>;
-
-/// A phone talking to the host over the direct E2E channel.
-struct Phone {
-    ws: Ws,
-    sealer: crypto::Sealer,
-    opener: crypto::Opener,
-}
-
-enum Frame {
-    Inner(Value),
-    Closed(u16),
-}
-
-impl Phone {
-    /// Connects and completes the handshake, verifying the host against the pinned `sk`.
-    async fn connect(host: &Host, key: &SigningKey, sk: &[u8; 32], pair: bool) -> Self {
-        let url = format!("{}/channel?v=1", host.base.replace("http://", "ws://"));
-        let (mut ws, _) = tokio_tungstenite::connect_async(url).await.unwrap();
-        let cid = crypto::computer_id_raw(sk);
-        let dk = key.verifying_key().to_bytes();
-        let ek = x25519_dalek::StaticSecret::from(crypto::random::<32>());
-        let ek_pub = crypto::x25519_pub(&ek);
-        let n = crypto::random::<32>();
-        let sig = crypto::sign(key, &crypto::hs1_input(&cid, &dk, &ek_pub, &n));
-        let hello = json!({"t": "hello", "v": 1, "dk": crypto::b64(&dk), "ek": crypto::b64(&ek_pub),
-            "n": crypto::b64(&n), "sig": crypto::b64(&sig), "pair": pair});
-        ws.send(hello.to_string().into()).await.unwrap();
-        let welcome: Value = serde_json::from_str(ws.next().await.unwrap().unwrap().to_text().unwrap()).unwrap();
-        assert_eq!(welcome["t"], "welcome", "{welcome}");
-        let ek_h: [u8; 32] = crypto::unb64_n(welcome["ek"].as_str().unwrap()).unwrap();
-        let th = crypto::transcript_hash(&cid, &dk, &ek_pub, &n, &ek_h);
-        crypto::verify(sk, &th, &crypto::unb64_n(welcome["sig"].as_str().unwrap()).unwrap()).unwrap();
-        let keys = crypto::channel_keys(&crypto::x25519(&ek, &ek_h).unwrap(), &th);
-        Self { ws, sealer: crypto::Sealer::new(keys.d2h), opener: crypto::Opener::new(keys.h2d, 16 << 20) }
-    }
-
-    async fn send(&mut self, v: Value) {
-        for f in self.sealer.seal(v.to_string().as_bytes()).unwrap() {
-            self.ws.send(f.to_string().into()).await.unwrap();
-        }
-    }
-
-    async fn recv(&mut self) -> Frame {
-        use tokio_tungstenite::tungstenite::Message;
-        loop {
-            let msg = tokio::time::timeout(Duration::from_secs(20), self.ws.next()).await.expect("host answers");
-            match msg.unwrap().unwrap() {
-                Message::Text(t) => {
-                    let f: Value = serde_json::from_str(t.as_str()).unwrap();
-                    if let Some(bytes) = self.opener.open(&f).unwrap() {
-                        return Frame::Inner(serde_json::from_slice(&bytes).unwrap());
-                    }
-                }
-                Message::Close(c) => return Frame::Closed(c.map_or(1005, |c| c.code.into())),
-                _ => {}
-            }
-        }
-    }
-
-    async fn inner(&mut self) -> Value {
-        match self.recv().await {
-            Frame::Inner(v) => v,
-            Frame::Closed(code) => panic!("closed with {code}"),
-        }
-    }
-
-    async fn call(&mut self, id: u64, m: &str, b: Value) -> Value {
-        self.send(json!({"id": id, "m": m, "b": b})).await;
-        loop {
-            let v = self.inner().await;
-            if v["id"] == id && v.get("ev").is_none() {
-                assert!(v["ok"].is_object(), "{m}: {v}");
-                return v["ok"].clone();
-            }
-        }
-    }
-}
-
-fn query_param(url: &str, name: &str) -> String {
-    url.split(['?', '&']).find_map(|p| p.strip_prefix(&format!("{name}="))).unwrap().to_owned()
-}
+use common::phone::{Frame, Phone, query_param};
 
 #[tokio::test]
 async fn phone_pairs_and_chats_over_the_direct_channel() {
@@ -356,7 +273,7 @@ async fn phone_pairs_and_chats_over_the_direct_channel() {
     let key = SigningKey::from_bytes(&crypto::random());
 
     let connect_started = Instant::now();
-    let mut phone = Phone::connect(&host, &key, &sk, true).await;
+    let mut phone = Phone::connect(&host.base, &key, &sk, true).await;
     let connect_ms = connect_started.elapsed().as_millis();
     let code = query_param(url, "code");
     // What the phone waits for after the code is typed: the answer that says it is in.
@@ -369,7 +286,7 @@ async fn phone_pairs_and_chats_over_the_direct_channel() {
     assert_eq!(answer["ok"]["computerId"], crypto::computer_id(&sk));
     assert!(matches!(phone.recv().await, Frame::Closed(4100)));
 
-    let mut phone = Phone::connect(&host, &key, &sk, false).await;
+    let mut phone = Phone::connect(&host.base, &key, &sk, false).await;
     let hello = phone.call(1, "hello", json!({})).await;
     assert_eq!(hello["boxKey"], query_param(url, "bk"));
     // Phones check themselves against it (docs/reference/compatibility.md).
