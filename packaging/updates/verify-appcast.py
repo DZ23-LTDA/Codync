@@ -9,6 +9,9 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
 
 
 def main():
+    # The appcast is this pipeline's own artifact (appcast.xml written next to the .dmg), not a feed
+    # read from the network, so the stdlib parser is enough here; a SAST scan still flags
+    # xml.etree. If this ever reads a remote feed, switch to defusedxml.
     feed, app, archive = map(Path, sys.argv[1:])
     info = plistlib.loads((app / "Contents/Info.plist").read_bytes())
     root = ET.parse(feed).getroot()
