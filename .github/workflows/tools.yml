@@ -1,0 +1,40 @@
+name: tools
+
+# The scanners and release scripts under tools/ had no workflow: a pull request that only touched them ran
+# nothing in CI, so `l10n-missing` could keep reporting a translated phrase as missing and `release-gate`
+# could keep a hole in its repository guard without anything going red.
+
+on:
+  pull_request:
+    paths: ["tools/**", ".github/workflows/tools.yml"]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: apps/desktop/package-lock.json
+      # l10n-ast reads the TypeScript that ships with the desktop app, so the scanner tests need its modules.
+      - run: npm ci
+        working-directory: apps/desktop
+      - name: Scanner and script tests
+        run: node --test tools/*.test.mjs
+      # asc-submit-test.py and play-submit-test.py are not here: they check release history through the
+      # repository's tags (v2.2.2 → v2.2.3, v2.3.0 → v2.3.1 …) and this fork was created with only its own
+      # release tags, so they fail on missing refs rather than on the code. Fetching the upstream tags or
+      # replacing those cases with fixtures is its own task (docs/plans/release-1-reconciliation.md).
+      - name: The release gate keeps its guards
+        run: python3 tools/release-gate-test.py
+      - name: The scanners still answer today's tree
+        run: |
+          node tools/l10n-missing.mjs
+          node tools/l10n-unwrapped.mjs
+          node tools/l10n-coverage.mjs
