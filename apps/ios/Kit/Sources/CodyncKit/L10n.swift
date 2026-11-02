@@ -19,6 +19,7 @@ public enum AppLanguage: String, CaseIterable, Sendable, Identifiable, Hashable 
     case fr
     case de
     case es
+    case pt
 
     public var catalogName: String { self == .zh ? "zh-Hans" : rawValue }
 
@@ -98,6 +99,7 @@ public enum AppLanguage: String, CaseIterable, Sendable, Identifiable, Hashable 
         case .fr: "Français"
         case .de: "Deutsch"
         case .es: "Español"
+        case .pt: "Português (Brasil)"
         }
     }
 }
