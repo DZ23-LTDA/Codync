@@ -42,14 +42,14 @@ Canonical source per kind of fact:
 | 1 | i18n scanner corrected and recounted | **VERIFIED** | #184 `fix/tools` (decodes escapes; a translated phrase no longer reads as missing), #185 `ci/tools` (the scanners now have a workflow). Output: 815 phrases through `tr()`, **0** without a pt.json entry; **0** visible strings outside `tr()`; pt **1673 keys / 100%** | `tools/l10n-missing.test.mjs` (11 tests), `tools/l10n-missing.mjs`, the `tools` workflow run on #185 |
 | 2 | fork release separated from upstream | **VERIFIED** | #164 kept the fork out of upstream URLs/tap; #184 pins the tap too. Probes: `RELEASE_GATE_REPO=leepokai/Codync` → exit 1; `RELEASE_GATE_TAP=leepokai/homebrew-codync` → exit 1; defaults proceed | `tools/release-gate.py` (two guards), `tools/release-gate-test.py`, `.github/workflows/release-gate.yml` (`if:` names the fork and `vars.RELEASE_GATE_ENABLED`) |
 | 3 | database: missing, empty, valid, damaged, migrated, interrupted, recovered | **VERIFIED** | #43/#48/#50/#62 store tests; #181 `write_interruption_e2e.rs` (kill with the write locked, kill mid-burst); #182 `database_damage_e2e.rs` (process refuses newer schema, destroyed header, truncated file — file byte for byte intact, nothing put in its place) | `host/src/store/schema.rs` tests, `host/tests/write_interruption_e2e.rs`, `host/tests/database_damage_e2e.rs` |
-| 4 | clean install, update and rollback on three systems | `BLOCKED_BY_EXTERNAL_DEPENDENCY` | — | owner: publish and install; see the v2.34.0 gap below |
-| 5 | first use under 3 minutes, QR, reconnect, uninstall | `BLOCKED_BY_EXTERNAL_DEPENDENCY` for the phone half | Desktop onboarding walked twice (#186 #189): two steps, Portuguese, empty state, error state, offline; Android onboarding walked on the emulator (`reports/android-e2e/pt-install-step.png`) | phone pairing needs the firewall rule (`release-1-reconciliation.md` §"Pareamento de celular") |
+| 4 | clean install, update and rollback on three systems | `TESTED` | Windows end to end (#212, 39def8c5): installs, opens, uninstalls. **Update and rollback not demonstrated** — the build has no feed (latest.yml is not produced) — and macOS/Linux are not measurable on this machine | update needs a published feed; macOS needs a Mac |
+| 5 | first use under 3 minutes, QR, reconnect, uninstall | `IN_PROGRESS` | Desktop onboarding walked twice (#186 #189): two steps, Portuguese, empty state, error state, offline; Android onboarding walked on the emulator (`reports/android-e2e/pt-install-step.png`) | phone pairing needs the firewall rule (`release-1-reconciliation.md` §"Pareamento de celular") |
 | 6 | human errors, empty and offline states | `IN_PROGRESS` | Desktop proved (#186): "Iniciando o host…", "O host não está rodando" + "Tentar de novo" at ~30 s, empty roster, "Offline" on the bot row after a click; nothing leaks a stack trace or an internal path | phone half and TUI untested |
 | 7 | pt-BR in the released scope, visually inspected | `TESTED` | #166 #178 #179 (catalog complete) + #186 #189 (screens): onboarding, empty, error, offline, Extensions ×3 tabs, bot menu, delete dialog, chat, Stop — all Portuguese; third-party registry content stays English on purpose | phone inner screens blocked by pairing; iOS only in CI |
-| 8 | performance measured | **VERIFIED** | #187 (first word p95 17 ms; 8 bots at once 1211–1212 ms), #188 (host CPU 28.6% of one core, 54 MB; a 62 KB answer in 0.68 s, opened in the window in 39 ms) | `docs/plans/release-1-reconciliation.md` §Performance is the canonical table; `tools/measure-host-cpu.ps1`, `tools/measure-heavy.ps1` re-run it |
+| 8 | performance measured | **VERIFIED** | #187 (first word p95 17 ms; 8 bots at once 1211–1212 ms), #188 (host CPU 28.6% of one core, 54 MB; a 62 KB answer in 0.68 s, opened in the window in 39 ms) | `docs/plans/release-1-reconciliation.md` §Performance is the canonical table; `tools/measure-host-cpu.ps1` (not in this repository), `tools/measure-heavy.ps1` (not in this repository) re-run it |
 | 9 | checkpoint, version bump, WhatsNew, tag | `IN_PROGRESS` | #190 bumped to **2.34.1** (host + desktop + `apps/project.yml`), wrote `## 2.34.1` notes for both phone apps, and refreshed `B3PO-CHECKPOINT.md` | the **tag** is the release trigger and needs the owner's authorization; the committed `project.pbxproj` needs `xcodegen` on a Mac to match 2.34.1 |
 | 10 | delivery cycle: bump, tag, publish, update in app | `BLOCKED_BY_EXTERNAL_DEPENDENCY` | — | owner: tag `v2.34.1`, decide `TAP_TOKEN` + `RELEASE_GATE_ENABLED` |
-| 11 | cancel a stuck turn | **VERIFIED** | #86/#87/#88 (180 s watchdog, 6 tests, E2E with a silent agent) + #183 (the **Stop** button exercised in a running window: the turn closes with "Stopped."; 17 s, the host's cancel grace) | `host/tests/stall_e2e.rs`, `tools/e2e-desktop/e2e-stop.cjs`, `reports/desktop-e2e/stop/` |
+| 11 | cancel a stuck turn | **VERIFIED** | #86/#87/#88 (180 s watchdog, 6 tests, E2E with a silent agent) + #183 (the **Stop** button exercised in a running window: the turn closes with "Stopped."; 17 s, the host's cancel grace) | `host/tests/stall_e2e.rs`, `tools/e2e-desktop/e2e-stop.cjs` (not in this repository), `reports/desktop-e2e/stop/` |
 
 ## What a release cut still needs (2.34.1)
 
@@ -260,6 +260,30 @@ Four stores now carry tests, none of them re-testing what the views already show
 
 The stores still out of reach — `bot-store.ts`, `bot-sync.ts`, `bot-mirror.ts`, `cloud.ts`, `app-model.ts` — are the
 next layer: each carries the same two habits and real behaviour (sync, reconnection, account state).
+
+## Correção de estado (SA-01, rodada 47)
+
+A auditoria independente pedida pelo adendo v4.0 (SA-01, somente leitura, `1f63bb3a`) encontrou contradições entre os
+documentos do gate. Nenhuma era de código: todas eram de **registro**. Corrigidas aqui:
+
+| O que estava errado | Onde | Agora |
+|---|---|---|
+| item 4 `BLOCKED` num arquivo e `TESTED` em outros dois | `RELEASE-EVIDENCE.md`, `release-1-reconciliation.md`, `release-state.json`, `B3PO-CHECKPOINT.md` | **`TESTED`** em todos, com a ressalva escrita: update e rollback não demonstrados (sem feed), macOS/Linux não mensuráveis |
+| item 5 `BLOCKED` num arquivo e `IN_PROGRESS` em outros dois | idem | **`IN_PROGRESS`** em todos |
+| item 9 `NOT_STARTED` numa reconciliação já velha | `release-1-reconciliation.md` | **`IN_PROGRESS`** |
+| "22,8 s do instalador à janela", mas 14,4 + 3,4 = 17,8 | `release-state.json`, `B3PO-CHECKPOINT.md` | o número **22,8 s é relógio de parede**: a medição esperou 5 s entre instalar e abrir. A conta agora está escrita, não implícita |
+| "PR #164 separou repositório, tap e gate" | `release-state.json` | o guard de repositório veio no **#47**, o do tap no **#184**; o #164 foi só empacotamento |
+| "PR #190 trouxe o checkpoint em dia" | `release-state.json`, `RELEASE-EVIDENCE.md` | foi o **#220**; o #190 só acrescentou uma seção |
+| evidência do item 4 citando `3b3007d4` | `release-state.json` | o TESTED foi escrito no **#212** = `39def8c5` |
+| `tools/measure-host-cpu.ps1`, `tools/measure-heavy.ps1`, `tools/e2e-desktop/e2e-stop.cjs`, `tools/e2e-desktop/e2e-states.cjs` | `RELEASE-EVIDENCE.md`, `release-1-reconciliation.md` | **não existem no repositório.** As referências dizem isso agora, em vez de mandar rodar um script inexistente |
+| capturas em `reports/…` | três documentos | `reports/` **não está no git**; as imagens vivem no workspace do agente, fora da árvore. Escrito assim |
+| "`pt` = 100% da tela do desktop" | `B3PO-CHECKPOINT.md` | o próprio scanner imprime **99,8%, 1 faltando** — é a frase `"Your coding agents,\nas teammates."`, que existe no `pt.json` com newline real e que o `l10n-coverage` compara **cru**. Mesmo bug que o #184 corrigiu no `l10n-missing`, ainda aberto no `l10n-coverage` |
+| checkpoint apontando `dev` = `cb5fa01b` | `B3PO-CHECKPOINT.md` | passa a citar o HEAD e a contar os PRs até ele |
+
+### O que continua em aberto, e é código (não documento)
+
+- **`tools/l10n-coverage.mjs`** não decodifica escapes como o `l10n-missing` faz. Enquanto não for corrigido, todo
+  relatório de cobertura subconta uma frase do desktop. É o próximo item P2 de código, não de documentação.
 
 ## Known gaps, stated rather than hidden
 
