@@ -5,6 +5,7 @@
 // The id list is read from the host's own catalog, so adding a mascot is: add the id in avatar.rs, drop the PNG here.
 import { copyFileSync, existsSync, mkdirSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 
 const source = "assets/mascots";
 const catalog = "host/src/agent/avatar.rs";
@@ -29,49 +30,76 @@ function ids() {
 const clients = [
   { file: "apps/desktop/resources/mascots", note: "desktop (Electron resources)" },
   { file: "apps/ios/Kit/Sources/CodyncKit/Resources/Mascots", note: "iOS package resources" },
-  { file: "apps/android/design/src/main/res/drawable-nodpi", note: "Android drawables" },
+  { file: "apps/android/design/src/main/res/drawable-nodpi", note: "Android drawables", rename: "res" },
   { file: "host/assets/mascots", note: "host (bundled with the daemon)" },
 ];
 
-const mascots = ids();
-const derive = process.argv.includes("--derive");
-const missing = [];
-const wrong = [];
+/** Java keywords a resource name cannot be (the resource merger refuses them). */
+const RESERVED_JAVA = new Set([
+  "abstract", "assert", "boolean", "break", "byte", "case", "catch", "char", "class", "const", "continue", "default",
+  "do", "double", "else", "enum", "extends", "final", "finally", "float", "for", "goto", "if", "implements", "import",
+  "instanceof", "int", "interface", "long", "native", "new", "package", "private", "protected", "public", "return",
+  "short", "static", "strictfp", "super", "switch", "synchronized", "this", "throw", "throws", "transient", "try",
+  "void", "volatile", "while",
+]);
 
-for (const id of mascots) {
-  const file = join(source, `${id}.png`);
-  if (!existsSync(file)) {
-    missing.push(id);
-    continue;
-  }
-  const size = pngSize(file);
-  if (size === null) {
-    wrong.push(`${file}: not a PNG`);
-    continue;
-  }
-  const longest = Math.max(size.width, size.height);
-  if (longest < 256 || longest > 512) {
-    wrong.push(`${file}: ${size.width}x${size.height}, the longest side must be 256-512 px`);
-  }
-}
+const isMain = process.argv[1] === fileURLToPath(import.meta.url);
 
-console.log(`${mascots.length} mascots in the catalog, ${mascots.length - missing.length} with artwork`);
-if (missing.length > 0) console.log(`missing: ${missing.join(", ")}`);
-for (const problem of wrong) console.log(`out of contract: ${problem}`);
+/**
+ * The name a client's file gets for `id`.
+ *
+ * Android resource names are not file names: lowercase letters, digits and underscores only, and a Java keyword is
+ * refused outright (`byte` is one). A hyphen or a keyword in a drawable fails the resource merger, which is exactly
+ * what happened the first time the artwork was derived.
+ */
+export const clientFile = (id, client) => {
+  if (client.rename === undefined) return `${id}.png`;
+  const safe = id.replace(/-/g, "_").replace(/[^a-z0-9_]/g, "_").replace(/^([0-9])/, "_$1");
+  return `${RESERVED_JAVA.has(safe) ? `${safe}_avatar` : safe}.png`;
+};
 
-if (derive && mascots.length > missing.length) {
-  const present = mascots.filter((id) => !missing.includes(id));
-  for (const client of clients) {
-    mkdirSync(client.file, { recursive: true });
-    for (const id of present) {
-      copyFileSync(join(source, `${id}.png`), join(client.file, `${id}.png`));
+// Everything below runs only when this file is executed: a test imports `clientFile` without deriving anything.
+if (isMain) {
+  const mascots = ids();
+  const derive = process.argv.includes("--derive");
+  const missing = [];
+  const wrong = [];
+
+  for (const id of mascots) {
+    const file = join(source, `${id}.png`);
+    if (!existsSync(file)) {
+      missing.push(id);
+      continue;
     }
-    console.log(`derived ${present.length} into ${client.file} — ${client.note}`);
+    const size = pngSize(file);
+    if (size === null) {
+      wrong.push(`${file}: not a PNG`);
+      continue;
+    }
+    const longest = Math.max(size.width, size.height);
+    if (longest < 256 || longest > 512) {
+      wrong.push(`${file}: ${size.width}x${size.height}, the longest side must be 256-512 px`);
+    }
   }
-} else if (derive) {
-  console.log("nothing to derive: no artwork is in the repository yet");
-}
 
-// Missing artwork is not a failure: a bot with an id and no picture shows the fallback. Artwork that exists but breaks
-// the contract is, because it would ship wrong to four clients at once.
-process.exit(wrong.length > 0 ? 1 : 0);
+  console.log(`${mascots.length} mascots in the catalog, ${mascots.length - missing.length} with artwork`);
+  if (missing.length > 0) console.log(`missing: ${missing.join(", ")}`);
+  for (const problem of wrong) console.log(`out of contract: ${problem}`);
+
+  if (derive && mascots.length > missing.length) {
+    const present = mascots.filter((id) => !missing.includes(id));
+    for (const client of clients) {
+      mkdirSync(client.file, { recursive: true });
+      for (const id of present) {
+        copyFileSync(join(source, `${id}.png`), join(client.file, clientFile(id, client)));
+      }
+      console.log(`derived ${present.length} into ${client.file} — ${client.note}`);
+    }
+  } else if (derive) {
+    console.log("nothing to derive: no artwork is in the repository yet");
+  }
+
+  // Missing artwork is not a failure: a bot with an id and no picture shows the fallback. Artwork that exists but
+  // breaks the contract is, because it would ship wrong to four clients at once.
+  process.exit(wrong.length > 0 ? 1 : 0);
+}
