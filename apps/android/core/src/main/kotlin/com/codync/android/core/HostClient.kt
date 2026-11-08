@@ -15,6 +15,8 @@ data class Bot(
     val kind: String = "agent",
     val members: List<String> = emptyList(),
     val description: String = "",
+    /** The mascot the host resolved for this bot (host/src/agent/avatar.rs); draws over the procedural avatar. */
+    val avatar: String = "",
     val avatarColor: String = "blue",
     val avatarShape: String = "blob",
     val command: String? = null,
