@@ -27,6 +27,9 @@ let package = Package(
             .copy("Resources/Languages/es.json"),
             .copy("Resources/Languages/pt.json"),
             .process("Resources/ProviderIcons.xcassets"),
+            // The mascot art the four clients share ids for (`tools/mascot-assets.mjs --derive`). Without this line
+            // SwiftPM leaves the PNGs out of the bundle and only warns.
+            .copy("Resources/Mascots"),
         ]),
         .target(
             name: "CodyncUI",
