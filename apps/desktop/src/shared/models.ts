@@ -14,6 +14,8 @@ export interface Bot {
   members: string[]
   name: string
   description: string
+  /** The mascot the host resolved for this bot (`host/src/agent/avatar.rs`); draws over the procedural avatar. */
+  avatar: string
   avatarColor: string
   avatarShape: string
   backend: string
@@ -90,6 +92,7 @@ export function normalizeBot(raw: Partial<Bot> & { id: string }): Bot {
     members: raw.members ?? [],
     name: raw.name ?? 'Bot',
     description: raw.description ?? '',
+    avatar: raw.avatar ?? '',
     avatarColor: raw.avatarColor ?? 'blue',
     avatarShape: raw.avatarShape ?? 'blob',
     backend: raw.backend ?? 'custom',

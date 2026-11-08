@@ -28,7 +28,8 @@ function ids() {
 
 // Each client keeps its own folder; the copies are build output, never edited by hand.
 const clients = [
-  { file: "apps/desktop/resources/mascots", note: "desktop (Electron resources)" },
+  // The renderer imports its art through Vite, so the copies live under src/renderer, not resources/.
+  { file: "apps/desktop/src/renderer/assets/mascots", note: "desktop (bundled by Vite)" },
   { file: "apps/ios/Kit/Sources/CodyncKit/Resources/Mascots", note: "iOS package resources" },
   { file: "apps/android/design/src/main/res/drawable-nodpi", note: "Android drawables", rename: "res" },
   { file: "host/assets/mascots", note: "host (bundled with the daemon)" },
