@@ -5,8 +5,10 @@ import UIKit
 /// The pictures are derived into `Sources/CodyncKit/Resources/Mascots` by `tools/mascot-assets.mjs --derive` and
 /// declared as a copied resource in `Package.swift`, so they arrive in the bundle as files under `Mascots/` — not in
 /// an asset catalog, which is why they are loaded by their file name here.
+@MainActor
 public enum MascotArt {
     /// Decoded once per id: an avatar is redrawn on every roster pass, and decoding a 512 px PNG there is not free.
+    /// Main-actor because `NSCache` is not `Sendable`; every caller is a SwiftUI body, and the decode is once per id.
     private static let cache = NSCache<NSString, UIImage>()
 
     /// The picture for a mascot id, or `nil` when this build ships none for it — the caller draws the procedural

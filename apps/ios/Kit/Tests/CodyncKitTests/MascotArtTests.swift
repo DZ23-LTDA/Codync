@@ -5,6 +5,7 @@ import UIKit
 /// The mascot art ships as copied files under `Mascots/` in the package bundle, so a missing resource would leave a
 /// bot faceless without failing anything else. These pin the lookup and the fallback.
 @Suite("Mascot art")
+@MainActor
 struct MascotArtTests {
     /// The 13 ids in `host/src/agent/avatar.rs`, in its order.
     private let catalog = [
