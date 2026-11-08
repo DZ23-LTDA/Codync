@@ -6,6 +6,7 @@ import { Icon } from './Icon'
 import './avatar.css'
 import { LeadAgentBadge } from './LeadAgentBadge'
 import { CustomIcon } from './CustomIcon'
+import { mascotArt } from './mascots'
 
 export type Mood = 'idle' | 'working' | 'needsInput' | 'failed'
 
@@ -234,8 +235,13 @@ export function moodOf(bot: Bot, animated = true): Mood {
 }
 
 export function BotAvatar({ bot, size = 40, animated = true }: { bot: Bot; size?: number; animated?: boolean }) {
+  // The host resolves every bot to a mascot it ships, so the artwork is the face unless the person
+  // chose a custom icon. A build without the picture falls back to the procedural avatar.
+  const mascot = bot.customIcon ? undefined : mascotArt(bot.avatar)
   return <CustomIcon icon={bot.customIcon} size={size} color={avatarColor(bot.avatarColor)} fallback={
-    <CharacterAvatar shape={bot.avatarShape} color={bot.avatarColor} size={size} mood={moodOf(bot, animated && !bot.customIcon)} />
+    mascot
+      ? <img className={`mascot-avatar ${moodOf(bot, animated)}`} src={mascot} alt="" width={size} height={size} />
+      : <CharacterAvatar shape={bot.avatarShape} color={bot.avatarColor} size={size} mood={moodOf(bot, animated && !bot.customIcon)} />
   } />
 }
 
