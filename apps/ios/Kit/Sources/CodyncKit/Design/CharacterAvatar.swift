@@ -13,6 +13,8 @@ public struct CharacterAvatar: View {
     let mood: Mood
     let still: Bool
     var customIcon: CustomIcon?
+    /// The mascot the host resolved for this bot; nil (yte's id when unset) draws the procedural avatar.
+    var mascotId: String?
 
     /// `still` draws one frame of the mood (widgets and Live Activities render one frame);
     /// a change of mood then moves the halftone highlight and the eyes, animatable dot by dot.
@@ -37,18 +39,25 @@ public struct CharacterAvatar: View {
             mood: animated ? bot.mood : .idle
         )
         customIcon = bot.customIcon
+        mascotId = bot.avatar
     }
 
     /// The bot's current mood, drawn as one frame.
     public init(bot: Bot, size: CGFloat = 40, still: Bool) {
         self.init(shape: bot.avatarShape, color: bot.avatarColor, size: size, mood: bot.mood, still: still)
         customIcon = bot.customIcon
+        mascotId = bot.avatar
     }
 
     public var body: some View {
         Group {
             if let customIcon, customIcon.image != nil {
                 CustomIconView(icon: customIcon, size: size, tint: color)
+            } else if let mascotId, let art = MascotArt.image(mascotId) {
+                Image(uiImage: art)
+                    .resizable()
+                    .scaledToFit()
+                    .clipShape(Circle())
             } else {
                 DottedBody(shape: shape, color: color, size: size, mood: mood, paused: still || customIcon != nil)
             }
