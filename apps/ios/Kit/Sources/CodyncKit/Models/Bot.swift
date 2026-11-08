@@ -10,6 +10,8 @@ public struct Bot: Codable, Identifiable, Hashable, Sendable {
     public var members: [String]
     public var name: String
     public var description: String
+    /// The mascot the host resolved for this bot (host/src/agent/avatar.rs); draws over the procedural avatar.
+    public var avatar: String
     public var avatarColor: String
     public var avatarShape: String
     public var customIcon: CustomIcon?
@@ -106,6 +108,7 @@ extension Bot {
         members = try c.decodeIfPresent([String].self, forKey: .members) ?? []
         name = try c.decodeIfPresent(String.self, forKey: .name) ?? "Bot"
         description = try c.decodeIfPresent(String.self, forKey: .description) ?? ""
+        avatar = try c.decodeIfPresent(String.self, forKey: .avatar) ?? ""
         avatarColor = try c.decodeIfPresent(String.self, forKey: .avatarColor) ?? "blue"
         avatarShape = try c.decodeIfPresent(String.self, forKey: .avatarShape) ?? "blob"
         customIcon = try c.decodeIfPresent(CustomIcon.self, forKey: .customIcon)
